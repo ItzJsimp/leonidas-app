@@ -10,7 +10,8 @@ import * as NodeStreamPromises from "node:stream/promises";
 
 import type { LayaSetupResult } from "@t3tools/contracts";
 
-const RELEASE_URL = "https://github.com/ItzJsimp/leonidas-app/releases/download/laya-model-v1";
+export const LAYA_RELEASE_URL =
+  "https://github.com/ItzJsimp/leonidas-app/releases/download/laya-model-v2";
 const REQUIRED_PACKAGES = ["onnxruntime", "tokenizers", "numpy"] as const;
 const PYTHON_CANDIDATES: ReadonlyArray<ReadonlyArray<string>> = [
   ["python"],
@@ -26,7 +27,7 @@ export const LAYA_FILES: ReadonlyArray<{
 }> = [
   {
     name: "laya_int8.onnx",
-    sha256: "50dd3f0a1585fd8bf931faf457921754183603ac0976cc5cce197cb55627233a",
+    sha256: "e26d64401cf4ab138c516aa1f88f5a14d9e009d9a4955682beb2bc1bf83c620c",
     kind: "model",
   },
   {
@@ -36,7 +37,7 @@ export const LAYA_FILES: ReadonlyArray<{
   },
   {
     name: "laya-pack.zip",
-    sha256: "838e5425b0db3faa51efe332b65f09eb7ba48457933553da9343b2b363ad921d",
+    sha256: "5bd5cbec82c32ce95e2c89fb0f445b2137807d21306cee74bd4a55365dea8890",
     kind: "pack",
   },
 ];
@@ -46,7 +47,7 @@ export const layaPaths = (home: string = NodeOS.homedir()) => ({
   model: NodePath.join(home, ".leonidas", "models", "laya"),
 });
 
-/** Space the install needs: the 554 MB model plus room for the pack and a margin. */
+/** Space the install needs: the 442 MB model plus room for the pack and a margin. */
 const DOWNLOAD_TIMEOUT_MS = 30 * 60_000;
 /** A finished install result stays visible this long, so the polling step can read an error once. */
 const RESULT_TTL_MS = 60_000;
@@ -78,6 +79,9 @@ export function plainInstallError(error: unknown): string {
   if (error instanceof PlainError) return error.message;
   const code = (error as { code?: string } | null)?.code;
   if (code === "ENOSPC") return "The disk is full. Free some space, then try again.";
+  if (code === "EBUSY") {
+    return "Laya is in use right now. Close your other agent sessions, then try again.";
+  }
   if (code === "EACCES" || code === "EPERM") {
     return "Leonidas cannot write to your user folder. Check its permissions, then try again.";
   }
@@ -140,6 +144,50 @@ export const sha256OfFile = async (path: string): Promise<string> => {
   return hash.digest("hex");
 };
 
+const MODEL_FILE = "laya_int8.onnx";
+const PINNED_MODEL_SHA256 = LAYA_FILES.find((file) => file.name === MODEL_FILE)?.sha256 ?? "";
+
+const pathExists = (path: string): Promise<boolean> =>
+  NodeFSP.stat(path).then(
+    () => true,
+    () => false,
+  );
+
+/** Puts `<name>.part` in place of `<name>` and keeps the old file as `<name>.previous` until commit. */
+export async function startModelSwap(dir: string, name: string): Promise<void> {
+  const target = NodePath.join(dir, name);
+  const previous = `${target}.previous`;
+  await NodeFSP.rm(previous, { force: true });
+  if (await pathExists(target)) await NodeFSP.rename(target, previous);
+  await NodeFSP.rename(`${target}.part`, target);
+}
+
+/** Drops the old file after the new one passed its health check. */
+export async function commitModelSwap(dir: string, name: string): Promise<void> {
+  await NodeFSP.rm(`${NodePath.join(dir, name)}.previous`, { force: true });
+}
+
+/** Puts the old file back, or removes the new one when there was no old file. */
+export async function rollbackModelSwap(dir: string, name: string): Promise<void> {
+  const target = NodePath.join(dir, name);
+  const previous = `${target}.previous`;
+  await NodeFSP.rm(target, { force: true });
+  if (await pathExists(previous)) await NodeFSP.rename(previous, target);
+}
+
+// The SHA-256 of a 442 MB file costs about a second, so one answer is kept per file version.
+const hashCache = new Map<string, string>();
+const cachedSha256 = async (path: string): Promise<string> => {
+  const stat = await NodeFSP.stat(path);
+  const key = `${path}|${stat.size}|${stat.mtimeMs}`;
+  const hit = hashCache.get(key);
+  if (hit) return hit;
+  const value = await sha256OfFile(path);
+  hashCache.clear();
+  hashCache.set(key, value);
+  return value;
+};
+
 async function download(url: string, target: string): Promise<void> {
   const response = await fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
   if (!response.ok || !response.body) throw new Error(`Download failed (${response.status}).`);
@@ -198,7 +246,10 @@ const set = (next: LayaSetupResult): void => {
 };
 
 /** Reads state from disk and the probe. Used when no install is running. */
-export async function layaStatus(home?: string): Promise<LayaSetupResult> {
+export async function layaStatus(
+  home?: string,
+  expectedModelSha256: string = PINNED_MODEL_SHA256,
+): Promise<LayaSetupResult> {
   if (running) return current;
   if (current.status !== "idle" && Date.now() - finishedAt < RESULT_TTL_MS) return current;
   const paths = layaPaths(home);
@@ -214,6 +265,14 @@ export async function layaStatus(home?: string): Promise<LayaSetupResult> {
   ]);
   const probe = await probeLaya();
   if (present[0] && present[1]) {
+    const installed = await cachedSha256(NodePath.join(paths.model, MODEL_FILE)).catch(() => null);
+    if (installed !== null && installed !== expectedModelSha256) {
+      return {
+        status: "update-available",
+        message: "A newer Laya model is ready. Update to get the latest safety checks.",
+        missingPackages: [],
+      };
+    }
     return { status: "ready", message: "Laya is installed.", missingPackages: [] };
   }
   if (!probe.python) {
@@ -321,7 +380,7 @@ async function install(input: {
         file.kind === "model"
           ? NodePath.join(paths.model, `${file.name}.part`)
           : NodePath.join(temp, file.name);
-      await download(`${RELEASE_URL}/${file.name}`, target);
+      await download(`${LAYA_RELEASE_URL}/${file.name}`, target);
       if ((await sha256OfFile(target)) !== file.sha256) {
         await NodeFSP.rm(target, { force: true });
         set({
@@ -350,18 +409,15 @@ async function install(input: {
       "--no-model",
     ]);
     if (setup.code !== 0) throw new PlainError("The Laya pack could not be installed.");
-    for (const file of LAYA_FILES.filter((entry) => entry.kind === "model")) {
-      await NodeFSP.rename(
-        NodePath.join(paths.model, `${file.name}.part`),
-        NodePath.join(paths.model, file.name),
-      );
-    }
+    const modelFiles = LAYA_FILES.filter((entry) => entry.kind === "model");
+    for (const file of modelFiles) await startModelSwap(paths.model, file.name);
     const health = await run(
       python,
       [...prefix, NodePath.join(paths.pack, "engine.py"), "health"],
       120_000,
     );
     if (health.code !== 0 || !/ready/i.test(health.out)) {
+      for (const file of modelFiles) await rollbackModelSwap(paths.model, file.name);
       set({
         status: "error",
         message: "Laya installed but the health check did not pass.",
@@ -369,6 +425,7 @@ async function install(input: {
       });
       return;
     }
+    for (const file of modelFiles) await commitModelSwap(paths.model, file.name);
     set({ status: "ready", message: "Laya is installed and ready.", missingPackages: [] });
   } finally {
     await NodeFSP.rm(temp, { recursive: true, force: true });
