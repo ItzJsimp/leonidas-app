@@ -99,7 +99,6 @@ import {
   AiosWorkspaceInitInput,
   AiosWorkspaceHiddenProjectsInput,
   TaskBoardHomeNews,
-  LayaUsage,
   PonytailCodexHooks,
   PonytailCodexHooksInput,
   PonytailUsage,
@@ -251,7 +250,7 @@ import {
   FilesystemInspectFolderInput,
   FilesystemInspectFolderResult,
 } from "./filesystem.ts";
-import { LayaSetupInput, LayaSetupResult } from "./laya.ts";
+import { LayaSetupInput, LayaSetupResult, LayaUsage } from "./laya.ts";
 import {
   ThreadHandoffInput,
   ThreadHandoffResult,
