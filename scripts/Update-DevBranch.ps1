@@ -63,9 +63,14 @@ try {
     $merged = [System.Collections.Generic.List[string]]::new()
     $conflicts = [System.Collections.Generic.List[string]]::new()
     $deps = [System.Collections.Generic.List[string]]::new()
+    $lockMismatch = [System.Collections.Generic.List[string]]::new()
     foreach ($s in $sources) {
         git -C $work merge-base --is-ancestor $s.Sha HEAD
         if ($LASTEXITCODE -eq 0) { continue }
+        # Frozen-install trap: a package.json edit without its pnpm-lock.yaml edit makes every
+        # `pnpm install --frozen-lockfile` fail, and the dev supervisor runs one to repair patches.
+        $changed = @(git -C $repo diff --name-only "$base...$($s.Sha)" -- pnpm-lock.yaml package.json 'apps/*/package.json' 'packages/*/package.json' 'scripts/package.json')
+        if (($changed -match 'package\.json$') -and -not ($changed -contains 'pnpm-lock.yaml')) { $lockMismatch.Add($s.Name); continue }
         git -C $work merge --no-ff --no-edit --no-verify -q -m "dev: merge $($s.Name)" $s.Sha 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
             git -C $work merge --abort 2>&1 | Out-Null
@@ -85,11 +90,12 @@ try {
         "Built $(Get-Date -Format 'yyyy-MM-dd h:mm tt') from origin/main $($base.Substring(0, 10)); tip $($tip.Substring(0, 10)).", '',
         "## Merged ($($merged.Count))", ($merged | ForEach-Object { "- $_" }), '',
         "## Skipped: conflicts ($($conflicts.Count))", ($conflicts | ForEach-Object { "- $_" }), '',
+        "## Skipped: package.json changed without pnpm-lock.yaml ($($lockMismatch.Count)); fix the lockfile on the branch", ($lockMismatch | ForEach-Object { "- $_" }), '',
         "## Changed dependency files (run an install in C:/lcw/dev-live if the dev copy fails to start)", ($deps | ForEach-Object { "- $_" })
     )
     Set-Content -LiteralPath $statusFile -Value $report
     Set-Content -LiteralPath $sigFile -Value $signature -NoNewline
-    Write-Output "dev branch: $($tip.Substring(0, 10)), merged $($merged.Count), conflicts $($conflicts.Count) ($($conflicts -join ', '))"
+    Write-Output "dev branch: $($tip.Substring(0, 10)), merged $($merged.Count), conflicts $($conflicts.Count) ($($conflicts -join ', ')), lock mismatch $($lockMismatch.Count) ($($lockMismatch -join ', '))"
 } finally {
     $mutex.ReleaseMutex()
 }
