@@ -105,6 +105,13 @@ def parse_task_card(file_path):
             meta[parts[0].strip()] = parts[1].strip().strip("\"'")
     why_match = re.search(r"## Why\s*\n(.*?)(?=\n##|\Z)", body, re.DOTALL)
     why = why_match.group(1).strip() if why_match else ""
+    if not why:
+        # Cards without "## Why": use the first prose paragraph under the title.
+        for para in re.split(r"\n\s*\n", body):
+            para = para.strip()
+            if para and not para.startswith(("#", "---", "|", "- [")):
+                why = para[:300]
+                break
     start_match = re.search(r"## Start here\s*\n(.*?)(?=\n##|\Z)", body, re.DOTALL)
     start_here = start_match.group(1).strip() if start_match else ""
     done_match = re.search(r"## Done when\s*\n(.*?)(?=\n##|\Z)", body, re.DOTALL)
@@ -120,6 +127,7 @@ def parse_task_card(file_path):
         "owner": meta.get("owner", ""),
         "project": meta.get("project", ""),
         "autonomous": meta.get("autonomous", "false").lower() == "true",
+        "blocked_by": meta.get("blocked_by", "").strip("[] "),
         "why": why,
         "start_here": start_here,
         "done_when": done_when,
@@ -202,11 +210,13 @@ def find_task_files(folder, workspace, project_filter=None):
 def score_task(task, user="user", energy="all", focus="all"):
     """Score a task based on status, operator affinity, priority, energy, and focus."""
     status = task["status"].lower()
-    if status not in {"ready", "not started", "in progress", "in-progress"}:
+    if status not in {"ready", "not started", "in progress", "in-progress", "awaiting review"}:
         return -9999
     score = 0
-    if "blocked" in status:
-        score -= 50
+    if task.get("blocked_by"):
+        score -= 40
+    if status == "awaiting review":
+        score += 5  # review backlog is real work, but ranks behind ready work
     elif any(s in status for s in ["in progress", "ready", "not started"]):
         score += 20
 
@@ -276,7 +286,14 @@ def assign_execution_route(task):
     e_type = task["energy_type"].lower()
     is_auto = task["autonomous"]
     title = task["name"].lower()
+    lane = task.get("lane", "").lower()
 
+    if task["status"].lower() == "awaiting review":
+        return {"route": "review", "badge": "🟡 Review", "action": "Check the finished work", "reason": "Work is done and waits for a check against Done when."}
+    if lane == "grill":
+        return {"route": "grill", "badge": "🟠 Grill First", "action": "Settle the open decisions with the grilling skill", "reason": "Card lane is grill: decisions are open and only the operator can settle them."}
+    if lane == "human":
+        return {"route": "human", "badge": "⚪ Human Steps", "action": "Walk the operator through the manual steps", "reason": "Card lane is human: the steps need the operator's own accounts or hands."}
     if is_auto and task.get("start_here") and task.get("done_when") and task.get("lane", "").lower() in SHARED_LANES - {"grill"}:
         return {
             "route": "subagent",
@@ -345,7 +362,7 @@ def rank_tasks(folder, workspace, project=None, user=None, energy="all", focus="
     return top, len(scored)
 
 
-def resolve(workspace, tasks_dir=None, all_projects=False, save=True, rank=False, energy="all", focus="all", user=None, project=None):
+def resolve(workspace, tasks_dir=None, all_projects=False, save=True, rank=False, energy="all", focus="all", user=None, project=None, limit=5):
     workspace = Path(workspace).resolve()
     if not workspace.is_dir():
         raise ValueError("Workspace must be an existing directory")
@@ -418,7 +435,7 @@ def resolve(workspace, tasks_dir=None, all_projects=False, save=True, rank=False
             user=effective_user,
             energy=energy,
             focus=focus,
-            limit=5
+            limit=limit
         )
         result["detected_project"] = detected_proj
         result["user"] = effective_user
@@ -440,6 +457,7 @@ def main():
     parser.add_argument("--focus", default="all", choices=["all", "code", "arch", "review"])
     parser.add_argument("--user", help="Explicit user (your name)")
     parser.add_argument("--project", help="Explicit project name")
+    parser.add_argument("--limit", type=int, default=5, help="Candidates to return (use 12 to pre-read the pool)")
     parser.add_argument("--draft-prompt", type=int, help="Output prompt composer draft for task 1-5")
     args = parser.parse_args()
     try:
@@ -452,6 +470,7 @@ def main():
             focus=args.focus,
             user=args.user,
             project=args.project,
+            limit=args.limit,
         )
     except (OSError, ValueError) as error:
         print(json.dumps({"status": "error", "error": str(error)}))
@@ -462,7 +481,7 @@ def main():
         tasks = result["tasks"]
         if 0 <= idx < len(tasks):
             task = tasks[idx]
-            proj_name = result.get("detected_project") or result.get("project") or "leonidas-code"
+            proj_name = task.get("project") or result.get("detected_project") or result.get("project") or "this project"
             prompt = draft_prompt_composer(task, proj_name)
             print(prompt)
             return 0
