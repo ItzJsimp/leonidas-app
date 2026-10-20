@@ -25,7 +25,7 @@ python <skill-folder>/scripts/resolve_tasks.py --workspace <workspace> --rank --
 
 ## 2. Grill round 1: the session (one call, 3 questions)
 
-Load [grilling](../grilling/SKILL.md) and ask in its round format with the structured question tool. Do not invent a tool name. One call, all three questions together:
+Load [grilling](../grilling/SKILL.md) and ask in its round format with the structured question tool (Claude: `AskUserQuestion`). Do not invent a tool name. If the tool is missing, load it with ToolSearch `select:AskUserQuestion`. If that fails, a `deny` entry in the Claude `settings.json` hides it: tell the operator, and ask in chat only until it is fixed. One call, all three questions together:
 
 1. **Time and energy.** Options: a quick slot (under 30 min, low energy), a focused block (1 to 2 hours), a deep block (2+ hours, high energy). Recommend the one that fits the time of day and the pool.
 2. **Kind of win.** Build options from the pool, not from a generic list. Examples: ship something (ready build tasks), settle decisions (`grill` lane cards), clear the review backlog (`Awaiting Review`), do the manual steps (`human` lane). Offer only kinds that exist in the pool. Recommend the kind with the most `Critical` or `High` cards.
