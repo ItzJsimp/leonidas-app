@@ -87,6 +87,9 @@ try {
     }
     if (-not $browser) { throw 'No Chromium browser (Vivaldi, Chrome, Edge or Brave) was found.' }
     Start-Process -FilePath $browser -ArgumentList @("--app=$url", "--user-data-dir=$profile", '--no-first-run')
+    # Join the pinned shortcut's taskbar button and show the green icon (the browser files the window
+    # under itself with the page favicon otherwise). Best effort: a failure must not block the window.
+    try { & (Join-Path $PSScriptRoot 'Set-DevWindowIdentity.ps1') -WaitSeconds 20 | Out-Null } catch { }
 } catch {
     Show-Problem $_.Exception.Message
     exit 1

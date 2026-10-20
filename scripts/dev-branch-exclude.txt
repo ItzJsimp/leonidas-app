@@ -1,0 +1,3 @@
+# Branches Update-DevBranch.ps1 never merges into `dev` (one regex per line, # starts a comment).
+# feat/task-cap-rules conflicts with origin/main; feat/task-cap-clean carries the same Tasks window work rebased.
+^feat/task-cap-rules$

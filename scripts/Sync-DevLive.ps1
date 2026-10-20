@@ -15,7 +15,13 @@ $src = Split-Path -Parent $PSScriptRoot
 $dst = 'C:/lcw/dev-live'
 if (-not (Test-Path -LiteralPath $dst)) { throw "Missing $dst. Create it with: git worktree add $dst HEAD" }
 
-$srcHead = (git -C $src rev-parse HEAD).Trim()
+# The target commit is the derived `dev` branch (origin/main plus every clean feature branch, built by
+# Update-DevBranch.ps1). Without it, fall back to the main checkout's own commit.
+$srcHead = (git -C $src rev-parse --verify -q dev)
+if (-not $srcHead) { $srcHead = (git -C $src rev-parse HEAD) }
+$srcHead = $srcHead.Trim()
+# dev-live must not sit on a real branch: reset --hard would drag that branch's tip along with it.
+if (git -C $dst symbolic-ref -q HEAD) { git -C $dst checkout -q --detach }
 $dstHead = (git -C $dst rev-parse HEAD).Trim()
 $moved = $false
 if ($srcHead -ne $dstHead) {

@@ -1,5 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import * as NodeZlib from "node:zlib";
 
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -174,6 +175,29 @@ function devCompressionPlugin(): Plugin {
   };
 }
 
+// The always-on dev copy runs in an app window whose taskbar icon is the page favicon. Serving the
+// green dev icon there keeps it apart from the real app (the shipped favicon is a blurry 48 px one).
+function devIconPlugin(): Plugin {
+  const icons: Record<string, string> = {
+    "/favicon.ico": "leonidas-dev-green.ico",
+    "/apple-touch-icon.png": "leonidas-dev-green-256.png",
+  };
+  return {
+    name: "leonidas:dev-icon",
+    apply: "serve",
+    configureServer(server) {
+      if (process.env.LEONIDAS_DEV_ICON !== "1") return;
+      server.middlewares.use((req, res, next) => {
+        const file = icons[req.url?.split("?")[0] ?? ""];
+        if (!file) return next();
+        res.setHeader("Content-Type", file.endsWith(".ico") ? "image/x-icon" : "image/png");
+        res.setHeader("Cache-Control", "no-cache");
+        res.end(readFileSync(new URL(`../../assets/dev/${file}`, import.meta.url)));
+      });
+    },
+  };
+}
+
 // Vite rejects requests whose Host header isn't localhost, which blocks sharing
 // a dev server over Tailscale/LAN. Tailnet names are safe to allow wholesale:
 // the DNS is controlled by tailscale, so they can't be rebound by an attacker.
@@ -192,6 +216,7 @@ export default defineConfig(() => {
     assetsInclude: ["**/*.wasm"],
     plugins: [
       devCompressionPlugin(),
+      devIconPlugin(),
       thirdPartyLicensesPlugin({
         bundleName: "web",
         configFile: new URL("../../third-party-licenses.config.json", import.meta.url),

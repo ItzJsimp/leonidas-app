@@ -71,7 +71,10 @@ function Repair-PatchedPackages {
 function Get-DevVersionLabel {
     try {
         $common = (& git -C $repoRoot rev-parse --path-format=absolute --git-common-dir 2>$null).Trim()
-        $describe = (& git --git-dir=$common describe --tags --long --match 'v0.*' main 2>$null).Trim()
+        # origin/main is the published line (Update-DevBranch.ps1 fetches it), so a new publish moves the label.
+        $describe = (& git --git-dir=$common describe --tags --long --match 'v0.*' origin/main 2>$null)
+        if (-not $describe) { $describe = (& git --git-dir=$common describe --tags --long --match 'v0.*' main 2>$null) }
+        $describe = "$describe".Trim()
         if ($describe -match '^v?(\d+\.\d+\.\d+)-(\d+)-g[0-9a-f]+$') {
             if ($Matches[2] -eq '0') { return $Matches[1] }
             return "$($Matches[1])+$($Matches[2])"
@@ -97,7 +100,7 @@ $script:lastSignature = ''
 $script:signatureChangedAt = Get-Date
 $script:syncedSignature = ''
 function Get-MainSignature([string]$mainRoot) {
-    $head = (& git -C $mainRoot rev-parse HEAD 2>$null)
+    $head = "$(& git -C $mainRoot rev-parse HEAD 2>$null)|$(& git -C $mainRoot rev-parse --verify -q dev 2>$null)"
     $lines = @(& git -C $mainRoot status --porcelain=v1 -uall 2>$null)
     $newest = 0
     foreach ($line in $lines) {
@@ -107,9 +110,27 @@ function Get-MainSignature([string]$mainRoot) {
     }
     return "$head|$($lines.Count)|$newest"
 }
+# Rebuild the `dev` branch (origin/main plus every clean feature branch) so the sync below shows
+# all work in progress and every publish. Rate-limited: git work every 30 s, a fetch every 5 minutes.
+$script:lastDevBuild = [datetime]::MinValue
+$script:lastDevFetch = [datetime]::MinValue
+$script:syncMoved = $false
+function Update-DevBranchRef([string]$mainRoot, [switch]$Force) {
+    $builder = Join-Path $mainRoot 'scripts/Update-DevBranch.ps1'
+    if (-not (Test-Path -LiteralPath $builder)) { return }
+    if (-not $Force -and ((Get-Date) - $script:lastDevBuild).TotalSeconds -lt 30) { return }
+    $script:lastDevBuild = Get-Date
+    $fetch = ((Get-Date) - $script:lastDevFetch).TotalMinutes -ge 5
+    if ($fetch) { $script:lastDevFetch = Get-Date }
+    try {
+        $out = (& $builder @(if ($fetch) { '-Fetch' }) 2>&1) -join ' '
+        if ($out -notmatch 'unchanged') { Add-Content -LiteralPath $log -Value "[supervisor] $out" }
+    } catch { Add-Content -LiteralPath $log -Value "[supervisor] dev branch update failed: $($_.Exception.Message)" }
+}
 function Sync-FromMain([switch]$Force) {
     $mainRoot = Get-MainRoot
     if (-not $mainRoot) { return }
+    Update-DevBranchRef $mainRoot -Force:$Force
     $syncScript = Join-Path $mainRoot 'scripts/Sync-DevLive.ps1'
     if (-not (Test-Path -LiteralPath $syncScript)) { return }
     try {
@@ -121,10 +142,12 @@ function Sync-FromMain([switch]$Force) {
         }
         $out = (& $syncScript 2>&1) -join ' '
         $script:syncedSignature = $signature
+        if ($out -match 'moved to') { $script:syncMoved = $true }
         if ($out -match 'moved to|copied [1-9]|removed [1-9]') { Add-Content -LiteralPath $log -Value "[supervisor] $out" }
     } catch { Add-Content -LiteralPath $log -Value "[supervisor] sync from main failed: $($_.Exception.Message)" }
 }
 
+$env:LEONIDAS_DEV_ICON = '1'   # the dev web server serves the green icon, not the shipped one
 while ($true) {
     Sync-FromMain -Force
     Repair-PatchedPackages
@@ -148,6 +171,17 @@ while ($true) {
     while (-not $proc.HasExited) {
         Start-Sleep -Seconds 5
         if (((Get-Date) - $lastSync).TotalSeconds -ge 10) { Sync-FromMain; $lastSync = Get-Date }
+        # The version label is baked into the runner at start. A publish moved dev to a new commit, so
+        # restart the runner (by its captured PID only) when the label changed.
+        if ($script:syncMoved) {
+            $script:syncMoved = $false
+            $newLabel = Get-DevVersionLabel
+            if ($newLabel -and $newLabel -ne $label) {
+                Add-Content -LiteralPath $log -Value "[supervisor] version label $label -> $newLabel; restarting the runner"
+                & taskkill.exe /PID $proc.Id /T /F *> $null
+                break
+            }
+        }
         # Vite sometimes freezes with no CPU use (stuck dependency optimizer) and then never answers.
         # Probe the page; when it stays silent for $webFrozenSeconds, restart the runner we started
         # (by its captured PID only) with a clean Vite cache.

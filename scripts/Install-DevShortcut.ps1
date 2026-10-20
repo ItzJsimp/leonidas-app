@@ -43,12 +43,15 @@ if (-not $IconPath) { $IconPath = Join-Path $repoRoot 'assets/dev/leonidas-dev-g
 $shell = New-Object -ComObject WScript.Shell
 $path = Join-Path $Directory 'Leonidas Code (Dev).lnk'
 $link = $shell.CreateShortcut($path)
-$link.TargetPath = $pwsh
-$link.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$(Join-Path $PSScriptRoot 'Open-LeonidasDev.ps1')`""
+# wscript runs the launcher with no console window; powershell -WindowStyle Hidden still flashes one.
+$link.TargetPath = Join-Path $env:WINDIR 'System32\wscript.exe'
+$link.Arguments = "`"$(Join-Path $PSScriptRoot 'Open-LeonidasDev.vbs')`""
 $link.WorkingDirectory = $repoRoot
 $link.WindowStyle = 7
 $link.IconLocation = $IconPath
 $link.Description = 'Opens the always-on Leonidas Code dev copy (never touches the installed app).'
 $link.Save()
+# Same taskbar identity the dev window gets, so the window joins this shortcut's pinned button.
+& (Join-Path $PSScriptRoot 'Set-DevWindowIdentity.ps1') -ShortcutPath $path | Out-Null
 Write-Host "Server task registered: $taskName"
 Write-Host "Shortcut: $path"
