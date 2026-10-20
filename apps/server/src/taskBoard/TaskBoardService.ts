@@ -1911,6 +1911,8 @@ const make = Effect.gen(function* () {
         return { mode: input.mode, ledgerId: input.ledgerId ?? null, rows };
       }
 
+      // shortcut: apply runs one cardUpdate per card, each rescanning the board (about 100 ms at 970
+      // cards), so 50 changes take about 5 s; batch the write if bulk sets pass 100 cards.
       const plan = planChangeSet(cards, input.changes ?? [], (slug) => capRuleFor(root, slug));
       if (input.mode === "dryRun") return { mode: input.mode, ledgerId: null, rows: plan };
 
