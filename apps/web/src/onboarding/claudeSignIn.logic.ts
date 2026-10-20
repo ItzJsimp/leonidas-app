@@ -52,6 +52,15 @@ export const CLAUDE_INSTALLED_ELSEWHERE_MESSAGE =
   "Claude is installed, but this account uses a different program path. Open its Settings and clear Binary path.";
 export const CLAUDE_INSTALLING_MESSAGE =
   "Installing Claude. This takes about 1 minute. You can continue: setup keeps going.";
+/** The install message with a running clock, so a slow download never looks frozen. */
+export function describeClaudeInstalling(elapsedSeconds: number): string {
+  if (elapsedSeconds < 1) return CLAUDE_INSTALLING_MESSAGE;
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = Math.floor(elapsedSeconds % 60);
+  const clock = minutes > 0 ? `${minutes} min ${seconds} s` : `${seconds} s`;
+  return `${CLAUDE_INSTALLING_MESSAGE} Time so far: ${clock}.`;
+}
+
 export const CLAUDE_INSTALL_FAILED_FALLBACK =
   "Could not install Claude. Check your internet connection, then try again.";
 

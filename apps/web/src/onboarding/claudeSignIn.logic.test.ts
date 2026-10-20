@@ -2,7 +2,9 @@ import { ProviderDriverKind, ProviderInstanceId, type ProviderAuthState } from "
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  CLAUDE_INSTALLING_MESSAGE,
   CLAUDE_WAITING_MESSAGE,
+  describeClaudeInstalling,
   getClaudeInstallView,
   getClaudeSignInView,
 } from "./claudeSignIn.logic";
@@ -147,5 +149,15 @@ describe("getClaudeInstallView", () => {
       kind: "failed",
       message: "No internet.",
     });
+  });
+});
+
+describe("describeClaudeInstalling", () => {
+  it("adds a running clock after the first second", () => {
+    expect(describeClaudeInstalling(0)).toBe(CLAUDE_INSTALLING_MESSAGE);
+    expect(describeClaudeInstalling(45)).toBe(`${CLAUDE_INSTALLING_MESSAGE} Time so far: 45 s.`);
+    expect(describeClaudeInstalling(125.4)).toBe(
+      `${CLAUDE_INSTALLING_MESSAGE} Time so far: 2 min 5 s.`,
+    );
   });
 });

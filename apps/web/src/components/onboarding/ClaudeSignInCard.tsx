@@ -10,7 +10,7 @@ import {
   CLAUDE_FINISHING_MESSAGE,
   CLAUDE_INSTALL_PROMPT,
   CLAUDE_INSTALLED_ELSEWHERE_MESSAGE,
-  CLAUDE_INSTALLING_MESSAGE,
+  describeClaudeInstalling,
   CLAUDE_WAITING_MESSAGE,
   getClaudeInstallView,
   getClaudeSignInView,
@@ -191,9 +191,10 @@ export function ClaudeSignInCard({
     needsInstall &&
     (installView.kind === "installing" || (installView.kind === "installed" && !installProbed));
   const busy = pending || installing || view.kind === "waiting" || view.kind === "finishing";
+  const installSeconds = useElapsedSeconds(installing);
   const detail = needsInstall
     ? installing
-      ? CLAUDE_INSTALLING_MESSAGE
+      ? describeClaudeInstalling(installSeconds)
       : installedElsewhere
         ? CLAUDE_INSTALLED_ELSEWHERE_MESSAGE
         : (error ?? (installView.kind === "failed" ? installView.message : CLAUDE_INSTALL_PROMPT))
@@ -277,4 +278,19 @@ export function ClaudeSignInCard({
       </div>
     </div>
   );
+}
+
+/** Seconds since `running` turned true; 0 while stopped. One timer, cleared on stop. */
+function useElapsedSeconds(running: boolean) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!running) return;
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setSeconds((Date.now() - startedAt) / 1000), 1000);
+    return () => {
+      window.clearInterval(timer);
+      setSeconds(0);
+    };
+  }, [running]);
+  return seconds;
 }
