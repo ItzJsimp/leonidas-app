@@ -49,7 +49,7 @@ import { CloudEnvironmentConnectRows } from "../cloud/CloudEnvironmentConnectLis
 import { presentSavedCloudEnvironmentConnection } from "../cloud/cloudEnvironmentConnectionPresentation";
 
 import { T3Wordmark } from "../T3Wordmark";
-
+import { PrimerStep } from "./PrimerStep";
 import { ClaudeInstallPill } from "./ClaudeInstallPill";
 import { LeonidasAiosStep } from "./LeonidasAiosStep";
 import { LeonidasGoalsStep } from "./LeonidasGoalsStep";
@@ -83,6 +83,7 @@ type WizardStep =
   | "welcome"
   | "connection"
   | "agents"
+  | "primer"
   | "voice"
   | "level"
   | "skills"
@@ -93,6 +94,7 @@ const STEP_ORDER: readonly WizardStep[] = [
   "welcome",
   "connection",
   "agents",
+  "primer",
   "voice",
   "level",
   "skills",
@@ -127,6 +129,7 @@ const ONBOARDING_STAGES = [
   "Welcome",
   "Connect",
   "AI",
+  "Basics",
   "Voice",
   "Level",
   "Skills",
@@ -367,8 +370,10 @@ export function WelcomeWizard({
             <AgentsStep
               environmentIds={setupIds}
               onBack={goBack}
-              onContinue={() => setStep("voice")}
+              onContinue={() => setStep("primer")}
             />
+          ) : step === "primer" ? (
+            <PrimerStep onBack={goBack} onContinue={() => setStep("voice")} />
           ) : step === "voice" ? (
             <VoiceStep
               environmentId={setupIds[0]}

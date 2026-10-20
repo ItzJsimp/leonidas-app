@@ -272,6 +272,7 @@ async function mountImport(remote = false) {
   });
   await click("Continue");
   await click("Continue without an AI");
+  await click("Skip basics");
   await click("Set up voice later");
   await click("Save AI level");
   await click("Skip skills");

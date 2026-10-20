@@ -189,6 +189,20 @@ it("asks for the voice key once: there is no separate Keys step", async () => {
   expect(steps.some((label) => label.startsWith("Keys,"))).toBe(false);
 });
 
+it("saves the primer as done after all four basics cards", async () => {
+  localStorage.removeItem("leonidas:primer");
+  await act(async () => root.render(<WelcomeWizard localAvailable onDone={vi.fn()} />));
+  await click("Continue");
+  await click("Continue without an AI");
+  expect(document.body.textContent).toContain("What a model is");
+  await click("Next");
+  await click("Next");
+  await click("Next");
+  await click("Done");
+  expect(JSON.parse(localStorage.getItem("leonidas:primer") ?? "null")).toBe("done");
+  expect(document.body.textContent).toContain("Set up voice later");
+});
+
 it("enters the workspace after a partial import and warns after navigation finishes", async () => {
   let finishNavigation = () => {};
   const navigation = new Promise<void>((resolve) => {
@@ -198,6 +212,7 @@ it("enters the workspace after a partial import and warns after navigation finis
   await act(async () => root.render(<WelcomeWizard localAvailable onDone={onDone} />));
   await click("Continue");
   await click("Continue without an AI");
+  await click("Skip basics");
   await click("Set up voice later");
   await click("Save AI level");
   await click("Skip skills");
@@ -238,6 +253,7 @@ it.each([
     await act(async () => root.render(<WelcomeWizard localAvailable onDone={onDone} />));
     await click("Continue");
     await click("Continue without an AI");
+    await click("Skip basics");
     await click("Set up voice later");
     await click("Save AI level");
     await click("Skip skills");
@@ -266,6 +282,7 @@ it("keeps setup open when saving completion fails and preserves the import warni
   await act(async () => root.render(<WelcomeWizard localAvailable onDone={onDone} />));
   await click("Continue");
   await click("Continue without an AI");
+  await click("Skip basics");
   await click("Set up voice later");
   await click("Save AI level");
   await click("Skip skills");
