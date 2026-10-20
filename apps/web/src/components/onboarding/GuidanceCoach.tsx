@@ -34,6 +34,7 @@ import {
   DialogDescription,
   DialogPanel,
 } from "../ui/dialog";
+import { PRIMER_CARDS } from "../../onboarding/primer.logic";
 import { Radio, RadioGroup } from "../ui/radio-group";
 
 function useGuidanceClock(active: boolean) {
@@ -217,6 +218,19 @@ function ConnectedGuidanceCoach({
                   ))}
                 </RadioGroup>
               </fieldset>
+              <details className="text-sm">
+                <summary className="cursor-pointer font-medium">
+                  Basics: models, effort, skills
+                </summary>
+                <div className="mt-2 space-y-3">
+                  {PRIMER_CARDS.map((card) => (
+                    <section key={card.id}>
+                      <h3 className="font-medium">{card.title}</h3>
+                      <p className="text-muted-foreground">{card.body}</p>
+                    </section>
+                  ))}
+                </div>
+              </details>
               {!profile.active && (
                 <p className="text-sm">
                   Your guide starts after the file tour and your first useful result.
