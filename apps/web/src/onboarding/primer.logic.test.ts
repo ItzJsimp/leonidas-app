@@ -14,7 +14,7 @@ describe("PRIMER_CARDS", () => {
       for (const sentence of sentences) {
         expect(sentence.split(/\s+/).length, sentence).toBeLessThanOrEqual(20);
       }
-      expect(card.body, card.id).not.toMatch(/—/);
+      expect(card.body, card.id).not.toMatch(new RegExp(String.fromCharCode(0x2014)));
     }
   });
 });
