@@ -258,6 +258,9 @@ export const TaskBoardWorkspaceProject = Schema.Struct({
   repository: Schema.NullOr(TrimmedNonEmptyString),
   total: Schema.Number,
   open: Schema.Number,
+  // The open-card cap and warning line from `projects/<slug>/project.md`; absent without an AIOS.
+  cap: Schema.optional(Schema.Number),
+  warn: Schema.optional(Schema.Number),
 });
 export type TaskBoardWorkspaceProject = typeof TaskBoardWorkspaceProject.Type;
 

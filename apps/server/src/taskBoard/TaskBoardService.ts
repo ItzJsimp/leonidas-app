@@ -327,6 +327,7 @@ function buildWorkspace(input: {
           repository: section.project ? githubRepository(section.project) : null,
           total: count.total,
           open: count.open,
+          ...(input.root === null ? {} : capRuleFor(input.root, section.slug)),
         },
       ];
     })
@@ -446,8 +447,7 @@ function cardPatchFor(input: TaskBoardCardUpdateInput, card: TaskBoardTask): Aio
   };
 }
 
-/** Refuses when `slug` (null is the Inbox) is at its open-card cap. Call before a create or a move in. */
-function assertRoom(root: string, cards: ReadonlyArray<TaskBoardTask>, slug: string | null) {
+function capRuleFor(root: string, slug: string | null) {
   let projectMd: string | null = null;
   try {
     projectMd = NodeFS.readFileSync(
@@ -457,7 +457,12 @@ function assertRoom(root: string, cards: ReadonlyArray<TaskBoardTask>, slug: str
   } catch {
     // No project.md: the default cap applies.
   }
-  const level = capLevel(cards, slug, parseCapRule(projectMd, slug));
+  return parseCapRule(projectMd, slug);
+}
+
+/** Refuses when `slug` (null is the Inbox) is at its open-card cap. Call before a create or a move in. */
+function assertRoom(root: string, cards: ReadonlyArray<TaskBoardTask>, slug: string | null) {
+  const level = capLevel(cards, slug, capRuleFor(root, slug));
   if (level.level !== "full") return;
   const suggestions = swapSuggestions(cards, slug);
   throw new TaskBoardOperationError({

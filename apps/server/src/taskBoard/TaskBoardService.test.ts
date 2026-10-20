@@ -963,3 +963,19 @@ it.effect("refuses a move into a full project and leaves the card where it was",
       }),
   ).pipe(Effect.provide(boardLayer(noGithub))),
 );
+
+it.effect("reports each project's cap and warn line in the workspace snapshot", () =>
+  withAios({ "a.md": cardFile("task-a", "Alpha") }, (root, project) =>
+    Effect.gen(function* () {
+      NodeFS.writeFileSync(
+        NodePath.join(root, "projects", "leonidas-code", "project.md"),
+        "---\ntype: project\ncap: 8\nwarn: 5\n---\n",
+      );
+      const board = yield* TaskBoardService.TaskBoardService;
+      const entry = (yield* board.workspace([project])).projects.find(
+        (item) => item.slug === "leonidas-code",
+      );
+      expect(entry).toMatchObject({ cap: 8, warn: 5, open: 1 });
+    }),
+  ).pipe(Effect.provide(boardLayer(noGithub))),
+);
