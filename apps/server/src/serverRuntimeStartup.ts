@@ -182,6 +182,9 @@ export const getAutoBootstrapThreadModelSelection = (): ModelSelection => ({
 interface AutoBootstrapWelcomeTargets {
   readonly bootstrapProjectId?: ProjectId;
   readonly bootstrapThreadId?: ThreadId;
+  // The web first-run gate shows setup only for a project and thread this startup created.
+  readonly bootstrapProjectCreated?: boolean;
+  readonly bootstrapThreadCreated?: boolean;
 }
 
 export const autoPullProjects = Effect.fn("autoPullProjects")(function* (
@@ -255,7 +258,7 @@ export const resolveWelcomeBase = Effect.gen(function* () {
   } as const;
 });
 
-const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
+export const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
   const crypto = yield* Crypto.Crypto;
   const randomUUID = crypto.randomUUIDv4;
   const serverConfig = yield* ServerConfig.ServerConfig;
@@ -266,12 +269,14 @@ const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
 
   let bootstrapProjectId: ProjectId | undefined;
   let bootstrapThreadId: ThreadId | undefined;
+  let bootstrapProjectCreated: boolean | undefined;
+  let bootstrapThreadCreated: boolean | undefined;
 
   if (serverConfig.autoBootstrapProjectFromCwd) {
     // Project creation has no user model choice; only the bootstrap thread
     // gets an automatic selection, and an explicit project default wins.
     const threadModelSelection = getAutoBootstrapThreadModelSelection();
-    const { project } = yield* projects.bootstrap({
+    const { project, created } = yield* projects.bootstrap({
       commandId: CommandId.make(yield* randomUUID),
       projectId: ProjectId.make(yield* randomUUID),
       title: path.basename(serverConfig.cwd) || "project",
@@ -305,11 +310,15 @@ const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
       bootstrapProjectId = project.id;
       bootstrapThreadId = existingThread.id;
     }
+    bootstrapProjectCreated = created;
+    bootstrapThreadCreated = existingThread === undefined;
   }
 
   return {
     ...(bootstrapProjectId ? { bootstrapProjectId } : {}),
     ...(bootstrapThreadId ? { bootstrapThreadId } : {}),
+    ...(bootstrapProjectCreated === undefined ? {} : { bootstrapProjectCreated }),
+    ...(bootstrapThreadCreated === undefined ? {} : { bootstrapThreadCreated }),
   } satisfies AutoBootstrapWelcomeTargets;
 });
 

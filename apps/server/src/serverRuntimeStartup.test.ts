@@ -4,16 +4,23 @@ import {
   DEFAULT_MODEL,
   ProjectId,
   ProviderInstanceId,
+  ThreadId,
 } from "@t3tools/contracts";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
+import * as Crypto from "effect/Crypto";
+import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
 
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
 
 import * as ServerConfig from "./config.ts";
+import * as ThreadLaunch from "./orchestration-v2/ThreadLaunchService.ts";
+import * as ThreadManagement from "./orchestration-v2/ThreadManagementService.ts";
+import * as ProjectService from "./project/ProjectService.ts";
+import * as ServerSettings from "./serverSettings.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
 
 it("uses the canonical Codex model for auto-bootstrap", () => {
@@ -192,5 +199,55 @@ it.effect("automatic pull only updates enabled, behind, clean default-branch che
       { ...overrides({ "/opted-out": false }), defaultAutoPull: true },
     ).pipe(Effect.provideService(GitVcsDriver.GitVcsDriver, git));
     assert.deepStrictEqual(pulled, ["/inherited"]);
+  }),
+);
+
+it.effect("auto-bootstrap tells the web gate when it created the project and thread", () =>
+  Effect.gen(function* () {
+    const run = (created: boolean, existingThread: boolean) =>
+      ServerRuntimeStartup.resolveAutoBootstrapWelcomeTargets.pipe(
+        Effect.provideService(ServerConfig.ServerConfig, {
+          cwd: "/tmp/startup-project",
+          autoBootstrapProjectFromCwd: true,
+        } as never),
+        Effect.provideService(Crypto.Crypto, { randomUUIDv4: Effect.succeed("id-1") } as never),
+        Effect.provideService(Path.Path, { basename: () => "startup-project" } as never),
+        Effect.provideService(ProjectService.ProjectService, {
+          bootstrap: () => Effect.succeed({ project: { id: "project-1" }, created }),
+        } as never),
+        Effect.provideService(ThreadManagement.ThreadManagementService, {
+          getShellSnapshot: () =>
+            Effect.succeed({
+              threads: existingThread
+                ? [
+                    {
+                      id: "thread-old",
+                      projectId: "project-1",
+                      lineage: { relationshipToParent: null },
+                    },
+                  ]
+                : [],
+            }),
+        } as never),
+        Effect.provideService(ThreadLaunch.ThreadLaunchService, {
+          launch: () => Effect.succeed({ threadId: "thread-new" }),
+        } as never),
+        Effect.provideService(ServerSettings.ServerSettingsService, {
+          getSettings: Effect.succeed(DEFAULT_SERVER_SETTINGS),
+        } as never),
+      );
+
+    assert.deepStrictEqual(yield* run(true, false), {
+      bootstrapProjectId: ProjectId.make("project-1"),
+      bootstrapThreadId: ThreadId.make("thread-new"),
+      bootstrapProjectCreated: true,
+      bootstrapThreadCreated: true,
+    });
+    assert.deepStrictEqual(yield* run(false, true), {
+      bootstrapProjectId: ProjectId.make("project-1"),
+      bootstrapThreadId: ThreadId.make("thread-old"),
+      bootstrapProjectCreated: false,
+      bootstrapThreadCreated: false,
+    });
   }),
 );
