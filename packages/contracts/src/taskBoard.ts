@@ -965,8 +965,13 @@ export class TaskBoardOperationError extends Schema.TaggedError<TaskBoardOperati
       "invalid_data",
       "invalid_card",
       "stale_revision",
+      "project_full",
     ]),
     message: Schema.String,
+    // Set with `project_full`: up to 3 open cards to park or retire to make room.
+    suggestions: Schema.optional(
+      Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String })),
+    ),
   },
 ) {}
 

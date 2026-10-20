@@ -918,3 +918,48 @@ it.effect("ticks one brief priority in place and refuses a line that changed", (
     }),
   ).pipe(Effect.provide(boardLayer(noGithub))),
 );
+
+it.effect("refuses a create past the project cap and names cards to swap", () =>
+  withAios(
+    { "a.md": cardFile("task-a", "Alpha"), "b.md": cardFile("task-b", "Bravo") },
+    (root, project) =>
+      Effect.gen(function* () {
+        NodeFS.writeFileSync(
+          NodePath.join(root, "projects", "leonidas-code", "project.md"),
+          "---\ntype: project\ncap: 2\n---\n",
+        );
+        const board = yield* TaskBoardService.TaskBoardService;
+        const error = yield* board
+          .cardCreate({ title: "Charlie", actor: "Jake", projectSlug: "leonidas-code" }, [project])
+          .pipe(Effect.flip);
+        expect(error).toMatchObject({ reason: "project_full" });
+        expect(error.message).toContain("cap 2");
+        expect(error.message).toContain("Alpha");
+        expect(NodeFS.existsSync(NodePath.join(root, "tasks", "charlie.md"))).toBe(false);
+      }),
+  ).pipe(Effect.provide(boardLayer(noGithub))),
+);
+
+it.effect("refuses a move into a full project and leaves the card where it was", () =>
+  withAios(
+    {
+      "a.md": cardFile("task-a", "Alpha"),
+      "c.md": cardFile("task-c", "Charlie").replace('"leonidas-code"', '"leonidas-scribe"'),
+    },
+    (root, project) =>
+      Effect.gen(function* () {
+        NodeFS.writeFileSync(
+          NodePath.join(root, "projects", "leonidas-code", "project.md"),
+          "---\ntype: project\ncap: 1\n---\n",
+        );
+        const before = NodeFS.readFileSync(NodePath.join(root, "tasks", "c.md"), "utf8");
+        const board = yield* TaskBoardService.TaskBoardService;
+        const error = yield* board
+          .cardUpdate({ taskId: "task-c", actor: "Jake", projectSlug: "leonidas-code" }, [project])
+          .pipe(Effect.flip);
+        expect(error).toMatchObject({ reason: "project_full" });
+        expect(error.message).toContain("Alpha");
+        expect(NodeFS.readFileSync(NodePath.join(root, "tasks", "c.md"), "utf8")).toBe(before);
+      }),
+  ).pipe(Effect.provide(boardLayer(noGithub))),
+);

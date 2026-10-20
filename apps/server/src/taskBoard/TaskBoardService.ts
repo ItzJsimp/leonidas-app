@@ -82,6 +82,7 @@ import {
 import { buildHome, cachedAreas } from "./aiosHome.ts";
 import { BRIEF_PATH, toggleBriefLine } from "./briefPriorityToggle.ts";
 import { cachedFolder } from "./aiosFolders.ts";
+import { capLevel, capRefusalMessage, parseCapRule, swapSuggestions } from "./capRules.ts";
 import {
   addFocusItem,
   changeFocusItem,
@@ -443,6 +444,27 @@ function cardPatchFor(input: TaskBoardCardUpdateInput, card: TaskBoardTask): Aio
     agentLabel: agentLabel(input.agent),
     threadId: input.agent?.threadId,
   };
+}
+
+/** Refuses when `slug` (null is the Inbox) is at its open-card cap. Call before a create or a move in. */
+function assertRoom(root: string, cards: ReadonlyArray<TaskBoardTask>, slug: string | null) {
+  let projectMd: string | null = null;
+  try {
+    projectMd = NodeFS.readFileSync(
+      NodePath.join(root, "projects", slug ?? "", "project.md"),
+      "utf8",
+    );
+  } catch {
+    // No project.md: the default cap applies.
+  }
+  const level = capLevel(cards, slug, parseCapRule(projectMd, slug));
+  if (level.level !== "full") return;
+  const suggestions = swapSuggestions(cards, slug);
+  throw new TaskBoardOperationError({
+    reason: "project_full",
+    message: capRefusalMessage(slug ?? "The Inbox", level, suggestions),
+    suggestions: suggestions.map(({ id, title }) => ({ id, title })),
+  });
 }
 
 const staleRevision = () =>
@@ -1690,6 +1712,14 @@ const make = Effect.gen(function* () {
           }
           const conflict = claimConflict(current, input);
           if (conflict) throw conflict;
+          if (
+            root !== nativeRoot &&
+            input.projectSlug !== undefined &&
+            input.projectSlug !== current.projectSlug &&
+            isOpen(current)
+          ) {
+            assertRoom(root, cardReader.read(root, now), input.projectSlug);
+          }
           const pending = current.shared === true && target !== undefined;
           writeCardAtomically(
             file,
@@ -1771,6 +1801,11 @@ const make = Effect.gen(function* () {
                     project.id === input.projectId && scopeFor(projects, input).inScope(project),
                 );
           cardReader.invalidate(root);
+          if (root !== nativeRoot) {
+            const slug =
+              input.projectSlug ?? (taskProject === undefined ? null : aiosSlugFor(taskProject));
+            assertRoom(root, cardReader.read(root, now), slug);
+          }
           const created = createCardFile(
             root,
             {
@@ -1789,6 +1824,7 @@ const make = Effect.gen(function* () {
             },
             now,
           );
+          cardReader.invalidate(root); // the cap check above cached the board without this card
           const task = cardToTask({
             fileName: created.fileName,
             raw: created.raw,
