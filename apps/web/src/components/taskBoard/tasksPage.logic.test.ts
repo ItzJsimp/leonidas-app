@@ -5,6 +5,7 @@ import { mergeTasks, type TaskView } from "./taskBoard.logic";
 import {
   activeFilterCount,
   buildRailEntries,
+  capBadge,
   DEFAULT_TASKS_PREFS,
   landingPrefs,
   openFirst,
@@ -191,6 +192,27 @@ describe("buildRailEntries", () => {
 
     const withLoose = mergeTasks([task("c", { projectSlug: null, project: "General" })], []);
     expect(buildRailEntries(withLoose, projects).at(-1)?.slug).toBe("general");
+  });
+});
+
+describe("capBadge", () => {
+  it("shows open/cap and turns amber at the warn line and red at the cap", () => {
+    const at = (open: number) => capBadge({ open, cap: 50, warn: 30 });
+    expect(at(3)).toEqual({ label: "3/50", tone: "ok" });
+    expect(at(30)?.tone).toBe("warn");
+    expect(at(50)).toEqual({ label: "50/50", tone: "full" });
+    expect(capBadge({ open: 5 })).toBeNull();
+  });
+
+  it("rail entries carry the project's rule; No project uses the Inbox rule", () => {
+    const projects = [project("leonidas-code", { cap: 8, warn: 5 })];
+    const tasks = mergeTasks([task("a"), task("c", { projectSlug: null, project: "General" })], []);
+    const entries = buildRailEntries(tasks, projects);
+    expect(entries.find((entry) => entry.slug === "leonidas-code")).toMatchObject({
+      cap: 8,
+      warn: 5,
+    });
+    expect(entries.find((entry) => entry.slug === "general")).toMatchObject({ cap: 30, warn: 18 });
   });
 });
 

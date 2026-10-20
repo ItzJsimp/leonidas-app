@@ -53,6 +53,7 @@ import {
   TASKS_PREFS_KEY,
   activeFilterCount,
   landingPrefs,
+  capBadge,
   parseTasksPrefs,
   prefsForList,
   type FocusList,
@@ -281,6 +282,7 @@ export function TasksPage() {
     ? ({ kind: "hidden" } as const)
     : sectionShareState(railEntry, board.scopedTasks);
   const allOpen = board.rail.reduce((sum, entry) => sum + entry.open, 0);
+  const fullProjects = board.rail.filter((entry) => capBadge(entry)?.tone === "full");
   const counts = useMemo(
     () => ({
       inbox: tasksInFocus(board.backlogTasks, "inbox", board.now).length,
@@ -447,6 +449,17 @@ export function TasksPage() {
             </Button>
           </div>
         </WorkspacePageHeader>
+
+        {fullProjects.length > 0 && !inPractice ? (
+          <p
+            role="status"
+            className="border-b bg-destructive/8 px-4 py-1.5 text-xs text-destructive-foreground"
+          >
+            At the open-task cap:{" "}
+            {fullProjects.map((entry) => `${entry.name} (${entry.open}/${entry.cap})`).join(", ")}.
+            Park or retire a task before adding more.
+          </p>
+        ) : null}
 
         <div className="flex min-h-0 flex-1">
           {/* An open task takes the rail's width until the pane is wide, so the list keeps room. */}

@@ -198,7 +198,27 @@ export type RailEntry = {
   repository: string | null;
   open: number;
   total: number;
+  /** From `projects/<slug>/project.md`; absent when the server sent no rule. */
+  cap?: number | undefined;
+  warn?: number | undefined;
 };
+
+// The Inbox rule (cards without a project) mirrors `parseCapRule` on the server.
+const INBOX_RULE = { cap: 30, warn: 18 };
+
+export type CapBadge = { label: string; tone: "ok" | "warn" | "full" };
+
+/** `open/cap`, amber from the warn line, red at the cap; null when the project has no cap. */
+export function capBadge(entry: {
+  open: number;
+  cap?: number | undefined;
+  warn?: number | undefined;
+}): CapBadge | null {
+  if (entry.cap === undefined) return null;
+  const warn = entry.warn ?? entry.cap;
+  const tone = entry.open >= entry.cap ? "full" : entry.open >= warn ? "warn" : "ok";
+  return { label: `${entry.open}/${entry.cap}`, tone };
+}
 
 /**
  * The project rail: every project that has tasks or a Leonidas project behind it, in the server's
@@ -208,6 +228,11 @@ export function buildRailEntries(
   tasks: ReadonlyArray<TaskView>,
   projects: ReadonlyArray<TaskBoardWorkspaceProject>,
 ): RailEntry[] {
+  const rules = new Map(
+    projects.flatMap((p) =>
+      p.cap === undefined ? [] : [[p.slug, { cap: p.cap, warn: p.warn }] as const],
+    ),
+  );
   return groupBySection(tasks, projects)
     .filter((group) => group.tasks.length > 0 || group.projectId !== null)
     .map((group) => ({
@@ -217,6 +242,7 @@ export function buildRailEntries(
       repository: group.repository,
       open: group.open,
       total: group.tasks.length,
+      ...(group.slug === "general" ? INBOX_RULE : rules.get(group.slug)),
     }));
 }
 

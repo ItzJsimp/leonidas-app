@@ -11,7 +11,13 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 
-import { splitRail, type RailEntry, type TaskFocus } from "./tasksPage.logic";
+import { capBadge, splitRail, type CapBadge, type RailEntry, type TaskFocus } from "./tasksPage.logic";
+
+const BADGE_TONE = {
+  ok: "text-muted-foreground",
+  warn: "text-warning-foreground",
+  full: "font-medium text-destructive",
+} as const;
 
 const ALL = "__all__";
 const FOCUS_LABELS = { inbox: "Inbox", today: "Today", upcoming: "Upcoming" } as const;
@@ -22,6 +28,7 @@ function RailRow(props: {
   readonly count: number;
   readonly selected: boolean;
   readonly shareable?: boolean;
+  readonly badge?: CapBadge | null;
   readonly onSelect: () => void;
 }) {
   return (
@@ -47,8 +54,12 @@ function RailRow(props: {
           <TooltipPopup>Can be shared with collaborators</TooltipPopup>
         </Tooltip>
       ) : null}
-      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-        {props.count.toLocaleString("en-US")}
+      <span
+        className={`shrink-0 text-xs tabular-nums ${BADGE_TONE[props.badge?.tone ?? "ok"]}`}
+        title={props.badge?.tone === "full" ? "At the open-task cap" : undefined}
+      >
+        {props.badge?.label ?? props.count.toLocaleString("en-US")}
+        {props.badge?.tone === "full" ? <span className="sr-only"> (project is full)</span> : null}
       </span>
     </Button>
   );
@@ -78,6 +89,7 @@ export const TaskProjectRail = memo(function TaskProjectRail(props: {
       <RailRow
         label={entry.name}
         count={entry.open}
+        badge={capBadge(entry)}
         selected={props.focus === "all" && props.selectedSlug === entry.slug}
         shareable={entry.repository !== null && entry.projectId !== null}
         onSelect={() => onSelect(entry.slug)}
