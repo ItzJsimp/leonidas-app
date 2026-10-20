@@ -1400,6 +1400,23 @@ describe("resolveComposerProviderSelection", () => {
     ).toBe(importedEntry.instanceId);
   });
 
+  it("picks the connected account for a new user with no saved choice", () => {
+    const signedOut = entry("claudeAgent", "claude", {
+      status: "error",
+      auth: { status: "unauthenticated" },
+    });
+    const ready = entry("codex", "codex");
+
+    expect(
+      resolveComposerProviderSelection({
+        entries: [signedOut, ready],
+        candidateInstanceIds: [NO_PROVIDER_MODEL_SELECTION.instanceId],
+        lockedProvider: null,
+        lockedInstanceId: null,
+      }).selectedProviderEntry?.instanceId,
+    ).toBe(ready.instanceId);
+  });
+
   it("keeps the session driver authoritative over instance and draft selections", () => {
     const selected = entry("claudeAgent", "claude_work");
     const sessionEntry = entry("ollama", "local_models");
