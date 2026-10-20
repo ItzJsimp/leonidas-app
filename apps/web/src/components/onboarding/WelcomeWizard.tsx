@@ -53,7 +53,6 @@ import { T3Wordmark } from "../T3Wordmark";
 import { ClaudeInstallPill } from "./ClaudeInstallPill";
 import { LeonidasAiosStep } from "./LeonidasAiosStep";
 import { LeonidasGoalsStep } from "./LeonidasGoalsStep";
-import { ApiKeysStep } from "./ApiKeysStep";
 import { LeonidasLayaStep } from "./LeonidasLayaStep";
 import { LeonidasSkillsStep } from "./LeonidasSkillsStep";
 import { ImportCandidateList } from "./ImportCandidateList";
@@ -88,7 +87,6 @@ type WizardStep =
   | "level"
   | "skills"
   | "laya"
-  | "keys"
   | "import"
   | "aios";
 const STEP_ORDER: readonly WizardStep[] = [
@@ -99,7 +97,6 @@ const STEP_ORDER: readonly WizardStep[] = [
   "level",
   "skills",
   "laya",
-  "keys",
   "import",
   "aios",
 ];
@@ -134,7 +131,6 @@ const ONBOARDING_STAGES = [
   "Level",
   "Skills",
   "Safety",
-  "Keys",
   "Projects",
   "AIOS",
 ] as const;
@@ -393,12 +389,6 @@ export function WelcomeWizard({
             />
           ) : step === "laya" ? (
             <LeonidasLayaStep
-              environmentId={setupIds[0]}
-              onBack={goBack}
-              onContinue={() => setStep("keys")}
-            />
-          ) : step === "keys" ? (
-            <ApiKeysStep
               environmentId={setupIds[0]}
               onBack={goBack}
               onContinue={() => setStep("import")}

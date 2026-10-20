@@ -108,15 +108,6 @@ vi.mock("./LeonidasAiosStep", () => ({
     </button>
   ),
 }));
-vi.mock("./ApiKeysStep", async () => {
-  const { useEffect } = await import("react");
-  return {
-    ApiKeysStep: ({ onContinue }: { onContinue: () => void }) => {
-      useEffect(() => onContinue(), [onContinue]);
-      return null;
-    },
-  };
-});
 vi.mock("./LeonidasLayaStep", () => ({
   LeonidasLayaStep: ({ onContinue }: { onContinue: () => void }) => (
     <button type="button" onClick={onContinue}>
@@ -188,6 +179,15 @@ async function click(label: string) {
   expect(button, `button ${label}`).toBeDefined();
   await act(async () => button!.click());
 }
+
+it("asks for the voice key once: there is no separate Keys step", async () => {
+  await act(async () => root.render(<WelcomeWizard localAvailable onDone={vi.fn()} />));
+  const steps = [...document.querySelectorAll("[aria-label='Setup progress'] button")].map(
+    (button) => button.getAttribute("aria-label") ?? "",
+  );
+  expect(steps.some((label) => label.startsWith("Voice,"))).toBe(true);
+  expect(steps.some((label) => label.startsWith("Keys,"))).toBe(false);
+});
 
 it("enters the workspace after a partial import and warns after navigation finishes", async () => {
   let finishNavigation = () => {};

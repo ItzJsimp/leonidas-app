@@ -145,15 +145,6 @@ vi.mock("./AiLevelStep", () => ({
     </button>
   ),
 }));
-vi.mock("./ApiKeysStep", async () => {
-  const { useEffect } = await import("react");
-  return {
-    ApiKeysStep: ({ onContinue }: { onContinue: () => void }) => {
-      useEffect(() => onContinue(), [onContinue]);
-      return null;
-    },
-  };
-});
 vi.mock("./LeonidasLayaStep", () => ({
   LeonidasLayaStep: ({ onContinue }: { onContinue: () => void }) => (
     <button type="button" onClick={onContinue}>
