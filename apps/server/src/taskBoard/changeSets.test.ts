@@ -55,6 +55,21 @@ describe("planChangeSet", () => {
   });
 });
 
+describe("planChangeSet duplicates", () => {
+  it("refuses a second change to the same card so undo keeps the true original", () => {
+    const rows = planChangeSet(
+      [card("a")],
+      [
+        { taskId: "a", status: "in_progress" },
+        { taskId: "a", status: "done" },
+      ],
+      rule,
+    );
+    expect(rows.map((r) => r.outcome)).toEqual(["changed", "refused"]);
+    expect(rows[1]?.reason).toContain("twice");
+  });
+});
+
 describe("ledger csv", () => {
   it("round-trips quotes, commas and empty project", () => {
     const rows: LedgerRow[] = [

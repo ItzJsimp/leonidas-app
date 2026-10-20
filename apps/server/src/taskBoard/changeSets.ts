@@ -52,8 +52,22 @@ export function planChangeSet(
   ruleOf: (slug: string | null) => CapRule,
 ): ChangeRow[] {
   const working = new Map(cards.map((card) => [card.id, card]));
+  const seen = new Set<string>();
   return changes.map((change): ChangeRow => {
     const card = working.get(change.taskId);
+    // A second change to one card would overwrite its undo copy with a half-changed file.
+    if (card && seen.has(change.taskId)) {
+      const fields = fieldsOf(card);
+      return {
+        taskId: card.id,
+        title: card.title,
+        before: fields,
+        after: fields,
+        outcome: "refused",
+        reason: "This card is listed twice in the change set.",
+      };
+    }
+    seen.add(change.taskId);
     if (!card) {
       const none = { status: "todo", priority: "medium", projectSlug: null } as const;
       return {

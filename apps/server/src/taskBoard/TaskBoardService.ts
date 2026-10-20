@@ -458,7 +458,7 @@ function capRuleFor(root: string, slug: string | null) {
   let projectMd: string | null = null;
   try {
     projectMd = NodeFS.readFileSync(
-      NodePath.join(root, "projects", slug ?? "", "project.md"),
+      NodePath.join(root, "projects", NodePath.basename(slug ?? ""), "project.md"),
       "utf8",
     );
   } catch {
@@ -1729,13 +1729,19 @@ const make = Effect.gen(function* () {
           }
           const conflict = claimConflict(current, input);
           if (conflict) throw conflict;
-          if (
-            root !== nativeRoot &&
+          const movesIn =
             input.projectSlug !== undefined &&
             input.projectSlug !== current.projectSlug &&
-            isOpen(current)
-          ) {
-            assertRoom(root, cardReader.read(root, now), input.projectSlug);
+            isOpen(current);
+          // Reopening a closed card takes a slot in its project, same as a move into it.
+          const reopens =
+            input.status !== undefined && OPEN_STATUSES.includes(input.status) && !isOpen(current);
+          if (root !== nativeRoot && (movesIn || reopens)) {
+            assertRoom(
+              root,
+              cardReader.read(root, now),
+              input.projectSlug === undefined ? (current.projectSlug ?? null) : input.projectSlug,
+            );
           }
           const pending = current.shared === true && target !== undefined;
           writeCardAtomically(
@@ -1920,54 +1926,73 @@ const make = Effect.gen(function* () {
       const ledger: LedgerRow[] = [];
       const beforeRaw = new Map<string, string>();
       const rows: TaskBoardChangeSetResult["rows"][number][] = [];
-      for (const row of plan) {
-        const change = (input.changes ?? []).find((candidate) => candidate.taskId === row.taskId);
-        const card = cards.find((candidate) => candidate.id === row.taskId);
-        const file = card ? fileOf(card) : null;
-        if (row.outcome !== "changed" || !change || !card || !card.sourceFile || !file) {
-          rows.push(row);
-          continue;
-        }
-        const raw0 = NodeFS.readFileSync(file, "utf8");
-        const failure = yield* cardUpdate(
-          {
-            ...(input.workspaceId === undefined ? {} : { workspaceId: input.workspaceId }),
+      const applyAll = Effect.gen(function* () {
+        for (const row of plan) {
+          const change = (input.changes ?? []).find((candidate) => candidate.taskId === row.taskId);
+          const card = cards.find((candidate) => candidate.id === row.taskId);
+          const file = card ? fileOf(card) : null;
+          if (row.outcome !== "changed" || !change || !card || !card.sourceFile || !file) {
+            rows.push(row);
+            continue;
+          }
+          const raw0 = NodeFS.readFileSync(file, "utf8");
+          const failure = yield* cardUpdate(
+            {
+              ...(input.workspaceId === undefined ? {} : { workspaceId: input.workspaceId }),
+              taskId: row.taskId,
+              actor: input.actor,
+              ...(row.after.status === row.before.status ? {} : { status: row.after.status }),
+              ...(row.after.priority === row.before.priority
+                ? {}
+                : { priority: row.after.priority }),
+              ...(row.after.projectSlug === row.before.projectSlug
+                ? {}
+                : { projectSlug: row.after.projectSlug }),
+            },
+            projects,
+          ).pipe(
+            Effect.as(null),
+            Effect.catch((error) =>
+              Effect.succeed("message" in error ? String(error.message) : "The update failed."),
+            ),
+          );
+          if (failure !== null) {
+            rows.push({ ...row, outcome: "refused", reason: failure });
+            continue;
+          }
+          beforeRaw.set(card.sourceFile, raw0);
+          ledger.push({
             taskId: row.taskId,
-            actor: input.actor,
-            ...(row.after.status === row.before.status ? {} : { status: row.after.status }),
-            ...(row.after.priority === row.before.priority ? {} : { priority: row.after.priority }),
-            ...(row.after.projectSlug === row.before.projectSlug
-              ? {}
-              : { projectSlug: row.after.projectSlug }),
-          },
-          projects,
-        ).pipe(
-          Effect.as(null),
-          Effect.catch((error) =>
-            Effect.succeed("message" in error ? String(error.message) : "The update failed."),
-          ),
-        );
-        if (failure !== null) {
-          rows.push({ ...row, outcome: "refused", reason: failure });
-          continue;
+            title: row.title,
+            file: card.sourceFile,
+            before: row.before,
+            after: row.after,
+            beforeSha: sha256(raw0),
+            afterSha: sha256(NodeFS.readFileSync(file, "utf8")),
+          });
+          rows.push(row);
         }
-        beforeRaw.set(card.sourceFile, raw0);
-        ledger.push({
-          taskId: row.taskId,
-          title: row.title,
-          file: card.sourceFile,
-          before: row.before,
-          after: row.after,
-          beforeSha: sha256(raw0),
-          afterSha: sha256(NodeFS.readFileSync(file, "utf8")),
-        });
-        rows.push(row);
-      }
-      if (ledger.length === 0) return { mode: input.mode, ledgerId: null, rows };
-      yield* Effect.try({
-        try: () => writeLedger(root, ledgerId, ledger, beforeRaw),
-        catch: cardWriteFailure,
       });
+      // An interrupted apply (client timeout) still leaves a ledger, so its changed cards can be undone.
+      let ledgerWritten = false;
+      const flushLedger = () => {
+        if (ledger.length === 0 || ledgerWritten) return;
+        writeLedger(root, ledgerId, ledger, beforeRaw);
+        ledgerWritten = true;
+      };
+      yield* applyAll.pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            try {
+              flushLedger();
+            } catch {
+              // The normal path below retries and reports the error.
+            }
+          }),
+        ),
+      );
+      if (ledger.length === 0) return { mode: input.mode, ledgerId: null, rows };
+      yield* Effect.try({ try: flushLedger, catch: cardWriteFailure });
       return { mode: input.mode, ledgerId, rows };
     });
 

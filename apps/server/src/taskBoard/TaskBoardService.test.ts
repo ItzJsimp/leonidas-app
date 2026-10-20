@@ -964,6 +964,29 @@ it.effect("refuses a move into a full project and leaves the card where it was",
   ).pipe(Effect.provide(boardLayer(noGithub))),
 );
 
+it.effect("refuses to reopen a closed card into a full project", () =>
+  withAios(
+    {
+      "a.md": cardFile("task-a", "Alpha"),
+      "d.md": cardFile("task-d", "Delta").replace("Not started", "Done"),
+    },
+    (root, project) =>
+      Effect.gen(function* () {
+        NodeFS.writeFileSync(
+          NodePath.join(root, "projects", "leonidas-code", "project.md"),
+          "---\ntype: project\ncap: 1\n---\n",
+        );
+        const before = NodeFS.readFileSync(NodePath.join(root, "tasks", "d.md"), "utf8");
+        const board = yield* TaskBoardService.TaskBoardService;
+        const error = yield* board
+          .cardUpdate({ taskId: "task-d", actor: "Jake", status: "todo" }, [project])
+          .pipe(Effect.flip);
+        expect(error).toMatchObject({ reason: "project_full" });
+        expect(NodeFS.readFileSync(NodePath.join(root, "tasks", "d.md"), "utf8")).toBe(before);
+      }),
+  ).pipe(Effect.provide(boardLayer(noGithub))),
+);
+
 it.effect("reports each project's cap and warn line in the workspace snapshot", () =>
   withAios({ "a.md": cardFile("task-a", "Alpha") }, (root, project) =>
     Effect.gen(function* () {
