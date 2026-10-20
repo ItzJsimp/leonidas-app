@@ -34,6 +34,8 @@ export function LeonidasLayaStep({
   const [result, setResult] = useState<LayaSetupResult | null>(null);
   const [wantPackages, setWantPackages] = useState(false);
   const [started, setStarted] = useState(false);
+  // Laya is advanced: new users see one line and Skip unless they open it.
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [folder] = useLocalStorage(AIOS_FOLDER_STORAGE_KEY, DEFAULT_AIOS_FOLDER, Schema.String);
   const [wireMessage, setWireMessage] = useState<string | null>(null);
   const alive = useRef(true);
@@ -104,6 +106,33 @@ export function LeonidasLayaStep({
 
   const ready = result?.status === "ready";
   const needsPackages = result?.status === "needs-packages";
+
+  if (!ready && !started && !showAdvanced) {
+    return (
+      <>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Extra safety checks (advanced)
+        </h1>
+        <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">
+          This is optional. Most people skip it. You can turn it on later in Settings.
+        </p>
+        <div className="mt-6 flex items-center justify-between gap-2">
+          <Button variant="ghost-muted" onClick={onBack}>
+            Back
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => setShowAdvanced(true)}>
+              Show advanced option
+            </Button>
+            <Button autoFocus onClick={onContinue}>
+              Skip
+              <ArrowRightIcon className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
