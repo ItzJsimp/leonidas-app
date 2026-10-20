@@ -24,6 +24,8 @@ import {
   type TaskBoardAiosDetectInput,
   type TaskBoardAiosDetectResult,
   type TaskBoardCardCreateInput,
+  type TaskBoardChangeSetInput,
+  type TaskBoardChangeSetResult,
   type TaskBoardCardUpdateInput,
   type TaskBoardHome,
   type AiosFolderList,
@@ -83,6 +85,7 @@ import { buildHome, cachedAreas } from "./aiosHome.ts";
 import { BRIEF_PATH, toggleBriefLine } from "./briefPriorityToggle.ts";
 import { cachedFolder } from "./aiosFolders.ts";
 import { capLevel, capRefusalMessage, parseCapRule, swapSuggestions } from "./capRules.ts";
+import { planChangeSet, readLedger, sha256, writeLedger, type LedgerRow } from "./changeSets.ts";
 import {
   addFocusItem,
   changeFocusItem,
@@ -258,6 +261,10 @@ const agentLabel = (agent: TaskBoardAgent | undefined): string | undefined => {
   const label = [agent?.providerInstanceId, agent?.model].filter(Boolean).join("/");
   return label || undefined;
 };
+
+// The ledger id starts with the local day, so the files sort by date.
+// @effect-diagnostics-next-line globalDate:off
+const localDay = (ms: number) => new Date(ms).toLocaleDateString("en-CA");
 
 const storageError = (message: string) =>
   new TaskBoardOperationError({ reason: "storage_error", message });
@@ -597,6 +604,11 @@ export class TaskBoardService extends Context.Service<
       input: TaskBoardCardCreateInput,
       projects: ReadonlyArray<Project>,
     ) => Effect.Effect<TaskBoardTask, TaskBoardReadError | TaskBoardOperationError>;
+    /** Previews, applies or undoes a bulk change of status, priority or project, with a ledger. */
+    readonly applyChangeSet: (
+      input: TaskBoardChangeSetInput,
+      projects: ReadonlyArray<Project>,
+    ) => Effect.Effect<TaskBoardChangeSetResult, TaskBoardReadError | TaskBoardOperationError>;
     /** Publishes (or withdraws) AIOS cards on the project's shared board. */
     readonly share: (
       project: Project,
@@ -1848,6 +1860,115 @@ const make = Effect.gen(function* () {
       });
     });
 
+  const applyChangeSet = (input: TaskBoardChangeSetInput, projects: ReadonlyArray<Project>) =>
+    Effect.gen(function* () {
+      const now = yield* Clock.currentTimeMillis;
+      const root = scopeFor(projects, input).root ?? nativeRoot;
+      if (root === null) {
+        return yield* new TaskBoardOperationError({
+          reason: "storage_error",
+          message: "Could not find this computer's AIOS tasks folder.",
+        });
+      }
+      const cards = (yield* readLocalCards(projects, now, input)).filter(
+        (card) => card.sourceRoot === root,
+      );
+      const fileOf = (card: TaskBoardTask) =>
+        card.sourceFile ? findCardFile(root, card.sourceFile) : null;
+
+      if (input.mode === "undo") {
+        const ledger = readLedger(root, input.ledgerId ?? "");
+        if (!ledger) {
+          return yield* new TaskBoardOperationError({
+            reason: "task_not_found",
+            message: "No change set with that id.",
+          });
+        }
+        const rows = yield* Effect.try({
+          try: () =>
+            ledger.rows.map((row): TaskBoardChangeSetResult["rows"][number] => {
+              const reversed = {
+                taskId: row.taskId,
+                title: row.title,
+                before: row.after,
+                after: row.before,
+              };
+              const file = findCardFile(root, row.file);
+              // Restore only a card nobody touched since the change set; never overwrite a later edit.
+              if (!file || sha256(NodeFS.readFileSync(file, "utf8")) !== row.afterSha) {
+                return {
+                  ...reversed,
+                  outcome: "conflict",
+                  reason: "The card changed after this change set.",
+                };
+              }
+              writeCardAtomically(file, ledger.before(row.file));
+              return { ...reversed, outcome: "restored" };
+            }),
+          catch: cardWriteFailure,
+        });
+        cardReader.invalidate(root);
+        return { mode: input.mode, ledgerId: input.ledgerId ?? null, rows };
+      }
+
+      const plan = planChangeSet(cards, input.changes ?? [], (slug) => capRuleFor(root, slug));
+      if (input.mode === "dryRun") return { mode: input.mode, ledgerId: null, rows: plan };
+
+      const ledgerId = `${localDay(now)}-${NodeCrypto.randomUUID().slice(0, 8)}`;
+      const ledger: LedgerRow[] = [];
+      const beforeRaw = new Map<string, string>();
+      const rows: TaskBoardChangeSetResult["rows"][number][] = [];
+      for (const row of plan) {
+        const change = (input.changes ?? []).find((candidate) => candidate.taskId === row.taskId);
+        const card = cards.find((candidate) => candidate.id === row.taskId);
+        const file = card ? fileOf(card) : null;
+        if (row.outcome !== "changed" || !change || !card || !card.sourceFile || !file) {
+          rows.push(row);
+          continue;
+        }
+        const raw0 = NodeFS.readFileSync(file, "utf8");
+        const failure = yield* cardUpdate(
+          {
+            ...(input.workspaceId === undefined ? {} : { workspaceId: input.workspaceId }),
+            taskId: row.taskId,
+            actor: input.actor,
+            ...(row.after.status === row.before.status ? {} : { status: row.after.status }),
+            ...(row.after.priority === row.before.priority ? {} : { priority: row.after.priority }),
+            ...(row.after.projectSlug === row.before.projectSlug
+              ? {}
+              : { projectSlug: row.after.projectSlug }),
+          },
+          projects,
+        ).pipe(
+          Effect.as(null),
+          Effect.catch((error) =>
+            Effect.succeed("message" in error ? String(error.message) : "The update failed."),
+          ),
+        );
+        if (failure !== null) {
+          rows.push({ ...row, outcome: "refused", reason: failure });
+          continue;
+        }
+        beforeRaw.set(card.sourceFile, raw0);
+        ledger.push({
+          taskId: row.taskId,
+          title: row.title,
+          file: card.sourceFile,
+          before: row.before,
+          after: row.after,
+          beforeSha: sha256(raw0),
+          afterSha: sha256(NodeFS.readFileSync(file, "utf8")),
+        });
+        rows.push(row);
+      }
+      if (ledger.length === 0) return { mode: input.mode, ledgerId: null, rows };
+      yield* Effect.try({
+        try: () => writeLedger(root, ledgerId, ledger, beforeRaw),
+        catch: cardWriteFailure,
+      });
+      return { mode: input.mode, ledgerId, rows };
+    });
+
   const inboxRoot = (projects: ReadonlyArray<Project>, target: WorkspaceTarget = {}) => {
     const root = scopeFor(projects, target).root;
     return unknownWorkspace(target, root) ? null : (root ?? nativeRoot ?? null);
@@ -2384,6 +2505,7 @@ const make = Effect.gen(function* () {
     workspace,
     cardUpdate,
     cardCreate,
+    applyChangeSet,
     inboxDrop,
     inboxUndo,
     share,

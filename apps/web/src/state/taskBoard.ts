@@ -25,6 +25,11 @@ export const taskBoardCardUpdate = createEnvironmentRpcCommand(connectionAtomRun
   tag: WS_METHODS.taskBoardCardUpdate,
 });
 
+export const taskBoardApplyChangeSet = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:task-board:apply-change-set",
+  tag: WS_METHODS.taskBoardApplyChangeSet,
+});
+
 export const taskBoardCardCreate = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:task-board:card-create",
   tag: WS_METHODS.taskBoardCardCreate,

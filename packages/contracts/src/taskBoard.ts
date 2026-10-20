@@ -325,6 +325,50 @@ export const TaskBoardCardUpdateInput = Schema.Struct({
 });
 export type TaskBoardCardUpdateInput = typeof TaskBoardCardUpdateInput.Type;
 
+// A bulk change: set status, priority or project on many cards at once. `dryRun` previews the
+// per-card diff, `apply` writes it and a ledger, `undo` restores the cards of one ledger.
+export const TaskBoardChange = Schema.Struct({
+  taskId: TrimmedNonEmptyString,
+  status: Schema.optional(TaskBoardTaskStatus),
+  priority: Schema.optional(TaskBoardTaskPriority),
+  projectSlug: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+});
+export type TaskBoardChange = typeof TaskBoardChange.Type;
+
+export const TaskBoardChangeSetInput = Schema.Struct({
+  ...workspaceScope,
+  actor: TrimmedNonEmptyString.check(Schema.isMaxLength(100)),
+  mode: Schema.Literals(["dryRun", "apply", "undo"]),
+  changes: Schema.optional(Schema.Array(TaskBoardChange).check(Schema.isMaxLength(500))),
+  // Names the ledger to undo.
+  ledgerId: Schema.optional(TrimmedNonEmptyString.check(Schema.isMaxLength(100))),
+});
+export type TaskBoardChangeSetInput = typeof TaskBoardChangeSetInput.Type;
+
+const TaskBoardChangeFields = Schema.Struct({
+  status: TaskBoardTaskStatus,
+  priority: TaskBoardTaskPriority,
+  projectSlug: Schema.NullOr(Schema.String),
+});
+
+export const TaskBoardChangeRow = Schema.Struct({
+  taskId: Schema.String,
+  title: Schema.String,
+  before: TaskBoardChangeFields,
+  after: TaskBoardChangeFields,
+  outcome: Schema.Literals(["changed", "unchanged", "refused", "missing", "restored", "conflict"]),
+  reason: Schema.optional(Schema.String),
+});
+export type TaskBoardChangeRow = typeof TaskBoardChangeRow.Type;
+
+export const TaskBoardChangeSetResult = Schema.Struct({
+  mode: Schema.Literals(["dryRun", "apply", "undo"]),
+  // The ledger written by `apply`; null when nothing changed or the mode wrote none.
+  ledgerId: Schema.NullOr(Schema.String),
+  rows: Schema.Array(TaskBoardChangeRow),
+});
+export type TaskBoardChangeSetResult = typeof TaskBoardChangeSetResult.Type;
+
 export const TaskBoardCardCreateInput = Schema.Struct({
   ...workspaceScope,
   idempotencyKey: Schema.optional(TrimmedNonEmptyString.check(Schema.isMaxLength(256))),

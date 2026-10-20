@@ -18,11 +18,12 @@ const PROJECT_CAP = 50;
 const INBOX_CAP = 30;
 const WARN_RATIO = 0.6;
 const OPEN = ["todo", "in_progress", "review", "blocked"];
+export const isOpenStatus = (status: string) => OPEN.includes(status);
 const PRIORITY_RANK = { low: 0, medium: 1, high: 2, critical: 3 } as const;
 
 const isInbox = (slug: string | null | undefined) =>
   !slug || slug === "general" || slug === "inbox";
-const sameBucket = (card: CapCard, slug: string | null) =>
+export const sameBucket = (card: CapCard, slug: string | null) =>
   isInbox(slug) ? isInbox(card.projectSlug) : card.projectSlug === slug;
 
 /** `projectMd` is the project.md text, or null when the project has none (or is the Inbox). */
@@ -47,7 +48,7 @@ export function capLevel(
   slug: string | null,
   rule: CapRule,
 ): CapLevel {
-  const open = cards.filter((card) => OPEN.includes(card.status) && sameBucket(card, slug)).length;
+  const open = cards.filter((card) => isOpenStatus(card.status) && sameBucket(card, slug)).length;
   return { ...rule, open, level: open >= rule.cap ? "full" : open >= rule.warn ? "warn" : "ok" };
 }
 

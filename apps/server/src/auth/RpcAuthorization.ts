@@ -198,6 +198,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.taskBoardWorkspace]: AuthOrchestrationReadScope,
   [WS_METHODS.taskBoardCardUpdate]: AuthOrchestrationOperateScope,
   [WS_METHODS.taskBoardCardCreate]: AuthOrchestrationOperateScope,
+  [WS_METHODS.taskBoardApplyChangeSet]: AuthOrchestrationOperateScope,
   [WS_METHODS.taskBoardShare]: AuthOrchestrationOperateScope,
   [WS_METHODS.taskBoardAiosDetect]: AuthOrchestrationReadScope,
   [WS_METHODS.taskBoardHome]: AuthOrchestrationReadScope,

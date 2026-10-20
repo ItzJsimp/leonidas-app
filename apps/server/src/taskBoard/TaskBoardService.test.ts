@@ -979,3 +979,63 @@ it.effect("reports each project's cap and warn line in the workspace snapshot", 
     }),
   ).pipe(Effect.provide(boardLayer(noGithub))),
 );
+
+it.effect("applies a change set with a ledger and undoes it byte for byte", () =>
+  withAios(
+    { "a.md": cardFile("task-a", "Alpha"), "b.md": cardFile("task-b", "Bravo") },
+    (root, project) =>
+      Effect.gen(function* () {
+        const read = (name: string) =>
+          NodeFS.readFileSync(NodePath.join(root, "tasks", name), "utf8");
+        const start = [read("a.md"), read("b.md")];
+        const board = yield* TaskBoardService.TaskBoardService;
+        const request = {
+          actor: "Jake",
+          changes: [
+            { taskId: "task-a", status: "done" as const },
+            { taskId: "task-b", priority: "low" as const },
+          ],
+        };
+        const dry = yield* board.applyChangeSet({ ...request, mode: "dryRun" }, [project]);
+        expect(dry.rows.map((row) => row.outcome)).toEqual(["changed", "changed"]);
+        expect([read("a.md"), read("b.md")]).toEqual(start);
+
+        const applied = yield* board.applyChangeSet({ ...request, mode: "apply" }, [project]);
+        expect(applied.ledgerId).not.toBeNull();
+        expect(
+          NodeFS.existsSync(
+            NodePath.join(root, "audits", "task-changes", `${applied.ledgerId}.csv`),
+          ),
+        ).toBe(true);
+        expect(read("a.md")).toContain("Done");
+
+        const undone = yield* board.applyChangeSet(
+          { actor: "Jake", mode: "undo", ledgerId: applied.ledgerId! },
+          [project],
+        );
+        expect(undone.rows.map((row) => row.outcome)).toEqual(["restored", "restored"]);
+        expect([read("a.md"), read("b.md")]).toEqual(start);
+      }),
+  ).pipe(Effect.provide(boardLayer(noGithub))),
+);
+
+it.effect("undo leaves a card alone when it changed after the change set", () =>
+  withAios({ "a.md": cardFile("task-a", "Alpha") }, (root, project) =>
+    Effect.gen(function* () {
+      const board = yield* TaskBoardService.TaskBoardService;
+      const applied = yield* board.applyChangeSet(
+        { actor: "Jake", mode: "apply", changes: [{ taskId: "task-a", priority: "low" }] },
+        [project],
+      );
+      const file = NodePath.join(root, "tasks", "a.md");
+      NodeFS.appendFileSync(file, "\nEdited later.\n");
+      const edited = NodeFS.readFileSync(file, "utf8");
+      const undone = yield* board.applyChangeSet(
+        { actor: "Jake", mode: "undo", ledgerId: applied.ledgerId! },
+        [project],
+      );
+      expect(undone.rows.map((row) => row.outcome)).toEqual(["conflict"]);
+      expect(NodeFS.readFileSync(file, "utf8")).toBe(edited);
+    }),
+  ).pipe(Effect.provide(boardLayer(noGithub))),
+);
