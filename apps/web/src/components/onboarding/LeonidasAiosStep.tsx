@@ -33,6 +33,7 @@ import { FolderCheckNotice } from "./FolderCheckNotice";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
 import { ScrollArea } from "../ui/scroll-area";
+import { PIN_TIP } from "./pinTip";
 
 type AiosMode = "interview" | "prompt" | "run";
 
@@ -286,7 +287,8 @@ export function LeonidasAiosStep({
           </div>
         </div>
       </ScrollArea>
-      <div className="mt-6 flex items-center justify-between">
+      <p className="mt-4 text-xs text-muted-foreground">{PIN_TIP}</p>
+      <div className="mt-2 flex items-center justify-between">
         <Button variant="ghost-muted" onClick={onBack}>
           Back
         </Button>

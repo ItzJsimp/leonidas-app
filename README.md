@@ -20,7 +20,7 @@ Leonidas is a fork of [T3 Code](https://github.com/pingdotgg/t3code) by T3 Tools
 
 Download the latest Windows installer from [GitHub Releases](https://github.com/ItzJsimp/leonidas-app/releases). The app checks that repository for updates and shows a toast when a new release is ready.
 
-The installer is unsigned, so Windows SmartScreen warns once on first install. Updates still apply.
+The installer is unsigned, so Windows SmartScreen warns once on first install. Click **More info**, then **Run anyway**. Updates still apply.
 
 ## Documentation
 
