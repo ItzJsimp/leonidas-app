@@ -46,7 +46,15 @@ verified: 2026-10-11
 7. Dev copy (green icon app): it follows the derived local `dev` branch, not the main checkout. `pwsh scripts/Update-DevBranch.ps1 -Force` rebuilds it (origin/main plus every clean branch of the last 21 days, gated; 1 to 3 min). Read `.t3/dev-branch-status.md` for what merged, what the gate dropped and what needs a person. Tests for that machinery: `pwsh -NoProfile -File scripts/Update-DevBranch.test.ps1` (about 15 s, throwaway repo).
 8. Server boot smoke, no install needed: `node scripts/smoke.mjs --runtime "<install>/Leonidas Code.exe" --entry "<install>/resources/server.asar/apps/server/dist/bin.mjs"` (about 8 s, fresh temp home). With an install, plain `node scripts/smoke.mjs`. It fails on a hung server (the 0.62.0 bug).
 
+9. Scoped package checks without a full install: from the package folder, `pnpm --config.verify-deps-before-run=false exec vp test run --config ../../vite.config.ts --dir .` and `... exec tsc --noEmit`. Plain `pnpm exec` runs a dependency check that calls the failing `pnpm install` in a partial main checkout. The real gate is an installed `C:/lcw` worktree: `pnpm install --frozen-lockfile` (2.5 minutes with a warm store), then `vp lint --report-unused-disable-directives packages/<pkg>` and `tsc --noEmit` there. Only that toolchain loads the Effect plugin and the type-aware lint, and both found errors that the partial install hid.
+
 ## 5. Gotchas (the ones that bite first)
+
+- **A new workspace package needs a lockfile importer:** copy the `packages/business-pack:` block in `pnpm-lock.yaml`, rename it, and insert it in alphabetical order. A full offline `pnpm install` rewrites 342 lines of peer suffixes; revert that. Prove the hand edit with `pnpm install --frozen-lockfile --lockfile-only --offline` (exit 0, no change).
+- **Never run `pnpm install` in the main checkout to link one package:** it added about 1,900 packages to the shared `node_modules` and stopped on the unrelated `@react-navigation/native-stack` patch. Use a `C:/lcw` worktree.
+- **The Write and Edit tools turn `\u2028` and `\u2029` in your text into real line separators,** which break a regex literal. Fix with Python using `chr(0x2028)`, or build the string with `String.fromCharCode` in the test. A Bash heredoc with backticks or `\n` also fails to parse; use Write.
+- **Test output with control characters makes `grep` say "Binary file matches":** pipe through `tr -d '\000-\010\016-\037'` and use `grep -a`.
+- **Public repo, private data:** never embed business data (prices, names, reply text) in `packages/`. Load packs from the owner's AIOS at run time (`parsePackJson`). If it already sits in unpushed local commits, squash with `git commit-tree <tree> -p <base>` plus `git update-ref refs/heads/main <new> <old>` (compare-and-swap, safe while other sessions commit), then cherry-pick onto a fresh `origin/main` worktree and push with `git push origin <branch>:main`.
 
 - **Voice keys:** `VoiceKeyStore.ts` uses the OS credential vault. `ServerSecretStore` does not encrypt file bytes.
 - **Capture paths:** web dictation lives in `components/voice/`; iOS uses `packages/client-runtime/src/voice-input/controller.ts`. Check both before adding capture logic.
@@ -82,6 +90,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Thin rebrand layer:** every branding touch makes `upstream/main` merges harder. Card: [`t3-code-rebrand`](../../tasks/t3-code-rebrand.md).
 
 ## 7. Session notes
+
+- **2026-10-20 (mail autopilot slice 1):** `packages/mail-autopilot` shipped to `origin/main` (`57137ebac5`): pure rules engine (`classify`, `plan`, `parsePack`, `parsePackJson`), closed action list with no send, example pack, 64 tests. Slice 2 (Gmail `MailProvider`, draft and label only) comes next; worktree `C:/lcw/mail-autopilot` is installed for it. Real SimplyGersi pack lives in the SimplyGersi AIOS (`projects/email-agent/packs/simplygersi.json`). Local `main` holds a twin commit (`993cb015cf`): drop it at the next sync. Spec and record: the audit task card in the AIOS `tasks/`.
 
 - **2026-10-20 (dev copy):** Tasks window work was built but only on `feat/task-cap-rules`, so the dev copy never showed it. Added `Update-DevBranch.ps1` (derived `dev` branch, green gate with bisect, clean-branch rebuilds), `Test-DevTip.ps1`, `New-CleanBranch.ps1`, `Set-DevWindowIdentity.ps1` and a dev-only green favicon; `feat/task-cap-clean` carries the 8 task-cap commits on current origin/main (not pushed). 10 branches still need a conflict resolution (see `.t3/dev-branch-status.md`); the supervisor's one-build-at-a-time fix starts at its next restart.
 
