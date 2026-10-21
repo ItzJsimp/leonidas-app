@@ -83,7 +83,13 @@ describe("AntigravityAdapterV2 flavor", () => {
         "Agent connection was lost and could not be re-established: Failed to rebuild agent: received 1000 (OK); then sent 1000 (OK)",
       ),
     );
+    assert.isTrue(
+      pattern?.test(
+        'Agent execution error: doRequest: error sending request: Post "http://127.0.0.1:52544/v1beta/models/gemini-3.8-flash-medium:streamGenerateContent?alt=sse": dial tcp 127.0.0.1:52544: connectex: A connection attempt failed',
+      ),
+    );
     assert.isFalse(pattern?.test("The connection pool re-established itself."));
+    assert.isFalse(pattern?.test("Agent execution error: the tool call was rejected."));
   });
 
   it("maps runtime modes to the agent's native permission modes", () => {

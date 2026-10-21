@@ -177,7 +177,9 @@ export function makeAntigravityAcpAdapterFlavor(
     // Loading history replays every tool call; resume restores the session
     // without the replay and is what the official client does.
     preferResumeSession: true,
-    connectionLostText: /^Agent connection was lost and could not be re-established/,
+    // The second form is the agent's reply when its own model request to a local port times out.
+    connectionLostText:
+      /^Agent (?:connection was lost and could not be re-established|execution error: doRequest: error sending request)/,
     subagentsIdleOnTurnCompletion: true,
     ...(options.onSessionEvent === undefined ? {} : { onSessionEvent: options.onSessionEvent }),
     applyModelSelection: ({ runtime, modelSelection }) =>
