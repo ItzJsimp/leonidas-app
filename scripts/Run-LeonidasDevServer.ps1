@@ -123,7 +123,12 @@ function Update-DevBranchRef([string]$mainRoot, [switch]$Force) {
     $fetch = ((Get-Date) - $script:lastDevFetch).TotalMinutes -ge 5
     if ($fetch) { $script:lastDevFetch = Get-Date }
     try {
-        $out = (& $builder @(if ($fetch) { '-Fetch' }) 2>&1) -join ' '
+        # Detached: the gate takes minutes and must not stall the sync of everyday edits. The builder's
+        # own mutex keeps runs from overlapping; its one-line result goes to dev-branch-update.log.
+        $updateLog = Join-Path $devHome 'dev-branch-update.log'
+        Start-Process -FilePath $pwsh -WindowStyle Hidden -ArgumentList (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $builder + '"')) + @(if ($fetch) { '-Fetch' })) `
+            -RedirectStandardOutput $updateLog -RedirectStandardError "$updateLog.err"
+        $out = 'unchanged'
         if ($out -notmatch 'unchanged') { Add-Content -LiteralPath $log -Value "[supervisor] $out" }
     } catch { Add-Content -LiteralPath $log -Value "[supervisor] dev branch update failed: $($_.Exception.Message)" }
 }
