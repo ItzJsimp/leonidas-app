@@ -5,12 +5,13 @@ import {
   GaugeIcon,
   HardDriveIcon,
   LayoutGridIcon,
+  ScrollTextIcon,
   MemoryStickIcon,
   MonitorIcon,
   SparklesIcon,
   WrenchIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
@@ -68,37 +69,73 @@ export function ScoreRing(props: { health: HealthScore }) {
   );
 }
 
-export const SECTIONS = [
-  { id: "pc-overview", label: "Overview", icon: GaugeIcon },
-  { id: "pc-parts", label: "Your parts", icon: LayoutGridIcon },
-  { id: "pc-history", label: "History", icon: SparklesIcon },
-  { id: "pc-settings", label: "Settings", icon: WrenchIcon },
-  { id: "pc-diagnostics", label: "Diagnostics", icon: ActivityIcon },
+export const PC_TABS = [
+  { id: "overview", label: "Overview", icon: GaugeIcon },
+  { id: "parts", label: "Your parts", icon: LayoutGridIcon },
+  { id: "history", label: "History", icon: SparklesIcon },
+  { id: "app", label: "Leonidas Code", icon: ActivityIcon },
+  { id: "logs", label: "Logs and errors", icon: ScrollTextIcon },
+  { id: "settings", label: "Settings", icon: WrenchIcon },
 ] as const;
 
-/** Sticky tabs that jump to each part of the page. */
-export function SectionNav() {
+export type PcTab = (typeof PC_TABS)[number]["id"];
+
+/** Sticky tabs. Arrow keys, Home and End move between them. */
+export function PcTabs(props: { value: PcTab; onChange: (tab: PcTab) => void }) {
+  const select = (index: number) => {
+    const tab = PC_TABS[(index + PC_TABS.length) % PC_TABS.length];
+    if (!tab) return;
+    props.onChange(tab.id);
+    document.getElementById(`pc-tab-${tab.id}`)?.focus();
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const index = PC_TABS.findIndex((tab) => tab.id === props.value);
+    const next =
+      event.key === "ArrowRight"
+        ? index + 1
+        : event.key === "ArrowLeft"
+          ? index - 1
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? PC_TABS.length - 1
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    select(next);
+  };
   return (
-    <nav
-      aria-label="PC Tuning sections"
+    <div
+      role="tablist"
+      aria-label="PC Tuning"
+      onKeyDown={onKeyDown}
       className="sticky top-0 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-xl border bg-background/85 p-1 backdrop-blur"
     >
-      {SECTIONS.map((section) => (
-        <button
-          key={section.id}
-          type="button"
-          className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          onClick={() =>
-            document
-              .getElementById(section.id)
-              ?.scrollIntoView({ behavior: "smooth", block: "start" })
-          }
-        >
-          <section.icon className="size-4" />
-          {section.label}
-        </button>
-      ))}
-    </nav>
+      {PC_TABS.map((tab) => {
+        const selected = tab.id === props.value;
+        return (
+          <button
+            key={tab.id}
+            id={`pc-tab-${tab.id}`}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            aria-controls={`pc-panel-${tab.id}`}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => props.onChange(tab.id)}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors motion-reduce:transition-none",
+              selected
+                ? "bg-muted font-medium text-foreground"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+            )}
+          >
+            <tab.icon className="size-4" />
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

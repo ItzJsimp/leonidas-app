@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { MinusIcon, PlusIcon } from "lucide-react";
+import { AlertTriangleIcon, MinusIcon, PlusIcon } from "lucide-react";
 
 import { cn } from "~/lib/utils";
 import { limitScaleMax, sparklinePoints, stepLimit } from "./systemCare.logic";
@@ -38,6 +38,54 @@ export function Card(props: {
       ) : null}
       {props.children}
     </section>
+  );
+}
+
+/** An inline error or warning line inside a card. */
+export function ErrorNote(props: {
+  children: ReactNode;
+  tone?: "critical" | "warning";
+  className?: string;
+}) {
+  return (
+    <p
+      role="alert"
+      className={cn(
+        "flex items-start gap-2 rounded-xl px-3 py-2 text-sm",
+        props.tone === "warning"
+          ? "bg-warning/10 text-warning-foreground"
+          : "bg-destructive/10 text-destructive",
+        props.className,
+      )}
+    >
+      <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
+      <span>{props.children}</span>
+    </p>
+  );
+}
+
+/** One labelled reading: muted label, large tabular value, optional detail line. */
+export function Stat(props: {
+  label: string;
+  value: string;
+  detail?: string | undefined;
+  level?: Level | undefined;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="truncate text-xs text-muted-foreground">{props.label}</div>
+      <div
+        className={cn(
+          "mt-1 truncate text-2xl font-semibold tabular-nums",
+          props.level && props.level !== "ok" ? LEVEL_TEXT[props.level] : undefined,
+        )}
+      >
+        {props.value}
+      </div>
+      {props.detail ? (
+        <div className="mt-0.5 truncate text-xs text-muted-foreground">{props.detail}</div>
+      ) : null}
+    </div>
   );
 }
 

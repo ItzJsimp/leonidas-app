@@ -10,7 +10,7 @@ import { Label } from "../ui/label";
 import { ConnectionStatusDot } from "../ConnectionStatusDot";
 import { useSettingsScope } from "./SettingsScopeContext";
 import { useScopedSettings } from "./useScopedSettings";
-import { SettingsSection } from "./settingsLayout";
+import { Card } from "../systemCare/SystemCareCharts";
 import { SettingsScopeNotice } from "./SettingsScopeNotice";
 
 const SIGNALS = [
@@ -45,11 +45,11 @@ export function TelemetryExportSettings() {
   const { environment, scope } = useSettingsScope();
   if (scope.kind !== "environment" || !environment) {
     return (
-      <SettingsSection title="OpenTelemetry export" id="telemetry-export">
+      <Card title="Send telemetry to your tools">
         <SettingsScopeNotice target="environment">
           Choose one computer to set up its telemetry export.
         </SettingsScopeNotice>
-      </SettingsSection>
+      </Card>
     );
   }
   // Mounts per environment so its saved endpoints are the ones checked on open.
@@ -118,9 +118,9 @@ function TelemetryExportForm() {
   }, [canCheck]);
 
   return (
-    <SettingsSection title="OpenTelemetry export" id="telemetry-export">
+    <Card title="Send telemetry to your tools">
       <form
-        className="grid gap-4 px-4 py-4 sm:px-5"
+        className="grid gap-4"
         onSubmit={async (event) => {
           event.preventDefault();
           if (!environment || saving) return;
@@ -238,6 +238,6 @@ function TelemetryExportForm() {
           </div>
         </div>
       </form>
-    </SettingsSection>
+    </Card>
   );
 }

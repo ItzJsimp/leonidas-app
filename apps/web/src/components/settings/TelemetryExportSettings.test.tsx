@@ -1,5 +1,5 @@
 import { DEFAULT_SERVER_SETTINGS } from "@t3tools/contracts";
-import { act, type ReactNode } from "react";
+import { act } from "react";
 import { create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -30,9 +30,6 @@ vi.mock("./SettingsScopeContext", () => ({
 }));
 vi.mock("./useScopedSettings", () => ({
   useScopedSettings: (select: (settings: typeof state) => unknown) => select(state),
-}));
-vi.mock("./settingsLayout", () => ({
-  SettingsSection: ({ children }: { children: ReactNode }) => <section>{children}</section>,
 }));
 
 import { TelemetryExportSettings } from "./TelemetryExportSettings";

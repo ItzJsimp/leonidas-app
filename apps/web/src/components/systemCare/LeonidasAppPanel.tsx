@@ -1,16 +1,6 @@
-import { ProcessSignalActions } from "./ProcessSignalActions";
+import { ProcessSignalActions } from "../settings/ProcessSignalActions";
 import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
-import {
-  ActivityIcon,
-  AlertTriangleIcon,
-  BatteryIcon,
-  CpuIcon,
-  DatabaseIcon,
-  GaugeIcon,
-  HardDriveIcon,
-  MemoryStickIcon,
-} from "lucide-react";
 import { ChevronDown, ChevronRight } from "lucide";
 import type {
   BackgroundBooleanState,
@@ -48,7 +38,6 @@ import { formatRelativeTime } from "../../timestampFormat";
 import { Button } from "../ui/button";
 import { MorphIcon } from "~/components/MorphIcon";
 import { ScrollArea } from "../ui/scroll-area";
-import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { toastManager } from "../ui/toast";
 import {
@@ -56,8 +45,9 @@ import {
   resourceHistoryCpuScaleMax,
   shouldShowResourceMonitorRetry,
   visibleResourceTelemetryProcesses,
-} from "./ResourceTelemetryDiagnostics.logic";
-import { SettingsSection, useRelativeTimeTick } from "./settingsLayout";
+} from "./leonidasApp.logic";
+import { useRelativeTimeTick } from "../settings/settingsLayout";
+import { Card, ErrorNote, Segmented, Stat } from "./SystemCareCharts";
 import { userErrorToastFields } from "~/lib/userErrorToast";
 
 const HISTORY_WINDOWS = [
@@ -83,14 +73,6 @@ function formatDurationMicros(value: number): string {
   if (value < 1_000) return `${Math.round(value)} µs`;
   if (value < 1_000_000) return `${(value / 1_000).toFixed(2)} ms`;
   return `${(value / 1_000_000).toFixed(2)} s`;
-}
-
-function formatSampleInterval(valueMs: number): string {
-  if (valueMs < 1_000) return `${Math.max(0, Math.round(valueMs))} ms`;
-  const seconds = valueMs / 1_000;
-  return `${seconds.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${
-    seconds === 1 ? "second" : "seconds"
-  }`;
 }
 
 function processIdentityKey(process: ResourceTelemetryProcess): string {
@@ -186,7 +168,7 @@ function SourceStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-3xs font-semibold uppercase tracking-widest",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium",
         tone === "neutral" && "border-border/70 bg-muted/45 text-muted-foreground",
         tone === "default" && "border-success/25 bg-success/10 text-success-foreground",
         tone === "warning" && "border-warning/30 bg-warning/10 text-warning-foreground",
@@ -210,78 +192,41 @@ function SourceStatusBadge({
 function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
   useRelativeTimeTick();
   if (!sampledAt) {
-    return <span className="text-2xs text-muted-foreground/55">Waiting for sample</span>;
+    return <span className="text-xs text-muted-foreground">Waiting for a reading</span>;
   }
   const relative = formatRelativeTime(DateTime.formatIso(sampledAt));
   if (!relative) {
-    return <span className="text-2xs text-muted-foreground/55">Waiting for sample</span>;
+    return <span className="text-xs text-muted-foreground">Waiting for a reading</span>;
   }
   return (
-    <span className="text-2xs text-muted-foreground/60">
-      Updated <span className="font-mono tabular-nums">{relative.value}</span>
+    <span className="text-xs text-muted-foreground">
+      Updated <span className="tabular-nums">{relative.value}</span>
       {relative.suffix ? ` ${relative.suffix}` : ""}
     </span>
   );
 }
 
-function IconStat({
-  icon,
-  label,
-  value,
-  detail,
-  tone = "default",
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  detail?: string | undefined;
-  tone?: "default" | "warning" | "danger";
-}) {
-  return (
-    <div className="group min-w-0 px-4 py-4 sm:px-5">
-      <div className="flex items-center gap-2 text-3xs font-semibold uppercase tracking-widest text-muted-foreground/70">
-        <span className="text-muted-foreground/55 transition-colors group-hover:text-foreground/65">
-          {icon}
-        </span>
-        <span className="truncate">{label}</span>
-      </div>
-      <div
-        className={cn(
-          "mt-2.5 truncate font-mono text-2xl font-semibold tracking-tighter tabular-nums text-foreground",
-          tone === "warning" && "text-warning-foreground",
-          tone === "danger" && "text-destructive",
-        )}
-      >
-        {value}
-      </div>
-      {detail ? (
-        <div className="mt-1.5 truncate text-3xs text-muted-foreground/60">{detail}</div>
-      ) : null}
-    </div>
-  );
-}
-
 function AggregateCard({
   label,
-  accentClass,
+  dotClass,
   aggregate,
 }: {
   label: string;
-  accentClass: string;
+  dotClass: string;
   aggregate: ResourceTelemetryAggregate;
 }) {
   return (
-    <div className="relative overflow-hidden border-t border-border/60 px-4 py-4 first:border-t-0 md:border-t-0 md:border-l md:first:border-l-0 sm:px-5">
-      <span className={cn("absolute inset-x-5 top-0 h-0.5 rounded-full opacity-75", accentClass)} />
+    <div className="rounded-xl bg-muted/50 p-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground/75">
-          {label}
-        </div>
-        <div className="rounded-md bg-muted/55 px-1.5 py-0.5 font-mono text-3xs tabular-nums text-muted-foreground/70">
+        <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <span className={cn("size-2 shrink-0 rounded-full", dotClass)} />
+          <span className="truncate">{label}</span>
+        </span>
+        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
           {aggregate.processCount} {aggregate.processCount === 1 ? "process" : "processes"}
-        </div>
+        </span>
       </div>
-      <div className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+      <div className="mt-3 grid grid-cols-4 gap-3">
         <MetricPair label="CPU" value={`${aggregate.currentCpuPercent.toFixed(1)}%`} />
         <MetricPair label="Memory" value={formatBytes(aggregate.currentRssBytes)} />
         <MetricPair label="Read" value={formatRate(aggregate.ioReadBytesPerSecond)} />
@@ -294,12 +239,8 @@ function AggregateCard({
 function MetricPair({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground/45">
-        {label}
-      </div>
-      <div className="truncate font-mono text-xs font-medium tabular-nums text-foreground/90">
-        {value}
-      </div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="truncate text-sm font-medium tabular-nums">{value}</div>
     </div>
   );
 }
@@ -309,10 +250,10 @@ function HealthSource({ label, health }: { label: string; health: ResourceTeleme
     health.status === "unavailable" &&
     Option.exists(health.lastError, (error) => error.includes("'web' mode"));
   return (
-    <div className="flex items-start justify-between gap-4 border-t border-border/50 py-3 first:border-t-0">
+    <div className="flex items-start justify-between gap-4 border-t py-3 first:border-t-0 first:pt-0">
       <div className="min-w-0">
         <div className="text-sm font-medium text-foreground">{label}</div>
-        <div className="mt-1 text-2xs leading-relaxed text-muted-foreground/65">
+        <div className="mt-0.5 text-xs text-muted-foreground">
           {expectedInBrowser
             ? "Available only in the Leonidas Code desktop app."
             : Option.match(health.lastError, {
@@ -347,43 +288,12 @@ function DetailRow({
   valueClassName?: string | undefined;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-border/50 py-2.5 first:border-t-0">
-      <span className="text-2xs text-muted-foreground/75">{label}</span>
-      <span
-        className={cn(
-          "min-w-0 truncate text-right font-mono text-2xs tabular-nums text-foreground/85",
-          valueClassName,
-        )}
-      >
+    <div className="flex items-center justify-between gap-4 border-t py-2.5 first:border-t-0 first:pt-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={cn("min-w-0 truncate text-right text-sm tabular-nums", valueClassName)}>
         {value}
       </span>
     </div>
-  );
-}
-
-function HistoryWindowSelector({
-  selectedWindowMs,
-  onSelect,
-}: {
-  selectedWindowMs: number;
-  onSelect: (windowMs: number) => void;
-}) {
-  return (
-    <ToggleGroup
-      aria-label="Resource history period"
-      variant="segmented"
-      value={[String(selectedWindowMs)]}
-      onValueChange={(next) => {
-        const selected = HISTORY_WINDOWS.find((option) => String(option.windowMs) === next[0]);
-        if (selected) onSelect(selected.windowMs);
-      }}
-    >
-      {HISTORY_WINDOWS.map((option) => (
-        <Toggle key={option.windowMs} value={String(option.windowMs)}>
-          {option.label}
-        </Toggle>
-      ))}
-    </ToggleGroup>
   );
 }
 
@@ -396,19 +306,19 @@ function ResourceHistoryChart({
   const maxIo = Math.max(1, ...buckets.map((bucket) => bucket.ioReadBytes + bucket.ioWriteBytes));
 
   return (
-    <div className="border-t border-border/60 px-4 py-4 sm:px-5">
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-3xs text-muted-foreground/65">
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-foreground/70" /> CPU average
+          <span className="h-1.5 w-3 rounded-full bg-foreground/70" /> Processor (average)
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-info/70" /> I/O reads
+          <span className="h-1.5 w-3 rounded-full bg-info/70" /> Disk reads
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-warning/80" /> I/O writes
+          <span className="h-1.5 w-3 rounded-full bg-warning/80" /> Disk writes
         </span>
       </div>
-      <div className="flex h-32 items-end gap-1 overflow-hidden rounded-lg border border-border/40 bg-muted/8 px-2 pt-3 pb-2">
+      <div className="flex h-40 items-end gap-1 overflow-hidden rounded-xl bg-muted/50 px-2 pt-3 pb-2">
         {buckets.map((bucket) => {
           const cpuHeight = resourceHistoryBarHeight({
             value: bucket.avgCpuPercent,
@@ -584,19 +494,19 @@ function ProcessTable({
             <col className="w-[6%]" />
             <col className="w-[4%]" />
           </colgroup>
-          <thead className="sticky top-0 z-10 border-b border-border/60 bg-card text-3xs uppercase tracking-widest text-muted-foreground/65">
+          <thead className="sticky top-0 z-10 border-b border-border/60 bg-card text-xs text-muted-foreground">
             <tr>
-              <th className="px-4 py-2 font-semibold sm:pl-5">Process</th>
-              <th className="px-3 py-2 font-semibold">Category</th>
-              <th className="px-3 py-2 text-right font-semibold">CPU</th>
-              <th className="px-3 py-2 text-right font-semibold">CPU Time</th>
-              <th className="px-3 py-2 text-right font-semibold">Memory</th>
-              <th className="px-3 py-2 text-right font-semibold">Read/s</th>
-              <th className="px-3 py-2 text-right font-semibold">Write/s</th>
-              <th className="px-3 py-2 text-right font-semibold">Read Total</th>
-              <th className="px-3 py-2 text-right font-semibold">Write Total</th>
-              <th className="px-3 py-2 text-right font-semibold">PID</th>
-              <th className="px-2 py-2 text-right font-semibold sm:pr-4">Kill</th>
+              <th className="px-4 py-2 font-medium sm:pl-5">Process</th>
+              <th className="px-3 py-2 font-medium">Category</th>
+              <th className="px-3 py-2 text-right font-medium">CPU</th>
+              <th className="px-3 py-2 text-right font-medium">CPU Time</th>
+              <th className="px-3 py-2 text-right font-medium">Memory</th>
+              <th className="px-3 py-2 text-right font-medium">Read/s</th>
+              <th className="px-3 py-2 text-right font-medium">Write/s</th>
+              <th className="px-3 py-2 text-right font-medium">Read Total</th>
+              <th className="px-3 py-2 text-right font-medium">Write Total</th>
+              <th className="px-3 py-2 text-right font-medium">PID</th>
+              <th className="px-2 py-2 text-right font-medium sm:pr-4">Kill</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
@@ -619,31 +529,31 @@ function ProcessTable({
                 <td className="truncate px-3 py-2 text-2xs text-muted-foreground">
                   {categoryLabel(process.category)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums">
+                <td className="px-3 py-2 text-right tabular-nums">
                   {process.cpuPercent.toFixed(1)}%
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums">
+                <td className="px-3 py-2 text-right tabular-nums">
                   {formatCpuTime(process.cpuTimeMs)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums">
+                <td className="px-3 py-2 text-right tabular-nums">
                   {formatBytes(process.residentBytes)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-info-foreground">
+                <td className="px-3 py-2 text-right tabular-nums text-info-foreground">
                   {formatRate(process.ioReadBytesPerSecond)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-warning-foreground">
+                <td className="px-3 py-2 text-right tabular-nums text-warning-foreground">
                   {formatRate(process.ioWriteBytesPerSecond)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                   {formatBytes(process.ioReadBytes)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                   <Tooltip>
                     <TooltipTrigger render={<span>{formatBytes(process.ioWriteBytes)}</span>} />
                     <TooltipPopup side="top">{ioSemanticsLabel(process.ioSemantics)}</TooltipPopup>
                   </Tooltip>
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                   {process.identity.pid}
                 </td>
                 <td className="px-2 py-2 text-right sm:pr-4">
@@ -688,17 +598,17 @@ function HistoryProcessTable({
             <col className="w-[7%]" />
             <col className="w-[5%]" />
           </colgroup>
-          <thead className="sticky top-0 z-10 border-b border-border/60 bg-card text-3xs uppercase tracking-widest text-muted-foreground/65">
+          <thead className="sticky top-0 z-10 border-b border-border/60 bg-card text-xs text-muted-foreground">
             <tr>
-              <th className="px-4 py-2 font-semibold sm:pl-5">Process</th>
-              <th className="px-3 py-2 font-semibold">Category</th>
-              <th className="px-3 py-2 text-right font-semibold">CPU Time</th>
-              <th className="px-3 py-2 text-right font-semibold">Peak CPU</th>
-              <th className="px-3 py-2 text-right font-semibold">Peak Mem</th>
-              <th className="px-3 py-2 text-right font-semibold">Read</th>
-              <th className="px-3 py-2 text-right font-semibold">Write</th>
-              <th className="px-3 py-2 text-right font-semibold">Samples</th>
-              <th className="px-3 py-2 text-right font-semibold sm:pr-5">PID</th>
+              <th className="px-4 py-2 font-medium sm:pl-5">Process</th>
+              <th className="px-3 py-2 font-medium">Category</th>
+              <th className="px-3 py-2 text-right font-medium">CPU Time</th>
+              <th className="px-3 py-2 text-right font-medium">Peak CPU</th>
+              <th className="px-3 py-2 text-right font-medium">Peak Mem</th>
+              <th className="px-3 py-2 text-right font-medium">Read</th>
+              <th className="px-3 py-2 text-right font-medium">Write</th>
+              <th className="px-3 py-2 text-right font-medium">Samples</th>
+              <th className="px-3 py-2 text-right font-medium sm:pr-5">PID</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
@@ -728,25 +638,25 @@ function HistoryProcessTable({
                 <td className="truncate px-3 py-2 text-2xs text-muted-foreground">
                   {categoryLabel(process.category)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums">
+                <td className="px-3 py-2 text-right tabular-nums">
                   {formatCpuTime(process.cpuTimeMs)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums">
+                <td className="px-3 py-2 text-right tabular-nums">
                   {process.maxCpuPercent.toFixed(1)}%
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums">
+                <td className="px-3 py-2 text-right tabular-nums">
                   {formatBytes(process.peakRssBytes)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-info-foreground">
+                <td className="px-3 py-2 text-right tabular-nums text-info-foreground">
                   {formatBytes(process.ioReadBytes)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-warning-foreground">
+                <td className="px-3 py-2 text-right tabular-nums text-warning-foreground">
                   {formatBytes(process.ioWriteBytes)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                   {process.sampleCount}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground sm:pr-5">
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground sm:pr-5">
                   {process.identity.pid}
                 </td>
               </tr>
@@ -770,14 +680,14 @@ function AttributionTable({ entries }: { entries: ReadonlyArray<ResourceAttribut
           <col className="w-[10%]" />
           <col className="w-[12%]" />
         </colgroup>
-        <thead className="border-b border-border/60 text-3xs uppercase tracking-widest text-muted-foreground/65">
+        <thead className="border-b border-border/60 text-xs text-muted-foreground">
           <tr>
-            <th className="px-4 py-2 font-semibold sm:pl-5">Component</th>
-            <th className="px-3 py-2 font-semibold">Operation</th>
-            <th className="px-3 py-2 text-right font-semibold">Logical Read</th>
-            <th className="px-3 py-2 text-right font-semibold">Logical Write</th>
-            <th className="px-3 py-2 text-right font-semibold">Count</th>
-            <th className="px-3 py-2 text-right font-semibold sm:pr-5">Time</th>
+            <th className="px-4 py-2 font-medium sm:pl-5">Component</th>
+            <th className="px-3 py-2 font-medium">Operation</th>
+            <th className="px-3 py-2 text-right font-medium">Logical Read</th>
+            <th className="px-3 py-2 text-right font-medium">Logical Write</th>
+            <th className="px-3 py-2 text-right font-medium">Count</th>
+            <th className="px-3 py-2 text-right font-medium sm:pr-5">Time</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
@@ -795,14 +705,14 @@ function AttributionTable({ entries }: { entries: ReadonlyArray<ResourceAttribut
                 {entry.component}
               </td>
               <td className="truncate px-3 py-2 text-muted-foreground">{entry.operation}</td>
-              <td className="px-3 py-2 text-right font-mono tabular-nums text-info-foreground">
+              <td className="px-3 py-2 text-right tabular-nums text-info-foreground">
                 {formatBytes(entry.logicalReadBytes)}
               </td>
-              <td className="px-3 py-2 text-right font-mono tabular-nums text-warning-foreground">
+              <td className="px-3 py-2 text-right tabular-nums text-warning-foreground">
                 {formatBytes(entry.logicalWriteBytes)}
               </td>
-              <td className="px-3 py-2 text-right font-mono tabular-nums">{entry.count}</td>
-              <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground sm:pr-5">
+              <td className="px-3 py-2 text-right tabular-nums">{entry.count}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground sm:pr-5">
                 {(entry.durationMs / 1_000).toFixed(2)}s
               </td>
             </tr>
@@ -813,11 +723,7 @@ function AttributionTable({ entries }: { entries: ReadonlyArray<ResourceAttribut
   );
 }
 
-export function ResourceTelemetryDiagnostics({
-  environmentId,
-}: {
-  environmentId: EnvironmentId | null;
-}) {
+export function LeonidasAppPanel({ environmentId }: { environmentId: EnvironmentId | null }) {
   const [windowMs, setWindowMs] = useState(15 * 60_000);
   const selectedWindow =
     HISTORY_WINDOWS.find((option) => option.windowMs === windowMs) ?? HISTORY_WINDOWS[1];
@@ -967,304 +873,105 @@ export function ResourceTelemetryDiagnostics({
       snapshot.power.thermalState !== "unknown");
 
   return (
-    <>
-      <SettingsSection
-        title="Resource monitor"
-        icon={<ActivityIcon className="size-4 text-muted-foreground" />}
-        headerAction={
+    <div className="flex flex-col gap-4">
+      <Card
+        title="Leonidas Code footprint"
+        hint="The app, its AI services, terminals and this monitor, live."
+        action={
           <div className="flex items-center gap-2">
             {snapshot ? (
-              <SourceStatusBadge label="Native" status={snapshot.health.native.status} />
+              <SourceStatusBadge label="Monitor" status={snapshot.health.native.status} />
             ) : null}
             <LastSampleLabel sampledAt={snapshot?.readAt ?? null} />
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
-                    size="icon-micro"
-                    variant="ghost"
+                    size="icon-xs"
+                    variant="ghost-muted"
                     disabled={telemetry.isPending}
                     onClick={telemetry.refresh}
-                    aria-label="Refresh resource telemetry"
+                    aria-label="Refresh footprint"
                   >
-                    <RefreshIcon size="xs" refreshing={telemetry.isPending} />
+                    <RefreshIcon refreshing={telemetry.isPending} />
                   </Button>
                 }
               />
-              <TooltipPopup side="top">Refresh telemetry snapshot</TooltipPopup>
+              <TooltipPopup side="top">Refresh footprint</TooltipPopup>
             </Tooltip>
           </div>
         }
       >
-        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm/5">
-          <div className="flex flex-col gap-3 border-b border-border/60 bg-linear-to-r from-muted/45 via-muted/20 to-transparent px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <div>
-              <div className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground/70">
-                Leonidas system footprint
-              </div>
-              <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
-                Live counts for Leonidas Code, the AI services, terminals, the app window, and the
-                monitor itself.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-3xs text-muted-foreground/65">
-              <span className="size-1.5 rounded-full bg-success" />
-              Sampling every {snapshot ? formatSampleInterval(snapshot.sampleIntervalMs) : "..."}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 divide-x divide-y divide-border/55 md:grid-cols-3">
-            <IconStat
-              icon={<CpuIcon className="size-3.5" />}
-              label="Current CPU"
-              value={allT3 ? `${allT3.currentCpuPercent.toFixed(1)}%` : "..."}
-              detail={allT3 ? `${formatCpuTime(allT3.cpuTimeMs)} observed CPU time` : undefined}
-            />
-            <IconStat
-              icon={<MemoryStickIcon className="size-3.5" />}
-              label="Resident memory"
-              value={allT3 ? formatBytes(allT3.currentRssBytes) : "..."}
-              detail={
-                allT3 ? `${formatBytes(allT3.peakRssBytes)} combined process peaks` : undefined
-              }
-            />
-            <IconStat
-              icon={<ActivityIcon className="size-3.5" />}
-              label="Process count"
-              value={allT3 ? String(allT3.processCount) : "..."}
-              detail={
-                allT3 ? `${allT3.processStarts} starts · ${allT3.processExits} exits` : undefined
-              }
-            />
-            <IconStat
-              icon={<HardDriveIcon className="size-3.5" />}
-              label="Read throughput"
-              value={allT3 ? formatRate(allT3.ioReadBytesPerSecond) : "..."}
-              detail={allT3 ? `${formatBytes(allT3.ioReadBytes)} observed` : undefined}
-            />
-            <IconStat
-              icon={<DatabaseIcon className="size-3.5" />}
-              label="Write throughput"
-              value={allT3 ? formatRate(allT3.ioWriteBytesPerSecond) : "..."}
-              detail={allT3 ? `${formatBytes(allT3.ioWriteBytes)} observed` : undefined}
-              tone={
-                allT3 && allT3.ioWriteBytesPerSecond >= 10 * 1_024 * 1_024
-                  ? "danger"
-                  : allT3 && allT3.ioWriteBytesPerSecond >= 1_024 * 1_024
-                    ? "warning"
-                    : "default"
-              }
-            />
-            <IconStat
-              icon={<GaugeIcon className="size-3.5" />}
-              label="CPU speed limit"
-              value={
-                snapshot ? (speedLimit === null ? "Unknown" : `${speedLimit.toFixed(0)}%`) : "..."
-              }
-              detail={snapshot ? `${snapshot.power.thermalState} thermal state` : undefined}
-              tone={speedLimit !== null && speedLimit < 80 ? "warning" : "default"}
-            />
-          </div>
-          {telemetry.error ? (
-            <div className="flex items-start gap-2 border-t border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive sm:px-5">
-              <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
-              <span>{telemetry.error}</span>
-            </div>
-          ) : null}
-          {snapshot ? (
-            <div className="grid border-t border-border/60 bg-muted/10 md:grid-cols-3">
-              <AggregateCard
-                label="Background service + AI"
-                accentClass="bg-success/80"
-                aggregate={snapshot.groups.backend}
-              />
-              <AggregateCard
-                label="Desktop"
-                accentClass="bg-info/80"
-                aggregate={snapshot.groups.electron}
-              />
-              <AggregateCard
-                label="Monitor overhead"
-                accentClass="bg-warning/80"
-                aggregate={snapshot.groups.monitor}
-              />
-            </div>
-          ) : null}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-3 2xl:grid-cols-6">
+          <Stat
+            label="Processor"
+            value={allT3 ? `${allT3.currentCpuPercent.toFixed(1)}%` : "-"}
+            detail={allT3 ? `${formatCpuTime(allT3.cpuTimeMs)} used so far` : undefined}
+          />
+          <Stat
+            label="Memory"
+            value={allT3 ? formatBytes(allT3.currentRssBytes) : "-"}
+            detail={allT3 ? `Peak ${formatBytes(allT3.peakRssBytes)}` : undefined}
+          />
+          <Stat
+            label="Processes"
+            value={allT3 ? String(allT3.processCount) : "-"}
+            detail={
+              allT3 ? `${allT3.processStarts} started · ${allT3.processExits} ended` : undefined
+            }
+          />
+          <Stat
+            label="Reading"
+            value={allT3 ? formatRate(allT3.ioReadBytesPerSecond) : "-"}
+            detail={allT3 ? `${formatBytes(allT3.ioReadBytes)} in total` : undefined}
+          />
+          <Stat
+            label="Writing"
+            value={allT3 ? formatRate(allT3.ioWriteBytesPerSecond) : "-"}
+            detail={allT3 ? `${formatBytes(allT3.ioWriteBytes)} in total` : undefined}
+            level={
+              allT3 && allT3.ioWriteBytesPerSecond >= 10 * 1_024 * 1_024
+                ? "critical"
+                : allT3 && allT3.ioWriteBytesPerSecond >= 1_024 * 1_024
+                  ? "warning"
+                  : undefined
+            }
+          />
+          <Stat
+            label="Processor speed limit"
+            value={snapshot ? (speedLimit === null ? "Unknown" : `${speedLimit.toFixed(0)}%`) : "-"}
+            detail={snapshot ? `Heat state: ${snapshot.power.thermalState}` : undefined}
+            level={speedLimit !== null && speedLimit < 80 ? "warning" : undefined}
+          />
         </div>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Host & collection"
-        icon={<GaugeIcon className="size-4 text-muted-foreground" />}
-        headerAction={
-          collectorNeedsRetry ? (
-            <Button size="xs" variant="outline" disabled={isRetrying} onClick={retryCollector}>
-              <RefreshIcon size="xs" refreshing={isRetrying} />
-              Retry monitor
-            </Button>
-          ) : null
-        }
-      >
-        <div className="grid overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs/5 md:grid-cols-2 md:divide-x md:divide-border/60">
-          <div className="px-4 py-4 sm:px-5">
-            <div className="mb-3 flex items-center gap-2 text-3xs font-semibold uppercase tracking-widest text-muted-foreground/70">
-              <span className="flex size-6 items-center justify-center rounded-md bg-muted/60">
-                <BatteryIcon className="size-3.5" />
-              </span>
-              Computer state
-            </div>
-            {hasHostPowerSignal && snapshot ? (
-              <>
-                <DetailRow
-                  label="Power source"
-                  value={booleanStateLabel(snapshot.power.onBattery, {
-                    true: "Battery",
-                    false: "External power",
-                  })}
-                />
-                <DetailRow
-                  label="Low power mode"
-                  value={booleanStateLabel(snapshot.power.lowPowerMode, {
-                    true: "Enabled",
-                    false: "Disabled",
-                  })}
-                />
-                <DetailRow
-                  label="Idle"
-                  value={`${booleanStateLabel(snapshot.power.idle, {
-                    true: "Idle",
-                    false: "Active",
-                  })}${
-                    snapshot.power.idleSeconds === null
-                      ? ""
-                      : ` · ${Math.round(snapshot.power.idleSeconds)}s`
-                  }`}
-                />
-                <DetailRow
-                  label="Session"
-                  value={
-                    snapshot.power.suspended
-                      ? "Suspended"
-                      : booleanStateLabel(snapshot.power.locked, {
-                          true: "Locked",
-                          false: "Unlocked",
-                        })
-                  }
-                />
-                <DetailRow
-                  label="Thermal"
-                  value={snapshot.power.thermalState}
-                  valueClassName={
-                    snapshot.power.thermalState === "serious" ||
-                    snapshot.power.thermalState === "critical"
-                      ? "text-destructive"
-                      : undefined
-                  }
-                />
-              </>
-            ) : (
-              <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-5">
-                <div className="text-sm font-medium text-foreground">
-                  Desktop signals not connected
-                </div>
-                <p className="mt-1.5 max-w-sm text-2xs leading-relaxed text-muted-foreground/70">
-                  The desktop app supplies power, idle, lock, and heat state. Process data still
-                  works in this browser.
-                </p>
-              </div>
-            )}
+        {telemetry.error ? <ErrorNote className="mt-4">{telemetry.error}</ErrorNote> : null}
+        {snapshot ? (
+          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <AggregateCard
+              label="Background service and AI"
+              dotClass="bg-success"
+              aggregate={snapshot.groups.backend}
+            />
+            <AggregateCard
+              label="Desktop app"
+              dotClass="bg-info"
+              aggregate={snapshot.groups.electron}
+            />
+            <AggregateCard
+              label="Monitor"
+              dotClass="bg-warning"
+              aggregate={snapshot.groups.monitor}
+            />
           </div>
-          <div className="border-t border-border/60 px-4 py-4 md:border-t-0 sm:px-5">
-            <div className="mb-3 flex items-center gap-2 text-3xs font-semibold uppercase tracking-widest text-muted-foreground/70">
-              <span className="flex size-6 items-center justify-center rounded-md bg-muted/60">
-                <GaugeIcon className="size-3.5" />
-              </span>
-              Collection health
-            </div>
-            {snapshot ? (
-              <>
-                <HealthSource label="Native process monitor" health={snapshot.health.native} />
-                <HealthSource label="Electron main process" health={snapshot.health.desktop} />
-                <DetailRow
-                  label="Collection time"
-                  value={formatDurationMicros(snapshot.health.collectionDurationMicros)}
-                />
-                <DetailRow
-                  label="Process scan"
-                  value={`${snapshot.health.retainedProcessCount}/${snapshot.health.scannedProcessCount} retained`}
-                />
-                <DetailRow
-                  label="Inaccessible"
-                  value={String(snapshot.health.inaccessibleProcessCount)}
-                  valueClassName={
-                    snapshot.health.inaccessibleProcessCount > 0
-                      ? "text-warning-foreground"
-                      : undefined
-                  }
-                />
-                <DetailRow
-                  label="Sidecar"
-                  value={Option.match(snapshot.health.sidecarVersion, {
-                    onNone: () => "Unavailable",
-                    onSome: (version) =>
-                      `${version}${Option.match(snapshot.health.sidecarPid, {
-                        onNone: () => "",
-                        onSome: (pid) => ` · PID ${pid}`,
-                      })}`,
-                  })}
-                />
-                <DetailRow label="Restarts" value={String(snapshot.health.restartCount)} />
-              </>
-            ) : (
-              <div className="py-4 text-xs text-muted-foreground">
-                Waiting for the monitor status.
-              </div>
-            )}
-          </div>
-        </div>
-      </SettingsSection>
+        ) : null}
+      </Card>
 
-      <SettingsSection
-        title="Resource timeline"
-        icon={<HardDriveIcon className="size-4 text-muted-foreground" />}
-        headerAction={
-          <div className="flex items-center gap-2">
-            <HistoryWindowSelector selectedWindowMs={windowMs} onSelect={setWindowMs} />
-            <Button
-              size="icon-micro"
-              variant="ghost"
-              disabled={history.isPending}
-              onClick={history.refresh}
-              aria-label="Refresh resource history"
-            >
-              <RefreshIcon size="xs" refreshing={history.isPending} />
-            </Button>
-          </div>
-        }
+      <Card
+        title="Running processes"
+        hint="Every process Leonidas Code started, as a tree."
+        className="overflow-hidden"
       >
-        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs/5">
-          {history.error ? (
-            <div className="flex items-start gap-2 border-b border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive sm:px-5">
-              <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
-              <span>{history.error}</span>
-            </div>
-          ) : null}
-          <ResourceHistoryChart buckets={history.data?.buckets ?? []} />
-          <HistoryProcessTable processes={history.data?.topProcesses ?? []} />
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Live process tree"
-        icon={<CpuIcon className="size-4 text-muted-foreground" />}
-        headerAction={
-          snapshot ? (
-            <span className="text-3xs text-muted-foreground/55">
-              Identity: <span className="font-mono">PID + start time</span>
-            </span>
-          ) : null
-        }
-      >
-        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs/5">
+        <div className="-mx-5 -mb-5 max-h-128 overflow-y-auto">
           <ProcessTable
             processes={snapshot?.processes ?? []}
             canMaintainEnvironment={canMaintainEnvironment}
@@ -1272,23 +979,168 @@ export function ResourceTelemetryDiagnostics({
             onSignal={signalProcess}
           />
         </div>
-      </SettingsSection>
+      </Card>
 
-      <SettingsSection
-        title="Instrumented application I/O"
-        icon={<DatabaseIcon className="size-4 text-muted-foreground" />}
-        headerAction={
-          <span className="text-3xs text-muted-foreground/55">Logical bytes by operation</span>
+      <Card
+        title="Timeline"
+        hint="Processor and disk use by Leonidas Code."
+        className="overflow-hidden"
+        action={
+          <div className="flex items-center gap-1.5">
+            <Segmented
+              label="Timeline period"
+              value={String(windowMs)}
+              options={HISTORY_WINDOWS.map((option) => ({
+                value: String(option.windowMs),
+                label: option.label,
+              }))}
+              onChange={(value) => setWindowMs(Number(value))}
+            />
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-xs"
+                    variant="ghost-muted"
+                    disabled={history.isPending}
+                    onClick={history.refresh}
+                    aria-label="Refresh timeline"
+                  >
+                    <RefreshIcon refreshing={history.isPending} />
+                  </Button>
+                }
+              />
+              <TooltipPopup side="top">Refresh timeline</TooltipPopup>
+            </Tooltip>
+          </div>
         }
       >
-        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs/5">
-          <div className="bg-muted/15 px-4 py-3 text-2xs leading-relaxed text-muted-foreground sm:px-5">
-            Process counters show which process reads or writes. These app counters show which
-            Leonidas Code actions read or write. Use both to find the cause of a spike.
-          </div>
+        {history.error ? <ErrorNote className="mb-4">{history.error}</ErrorNote> : null}
+        <ResourceHistoryChart buckets={history.data?.buckets ?? []} />
+        <div className="-mx-5 -mb-5 mt-5">
+          <HistoryProcessTable processes={history.data?.topProcesses ?? []} />
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card title="Computer state">
+          {hasHostPowerSignal && snapshot ? (
+            <div>
+              <DetailRow
+                label="Power source"
+                value={booleanStateLabel(snapshot.power.onBattery, {
+                  true: "Battery",
+                  false: "Plugged in",
+                })}
+              />
+              <DetailRow
+                label="Low power mode"
+                value={booleanStateLabel(snapshot.power.lowPowerMode, {
+                  true: "On",
+                  false: "Off",
+                })}
+              />
+              <DetailRow
+                label="Activity"
+                value={`${booleanStateLabel(snapshot.power.idle, {
+                  true: "Idle",
+                  false: "Active",
+                })}${
+                  snapshot.power.idleSeconds === null
+                    ? ""
+                    : ` · ${Math.round(snapshot.power.idleSeconds)}s`
+                }`}
+              />
+              <DetailRow
+                label="Session"
+                value={
+                  snapshot.power.suspended
+                    ? "Suspended"
+                    : booleanStateLabel(snapshot.power.locked, {
+                        true: "Locked",
+                        false: "Unlocked",
+                      })
+                }
+              />
+              <DetailRow
+                label="Heat"
+                value={snapshot.power.thermalState}
+                valueClassName={
+                  snapshot.power.thermalState === "serious" ||
+                  snapshot.power.thermalState === "critical"
+                    ? "text-destructive"
+                    : undefined
+                }
+              />
+            </div>
+          ) : (
+            <p className="rounded-xl bg-muted/50 px-4 py-6 text-sm text-muted-foreground">
+              The desktop app reports power, idle, lock and heat state. Process data still works in
+              this browser.
+            </p>
+          )}
+        </Card>
+
+        <Card
+          title="Monitor health"
+          action={
+            collectorNeedsRetry ? (
+              <Button size="xs" variant="outline" disabled={isRetrying} onClick={retryCollector}>
+                <RefreshIcon size="xs" refreshing={isRetrying} />
+                Restart monitor
+              </Button>
+            ) : null
+          }
+        >
+          {snapshot ? (
+            <div>
+              <HealthSource label="Process monitor" health={snapshot.health.native} />
+              <HealthSource label="Desktop app" health={snapshot.health.desktop} />
+              <DetailRow
+                label="Time per reading"
+                value={formatDurationMicros(snapshot.health.collectionDurationMicros)}
+              />
+              <DetailRow
+                label="Processes kept"
+                value={`${snapshot.health.retainedProcessCount} of ${snapshot.health.scannedProcessCount}`}
+              />
+              <DetailRow
+                label="Not readable"
+                value={String(snapshot.health.inaccessibleProcessCount)}
+                valueClassName={
+                  snapshot.health.inaccessibleProcessCount > 0 ? "text-warning" : undefined
+                }
+              />
+              <DetailRow
+                label="Helper"
+                value={Option.match(snapshot.health.sidecarVersion, {
+                  onNone: () => "Unavailable",
+                  onSome: (version) =>
+                    `${version}${Option.match(snapshot.health.sidecarPid, {
+                      onNone: () => "",
+                      onSome: (pid) => ` · PID ${pid}`,
+                    })}`,
+                })}
+              />
+              <DetailRow label="Restarts" value={String(snapshot.health.restartCount)} />
+            </div>
+          ) : (
+            <p className="rounded-xl bg-muted/50 px-4 py-6 text-sm text-muted-foreground">
+              Waiting for the monitor.
+            </p>
+          )}
+        </Card>
+      </div>
+
+      <Card
+        title="App reads and writes"
+        hint="Which Leonidas Code actions read or write data. Compare with the process list to find a spike."
+        className="overflow-hidden"
+      >
+        <div className="-mx-5 -mb-5">
           <AttributionTable entries={snapshot?.attribution.entries ?? []} />
         </div>
-      </SettingsSection>
-    </>
+      </Card>
+    </div>
   );
 }

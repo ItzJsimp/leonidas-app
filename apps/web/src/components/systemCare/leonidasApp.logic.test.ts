@@ -8,7 +8,7 @@ import {
   resourceHistoryCpuScaleMax,
   shouldShowResourceMonitorRetry,
   visibleResourceTelemetryProcesses,
-} from "./ResourceTelemetryDiagnostics.logic";
+} from "./leonidasApp.logic";
 
 const process = (pid: number, ppid: number, depth: number): ResourceTelemetryProcess => ({
   identity: { pid, startTimeMs: pid * 1_000 },
