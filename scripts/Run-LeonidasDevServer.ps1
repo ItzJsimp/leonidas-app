@@ -118,6 +118,8 @@ $script:syncMoved = $false
 function Update-DevBranchRef([string]$mainRoot, [switch]$Force) {
     $builder = Join-Path $mainRoot 'scripts/Update-DevBranch.ps1'
     if (-not (Test-Path -LiteralPath $builder)) { return }
+    # One detached build at a time; a second start would only overwrite the first one's log.
+    if ($script:updateProc -and -not $script:updateProc.HasExited) { return }
     if (-not $Force -and ((Get-Date) - $script:lastDevBuild).TotalSeconds -lt 30) { return }
     $script:lastDevBuild = Get-Date
     $fetch = ((Get-Date) - $script:lastDevFetch).TotalMinutes -ge 5
@@ -126,7 +128,7 @@ function Update-DevBranchRef([string]$mainRoot, [switch]$Force) {
         # Detached: the gate takes minutes and must not stall the sync of everyday edits. The builder's
         # own mutex keeps runs from overlapping; its one-line result goes to dev-branch-update.log.
         $updateLog = Join-Path $devHome 'dev-branch-update.log'
-        Start-Process -FilePath $pwsh -WindowStyle Hidden -ArgumentList (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $builder + '"')) + @(if ($fetch) { '-Fetch' })) `
+        $script:updateProc = Start-Process -FilePath $pwsh -WindowStyle Hidden -PassThru -ArgumentList (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $builder + '"')) + @(if ($fetch) { '-Fetch' })) `
             -RedirectStandardOutput $updateLog -RedirectStandardError "$updateLog.err"
         $out = 'unchanged'
         if ($out -notmatch 'unchanged') { Add-Content -LiteralPath $log -Value "[supervisor] $out" }
