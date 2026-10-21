@@ -2,6 +2,7 @@
 name: review-two-axis
 description: "Review a diff on two axes with parallel sub-agents: standards and spec match. Use when asked to review code, a branch, a PR or finished work against a spec or task card."
 scope: structural
+distribution: core
 category: code
 type: skill
 id: skill-review-two-axis

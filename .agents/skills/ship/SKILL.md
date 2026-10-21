@@ -21,7 +21,7 @@ Engines: the ship steps in `.agents/workflow-profile.md` (for example `pr`, `leo
 
 ## Steps
 
-1. **Require** a `/test` PASS and a `/review` PASS for this work. If one is missing, stop.
+1. **Require** a `/test` PASS and a `/review` PASS for this work (XS tasks need the `/test` PASS only). If one is missing, stop.
 2. **Fan-out.** Skip this step only when the change is 2 files or fewer, under 50 changed lines, and touches no auth, payments, data access, config or env. Otherwise, start 2 subagents in parallel, in one turn, with these briefs:
    - [references/security-auditor.md](references/security-auditor.md)
    - [references/test-engineer.md](references/test-engineer.md)

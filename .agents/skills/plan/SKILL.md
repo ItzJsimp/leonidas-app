@@ -23,7 +23,7 @@ Engine: `task-scoping`. Added from Addy Osmani's planning-and-task-breakdown: si
 
 1. **Require an approved spec.** If there is none, stop and tell the user to run `/spec`.
 2. **Survey, read only.** Load `task-scoping` and follow it. Write no code in this phase.
-3. **Size each slice.** XS = 1 file. S = 1 to 2 files. M = 3 to 5 files. L = 5 to 8 files: split it. XL = more than 8 files: you must split it. Also split a slice when it needs more than one session, needs more than 3 acceptance bullets, touches two independent subsystems, or has "and" in its title.
+3. **Size each slice.** XS = 1 file. S = 1 to 2 files. M = 3 to 5 files. L = 6 to 8 files: split it. XL = more than 8 files: you must split it. Also split a slice when it needs more than one session, needs more than 3 acceptance bullets, touches two independent subsystems, or has "and" in its title.
 4. **Write each slice** with: acceptance criteria, the command that verifies it, and a `Blocked by:` line (names of slices that must finish first, or "none").
 5. **Order the slices.** Dependencies first. High-risk slices early. Each slice leaves the system in a working state.
 6. **Add a checkpoint after every 2 to 3 slices:** tests pass, the build passes, the core flow works.
