@@ -35,7 +35,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { toastManager } from "../ui/toast";
 import { ExpandableText } from "./ExpandableText";
 import { ResourceTelemetryDiagnostics } from "./ResourceTelemetryDiagnostics";
-import { SettingsPageContainer, SettingsSection, useRelativeTimeTick } from "./settingsLayout";
+import { SettingsSection, useRelativeTimeTick } from "./settingsLayout";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useSettingsScope } from "./SettingsScopeContext";
 import { TelemetryExportSettings } from "./TelemetryExportSettings";
@@ -937,20 +937,18 @@ export function DiagnosticsSettingsPanel() {
 
   if (!canReadDiagnostics) {
     return (
-      <SettingsPageContainer>
-        <p className="text-sm text-muted-foreground">
-          {environmentId === null
-            ? "Connect a computer to see diagnostics."
-            : diagnosticsAccess.isPending
-              ? "Checking diagnostics access…"
-              : diagnosticsAccess.error}
-        </p>
-      </SettingsPageContainer>
+      <p className="text-sm text-muted-foreground">
+        {environmentId === null
+          ? "Connect a computer to see diagnostics."
+          : diagnosticsAccess.isPending
+            ? "Checking diagnostics access…"
+            : diagnosticsAccess.error}
+      </p>
     );
   }
 
   return (
-    <SettingsPageContainer width="expanded" className="gap-10">
+    <div className="flex flex-col gap-10">
       <ResourceTelemetryDiagnostics environmentId={environmentId} />
 
       <SettingsSection
@@ -1357,6 +1355,6 @@ export function DiagnosticsSettingsPanel() {
         )}
       </SettingsSection>
       {exportFormEnvironmentId === environmentId && <TelemetryExportSettings />}
-    </SettingsPageContainer>
+    </div>
   );
 }

@@ -10,7 +10,7 @@ interface ScopeState {
 }
 
 const state = vi.hoisted(() => ({
-  pathname: "/settings/diagnostics",
+  pathname: "/settings/providers",
   scope: { search: {}, environmentId: null } as ScopeState,
 }));
 
@@ -107,13 +107,10 @@ const implicitSecond = { search: { project: "one" }, environmentId: "second" };
 const disconnected = { search: first.search, environmentId: null };
 
 it.each([
-  ["/settings/diagnostics", "another project", "1", first, otherProject],
   ["/settings/providers", "another project", "1", first, otherProject],
-  ["/settings/diagnostics", "another environment", "0", first, otherMachine],
   ["/settings/providers", "another environment", "0", first, otherMachine],
-  ["/settings/diagnostics", "an implicit environment change", "0", implicitFirst, implicitSecond],
   ["/settings/providers", "an implicit environment change", "0", implicitFirst, implicitSecond],
-  ["/settings/diagnostics", "a disconnect", "0", first, disconnected],
+  ["/settings/providers", "a disconnect", "0", first, disconnected],
   ["/settings/keybindings", "another project", "0", first, otherProject],
 ])("%s after %s shows %s", async (pathname, _change, expected, before, after) => {
   state.pathname = pathname;

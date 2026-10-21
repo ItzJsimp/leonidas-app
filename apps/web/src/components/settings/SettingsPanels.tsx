@@ -3694,26 +3694,7 @@ export function GeneralSettingsPanel() {
           }
         />
       </SettingsSection>
-      <SettingsSection title="Diagnostics">
-        <SettingsRow
-          {...searchableSetting("diagnostics")}
-          description={
-            isEnvironmentScope
-              ? "See the processes, resource use, and logs on this computer."
-              : "See the processes, resource use, and logs of one computer at a time."
-          }
-          control={
-            <Button
-              render={
-                <Link to="/settings/diagnostics" search={{ machine: environmentId ?? undefined }} />
-              }
-              size="sm"
-              variant="outline"
-            >
-              View diagnostics
-            </Button>
-          }
-        />
+      <SettingsSection title="About">
         <SettingsRow
           {...searchableSetting("open-source-licenses")}
           description="Notices for the parts, images, and extra tools that Leonidas Code uses."

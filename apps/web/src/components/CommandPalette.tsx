@@ -82,6 +82,7 @@ import {
   RotateCcwIcon,
   SettingsIcon,
   SparklesIcon,
+  GaugeIcon,
   SquarePenIcon,
   SunIcon,
   TextSearchIcon,
@@ -2305,6 +2306,28 @@ function OpenCommandPaletteDialog(props: {
     icon: <BrainIcon className={ITEM_ICON_CLASS} />,
     run: async () => {
       await navigate({ to: "/brain" });
+    },
+  });
+
+  actionItems.push({
+    kind: "action",
+    value: "action:pc-tuning",
+    searchTerms: [
+      "pc tuning",
+      "hardware",
+      "temperature",
+      "diagnostics",
+      "logs",
+      "traces",
+      "processes",
+      "OTel",
+      "OTLP",
+      "telemetry export",
+    ],
+    title: "Open PC Tuning",
+    icon: <GaugeIcon className={ITEM_ICON_CLASS} />,
+    run: async () => {
+      await navigate({ to: "/system-care" });
     },
   });
 

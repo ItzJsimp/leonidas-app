@@ -1,5 +1,6 @@
 import type { HardwareInventory, HardwareSample } from "@t3tools/contracts";
 import {
+  ActivityIcon,
   CpuIcon,
   GaugeIcon,
   HardDriveIcon,
@@ -72,6 +73,7 @@ export const SECTIONS = [
   { id: "pc-parts", label: "Your parts", icon: LayoutGridIcon },
   { id: "pc-history", label: "History", icon: SparklesIcon },
   { id: "pc-settings", label: "Settings", icon: WrenchIcon },
+  { id: "pc-diagnostics", label: "Diagnostics", icon: ActivityIcon },
 ] as const;
 
 /** Sticky tabs that jump to each part of the page. */

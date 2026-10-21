@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { SidebarInset } from "../ui/sidebar";
 import { Switch } from "../ui/switch";
+import { PcDiagnostics } from "./PcDiagnostics";
 import { CoreGrid, PartsCard, QuickWinsCard, ScoreRing, SectionNav } from "./PcInsights";
 import { healthScore, quickWins, speedReached, uptimeText } from "./pcInsights.logic";
 import {
@@ -606,6 +607,10 @@ export function SystemCarePage() {
                 </div>
               )}
             </Card>
+          </div>
+
+          <div id="pc-diagnostics" className="scroll-mt-16">
+            <PcDiagnostics />
           </div>
         </div>
       </div>
