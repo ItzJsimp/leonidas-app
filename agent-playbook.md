@@ -72,6 +72,7 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **MCP service test fixtures are partial records:** `OrchestratorMcpService.test.ts` casts runs without `startedAt`/`completedAt`. New code that reads run or turn fields must guard with `== null`, or 7 unrelated tests fail.
 - **The main checkout cannot commit when its install is partial:** the `vp` pre-commit hook fails (code 127, or vite.config cannot load `vitest`). Commit from an installed worktree under `C:/lcw`; a PATH borrow of another worktree's `vp` does not work.
 - **Server typecheck has existing errors** in unrelated test files (`aiosDetect.test.ts`, `relativeImportExtensions.test.ts`). Filter the output to your changed paths instead of reading the total.
+- **`.agents/skills/<name>` in the AIOS is a link into this repo:** edit and commit shared skills here (`git commit --only -- <paths>`), not in the AIOS. The AIOS git ignores them. The AIOS `Stage-AIOSDistribution.ps1` list must name every skill that a shipped skill calls (`review` needs `review-two-axis`).
 
 - **Never check a real branch out in `C:/lcw/dev-live`:** `Sync-DevLive.ps1` runs `reset --hard` there and would drag that branch's tip along (it lost the only commit of `fix/reveal-in-explorer` once; restored from the reflog). dev-live must stay detached.
 - **A branch with a `package.json` change but no `pnpm-lock.yaml` change breaks the dev copy:** the supervisor's patch repair runs `pnpm install --frozen-lockfile`, which then fails. `Update-DevBranch.ps1` skips such branches; fix the lockfile on the branch.
@@ -90,6 +91,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Thin rebrand layer:** every branding touch makes `upstream/main` merges harder. Card: [`t3-code-rebrand`](../../tasks/t3-code-rebrand.md).
 
 ## 7. Session notes
+
+- **2026-10-21 (idea-to-ship audit):** Fixed the XS path, fix slices, stop list and `grilling` link in `idea-to-ship`, plus `plan` L size and `ship` step 1 (commit `235f24af8f`, not pushed). The AIOS `.agents/workflow-profile.md` now has Tracker, Ship and Never. XS skips Review by design; untested on a live task.
 
 - **2026-10-20 (mail autopilot slice 1):** `packages/mail-autopilot` shipped to `origin/main` (`57137ebac5`): pure rules engine (`classify`, `plan`, `parsePack`, `parsePackJson`), closed action list with no send, example pack, 64 tests. Slice 2 (Gmail `MailProvider`, draft and label only) comes next; worktree `C:/lcw/mail-autopilot` is installed for it. Real SimplyGersi pack lives in the SimplyGersi AIOS (`projects/email-agent/packs/simplygersi.json`). Local `main` holds a twin commit (`993cb015cf`): drop it at the next sync. Spec and record: the audit task card in the AIOS `tasks/`.
 
