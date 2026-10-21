@@ -43,7 +43,8 @@ verified: 2026-10-11
 4. First-run starter skills: `node scripts/verify-starter-skills.ts --live` installs all of them into a fresh temp folder and checks both roots plus Claude Code and Codex loading (about 8 s, one haiku call). `--list <folder>` audits any AIOS folder.
 5. Which skills Codex sees in a folder, free and with no model call: `codex debug prompt-input` run there (skills are listed as `(file: rN/<name>/SKILL.md)`).
 6. Web typecheck: from `apps/web`, `../../node_modules/.bin/vp run typecheck` (about 13 s). `npx tsgo` and a local `tsc` bin do not exist.
-7. Server boot smoke, no install needed: `node scripts/smoke.mjs --runtime "<install>/Leonidas Code.exe" --entry "<install>/resources/server.asar/apps/server/dist/bin.mjs"` (about 8 s, fresh temp home). With an install, plain `node scripts/smoke.mjs`. It fails on a hung server (the 0.62.0 bug).
+7. Dev copy (green icon app): it follows the derived local `dev` branch, not the main checkout. `pwsh scripts/Update-DevBranch.ps1 -Force` rebuilds it (origin/main plus every clean branch of the last 21 days, gated; 1 to 3 min). Read `.t3/dev-branch-status.md` for what merged, what the gate dropped and what needs a person. Tests for that machinery: `pwsh -NoProfile -File scripts/Update-DevBranch.test.ps1` (about 15 s, throwaway repo).
+8. Server boot smoke, no install needed: `node scripts/smoke.mjs --runtime "<install>/Leonidas Code.exe" --entry "<install>/resources/server.asar/apps/server/dist/bin.mjs"` (about 8 s, fresh temp home). With an install, plain `node scripts/smoke.mjs`. It fails on a hung server (the 0.62.0 bug).
 
 ## 5. Gotchas (the ones that bite first)
 
@@ -64,7 +65,15 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **The main checkout cannot commit when its install is partial:** the `vp` pre-commit hook fails (code 127, or vite.config cannot load `vitest`). Commit from an installed worktree under `C:/lcw`; a PATH borrow of another worktree's `vp` does not work.
 - **Server typecheck has existing errors** in unrelated test files (`aiosDetect.test.ts`, `relativeImportExtensions.test.ts`). Filter the output to your changed paths instead of reading the total.
 
+- **Never check a real branch out in `C:/lcw/dev-live`:** `Sync-DevLive.ps1` runs `reset --hard` there and would drag that branch's tip along (it lost the only commit of `fix/reveal-in-explorer` once; restored from the reflog). dev-live must stay detached.
+- **A branch with a `package.json` change but no `pnpm-lock.yaml` change breaks the dev copy:** the supervisor's patch repair runs `pnpm install --frozen-lockfile`, which then fails. `Update-DevBranch.ps1` skips such branches; fix the lockfile on the branch.
+- **A cherry-picked commit conflicts with its own twin on `origin/main`:** the hash differs, the patch is the same. `New-CleanBranch.ps1` (`git cherry`) drops it. A conflict with merge context only 3 lines away is still a real conflict.
+- **Chromium `--app` windows file under the browser, not the pinned shortcut:** `Set-DevWindowIdentity.ps1` stamps one AppUserModelID on both and the dev server serves the green favicon (`LEONIDAS_DEV_ICON=1`). I could not confirm the taskbar result by screenshot; the capture shows no taskbar.
+- **Published `origin/main` can already fail tests:** `WelcomeWizard.terminal.test.tsx` fails 2 of 7 there (`voiceStatus is not a function`). The dev gate compares against origin/main and does not blame branches for it.
+
 ## 6. Why it is this way
+
+- **`dev` is a derived local branch, never pushed:** the dev copy mirrored the main checkout, so feature branches and publishes never reached it. `dev` = origin/main plus clean branches, rebuilt from scratch each time and moved only when the gate is green (bisect to the culprit, drop it, hold the last good tip after 3 drops). Mixed-session branches stay out until a person or agent resolves them in `C:/lcw/dev-rebase`; `git rerere` keeps each resolution.
 
 - **Native tasks and release planning:** Leonidas owns new tasks; Todoist supplied public interaction references. Agent execution requires explicit delegation. Existing AIOS cards and GitHub sharing remain compatible. Release scope lives in [`project-roadmap.json`](./project-roadmap.json); V1.0 remains an explicitly approved public launch.
 - **Roadmap task identity:** Imported briefs carry a durable `Roadmap key:` in their descriptions. Renaming or moving a task must not reimport it. Use the shared `observeResize` helper for map connectors; raw ResizeObserver callbacks fail scoped lint.
@@ -73,6 +82,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Thin rebrand layer:** every branding touch makes `upstream/main` merges harder. Card: [`t3-code-rebrand`](../../tasks/t3-code-rebrand.md).
 
 ## 7. Session notes
+
+- **2026-10-20 (dev copy):** Tasks window work was built but only on `feat/task-cap-rules`, so the dev copy never showed it. Added `Update-DevBranch.ps1` (derived `dev` branch, green gate with bisect, clean-branch rebuilds), `Test-DevTip.ps1`, `New-CleanBranch.ps1`, `Set-DevWindowIdentity.ps1` and a dev-only green favicon; `feat/task-cap-clean` carries the 8 task-cap commits on current origin/main (not pushed). 10 branches still need a conflict resolution (see `.t3/dev-branch-status.md`); the supervisor's one-build-at-a-time fix starts at its next restart.
 
 - **2026-10-17:** The Models tab token report reads counts only. Input totals include cache reads, so show cached input apart. Ollama stopped after a dev server kill; the cause is not confirmed. Stop only a captured process PID.
 - **2026-10-17 (evening):** Token report (slice 8a) shipped in `v0.89.0` via another session's push. Traps: `inputTokens` includes cache reads (98% of 30 days), so show cached input apart; Effect code needs `Clock.currentTimeMillis`, not `Date.now()`; Ollama stopped by itself after a dev server kill, cause not found. Release-Note trailers must start with Added, Improved or Fixed (10 of 12 did not; story `release-posts/local-models.md` covers it, commit `84f1c9ab44`, not pushed). Before a Gate 2 push, run `git fetch` and check that `main` does not already hold your commits.
