@@ -4073,6 +4073,21 @@ export default function ChatView(props: ChatViewProps) {
     () => timelineEntries.flatMap((entry) => (entry.kind === "message" ? [entry.message] : [])),
     [timelineEntries],
   );
+  const promptHistoryMessagesRef = useRef<ReadonlyArray<ChatMessage>>([]);
+  const promptHistoryMessages = useMemo(() => {
+    const nextNonStreaming = timelineEntries.flatMap((entry) =>
+      entry.kind === "message" && !entry.message.streaming ? [entry.message] : [],
+    );
+    const prev = promptHistoryMessagesRef.current;
+    if (
+      prev.length === nextNonStreaming.length &&
+      prev.every((msg, idx) => msg === nextNonStreaming[idx])
+    ) {
+      return prev;
+    }
+    promptHistoryMessagesRef.current = nextNonStreaming;
+    return nextNonStreaming;
+  }, [timelineEntries]);
   const displayedTimeline = resolveThreadSwitchTimeline({
     loading: timelineEntries.length === 0 && threadSyncPhase !== null,
     activeThreadKey,
@@ -9152,20 +9167,36 @@ export default function ChatView(props: ChatViewProps) {
     if (compactDisabled) return;
     void sendStandaloneCommand("/compact", "Could not compact context.");
   };
-  const composerLayout: ComposerLayoutSlice = {
-    restingControlsHost: restingComposerControlsHost,
-    restingControlsHaveLeadingContext:
-      mountComposerContextStrip && (isGitRepo || showComposerEnvironmentIndicator),
-    onRestingControlsVisibilityChange: setRestingComposerControlsVisible,
-    getTimelineScrollableNode: getTimelineScrollableNode,
-    isTimelineAtLogicalEnd: isTimelineAtLogicalEnd,
-    timelineOverflows: timelineOverflows,
-    onComposerOverlayHeightChange: publishComposerOverlayHeight,
-    onRestingChange: onComposerRestingChange,
-    onPageScrollKeyDown: onComposerPageScrollKeyDown,
-    onPageScrollKeyUp: onComposerPageScrollKeyUp,
-    onPageScrollRelease: onComposerPageScrollRelease,
-  };
+  const composerLayoutLeadingContext =
+    mountComposerContextStrip && (isGitRepo || showComposerEnvironmentIndicator);
+  const composerLayout: ComposerLayoutSlice = useMemo(
+    () => ({
+      restingControlsHost: restingComposerControlsHost,
+      restingControlsHaveLeadingContext: composerLayoutLeadingContext,
+      onRestingControlsVisibilityChange: setRestingComposerControlsVisible,
+      getTimelineScrollableNode,
+      isTimelineAtLogicalEnd,
+      timelineOverflows,
+      onComposerOverlayHeightChange: publishComposerOverlayHeight,
+      onRestingChange: onComposerRestingChange,
+      onPageScrollKeyDown: onComposerPageScrollKeyDown,
+      onPageScrollKeyUp: onComposerPageScrollKeyUp,
+      onPageScrollRelease: onComposerPageScrollRelease,
+    }),
+    [
+      restingComposerControlsHost,
+      composerLayoutLeadingContext,
+      setRestingComposerControlsVisible,
+      getTimelineScrollableNode,
+      isTimelineAtLogicalEnd,
+      timelineOverflows,
+      publishComposerOverlayHeight,
+      onComposerRestingChange,
+      onComposerPageScrollKeyDown,
+      onComposerPageScrollKeyUp,
+      onComposerPageScrollRelease,
+    ],
+  );
   const composerContext = useComposerContextSlice({
     contextWindow: activeContextWindow,
     velocity: activeVelocitySummary,
@@ -10713,6 +10744,12 @@ export default function ChatView(props: ChatViewProps) {
       if (!sendQueuesBehindSetup) resetLocalDispatch();
     }
   };
+  const onResumeRef = useRef(onResume);
+  onResumeRef.current = onResume;
+  const stableOnResume = useCallback(
+    (...args: Parameters<typeof onResume>) => onResumeRef.current(...args),
+    [],
+  );
 
   const onRespondToApproval = useCallback(
     async (requestId: RuntimeRequestId, decision: ProviderApprovalDecision) => {
@@ -11443,6 +11480,10 @@ export default function ChatView(props: ChatViewProps) {
   }, [cancelWorktreeSetup, draftId, setupTarget.environmentId, worktreeSetup]);
   const onSendRef = useRef(onSend);
   onSendRef.current = onSend;
+  const stableOnSend = useCallback(
+    (...args: Parameters<typeof onSend>) => onSendRef.current(...args),
+    [],
+  );
   // Resend once the cancelled dispatch has settled and the composer is free.
   // Every state that makes `onSend` bail and wait is part of the readiness
   // check, so the flag survives a reconnect, a reverting checkpoint, or a
@@ -11556,16 +11597,56 @@ export default function ChatView(props: ChatViewProps) {
   ]);
 
   // Empty state: no active thread
-  const composerAttachments: ComposerAttachmentSlice = {
-    uploadsCapabilityKnown: attachmentUploadsCapabilityKnown,
-    supportsUploads: supportsAttachmentUploads,
-    supportsQuestionAttachments: supportsQuestionAttachments,
-    maxFileBytes: maxFileAttachmentBytes,
-    editingQueued: composerEditingQueuedAttachments,
-    onRemoveEditingQueued: removeEditingQueuedAttachment,
-    onExpandImage: onExpandTimelineImage,
-    onFileOpen: openFileAttachment,
-  };
+  const composerAttachments: ComposerAttachmentSlice = useMemo(
+    () => ({
+      uploadsCapabilityKnown: attachmentUploadsCapabilityKnown,
+      supportsUploads: supportsAttachmentUploads,
+      supportsQuestionAttachments: supportsQuestionAttachments,
+      maxFileBytes: maxFileAttachmentBytes,
+      editingQueued: composerEditingQueuedAttachments,
+      onRemoveEditingQueued: removeEditingQueuedAttachment,
+      onExpandImage: onExpandTimelineImage,
+      onFileOpen: openFileAttachment,
+    }),
+    [
+      attachmentUploadsCapabilityKnown,
+      supportsAttachmentUploads,
+      supportsQuestionAttachments,
+      maxFileAttachmentBytes,
+      composerEditingQueuedAttachments,
+      removeEditingQueuedAttachment,
+      onExpandTimelineImage,
+      openFileAttachment,
+    ],
+  );
+  const composerQueuedRunsControl = useMemo(() => {
+    if (!isServerThread || !activeThread) return null;
+    return (
+      <QueuedRunsControl
+        ref={queuedRunsControlRef}
+        steerShortcutLabel={shortcutLabelForCommand(keybindings, "thread.steerQueuedMessage", {
+          context: { terminalFocus: false },
+        })}
+        editShortcutLabel={shortcutLabelForCommand(keybindings, "thread.editQueuedMessage", {
+          context: { composerFocus: true },
+        })}
+        environmentId={activeThread.environmentId}
+        threadId={activeThread.id}
+        optimisticMessages={optimisticUserMessages}
+        editingRunId={editingQueuedRun?.runId ?? null}
+        onEditQueuedRun={beginEditingQueuedRun}
+        onCancelEdit={cancelEditingQueuedRun}
+      />
+    );
+  }, [
+    isServerThread,
+    activeThread,
+    keybindings,
+    optimisticUserMessages,
+    editingQueuedRun?.runId,
+    beginEditingQueuedRun,
+    cancelEditingQueuedRun,
+  ]);
   if (!activeThread) {
     return <NoActiveThreadState />;
   }
@@ -12273,7 +12354,7 @@ export default function ChatView(props: ChatViewProps) {
                               activeThreadEnvironmentId={activeThread?.environmentId}
                               activeThread={activeThread}
                               activeThreadShell={activeThreadShell}
-                              promptHistoryMessages={timelineMessages}
+                              promptHistoryMessages={promptHistoryMessages}
                               isServerThread={isServerThread}
                               isLocalDraftThread={isLocalDraftThread}
                               forceExpandedOnMobile={
@@ -12310,29 +12391,7 @@ export default function ChatView(props: ChatViewProps) {
                                             : projectCloneSendBlockReason
                               }
                               isPreparingWorktree={isPreparingWorktree && !sendQueuesBehindSetup}
-                              queuedRunsControl={
-                                isServerThread && activeThread ? (
-                                  <QueuedRunsControl
-                                    ref={queuedRunsControlRef}
-                                    steerShortcutLabel={shortcutLabelForCommand(
-                                      keybindings,
-                                      "thread.steerQueuedMessage",
-                                      { context: { terminalFocus: false } },
-                                    )}
-                                    editShortcutLabel={shortcutLabelForCommand(
-                                      keybindings,
-                                      "thread.editQueuedMessage",
-                                      { context: { composerFocus: true } },
-                                    )}
-                                    environmentId={activeThread.environmentId}
-                                    threadId={activeThread.id}
-                                    optimisticMessages={optimisticUserMessages}
-                                    editingRunId={editingQueuedRun?.runId ?? null}
-                                    onEditQueuedRun={beginEditingQueuedRun}
-                                    onCancelEdit={cancelEditingQueuedRun}
-                                  />
-                                ) : null
-                              }
+                              queuedRunsControl={composerQueuedRunsControl}
                               bannerItems={composerBannerItems}
                               resumeCompactionTokens={resumeCompactionTokens}
                               keepFullHistory={keepFullHistory}
@@ -12388,8 +12447,8 @@ export default function ChatView(props: ChatViewProps) {
                               composerImagesRef={composerImagesRef}
                               composerFilesRef={composerFilesRef}
                               composerTerminalContextsRef={composerTerminalContextsRef}
-                              onSend={onSend}
-                              onResume={onResume}
+                              onSend={stableOnSend}
+                              onResume={stableOnResume}
                               onInterrupt={onInterrupt}
                               onImplementPlanInNewThread={onImplementPlanInNewThread}
                               onRespondToApproval={onRespondToApproval}
