@@ -61,6 +61,31 @@ const exists = (path: string): Promise<boolean> =>
     () => false,
   );
 
+/** Where `usage.py` moves the log at 5 MB: same folder, `<name>.old.jsonl`. */
+export const rotatedLogPath = (logPath: string): string => {
+  const { dir, name } = NodePath.parse(logPath);
+  return NodePath.join(dir, `${name}.old.jsonl`);
+};
+
+const readLogText = async (path: string): Promise<string> => {
+  try {
+    return (await NodeFSP.stat(path)).size <= MAX_LOG_BYTES
+      ? await NodeFSP.readFile(path, "utf8")
+      : "";
+  } catch {
+    return "";
+  }
+};
+
+/** Lines of the rotated log, then the live log, so a rotation does not reset the monitor. */
+export async function readLogLines(logPath: string): Promise<ReadonlyArray<string>> {
+  const [rotated, live] = await Promise.all([
+    readLogText(rotatedLogPath(logPath)),
+    readLogText(logPath),
+  ]);
+  return `${rotated}\n${live}`.split("\n").filter(Boolean);
+}
+
 /** Reads the per-user Laya usage log. A missing log or pack gives an empty, valid result. */
 export async function readLayaUsage(): Promise<LayaUsage> {
   const home = NodeOS.homedir();
@@ -70,14 +95,7 @@ export async function readLayaUsage(): Promise<LayaUsage> {
     exists(NodePath.join(home, ".leonidas", "models", "laya", "laya_int8.onnx")),
     exists(NodePath.join(home, ".leonidas", "laya", "bash_gate_hook.py")),
   ]);
-  let text = "";
-  try {
-    if ((await NodeFSP.stat(logPath)).size <= MAX_LOG_BYTES)
-      text = await NodeFSP.readFile(logPath, "utf8");
-  } catch {
-    text = "";
-  }
-  return summarizeUsage(text.split("\n").filter(Boolean), Date.now(), {
+  return summarizeUsage(await readLogLines(logPath), Date.now(), {
     modelPresent,
     packPresent,
   });

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "@effect/vitest";
 
-import { summarizeUsage } from "./layaUsage.ts";
+// @effect-diagnostics nodeBuiltinImport:off - the log reader test writes real temp files.
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+
+import { readLogLines, rotatedLogPath, summarizeUsage } from "./layaUsage.ts";
 
 const NOW = Date.UTC(2026, 9, 17, 12, 0, 0);
 const row = (job: string, verdict: string, ageDays = 0) =>
@@ -12,6 +17,31 @@ const row = (job: string, verdict: string, ageDays = 0) =>
     project: "p",
   });
 const ready = { modelPresent: true, packPresent: true };
+
+describe("rotated log", () => {
+  it("names the rotated file like usage.py does", () => {
+    expect(rotatedLogPath(NodePath.join("a", "usage.jsonl"))).toBe(
+      NodePath.join("a", "usage.old.jsonl"),
+    );
+    expect(rotatedLogPath(NodePath.join("a", "x.log"))).toBe(NodePath.join("a", "x.old.jsonl"));
+  });
+
+  it("reads the rotated log before the live log and tolerates either missing", async () => {
+    const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "laya-usage-"));
+    try {
+      const live = NodePath.join(dir, "usage.jsonl");
+      expect(await readLogLines(live)).toEqual([]);
+      NodeFS.writeFileSync(live, `${row("screen", "CLEAN")}\n`);
+      expect(await readLogLines(live)).toHaveLength(1);
+      NodeFS.writeFileSync(rotatedLogPath(live), `${row("bash_gate", "BLOCK", 5)}\n`);
+      const lines = await readLogLines(live);
+      expect(lines).toHaveLength(2);
+      expect(summarizeUsage(lines, NOW, ready).total).toBe(2);
+    } finally {
+      NodeFS.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("summarizeUsage", () => {
   it("returns a valid empty result for no lines", () => {
