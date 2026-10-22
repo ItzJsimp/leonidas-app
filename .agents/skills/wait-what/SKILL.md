@@ -1,6 +1,6 @@
 ---
 name: wait-what
-description: "Stop. That last message did not land: re-pitch it."
+description: "Stop. That last message did not land: re-pitch it. Use when the user says wait, what, or signals confusion."
 scope: structural
 category: research
 type: skill

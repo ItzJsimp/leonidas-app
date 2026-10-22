@@ -1,7 +1,7 @@
 ---
 name: "ceo"
 description: "Run complex, parallel work with one orchestrator and cheaper bounded workers, then check each result. Use when a task has independent slices or spans many files."
-category: "architecture"
+category: "agents"
 type: "skill"
 id: "skill-ceo"
 title: "CEO: Plan, Delegate, Review"

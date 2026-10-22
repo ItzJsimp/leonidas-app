@@ -1,6 +1,8 @@
 ---
 name: asd-ste100
 description: "Write or rewrite text in ASD-STE100 Simplified Technical English so no reader can misread it. Use for replies, instructions, error messages, tool descriptions, task cards and agent prompts. Not for marketing copy."
+category: knowledge
+scope: structural
 version: 0.4.0
 ---
 

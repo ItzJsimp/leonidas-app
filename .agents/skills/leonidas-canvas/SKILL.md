@@ -1,6 +1,6 @@
 ---
 name: "leonidas-canvas"
-description: Build and publish offline interactive canvases in Leonidas Code for specifications, architecture, research, roadmaps, audits, and reply bodies over 400 words. Use structured canvas sections or custom HTML, preview both widths, then publish inline.
+description: "Build and publish offline interactive canvases in Leonidas Code. Use when a reply needs a spec, architecture, research, roadmap or audit view, or when the body is over 400 words."
 category: "design"
 scope: "structural"
 distribution: "template"

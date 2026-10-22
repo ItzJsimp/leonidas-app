@@ -1,6 +1,6 @@
 ---
 name: find-skills
-description: "Discover, evaluate, score, and install external agent skills from skills.sh or GitHub into AIOS."
+description: "Discover, evaluate, score, and install external agent skills from skills.sh or GitHub into AIOS. Use when no local skill fits, or when asked to find or install a skill."
 category: agents
 scope: structural
 distribution: core

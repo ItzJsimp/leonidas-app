@@ -1,6 +1,6 @@
 ---
 name: "implement"
-description: "Execute plans and specifications through disciplined test-first slices with mutation gates, AST checks, and atomic commits."
+description: "Execute plans and specifications through disciplined test-first slices with mutation gates, AST checks, and atomic commits. Use when a plan or spec is approved and ready to build."
 category: "code"
 type: "skill"
 id: "skill-implement"

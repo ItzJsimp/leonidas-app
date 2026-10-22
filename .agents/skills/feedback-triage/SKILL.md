@@ -1,6 +1,8 @@
 ---
 name: feedback-triage
 description: Triage new Leonidas Code feedback and bug reports from the private feedback repo, dedupe them, and draft a fix pull request for clear bugs. Use on the scheduled triage run or when asked to process feedback.
+category: system
+scope: structural
 ---
 
 # Feedback triage

@@ -1,6 +1,6 @@
 ---
 name: design-taste-frontend-v2-experimental
-description: "Use the preserved experimental Taste V2 for landing pages, portfolios, and redesigns. Infer the brief, set design dials, select a design system, and audit the result. This is the linked experimental variant."
+description: "Build landing pages, portfolios and redesigns with the preserved experimental Taste V2: infer the brief, set design dials, pick a design system, audit the result. Use when asked for Taste V2."
 category: design
 distribution: core
 scope: structural

@@ -1,6 +1,6 @@
 ---
 name: windows-toast
-description: "Send native, interactive Windows Action Center toast notifications with audio presets, action buttons, and text input routing."
+description: "Send native, interactive Windows Action Center toast notifications with audio presets, action buttons and text input routing. Use when a task needs a desktop alert or a reply prompt."
 category: pc
 type: skill
 id: skill-windows-toast

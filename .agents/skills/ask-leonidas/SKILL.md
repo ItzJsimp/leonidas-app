@@ -1,6 +1,6 @@
 ---
 name: ask-leonidas
-description: "Route user tasks to optimal AIOS skills, resolve workflow boundaries, and plan session handoffs."
+description: "Route user tasks to optimal AIOS skills, resolve workflow boundaries, and plan session handoffs. Use when unsure which skill or workflow fits a task."
 category: agents
 type: skill
 id: skill-ask-leonidas
