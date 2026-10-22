@@ -80,6 +80,10 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **A cherry-picked commit conflicts with its own twin on `origin/main`:** the hash differs, the patch is the same. `New-CleanBranch.ps1` (`git cherry`) drops it. A conflict with merge context only 3 lines away is still a real conflict.
 - **Chromium `--app` windows file under the browser, not the pinned shortcut:** `Set-DevWindowIdentity.ps1` stamps one AppUserModelID on both and the dev server serves the green favicon (`LEONIDAS_DEV_ICON=1`). I could not confirm the taskbar result by screenshot; the capture shows no taskbar.
 - **Published `origin/main` can already fail tests:** `WelcomeWizard.terminal.test.tsx` fails 2 of 7 there (`voiceStatus is not a function`). The dev gate compares against origin/main and does not blame branches for it.
+- **Org kit checks need three different runners:** `packages/business-pack` uses `pnpm --config.verify-deps-before-run=false exec vp test run --config ../../vite.config.ts --dir .`, `apps/server` uses `./node_modules/.bin/vp test run <dir>`, and `apps/web` has no `vp`, so use `./node_modules/.bin/vitest run <dir>` and `./node_modules/.bin/tsc --noEmit -p .` (about 27 s).
+- **A new required field in `WorkspaceOrg` breaks three fixtures:** the contract in `packages/contracts/src/taskBoard.ts`, `apps/server/src/workspacePack/workspacePack.test.ts` and `apps/web/src/components/team/teamView.logic.test.ts` each build an org by hand. Grep `members: \[` before you run tsc.
+- **The Bash token guard blocks Python heredocs over 20 lines:** write the script with the Write tool and run it by path, or use Edit. A `\n` inside a heredoc string became a real newline in a TS test and broke the parse.
+- **`git commit --only -- <paths>` skips a new file until you `git add` it first** (pathspec error). The pre-commit hook then runs a formatter, so a file may change on disk after commit.
 
 ## 6. Why it is this way
 
@@ -92,6 +96,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Thin rebrand layer:** every branding touch makes `upstream/main` merges harder. Card: [`t3-code-rebrand`](../../tasks/t3-code-rebrand.md).
 
 ## 7. Session notes
+
+- **2026-10-22 (org kit slice 3, permission table):** commit `1de598469c`, local, not pushed. The permission table is the first Markdown table of `org/roles.md` (Role, Based on, Write, Approve, Manage), parsed by `parseRoles` in `packages/business-pack/src/org.ts`. Owner is locked and no other Role may hold `wall` or `org`. `permit` reads the table instead of fixed Role names. Roles dialog: `apps/web/src/components/team/RolesEditor.tsx`. Not live-checked in a browser yet. Next: invite flow, assignee picker, setup copies the template, then one browser and design audit pass.
 
 - **2026-10-21 (area join engine):** `apps/server/src/areaSync/` (engine in `engine/`, service, RPC `areaSync.join|sync|status`) shipped as 6 local commits, not pushed. Traps: `vp` lives in `apps/server/node_modules/.bin`, so run `./node_modules/.bin/vp test run src/areaSync` from `apps/server`; `git commit --only -- <paths>` worked from this main checkout despite the partial install; engine tests use real git in temp folders (git must be on PATH); a new package would need a lockfile importer, so the engine lives in the server app; a test that never reaches a push cannot prove "never force-pushes", so break the code on purpose once to check a safety test can fail. A sync chip UI is the next card.
 
