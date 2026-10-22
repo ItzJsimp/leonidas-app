@@ -17,7 +17,7 @@ const widget: WorkspacePackWidget = {
   kpis: [{ label: "L", value: "1", detail: "d" }],
 };
 const view: WorkspaceOrgResult = {
-  org: { name: "Acme", departments: [], areas: [], members: [] },
+  org: { name: "Acme", departments: [], areas: [], members: [], roles: [] },
   me: { slug: "ada", canDecide: true },
   proposals: [],
 };

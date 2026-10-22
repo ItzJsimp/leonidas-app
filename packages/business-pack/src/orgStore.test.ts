@@ -14,6 +14,7 @@ import {
   setRolesBlock,
   validate,
   type OrgChange,
+  type RoleInput,
 } from "./orgEdit.ts";
 import { decideProposal, readProposals, submitChange } from "./orgStore.ts";
 
@@ -314,6 +315,138 @@ describe("decideProposal", () => {
     assert.strictEqual(
       (await decideProposal(root, "ada-l", "nope", "approve", NOW)).result,
       "missing",
+    );
+  });
+});
+
+const ROLES_FILE =
+  "# Roles\n\nIntro.\n\n| Role | Based on | Write | Approve | Manage |\n|---|---|---|---|---|\n| Owner | | all | wall | org |\n| Admin | | all | area | area |\n| Member | | files | none | none |\n| Viewer | | none | none | none |\n| Closer | Member | files | area | none |\n| Bad | Member | all | wall | org |\n| Junk | Member | lots | none | none |\n\nAfter the table.\n";
+
+const closer: RoleInput = {
+  name: "Closer",
+  basedOn: "Member",
+  write: "files",
+  approve: "area",
+  manage: "none",
+};
+
+const giveCy = (root: string, roles: string) =>
+  write(
+    root,
+    "org/members/cy.md",
+    member("cy", "kind: person\nstatus: active\ngithub: cy\ndepartment: general", roles),
+  );
+
+describe("permission table", () => {
+  it("reads the table, skips damaged rows and rows that grab Owner powers", async () => {
+    const root = makeRoot();
+    write(root, "org/roles.md", ROLES_FILE);
+    const o = await org(root);
+    assert.deepStrictEqual(
+      o.roles.map((role) => role.name),
+      ["Viewer", "Member", "Admin", "Owner", "Closer"],
+    );
+    assert.strictEqual(o.roles.find((role) => role.name === "Closer")!.approve, "area");
+  });
+
+  it("falls back to the four defaults when the file has no table", async () => {
+    const o = await org(makeRoot());
+    assert.deepStrictEqual(
+      o.roles.map((role) => role.name),
+      ["Viewer", "Member", "Admin", "Owner"],
+    );
+  });
+
+  it("sorts role edits, locks Owner and keeps wall and org for Owner", async () => {
+    const root = makeRoot();
+    write(root, "org/roles.md", ROLES_FILE);
+    const o = await org(root);
+    const def = (change: Partial<RoleInput>): OrgChange => ({
+      kind: "setRoleDef",
+      role: { ...closer, ...change },
+    });
+    assert.strictEqual(classify(o, def({ name: "Fresh" })), "widen");
+    assert.strictEqual(classify(o, def({ name: "Closer", approve: "none" })), "narrow");
+    assert.strictEqual(
+      classify(o, def({ name: "Closer", write: "all", approve: "none" })),
+      "widen",
+    );
+    assert.strictEqual(classify(o, def({ name: "Closer" })), "none");
+    assert.match(validate(o, def({ name: "Owner" }))!, /locked/);
+    assert.match(validate(o, def({ name: "closer" }))!, /taken/);
+    assert.match(validate(o, def({ name: "X", basedOn: "Nope" }))!, /not a Role/);
+    assert.match(validate(o, def({ name: "X", manage: "org" as never }))!, /Owner/);
+    assert.match(validate(o, def({ name: "bad\nname" }))!, /Role name/);
+    assert.isNull(validate(o, def({ name: "Fresh" })));
+  });
+
+  it("refuses to remove a shipped Role or one a Member holds", async () => {
+    const root = makeRoot();
+    write(root, "org/roles.md", ROLES_FILE);
+    giveCy(root, "  home: Closer");
+    const o = await org(root);
+    assert.match(validate(o, { kind: "removeRoleDef", role: "Admin" })!, /ship/);
+    assert.match(validate(o, { kind: "removeRoleDef", role: "Closer" })!, /holds|Member/);
+    assert.match(validate(o, { kind: "removeRoleDef", role: "Ghost" })!, /not exist/);
+  });
+
+  it("an Owner narrows a Role at once, a widening waits, a non-Owner is denied", async () => {
+    const root = makeRoot();
+    write(root, "org/roles.md", ROLES_FILE);
+    const narrow = await submitChange(
+      root,
+      "ada-l",
+      { kind: "setRoleDef", role: { ...closer, approve: "none" } },
+      NOW,
+    );
+    assert.strictEqual(narrow.result, "applied");
+    const text = read(root, "org/roles.md");
+    assert.include(text, "| Closer | Member | files | none | none |");
+    assert.include(text, "Intro.");
+    assert.include(text, "After the table.");
+    const widen = await submitChange(
+      root,
+      "ada-l",
+      { kind: "setRoleDef", role: { ...closer, name: "Fresh" } },
+      NOW,
+    );
+    assert.strictEqual(widen.result, "proposed");
+    assert.notInclude(read(root, "org/roles.md"), "Fresh");
+    const denied = await submitChange(
+      root,
+      "bo",
+      { kind: "setRoleDef", role: { ...closer, name: "Other" } },
+      NOW,
+    );
+    assert.strictEqual(denied.result, "denied");
+    const [proposal] = await readProposals(root);
+    assert.strictEqual(
+      (await decideProposal(root, "ada-l", proposal!.id, "approve", NOW)).result,
+      "applied",
+    );
+    assert.include(read(root, "org/roles.md"), "| Fresh | Member | files | area | none |");
+  });
+
+  it("a custom Role that manages an Area lets its holder act there", async () => {
+    const root = makeRoot();
+    write(
+      root,
+      "org/roles.md",
+      ROLES_FILE.replace(
+        "| Closer | Member | files | area | none |",
+        "| Lead | Admin | files | area | area |",
+      ),
+    );
+    giveCy(root, "  home: Viewer\n  studio: Lead");
+    const o = await org(root);
+    const cy = findActor(o, "cy")!;
+    assert.strictEqual(
+      permit(o, cy, { kind: "setRole", member: "bo", area: "studio", role: "Viewer" }),
+      "apply",
+    );
+    assert.strictEqual(
+      permit(o, cy, { kind: "setRole", member: "bo", area: "deals", role: "Viewer" }),
+      "deny",
     );
   });
 });

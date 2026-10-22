@@ -13,6 +13,7 @@ import {
   permit,
   renderMember,
   setRolesBlock,
+  setRolesTable,
   setStatusLine,
   simulate,
   validate,
@@ -58,6 +59,9 @@ export function describeChange(org: Org, change: OrgChange): string {
     org.areas.find((candidate) => candidate.slug === slug)?.name ?? slug;
   if (change.kind === "addMember") return `Add ${change.member.name} (${change.member.kind})`;
   if (change.kind === "removeMember") return `Remove ${name(change.member)}`;
+  if (change.kind === "setRoleDef")
+    return `${org.roles.some((role) => role.name === change.role.name) ? "Change" : "Add"} the ${change.role.name} Role`;
+  if (change.kind === "removeRoleDef") return `Remove the ${change.role} Role`;
   return change.role === null
     ? `Remove ${name(change.member)} from ${area(change.area)}`
     : `Give ${name(change.member)} the ${change.role} Role in ${area(change.area)}`;
@@ -103,6 +107,12 @@ async function writeChange(root: string, org: Org, change: OrgChange) {
     return;
   }
   const after = simulate(org, change);
+  if (change.kind === "setRoleDef" || change.kind === "removeRoleDef") {
+    const path = NodePath.join(root, "org", "roles.md");
+    const text = await NodeFSP.readFile(path, "utf8").catch(() => "");
+    await NodeFSP.writeFile(path, setRolesTable(text, after.roles), "utf8");
+    return;
+  }
   for (const member of after.members) {
     const before = org.members.find((candidate) => candidate.slug === member.slug);
     if (!before || (before.status === member.status && before.roles === member.roles)) continue;
@@ -210,7 +220,14 @@ export async function submitChange(
     await appendEvent(root, now, { level: "info", type: "org.changed", title, actor: actor.slug });
     return { result: "applied", message: title };
   }
-  const subject = change.kind === "addMember" ? change.member.slug : change.member;
+  const subject =
+    change.kind === "addMember"
+      ? change.member.slug
+      : change.kind === "setRoleDef"
+        ? change.role.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+        : change.kind === "removeRoleDef"
+          ? change.role.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+          : change.member;
   const id = `${iso(now).replace(/[-:]/g, "").slice(0, 15)}-${change.kind.toLowerCase()}-${subject}`;
   await NodeFSP.mkdir(NodePath.join(root, "org", "proposals"), { recursive: true });
   try {

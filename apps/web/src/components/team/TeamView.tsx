@@ -1,5 +1,5 @@
 import type { WorkspaceOrg } from "@t3tools/contracts";
-import { BotIcon, PencilIcon, PlusIcon, XIcon } from "lucide-react";
+import { BotIcon, PencilIcon, PlusIcon, ShieldIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -10,6 +10,7 @@ import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useEnvironmentQuery } from "~/state/query";
 import { workspaceOrgQuery } from "~/state/taskBoard";
 import { MemberEditor, type EditorTarget } from "./MemberEditor";
+import { RolesEditor } from "./RolesEditor";
 import { ProposalCards } from "./ProposalCards";
 import {
   areaInLens,
@@ -229,6 +230,7 @@ export function TeamView() {
   );
   const [lens, setLens] = useState<TeamLens>(null);
   const [editor, setEditor] = useState<EditorTarget | null>(null);
+  const [rolesOpen, setRolesOpen] = useState(false);
   if (!data) return null;
   const org = data.org;
   if (!org) {
@@ -275,6 +277,12 @@ export function TeamView() {
               </>
             ) : null}
           </div>
+          {me?.canDecide ? (
+            <Button size="sm" variant="outline" onClick={() => setRolesOpen(true)}>
+              <ShieldIcon aria-hidden />
+              Roles
+            </Button>
+          ) : null}
           {me ? (
             <Button size="sm" variant="outline" onClick={() => setEditor({ mode: "add" })}>
               <PlusIcon aria-hidden />
@@ -317,6 +325,21 @@ export function TeamView() {
               canRemove={me?.canDecide ?? false}
               onDone={(changed) => {
                 setEditor(null);
+                if (changed) refresh();
+              }}
+            />
+          ) : null}
+        </DialogPopup>
+      </Dialog>
+      <Dialog open={rolesOpen} onOpenChange={setRolesOpen}>
+        <DialogPopup>
+          {rolesOpen && environmentId ? (
+            <RolesEditor
+              environmentId={environmentId}
+              scope={scopeRef}
+              org={org}
+              onDone={(changed) => {
+                setRolesOpen(false);
                 if (changed) refresh();
               }}
             />

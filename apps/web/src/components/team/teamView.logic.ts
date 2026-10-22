@@ -1,4 +1,4 @@
-import type { WorkspaceOrg } from "@t3tools/contracts";
+import type { WorkspaceOrg, WorkspaceOrgChange } from "@t3tools/contracts";
 
 type Member = WorkspaceOrg["members"][number];
 type Area = WorkspaceOrg["areas"][number];
@@ -84,11 +84,65 @@ export const initials = (name: string): string =>
     .map((part) => part[0]!.toUpperCase())
     .join("");
 
-export const ROLES = ["Viewer", "Member", "Admin", "Owner"] as const;
+type RoleRow = WorkspaceOrg["roles"][number];
+type RoleChangeDef = Extract<WorkspaceOrgChange, { kind: "setRoleDef" | "removeRoleDef" }>;
 
-/** The Roles a Member may hold. An agent never holds Owner (ADR-0088). */
-export const rolesFor = (kind: "person" | "agent"): ReadonlyArray<string> =>
-  kind === "agent" ? ROLES.filter((role) => role !== "Owner") : ROLES;
+/** The four Roles that ship. Owner is locked and none of the four can be removed. */
+export const SHIPPED_ROLES = ["Viewer", "Member", "Admin", "Owner"] as const;
+
+/** The Roles a Member may hold. An agent never holds a Role that manages the org (ADR-0088). */
+export const rolesFor = (
+  kind: "person" | "agent",
+  roles: ReadonlyArray<RoleRow>,
+): ReadonlyArray<string> =>
+  roles.filter((role) => kind === "person" || role.manage !== "org").map((role) => role.name);
+
+/** A new custom Role copied from `source`. A copy never gets `wall` or `org`. */
+export const copyRole = (source: RoleRow, name: string): RoleRow => ({
+  name: name.trim(),
+  basedOn: source.name,
+  write: source.write,
+  approve: source.approve === "wall" ? "area" : source.approve,
+  manage: source.manage === "org" ? "area" : source.manage,
+});
+
+const sameRole = (a: RoleRow, b: RoleRow) =>
+  a.write === b.write &&
+  a.approve === b.approve &&
+  a.manage === b.manage &&
+  a.basedOn === b.basedOn;
+
+/**
+ * One change for each Role the table editor added or edited, then one for each custom Role it
+ * dropped. Owner never changes. The server decides which apply now and which wait for an Owner.
+ */
+export function diffRoleTable(
+  before: ReadonlyArray<RoleRow>,
+  after: ReadonlyArray<RoleRow>,
+): ReadonlyArray<RoleChangeDef> {
+  const changes: RoleChangeDef[] = [];
+  for (const row of after) {
+    if (row.name === "Owner" || row.approve === "wall" || row.manage === "org") continue;
+    const old = before.find((candidate) => candidate.name === row.name);
+    if (old && sameRole(old, row)) continue;
+    changes.push({
+      kind: "setRoleDef",
+      role: {
+        name: row.name,
+        basedOn: row.basedOn,
+        write: row.write,
+        approve: row.approve,
+        manage: row.manage,
+      },
+    });
+  }
+  for (const old of before) {
+    const shipped = (SHIPPED_ROLES as ReadonlyArray<string>).includes(old.name);
+    if (!shipped && !after.some((row) => row.name === old.name))
+      changes.push({ kind: "removeRoleDef", role: old.name });
+  }
+  return changes;
+}
 
 export type RoleChange = {
   readonly kind: "setRole";

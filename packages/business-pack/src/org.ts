@@ -33,11 +33,35 @@ export interface OrgMember {
   readonly roles: Readonly<Record<string, string>>;
 }
 
+export const WRITE_LEVELS = ["none", "files", "all"] as const;
+export const APPROVE_LEVELS = ["none", "area", "wall"] as const;
+export const MANAGE_LEVELS = ["none", "area", "org"] as const;
+
+/** One row of the permission table in `org/roles.md`. Every Role sees the whole Area. */
+export interface OrgRole {
+  readonly name: string;
+  /** The Role this one was copied from. Empty for the four that ship. */
+  readonly basedOn: string;
+  readonly write: (typeof WRITE_LEVELS)[number];
+  readonly approve: (typeof APPROVE_LEVELS)[number];
+  readonly manage: (typeof MANAGE_LEVELS)[number];
+}
+
+/** The four Roles that ship, lowest to highest (ADR-0088). Owner is locked. */
+export const DEFAULT_ROLES: ReadonlyArray<OrgRole> = [
+  { name: "Viewer", basedOn: "", write: "none", approve: "none", manage: "none" },
+  { name: "Member", basedOn: "", write: "files", approve: "none", manage: "none" },
+  { name: "Admin", basedOn: "", write: "all", approve: "area", manage: "area" },
+  { name: "Owner", basedOn: "", write: "all", approve: "wall", manage: "org" },
+];
+
 export interface Org {
   readonly name: string;
   readonly departments: ReadonlyArray<OrgDepartment>;
   readonly areas: ReadonlyArray<OrgArea>;
   readonly members: ReadonlyArray<OrgMember>;
+  /** The four Roles first, then the custom ones. */
+  readonly roles: ReadonlyArray<OrgRole>;
 }
 
 const MAX_MEMBERS = 500;
@@ -103,6 +127,31 @@ export function parseMember(slug: string, text: string): OrgMember | null {
 
 const readText = (path: string) => NodeFSP.readFile(path, "utf8").catch(() => "");
 
+const oneOf = <T extends string>(levels: ReadonlyArray<T>, cell: string | undefined) =>
+  levels.find((level) => level === cell);
+
+/**
+ * The permission table of `org/roles.md`. A row that is damaged or asks for more than a custom
+ * Role may have is skipped. The four that ship always exist and Owner is always the default row.
+ */
+export function parseRoles(text: string): ReadonlyArray<OrgRole> {
+  const base = new Set(DEFAULT_ROLES.map((role) => role.name));
+  const rows = new Map<string, OrgRole>();
+  for (const row of readTable(text)) {
+    const [name, basedOn, write, approve, manage] = row;
+    const parsed = {
+      write: oneOf(WRITE_LEVELS, write),
+      approve: oneOf(APPROVE_LEVELS, approve),
+      manage: oneOf(MANAGE_LEVELS, manage),
+    };
+    if (!name || !parsed.write || !parsed.approve || !parsed.manage) continue;
+    if (name === "Owner" || parsed.approve === "wall" || parsed.manage === "org") continue;
+    rows.set(name, { name, basedOn: basedOn ?? "", ...parsed } as OrgRole);
+  }
+  const shipped = DEFAULT_ROLES.map((role) => rows.get(role.name) ?? role);
+  return [...shipped, ...[...rows.values()].filter((role) => !base.has(role.name))];
+}
+
 /**
  * The org record of a business workspace: Departments, Areas and Members. Read only. A row that
  * still holds a `__TOKEN__` is skipped. `null` when the folder holds no Member, so the screen can
@@ -110,10 +159,11 @@ const readText = (path: string) => NodeFSP.readFile(path, "utf8").catch(() => ""
  */
 export async function readOrg(root: string): Promise<Org | null> {
   const dir = NodePath.join(root, "org");
-  const [orgText, deptText, areaText, names] = await Promise.all([
+  const [orgText, deptText, areaText, roleText, names] = await Promise.all([
     readText(NodePath.join(dir, "org.md")),
     readText(NodePath.join(dir, "departments.md")),
     readText(NodePath.join(dir, "areas.md")),
+    readText(NodePath.join(dir, "roles.md")),
     NodeFSP.readdir(NodePath.join(dir, "members")).catch(() => [] as string[]),
   ]);
   const members = (
@@ -145,5 +195,6 @@ export async function readOrg(root: string): Promise<Org | null> {
       status: row[5] ?? "active",
     })),
     members: members.filter((member) => !TOKEN.test(member.slug)),
+    roles: parseRoles(roleText),
   };
 }

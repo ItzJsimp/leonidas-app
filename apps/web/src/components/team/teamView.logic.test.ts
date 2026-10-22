@@ -4,6 +4,8 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   areaInLens,
   buildTeamGroups,
+  copyRole,
+  diffRoleTable,
   diffRoles,
   groupInLens,
   initials,
@@ -37,6 +39,14 @@ const area = (slug: string, department: string): WorkspaceOrg["areas"][number] =
   status: "active",
 });
 
+const table: WorkspaceOrg["roles"] = [
+  { name: "Viewer", basedOn: "", write: "none", approve: "none", manage: "none" },
+  { name: "Member", basedOn: "", write: "files", approve: "none", manage: "none" },
+  { name: "Admin", basedOn: "", write: "all", approve: "area", manage: "area" },
+  { name: "Owner", basedOn: "", write: "all", approve: "wall", manage: "org" },
+  { name: "Closer", basedOn: "Member", write: "files", approve: "area", manage: "none" },
+];
+
 const org: WorkspaceOrg = {
   name: "Acme",
   departments: [
@@ -44,6 +54,7 @@ const org: WorkspaceOrg = {
     { slug: "ops", name: "Ops", areas: ["home"], leads: [] },
   ],
   areas: [area("deals", "sales"), area("home", "ops"), area("misc", "gone")],
+  roles: table,
   members: [
     member("ada", "sales", { home: "Owner", deals: "Admin" }),
     member("bo", "ops", { home: "Viewer" }),
@@ -118,8 +129,30 @@ describe("initials", () => {
 
 describe("editor helpers", () => {
   it("gives an agent no Owner Role", () => {
-    expect(rolesFor("agent")).toEqual(["Viewer", "Member", "Admin"]);
-    expect(rolesFor("person")).toContain("Owner");
+    expect(rolesFor("agent", table)).toEqual(["Viewer", "Member", "Admin", "Closer"]);
+    expect(rolesFor("person", table)).toContain("Owner");
+  });
+
+  it("copies a Role without the powers of Owner, and names only what the table changed", () => {
+    const owner = table[3]!;
+    expect(copyRole(owner, " Boss ")).toEqual({
+      name: "Boss",
+      basedOn: "Owner",
+      write: "all",
+      approve: "area",
+      manage: "area",
+    });
+    const edited = table.map((r) => (r.name === "Member" ? { ...r, approve: "area" as const } : r));
+    const fresh = { ...copyRole(table[1]!, "Scribe"), write: "none" as const };
+    const dropped = edited.filter((r) => r.name !== "Closer");
+    expect(
+      diffRoleTable(table, [...edited, fresh]).map((c) => c.kind === "setRoleDef" && c.role.name),
+    ).toEqual(["Member", "Scribe"]);
+    expect(diffRoleTable(table, dropped)).toContainEqual({ kind: "removeRoleDef", role: "Closer" });
+    expect(diffRoleTable(table, table.slice(0, 3))).toEqual([
+      { kind: "removeRoleDef", role: "Closer" },
+    ]);
+    expect(diffRoleTable(table, table)).toEqual([]);
   });
 
   it("lists only the Areas whose Role changed, and uses null to remove", () => {

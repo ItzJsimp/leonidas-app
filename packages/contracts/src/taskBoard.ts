@@ -479,6 +479,16 @@ export const WorkspaceOrg = Schema.Struct({
       roles: Schema.Record(Schema.String, Schema.String),
     }),
   ),
+  // The permission table of org/roles.md: the four Roles that ship, then the custom ones.
+  roles: Schema.Array(
+    Schema.Struct({
+      name: Schema.String,
+      basedOn: Schema.String,
+      write: Schema.Literals(["none", "files", "all"]),
+      approve: Schema.Literals(["none", "area", "wall"]),
+      manage: Schema.Literals(["none", "area", "org"]),
+    }),
+  ),
 });
 export type WorkspaceOrg = typeof WorkspaceOrg.Type;
 
@@ -504,6 +514,18 @@ export const WorkspaceOrgChange = Schema.Union([
     }),
   }),
   Schema.Struct({ kind: Schema.Literal("removeMember"), member: Schema.String }),
+  // Only an Owner changes the permission table. `wall` and `org` stay with the Owner Role.
+  Schema.Struct({
+    kind: Schema.Literal("setRoleDef"),
+    role: Schema.Struct({
+      name: Schema.String,
+      basedOn: Schema.String,
+      write: Schema.Literals(["none", "files", "all"]),
+      approve: Schema.Literals(["none", "area"]),
+      manage: Schema.Literals(["none", "area"]),
+    }),
+  }),
+  Schema.Struct({ kind: Schema.Literal("removeRoleDef"), role: Schema.String }),
 ]);
 export type WorkspaceOrgChange = typeof WorkspaceOrgChange.Type;
 

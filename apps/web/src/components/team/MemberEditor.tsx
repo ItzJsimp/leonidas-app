@@ -90,7 +90,7 @@ export function MemberEditor(props: {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const persons = org.members.filter((m) => m.kind === "person" && m.status === "active");
-  const roleList = rolesFor(editing?.kind ?? kind);
+  const roleList = rolesFor(editing?.kind ?? kind, org.roles);
 
   const send = async (changes: ReadonlyArray<Change>) => {
     setBusy(true);

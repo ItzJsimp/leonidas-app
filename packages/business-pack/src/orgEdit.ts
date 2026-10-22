@@ -1,8 +1,21 @@
-import type { Org, OrgMember } from "./org.ts";
+import {
+  APPROVE_LEVELS,
+  DEFAULT_ROLES,
+  MANAGE_LEVELS,
+  WRITE_LEVELS,
+  type Org,
+  type OrgMember,
+  type OrgRole,
+} from "./org.ts";
 
-/** The four Roles that ship, lowest to highest (ADR-0088). */
-export const BASE_ROLES = ["Viewer", "Member", "Admin", "Owner"] as const;
-export type BaseRole = (typeof BASE_ROLES)[number];
+/** A Role as an Owner sends it. `wall` and `org` stay with Owner, so the type leaves them out. */
+export type RoleInput = {
+  readonly name: string;
+  readonly basedOn: string;
+  readonly write: "none" | "files" | "all";
+  readonly approve: "none" | "area";
+  readonly manage: "none" | "area";
+};
 
 export type NewMember = {
   readonly slug: string;
@@ -25,25 +38,47 @@ export type OrgChange =
       readonly role: string | null;
     }
   | { readonly kind: "addMember"; readonly member: NewMember }
-  | { readonly kind: "removeMember"; readonly member: string };
+  | { readonly kind: "removeMember"; readonly member: string }
+  | { readonly kind: "setRoleDef"; readonly role: RoleInput }
+  | { readonly kind: "removeRoleDef"; readonly role: string };
 
 export const HOME_AREA = "home";
 const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
-const rank = (role: string | undefined): number =>
-  role === undefined ? -1 : BASE_ROLES.indexOf(role as BaseRole);
+const NAME = /^[A-Za-z][A-Za-z0-9 -]{0,23}$/;
+const SHIPPED = new Set(DEFAULT_ROLES.map((role) => role.name));
+const level = (levels: ReadonlyArray<string>, value: string) => levels.indexOf(value);
+
+const roleOf = (org: Org, name: string | undefined): OrgRole | undefined =>
+  org.roles.find((role) => role.name === name);
+
+/** `widen` when any column grows, `narrow` when none grows and one shrinks, else `none`. */
+function comparePerms(before: OrgRole, after: OrgRole): "narrow" | "widen" | "none" {
+  const deltas = [
+    level(WRITE_LEVELS, after.write) - level(WRITE_LEVELS, before.write),
+    level(APPROVE_LEVELS, after.approve) - level(APPROVE_LEVELS, before.approve),
+    level(MANAGE_LEVELS, after.manage) - level(MANAGE_LEVELS, before.manage),
+  ];
+  return deltas.some((d) => d > 0) ? "widen" : deltas.some((d) => d < 0) ? "narrow" : "none";
+}
 
 const live = (org: Org) => org.members.filter((member) => member.status !== "removed");
 
 /** `narrow` lowers or removes access, `widen` adds or raises it, `none` changes nothing. */
 export function classify(org: Org, change: OrgChange): "narrow" | "widen" | "none" {
   if (change.kind === "addMember") return "widen";
-  if (change.kind === "removeMember") return "narrow";
+  if (change.kind === "removeMember" || change.kind === "removeRoleDef") return "narrow";
+  if (change.kind === "setRoleDef") {
+    const before = roleOf(org, change.role.name);
+    // A new Role adds to the vocabulary of access, so an Owner taps it in.
+    return before ? comparePerms(before, { ...change.role }) : "widen";
+  }
   const old = org.members.find((member) => member.slug === change.member)?.roles[change.area];
   if (change.role === null) return old === undefined ? "none" : "narrow";
-  if (old === undefined) return "widen";
-  const delta = rank(change.role) - rank(old);
-  return delta > 0 ? "widen" : delta < 0 ? "narrow" : "none";
+  const next = roleOf(org, change.role);
+  const was = roleOf(org, old);
+  if (old === undefined || !was || !next) return "widen";
+  return comparePerms(was, next);
 }
 
 /** The org after the change. Pure. Removing a person also removes the agents they answer for. */
@@ -60,6 +95,19 @@ export function simulate(org: Org, change: OrgChange): Org {
       roles: change.member.roles,
     };
     return { ...org, members: [...org.members, added] };
+  }
+  if (change.kind === "setRoleDef") {
+    const next: OrgRole = { ...change.role };
+    const exists = org.roles.some((role) => role.name === next.name);
+    return {
+      ...org,
+      roles: exists
+        ? org.roles.map((role) => (role.name === next.name ? next : role))
+        : [...org.roles, next],
+    };
+  }
+  if (change.kind === "removeRoleDef") {
+    return { ...org, roles: org.roles.filter((role) => role.name !== change.role) };
   }
   if (change.kind === "removeMember") {
     return {
@@ -92,8 +140,9 @@ export function validate(org: Org, change: OrgChange): string | null {
     if (!member) return "That Member does not exist or was removed.";
     const found = area(change.area);
     if (!found || found.status === "archived") return "That Area does not exist or is archived.";
-    if (change.role !== null && rank(change.role) < 0) return `${change.role} is not a Role.`;
-    if (member.kind === "agent" && change.role === "Owner") return "An agent cannot be an Owner.";
+    if (change.role !== null && !roleOf(org, change.role)) return `${change.role} is not a Role.`;
+    if (member.kind === "agent" && roleOf(org, change.role ?? "")?.manage === "org")
+      return "An agent cannot be an Owner.";
     if (change.role === null && change.area === HOME_AREA)
       return "Every Member needs at least Viewer in the Home area.";
   } else if (change.kind === "addMember") {
@@ -111,14 +160,35 @@ export function validate(org: Org, change: OrgChange): string | null {
       const owner = target(next.owner ?? "");
       if (!owner || owner.kind !== "person") return "An agent needs a person who answers for it.";
     }
-    if (rank(next.roles[HOME_AREA]) < 0)
+    if (!roleOf(org, next.roles[HOME_AREA]))
       return "Give the Member a Role in the Home area, at least Viewer.";
     for (const [slug, role] of Object.entries(next.roles)) {
       const found = area(slug);
       if (!found || found.status === "archived") return `${slug} is not an active Area.`;
-      if (rank(role) < 0) return `${role} is not a Role.`;
-      if (next.kind === "agent" && role === "Owner") return "An agent cannot be an Owner.";
+      if (!roleOf(org, role)) return `${role} is not a Role.`;
+      if (next.kind === "agent" && roleOf(org, role)?.manage === "org")
+        return "An agent cannot be an Owner.";
     }
+  } else if (change.kind === "setRoleDef") {
+    const def = change.role;
+    if (!NAME.test(def.name))
+      return "A Role name uses 1 to 24 letters, digits, spaces and hyphens.";
+    if (def.name === "Owner") return "The Owner Role is locked.";
+    if (def.basedOn !== "" && !roleOf(org, def.basedOn)) return `${def.basedOn} is not a Role.`;
+    if (
+      level(WRITE_LEVELS, def.write) < 0 ||
+      !["none", "area"].includes(def.approve) ||
+      !["none", "area"].includes(def.manage)
+    )
+      return "Only the Owner Role can approve across the wall or manage the org.";
+    const lower = def.name.toLowerCase();
+    if (org.roles.some((role) => role.name !== def.name && role.name.toLowerCase() === lower))
+      return "That Role name is taken.";
+  } else if (change.kind === "removeRoleDef") {
+    if (SHIPPED.has(change.role)) return "The four Roles that ship cannot be removed.";
+    if (!roleOf(org, change.role)) return "That Role does not exist.";
+    if (live(org).some((member) => Object.values(member.roles).includes(change.role)))
+      return "A Member still holds that Role. Move them to another Role first.";
   } else if (!target(change.member)) {
     return "That Member does not exist or was removed.";
   }
@@ -140,8 +210,9 @@ export function findActor(org: Org, githubLogin: string | null): OrgMember | nul
   );
 }
 
-const atLeast = (member: OrgMember, area: string, role: BaseRole) =>
-  rank(member.roles[area]) >= rank(role);
+/** True when the Member's Role in the Area lets them manage it (Admin or better in the table). */
+const manages = (org: Org, member: OrgMember, area: string) =>
+  (roleOf(org, member.roles[area])?.manage ?? "none") !== "none";
 
 /** Only a person who is an Owner in Home decides a proposal. Agents never decide. */
 export const canDecide = (actor: OrgMember | null): boolean =>
@@ -161,8 +232,11 @@ export function permit(
 ): "apply" | "propose" | "deny" {
   if (!actor || actor.kind !== "person" || actor.status !== "active") return "deny";
   if (change.kind === "removeMember") return canDecide(actor) ? "apply" : "deny";
+  // The permission table belongs to an Owner, because it decides what every Role may do.
+  if (change.kind === "setRoleDef" || change.kind === "removeRoleDef")
+    return canDecide(actor) ? (classify(org, change) === "widen" ? "propose" : "apply") : "deny";
   const scope = change.kind === "setRole" ? change.area : HOME_AREA;
-  if (!atLeast(actor, scope, "Admin")) return "deny";
+  if (!manages(org, actor, scope)) return "deny";
   return classify(org, change) === "widen" ? "propose" : "apply";
 }
 
@@ -182,6 +256,29 @@ export function setRolesBlock(text: string, roles: Readonly<Record<string, strin
     if (close < 0) return text;
     lines.splice(close, 0, ...block);
   }
+  return lines.join(eol);
+}
+
+/**
+ * The first Markdown table of `org/roles.md`, replaced by one row for each Role. Text around the
+ * table stays as written. A file with no table gets one at the end.
+ */
+export function setRolesTable(text: string, roles: ReadonlyArray<OrgRole>): string {
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const table = [
+    "| Role | Based on | Write | Approve | Manage |",
+    "|---|---|---|---|---|",
+    ...roles.map(
+      (role) =>
+        `| ${role.name} | ${role.basedOn} | ${role.write} | ${role.approve} | ${role.manage} |`,
+    ),
+  ];
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim().startsWith("|"));
+  if (start < 0) return `${text.replace(/\s*$/, "")}${eol}${eol}${table.join(eol)}${eol}`;
+  let end = start;
+  while (end < lines.length && lines[end]!.trim().startsWith("|")) end += 1;
+  lines.splice(start, end - start, ...table);
   return lines.join(eol);
 }
 
