@@ -31,4 +31,6 @@ tasks:
 - **Outputs:** one shared GitHub repo both machines build from; Windows installer per push; task board synced between both instances.
 - **Feedback:** the app's own update toast proves the pipeline; the task board proves sync when a task added on one machine shows on the other.
 
+Why it exists and how it fits the one Leonidas app: [`origin-story.md`](../leonidas-product/origin-story.md).
+
 Plan, findings and open decisions: [`project/plan.md`](./project/plan.md); agent playbook: [`agent-playbook.md`](./agent-playbook.md); shared brief: [`LEONIDAS.md`](./LEONIDAS.md).
