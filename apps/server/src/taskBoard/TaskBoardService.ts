@@ -100,6 +100,7 @@ import {
 import { makeAiosCardReader } from "./aiosCardReader.ts";
 import {
   type AiosWorkspaceState,
+  isPathInRoot,
   listAiosWorkspaces,
   resolveWorkspaceRoot,
   workspaceForPath,
@@ -2106,7 +2107,19 @@ const make = Effect.gen(function* () {
   const workspaceInit = (input: AiosWorkspaceInitInput, projects: ReadonlyArray<Project>) =>
     Effect.gen(function* () {
       const { workspaces: found } = scopeFor(projects);
-      const target = found.find((state) => state.root === input.root);
+      // A new business folder has no tasks/ yet, so the scan cannot list it. A project folder
+      // the app already holds may still be set up as a business: the template adds tasks/.
+      const target =
+        found.find((state) => state.root === input.root) ??
+        (input.type === "business" &&
+        input.ownerName !== undefined &&
+        projects.some(
+          (project) =>
+            isPathInRoot(input.root, project.workspaceRoot) &&
+            isPathInRoot(project.workspaceRoot, input.root),
+        )
+          ? ({ status: "missing", root: input.root } as const)
+          : undefined);
       if (target === undefined) return yield* storageError("The app does not list that folder.");
       if (target.status === "ready") {
         return yield* storageError("That folder already has a workspace file.");
@@ -2114,7 +2127,8 @@ const make = Effect.gen(function* () {
       if (found.some((state) => state.status === "ready" && state.file.id === input.id)) {
         return yield* storageError("Another workspace already uses that id.");
       }
-      if (input.type === "business") {
+      // Only the New business dialog sends an Owner name. Setting up an existing AIOS adds no files.
+      if (input.type === "business" && input.ownerName !== undefined) {
         const login = yield* viewerLogin;
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const problem = yield* Effect.promise(() =>
@@ -2127,7 +2141,10 @@ const make = Effect.gen(function* () {
         catch: () => storageError("Could not write workspace.json."),
       });
       const after = scopeFor(projects);
-      const written = after.workspaces.find((state) => state.root === target.root) ?? target;
+      const written =
+        after.workspaces.find(
+          (state) => isPathInRoot(state.root, target.root) && isPathInRoot(target.root, state.root),
+        ) ?? target;
       return summarize(written, projects, after.defaultRoot);
     });
 

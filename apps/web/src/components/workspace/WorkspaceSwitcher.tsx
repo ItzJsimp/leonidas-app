@@ -120,10 +120,8 @@ function WorkspaceSetupForm(props: {
   const folder = workspaceFolderName(props.workspace.root);
   const [name, setName] = useState(folder.replace(/\s+AIOS$/i, ""));
   const [type, setType] = useState<AiosWorkspaceType>("personal");
-  const [ownerName, setOwnerName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isBusiness = type === "business";
   const runInit = useAtomCommand(aiosWorkspaceInit, { reportFailure: false });
   const workspaceId = suggestWorkspaceId(name);
 
@@ -133,23 +131,11 @@ function WorkspaceSetupForm(props: {
     setError(null);
     const result = await runInit({
       environmentId: props.environmentId,
-      input: {
-        root: props.workspace.root,
-        id: workspaceId,
-        name: name.trim(),
-        type,
-        ...(isBusiness ? { ownerName: ownerName.trim() } : {}),
-      },
+      input: { root: props.workspace.root, id: workspaceId, name: name.trim(), type },
     });
     setBusy(false);
     if (result._tag === "Success") props.onDone(workspaceId);
-    else {
-      setError(
-        isBusiness
-          ? "Could not set up the business. GitHub must be signed in on this computer (gh auth login), and the folder must be writable."
-          : "Could not save the workspace file. Check that the folder is writable.",
-      );
-    }
+    else setError("Could not save the workspace file. Check that the folder is writable.");
   };
 
   return (
@@ -188,21 +174,8 @@ function WorkspaceSetupForm(props: {
               </label>
             ))}
           </fieldset>
-          {isBusiness ? (
-            <Label className="flex flex-col items-stretch" htmlFor={`${id}-owner`}>
-              Your name (the Owner)
-              <Input
-                id={`${id}-owner`}
-                value={ownerName}
-                maxLength={80}
-                onChange={(event) => setOwnerName(event.target.value)}
-              />
-            </Label>
-          ) : null}
           <p className="text-xs text-muted-foreground">
-            {isBusiness
-              ? `Copies the business template, with you as Owner, and saves workspace.json with the id ${workspaceId} in ${props.workspace.root}.`
-              : `Saves workspace.json with the id ${workspaceId} in ${props.workspace.root}.`}
+            Saves workspace.json with the id <code>{workspaceId}</code> in {props.workspace.root}.
           </p>
           {error ? (
             <p role="alert" className="text-sm text-destructive">
@@ -215,7 +188,7 @@ function WorkspaceSetupForm(props: {
         <Button type="button" variant="outline" onClick={() => props.onDone(null)}>
           Cancel
         </Button>
-        <Button type="submit" disabled={busy || !name.trim() || (isBusiness && !ownerName.trim())}>
+        <Button type="submit" disabled={busy || !name.trim()}>
           {busy ? <Spinner /> : null}
           Save workspace
         </Button>
