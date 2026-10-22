@@ -30,9 +30,13 @@ export function areasOnDisk(root: string): ReadonlySet<string> {
   );
 }
 
-/** Home must ignore `areas/`, because each Area is its own repo. Adds one line, never removes any. */
+/**
+ * Home must ignore `areas/`, because each Area is its own repo. The line goes in `.git/info/exclude`,
+ * which is local, so no Member edits a shared file and Home stays clean. Never removes a line.
+ */
 export function ensureAreasIgnored(root: string): boolean {
-  const file = NodePath.join(root, ".gitignore");
+  const file = NodePath.join(root, ".git", "info", "exclude");
+  NodeFS.mkdirSync(NodePath.dirname(file), { recursive: true });
   const text = NodeFS.existsSync(file) ? NodeFS.readFileSync(file, "utf8") : "";
   if (
     text

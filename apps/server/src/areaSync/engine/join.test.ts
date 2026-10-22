@@ -56,12 +56,12 @@ describe("joinWorkspace", () => {
     assert.isTrue(first.ignoreAdded);
     assert.isFalse(second.ignoreAdded);
     assert.strictEqual(
-      read(root, ".gitignore")
+      read(root, ".git/info/exclude")
         .split("\n")
         .filter((l) => l === "areas/").length,
       1,
     );
-    assert.notInclude(g(root, "status", "--porcelain"), "areas/");
+    assert.strictEqual(g(root, "status", "--porcelain"), "");
   });
 
   it("leaves a non-repo folder in the way untouched and reports failed", async () => {
@@ -90,9 +90,9 @@ describe("joinWorkspace", () => {
 describe("ensureAreasIgnored", () => {
   it("appends to an existing file without removing lines", () => {
     const root = tempDir();
-    write(root, ".gitignore", "node_modules/\nmemory/*.md");
+    write(root, ".git/info/exclude", "node_modules/\nmemory/*.md");
     assert.isTrue(ensureAreasIgnored(root));
-    assert.strictEqual(read(root, ".gitignore"), "node_modules/\nmemory/*.md\nareas/\n");
+    assert.strictEqual(read(root, ".git/info/exclude"), "node_modules/\nmemory/*.md\nareas/\n");
   });
 });
 
