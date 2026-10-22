@@ -193,7 +193,7 @@ export function T3ConnectUserProfilePage() {
   return (
     <ClerkUserProfilePage
       title="Remote access"
-      description="Computers you set up for remote access with your account. Manage the connections on this device in Settings. This uses the T3 Connect service."
+      description="Computers you set up for remote access with your account. Manage the connections on this device in Settings."
       action={
         <ClerkUserProfileRefreshButton
           disabled={deregisteringEnvironmentId !== null}
