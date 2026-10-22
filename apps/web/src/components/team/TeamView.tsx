@@ -368,7 +368,7 @@ export function TeamView() {
         </DialogPopup>
       </Dialog>
       <Dialog open={rolesOpen} onOpenChange={setRolesOpen}>
-        <DialogPopup>
+        <DialogPopup className="max-w-2xl">
           {rolesOpen && environmentId ? (
             <RolesEditor
               environmentId={environmentId}

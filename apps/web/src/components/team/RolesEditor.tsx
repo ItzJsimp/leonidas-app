@@ -28,12 +28,12 @@ const SELECT =
 // Every Role sees the whole Area, so the table only edits what a Role may do (roles.md).
 const WRITE: ReadonlyArray<readonly [Role["write"], string]> = [
   ["none", "Nothing"],
-  ["files", "Files and tasks"],
+  ["files", "Files, tasks"],
   ["all", "Everything"],
 ];
 const APPROVE: ReadonlyArray<readonly [Role["approve"], string]> = [
   ["none", "Nothing"],
-  ["area", "Inside the Area"],
+  ["area", "In the Area"],
 ];
 const MANAGE: ReadonlyArray<readonly [Role["manage"], string]> = [
   ["none", "Nothing"],
