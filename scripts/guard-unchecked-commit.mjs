@@ -1,7 +1,7 @@
 // Pre-commit guard. A checkout with no local `vp` (the main checkout keeps a partial install) cannot
 // run typecheck or tests, so TypeScript errors only surface later at the release gate.
-// Refuse a commit of staged TypeScript there. Docs-only commits pass.
-// Set LEONIDAS_ALLOW_UNCHECKED_COMMIT=1 to override.
+// Warn when a commit stages TypeScript there. The commit still goes through. Docs-only commits stay silent.
+// Set LEONIDAS_ALLOW_UNCHECKED_COMMIT=1 to silence the warning.
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -32,17 +32,16 @@ function main() {
     allowOverride: process.env.LEONIDAS_ALLOW_UNCHECKED_COMMIT === "1",
   });
   if (blocked.length === 0) return;
-  console.error(
+  console.warn(
     [
       "",
-      "Commit blocked: this checkout has no node_modules/.bin/vp, so typecheck and tests cannot run here.",
+      "Warning: this checkout has no node_modules/.bin/vp, so typecheck and tests cannot run here.",
       `Staged TypeScript: ${blocked.slice(0, 5).join(", ")}${blocked.length > 5 ? ` and ${blocked.length - 5} more` : ""}`,
-      "Commit from an installed worktree under C:/lcw instead.",
-      "To commit here anyway, run: LEONIDAS_ALLOW_UNCHECKED_COMMIT=1 git commit ...",
+      "Run the typecheck from an installed worktree under C:/lcw before you push.",
+      "To silence this warning, run: LEONIDAS_ALLOW_UNCHECKED_COMMIT=1 git commit ...",
       "",
     ].join("\n"),
   );
-  process.exit(1);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();

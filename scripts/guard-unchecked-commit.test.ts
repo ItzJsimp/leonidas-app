@@ -6,7 +6,7 @@ import { findBlockedFiles } from "./guard-unchecked-commit.mjs";
 const staged = ["apps/server/src/ws.ts", "README.md", "apps/web/src/App.tsx"];
 
 describe("findBlockedFiles", () => {
-  it("blocks staged TypeScript when there is no local vp", () => {
+  it("warns on staged TypeScript when there is no local vp", () => {
     expect(
       findBlockedFiles({ stagedFiles: staged, hasLocalVp: false, allowOverride: false }),
     ).toEqual(["apps/server/src/ws.ts", "apps/web/src/App.tsx"]);
