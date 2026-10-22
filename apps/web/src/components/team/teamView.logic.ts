@@ -83,3 +83,67 @@ export const initials = (name: string): string =>
     .slice(0, 2)
     .map((part) => part[0]!.toUpperCase())
     .join("");
+
+export const ROLES = ["Viewer", "Member", "Admin", "Owner"] as const;
+
+/** The Roles a Member may hold. An agent never holds Owner (ADR-0088). */
+export const rolesFor = (kind: "person" | "agent"): ReadonlyArray<string> =>
+  kind === "agent" ? ROLES.filter((role) => role !== "Owner") : ROLES;
+
+export type RoleChange = {
+  readonly kind: "setRole";
+  readonly member: string;
+  readonly area: string;
+  readonly role: string | null;
+};
+
+/** One change for each Area whose Role the form changed. `""` in the form means no Role. */
+export function diffRoles(
+  member: Member,
+  areas: ReadonlyArray<Area>,
+  edited: Readonly<Record<string, string>>,
+): ReadonlyArray<RoleChange> {
+  const changes: RoleChange[] = [];
+  for (const area of areas) {
+    const before = member.roles[area.slug] ?? "";
+    const after = edited[area.slug] ?? before;
+    if (after !== before) {
+      changes.push({
+        kind: "setRole",
+        member: member.slug,
+        area: area.slug,
+        role: after === "" ? null : after,
+      });
+    }
+  }
+  return changes;
+}
+
+/** A short name for a new Member: lowercase letters, digits and hyphens, at most 40 characters. */
+export const suggestSlug = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+
+type ActionResult = { readonly result: string; readonly message: string };
+
+/** One plain line for the results of a save: how many applied, how many wait, what was refused. */
+export function summarizeResults(results: ReadonlyArray<ActionResult>): string {
+  const count = (kind: string) => results.filter((entry) => entry.result === kind).length;
+  const parts: string[] = [];
+  if (count("applied") > 0) parts.push(`${count("applied")} applied`);
+  if (count("proposed") > 0) parts.push(`${count("proposed")} waiting for an Owner`);
+  const refused = results.filter(
+    (entry) => !["applied", "proposed", "rejected"].includes(entry.result),
+  );
+  if (refused.length > 0) {
+    parts.push(
+      refused.length > 1
+        ? `${refused.length} refused: ${refused[0]!.message}`
+        : refused[0]!.message,
+    );
+  }
+  return parts.join(", ") || "Nothing changed.";
+}

@@ -475,16 +475,86 @@ export const WorkspaceOrg = Schema.Struct({
       status: Schema.String,
       department: Schema.String,
       owner: Schema.String,
+      github: Schema.String,
       roles: Schema.Record(Schema.String, Schema.String),
     }),
   ),
 });
 export type WorkspaceOrg = typeof WorkspaceOrg.Type;
 
+// A change to the org record (ADR-0088). The server decides whether it applies now (it only
+// narrows access) or waits as a proposal (it widens access).
+export const WorkspaceOrgChange = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("setRole"),
+    member: Schema.String,
+    area: Schema.String,
+    role: Schema.NullOr(Schema.String),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("addMember"),
+    member: Schema.Struct({
+      slug: Schema.String,
+      name: Schema.String,
+      kind: Schema.Literals(["person", "agent"]),
+      department: Schema.String,
+      owner: Schema.optional(Schema.String),
+      github: Schema.optional(Schema.String),
+      roles: Schema.Record(Schema.String, Schema.String),
+    }),
+  }),
+  Schema.Struct({ kind: Schema.Literal("removeMember"), member: Schema.String }),
+]);
+export type WorkspaceOrgChange = typeof WorkspaceOrgChange.Type;
+
+export const WorkspaceOrgProposal = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  proposedBy: Schema.String,
+  proposedAt: Schema.String,
+});
+export type WorkspaceOrgProposal = typeof WorkspaceOrgProposal.Type;
+
+// `me` is the Member who uses this computer, matched by GitHub login. `proposals` are the ones
+// still waiting for an Owner.
 export const WorkspaceOrgResult = Schema.Struct({
   org: Schema.NullOr(WorkspaceOrg),
+  me: Schema.NullOr(
+    Schema.Struct({
+      slug: Schema.String,
+      canDecide: Schema.Boolean,
+    }),
+  ),
+  proposals: Schema.Array(WorkspaceOrgProposal),
 });
 export type WorkspaceOrgResult = typeof WorkspaceOrgResult.Type;
+
+export const WorkspaceOrgChangeInput = Schema.Struct({
+  ...workspaceScope,
+  change: WorkspaceOrgChange,
+});
+export type WorkspaceOrgChangeInput = typeof WorkspaceOrgChangeInput.Type;
+
+export const WorkspaceOrgDecideInput = Schema.Struct({
+  ...workspaceScope,
+  id: Schema.String,
+  decision: Schema.Literals(["approve", "reject"]),
+});
+export type WorkspaceOrgDecideInput = typeof WorkspaceOrgDecideInput.Type;
+
+export const WorkspaceOrgActionResult = Schema.Struct({
+  result: Schema.Literals([
+    "applied",
+    "proposed",
+    "rejected",
+    "denied",
+    "invalid",
+    "unknown_actor",
+    "missing",
+  ]),
+  message: Schema.String,
+});
+export type WorkspaceOrgActionResult = typeof WorkspaceOrgActionResult.Type;
 
 export const TaskBoardHomePriority = Schema.Struct({
   title: Schema.String,

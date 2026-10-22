@@ -3020,6 +3020,16 @@ const layerWsRpc = (
             Effect.orElseSucceed(() => []),
             Effect.flatMap((projects) => taskBoard.workspacePackOrg(projects, input.workspaceId)),
           ),
+        [WS_METHODS.workspacePackOrgChange]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.orElseSucceed(() => []),
+            Effect.flatMap((projects) => taskBoard.workspacePackOrgChange(projects, input)),
+          ),
+        [WS_METHODS.workspacePackOrgDecide]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.orElseSucceed(() => []),
+            Effect.flatMap((projects) => taskBoard.workspacePackOrgDecide(projects, input)),
+          ),
         [WS_METHODS.aiosWorkspacesList]: () =>
           allTaskBoardProjects.pipe(Effect.flatMap(taskBoard.workspaces)),
         [WS_METHODS.aiosWorkspacesInit]: (input) =>

@@ -27,6 +27,8 @@ export interface OrgMember {
   readonly department: string;
   /** The person who answers for an agent. Empty for a person. */
   readonly owner: string;
+  /** The GitHub login of a person. Empty for an agent. */
+  readonly github: string;
   /** Area slug to Role name. */
   readonly roles: Readonly<Record<string, string>>;
 }
@@ -94,6 +96,7 @@ export function parseMember(slug: string, text: string): OrgMember | null {
     status: front.status || "active",
     department: front.department ?? "",
     owner: front.owner ?? "",
+    github: front.github ?? "",
     roles: readRoles(text),
   };
 }

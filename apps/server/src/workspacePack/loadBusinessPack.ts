@@ -1,9 +1,27 @@
-import type { WorkspaceOrg, WorkspacePackWidget } from "@t3tools/contracts";
+import type {
+  WorkspaceOrgActionResult,
+  WorkspaceOrgChange,
+  WorkspaceOrgResult,
+  WorkspacePackWidget,
+} from "@t3tools/contracts";
 
 /** What the core needs from the business pack. The pack itself is never imported by name. */
 export interface BusinessPack {
   readonly readWidgets: (root: string, now: number) => Promise<ReadonlyArray<WorkspacePackWidget>>;
-  readonly readOrg: (root: string) => Promise<WorkspaceOrg | null>;
+  readonly readOrgView: (root: string, githubLogin: string | null) => Promise<WorkspaceOrgResult>;
+  readonly submitChange: (
+    root: string,
+    githubLogin: string | null,
+    change: WorkspaceOrgChange,
+    now: number,
+  ) => Promise<WorkspaceOrgActionResult>;
+  readonly decideProposal: (
+    root: string,
+    githubLogin: string | null,
+    id: string,
+    decision: "approve" | "reject",
+    now: number,
+  ) => Promise<WorkspaceOrgActionResult>;
 }
 
 declare global {
@@ -37,7 +55,7 @@ export function loadBusinessPack(): Promise<BusinessPack | null> {
     if (!load) return null;
     try {
       const mod = (await load()) as Partial<BusinessPack>;
-      return typeof mod.readWidgets === "function" && typeof mod.readOrg === "function"
+      return typeof mod.readWidgets === "function" && typeof mod.readOrgView === "function"
         ? (mod as BusinessPack)
         : null;
     } catch {

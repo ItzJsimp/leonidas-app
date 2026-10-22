@@ -1,19 +1,35 @@
 import { assert, describe, it } from "@effect/vitest";
-import type { WorkspaceOrg, WorkspacePackWidget } from "@t3tools/contracts";
+import type { WorkspaceOrgResult, WorkspacePackWidget } from "@t3tools/contracts";
 
 import type { AiosWorkspaceState } from "../taskBoard/aiosWorkspaces.ts";
 import { loadBusinessPack } from "./loadBusinessPack.ts";
-import { orgForWorkspace, widgetsForWorkspace, type BusinessPack } from "./workspacePack.ts";
+import {
+  changeOrgForWorkspace,
+  decideOrgForWorkspace,
+  orgForWorkspace,
+  widgetsForWorkspace,
+  type BusinessPack,
+} from "./workspacePack.ts";
 
 const widget: WorkspacePackWidget = {
   id: "w",
   title: "T",
   kpis: [{ label: "L", value: "1", detail: "d" }],
 };
-const org: WorkspaceOrg = { name: "Acme", departments: [], areas: [], members: [] };
+const view: WorkspaceOrgResult = {
+  org: { name: "Acme", departments: [], areas: [], members: [] },
+  me: { slug: "ada", canDecide: true },
+  proposals: [],
+};
+const seenLogin: Array<string | null> = [];
 const seen: string[] = [];
 const pack: BusinessPack = {
-  readOrg: async () => org,
+  readOrgView: async (_root, login) => {
+    seenLogin.push(login);
+    return view;
+  },
+  submitChange: async () => ({ result: "applied", message: "ok" }),
+  decideProposal: async () => ({ result: "applied", message: "ok" }),
   readWidgets: async (root) => {
     seen.push(root);
     return [widget];
@@ -61,9 +77,11 @@ describe("widgetsForWorkspace", () => {
 
   it("returns nothing when the pack throws, so the Home never fails for a widget", async () => {
     const broken: BusinessPack = {
-      readOrg: async () => {
+      readOrgView: async () => {
         throw new Error("boom");
       },
+      submitChange: async () => ({ result: "applied", message: "ok" }),
+      decideProposal: async () => ({ result: "applied", message: "ok" }),
       readWidgets: async () => {
         throw new Error("boom");
       },
@@ -73,19 +91,98 @@ describe("widgetsForWorkspace", () => {
   });
 });
 
-describe("orgForWorkspace", () => {
-  it("returns the org of a business workspace, and null for personal, unknown, absent or broken", async () => {
-    assert.deepEqual(await orgForWorkspace(workspaces, "simplygersi", async () => pack), org);
-    assert.isNull(await orgForWorkspace(workspaces, "leonidas", async () => pack));
-    assert.isNull(await orgForWorkspace(workspaces, "nope", async () => pack));
-    assert.isNull(await orgForWorkspace(workspaces, "simplygersi", async () => null));
+describe("org actions", () => {
+  it("reads the org view of a business workspace, and nothing for personal, unknown, absent or broken", async () => {
+    assert.deepEqual(
+      await orgForWorkspace(workspaces, "simplygersi", "ada", async () => pack),
+      view,
+    );
+    assert.deepEqual(seenLogin, ["ada"]);
+    const empty = { org: null, me: null, proposals: [] };
+    assert.deepEqual(await orgForWorkspace(workspaces, "leonidas", "ada", async () => pack), empty);
+    assert.deepEqual(await orgForWorkspace(workspaces, "nope", "ada", async () => pack), empty);
+    assert.deepEqual(
+      await orgForWorkspace(workspaces, "simplygersi", "ada", async () => null),
+      empty,
+    );
     const broken: BusinessPack = {
       ...pack,
-      readOrg: async () => {
+      readOrgView: async () => {
         throw new Error("boom");
       },
     };
-    assert.isNull(await orgForWorkspace(workspaces, "simplygersi", async () => broken));
+    assert.deepEqual(
+      await orgForWorkspace(workspaces, "simplygersi", "ada", async () => broken),
+      empty,
+    );
+  });
+
+  it("sends a change and a decision to the pack for a business workspace only", async () => {
+    const change = { kind: "removeMember", member: "bo" } as const;
+    const sent = await changeOrgForWorkspace(
+      workspaces,
+      "simplygersi",
+      "ada",
+      change,
+      5,
+      async () => pack,
+    );
+    assert.strictEqual(sent.result, "applied");
+    const decided = await decideOrgForWorkspace(
+      workspaces,
+      "simplygersi",
+      "ada",
+      "p1",
+      "approve",
+      5,
+      async () => pack,
+    );
+    assert.strictEqual(decided.result, "applied");
+    const personal = await changeOrgForWorkspace(
+      workspaces,
+      "leonidas",
+      "ada",
+      change,
+      5,
+      async () => pack,
+    );
+    assert.strictEqual(personal.result, "invalid");
+    const unknown = await decideOrgForWorkspace(
+      workspaces,
+      "nope",
+      "ada",
+      "p1",
+      "reject",
+      5,
+      async () => pack,
+    );
+    assert.strictEqual(unknown.result, "invalid");
+  });
+
+  it("answers invalid, and does not throw, when the pack fails", async () => {
+    const fail = async () => {
+      throw new Error("boom");
+    };
+    const broken: BusinessPack = { ...pack, submitChange: fail, decideProposal: fail };
+    const change = { kind: "removeMember", member: "bo" } as const;
+    const a = await changeOrgForWorkspace(
+      workspaces,
+      "simplygersi",
+      "ada",
+      change,
+      5,
+      async () => broken,
+    );
+    const b = await decideOrgForWorkspace(
+      workspaces,
+      "simplygersi",
+      "ada",
+      "p1",
+      "approve",
+      5,
+      async () => broken,
+    );
+    assert.deepEqual([a.result, b.result], ["invalid", "invalid"]);
   });
 });
 

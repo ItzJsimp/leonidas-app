@@ -48,6 +48,7 @@ describe("parseMember", () => {
       status: "active",
       department: "sales",
       owner: "ada",
+      github: "",
       roles: { home: "Viewer", deals: "Member" },
     });
   });

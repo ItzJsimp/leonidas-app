@@ -39,6 +39,9 @@ import {
   type AiosWorkspaceInitInput,
   type AiosWorkspaceSummary,
   type AiosWorkspacesListResult,
+  type WorkspaceOrgActionResult,
+  type WorkspaceOrgChangeInput,
+  type WorkspaceOrgDecideInput,
   type WorkspaceOrgResult,
   type WorkspacePackWidgetsResult,
   type AiosDirection,
@@ -61,7 +64,12 @@ import { ServerSettingsService } from "../serverSettings.ts";
 import { readAiosShape, type AiosShape } from "./aiosShape.ts";
 import { detectAiosCandidates, inspectAiosCandidate } from "./aiosDetect.ts";
 import { buildDirection, readDirection } from "./aiosDirection.ts";
-import { orgForWorkspace, widgetsForWorkspace } from "../workspacePack/workspacePack.ts";
+import {
+  changeOrgForWorkspace,
+  decideOrgForWorkspace,
+  orgForWorkspace,
+  widgetsForWorkspace,
+} from "../workspacePack/workspacePack.ts";
 import { buildHome } from "./aiosHome.ts";
 import {
   addFocusItem,
@@ -583,6 +591,16 @@ export class TaskBoardService extends Context.Service<
       projects: ReadonlyArray<Project>,
       workspaceId?: string,
     ) => Effect.Effect<WorkspaceOrgResult>;
+    /** A change to the org record: applied at once when it narrows access, a proposal when it widens. */
+    readonly workspacePackOrgChange: (
+      projects: ReadonlyArray<Project>,
+      input: WorkspaceOrgChangeInput,
+    ) => Effect.Effect<WorkspaceOrgActionResult>;
+    /** An Owner approves or rejects a waiting proposal. */
+    readonly workspacePackOrgDecide: (
+      projects: ReadonlyArray<Project>,
+      input: WorkspaceOrgDecideInput,
+    ) => Effect.Effect<WorkspaceOrgActionResult>;
     /** Counts about the AIOS folder for opt-in usage analytics. */
     readonly usageShape: (
       projects: ReadonlyArray<Project>,
@@ -1996,11 +2014,58 @@ const make = Effect.gen(function* () {
       return { widgets };
     });
 
+  // Who is signed in to GitHub on this computer, to know which Member is using the app. A success
+  // is believed for 60 s: the lookup is a subprocess and a network call, and the Team view reads
+  // every 30 s. No `gh` or no sign-in gives null, which the Team view shows as "not a Member".
+  let viewer: { readonly at: number; readonly login: string } | null = null;
+  const viewerLogin = Effect.gen(function* () {
+    const now = yield* Clock.currentTimeMillis;
+    if (viewer && now - viewer.at < 60_000) return viewer.login;
+    const login = yield* processes
+      .run({
+        command: "gh",
+        args: ["api", "user", "--jq", ".login"],
+        timeout: "10 seconds",
+        maxOutputBytes: 4096,
+      })
+      .pipe(
+        Effect.map((result) => (result.code === 0 ? result.stdout.trim() : "")),
+        Effect.orElseSucceed(() => ""),
+      );
+    if (!login) return null;
+    viewer = { at: now, login };
+    return login;
+  });
+
   const workspacePackOrg = (projects: ReadonlyArray<Project>, workspaceId?: string) =>
     Effect.gen(function* () {
       const { workspaces: found } = scopeFor(projects, { workspaceId });
-      const org = yield* Effect.promise(() => orgForWorkspace(found, workspaceId));
-      return { org };
+      const login = yield* viewerLogin;
+      return yield* Effect.promise(() => orgForWorkspace(found, workspaceId, login));
+    });
+
+  const workspacePackOrgChange = (
+    projects: ReadonlyArray<Project>,
+    input: WorkspaceOrgChangeInput,
+  ) =>
+    Effect.gen(function* () {
+      const { workspaces: found } = scopeFor(projects, { workspaceId: input.workspaceId });
+      const [login, now] = [yield* viewerLogin, yield* Clock.currentTimeMillis];
+      return yield* Effect.promise(() =>
+        changeOrgForWorkspace(found, input.workspaceId, login, input.change, now),
+      );
+    });
+
+  const workspacePackOrgDecide = (
+    projects: ReadonlyArray<Project>,
+    input: WorkspaceOrgDecideInput,
+  ) =>
+    Effect.gen(function* () {
+      const { workspaces: found } = scopeFor(projects, { workspaceId: input.workspaceId });
+      const [login, now] = [yield* viewerLogin, yield* Clock.currentTimeMillis];
+      return yield* Effect.promise(() =>
+        decideOrgForWorkspace(found, input.workspaceId, login, input.id, input.decision, now),
+      );
     });
 
   const usageShape = (projects: ReadonlyArray<Project>, workspaceId?: string) =>
@@ -2092,6 +2157,8 @@ const make = Effect.gen(function* () {
     direction,
     workspacePackWidgets,
     workspacePackOrg,
+    workspacePackOrgChange,
+    workspacePackOrgDecide,
     workspaces,
     workspaceRoot,
     workspaceInit,

@@ -1,4 +1,7 @@
 export { readWidgets } from "./read.ts";
 export { readOrg } from "./org.ts";
+export { decideProposal, readOrgView, submitChange } from "./orgStore.ts";
+export type { DecideResult, OrgView, SubmitResult } from "./orgStore.ts";
+export type { OrgChange } from "./orgEdit.ts";
 export type { Org, OrgArea, OrgDepartment, OrgMember } from "./org.ts";
 export type { PackKpi, PackWidget } from "./simplygersi.ts";

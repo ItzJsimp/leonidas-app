@@ -1,12 +1,16 @@
 import type { WorkspaceOrg } from "@t3tools/contracts";
-import { BotIcon, XIcon } from "lucide-react";
+import { BotIcon, PencilIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "~/components/ui/button";
+import { Dialog, DialogPopup } from "~/components/ui/dialog";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
 import { cn } from "~/lib/utils";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useEnvironmentQuery } from "~/state/query";
 import { workspaceOrgQuery } from "~/state/taskBoard";
+import { MemberEditor, type EditorTarget } from "./MemberEditor";
+import { ProposalCards } from "./ProposalCards";
 import {
   areaInLens,
   buildTeamGroups,
@@ -40,19 +44,23 @@ function MemberNode(props: {
   readonly org: WorkspaceOrg;
   readonly index: number;
   readonly onLens: (lens: TeamLens) => void;
+  readonly onEdit?: ((member: Member) => void) | undefined;
 }) {
-  const { member, lens, org, index, onLens } = props;
+  const { member, lens, org, index, onLens, onEdit } = props;
   const active = isLens(lens, "member", member.slug);
   const dimmed = !memberInLens(org, lens, member);
   return (
-    <li className={cn(ENTER, dimmed && "opacity-35")} style={rise(index)}>
+    <li
+      className={cn(ENTER, "flex min-w-0 items-stretch gap-1", dimmed && "opacity-35")}
+      style={rise(index)}
+    >
       <button
         type="button"
         aria-pressed={active}
         onClick={() => onLens(active ? null : { kind: "member", slug: member.slug })}
         className={cn(
           NODE,
-          "flex w-full items-center gap-3 px-3 py-2",
+          "flex min-w-0 flex-1 items-center gap-3 px-3 py-2",
           active ? "border-primary bg-primary/8" : "hover:bg-accent",
         )}
       >
@@ -86,6 +94,16 @@ function MemberNode(props: {
           )}
         />
       </button>
+      {onEdit ? (
+        <button
+          type="button"
+          aria-label={`Edit ${member.name}`}
+          onClick={() => onEdit(member)}
+          className={cn(NODE, "grid w-9 shrink-0 place-items-center hover:bg-accent")}
+        >
+          <PencilIcon aria-hidden className="size-3.5" />
+        </button>
+      ) : null}
     </li>
   );
 }
@@ -96,8 +114,9 @@ function Group(props: {
   readonly lens: TeamLens;
   readonly index: number;
   readonly onLens: (lens: TeamLens) => void;
+  readonly onEdit?: ((member: Member) => void) | undefined;
 }) {
-  const { group, org, lens, index, onLens } = props;
+  const { group, org, lens, index, onLens, onEdit } = props;
   const dimmed = !groupInLens(org, lens, group);
   const heading = group.name || "Not in a Department";
   const departmentActive = group.name !== "" && isLens(lens, "department", group.key);
@@ -174,6 +193,7 @@ function Group(props: {
               org={org}
               index={i + 1}
               onLens={onLens}
+              onEdit={onEdit}
             />
           ))}
         </ul>
@@ -204,10 +224,11 @@ function lensSummary(org: WorkspaceOrg, lens: NonNullable<TeamLens>): string {
 export function TeamView() {
   const environmentId = usePrimaryEnvironmentId();
   const { scope, scopeReady, active } = useActiveAiosWorkspace();
-  const { data } = useEnvironmentQuery(
+  const { data, refresh } = useEnvironmentQuery(
     environmentId && scopeReady ? workspaceOrgQuery({ environmentId, input: scope }) : null,
   );
   const [lens, setLens] = useState<TeamLens>(null);
+  const [editor, setEditor] = useState<EditorTarget | null>(null);
   if (!data) return null;
   const org = data.org;
   if (!org) {
@@ -224,39 +245,84 @@ export function TeamView() {
     ) : null;
   }
   const groups = buildTeamGroups(org);
+  const me = data.me;
+  const scopeRef = scope as { readonly workspaceId?: string };
   return (
     <section aria-labelledby="team-view-title" className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 id="team-view-title" className="text-sm font-medium">
           Team{org.name ? `: ${org.name}` : ""}
         </h3>
-        <div
-          role="status"
-          className="flex min-h-6 items-center gap-2 text-xs text-muted-foreground"
-        >
-          {lens ? (
-            <>
-              <span>{lensSummary(org, lens)}</span>
-              <button
-                type="button"
-                onClick={() => setLens(null)}
-                aria-label="Clear the filter"
-                className={cn(
-                  NODE,
-                  "grid size-6 place-items-center border-transparent hover:bg-accent",
-                )}
-              >
-                <XIcon aria-hidden className="size-3.5" />
-              </button>
-            </>
+        <div className="flex items-center gap-2">
+          <div
+            role="status"
+            className="flex min-h-6 items-center gap-2 text-xs text-muted-foreground"
+          >
+            {lens ? (
+              <>
+                <span>{lensSummary(org, lens)}</span>
+                <button
+                  type="button"
+                  onClick={() => setLens(null)}
+                  aria-label="Clear the filter"
+                  className={cn(
+                    NODE,
+                    "grid size-6 place-items-center border-transparent hover:bg-accent",
+                  )}
+                >
+                  <XIcon aria-hidden className="size-3.5" />
+                </button>
+              </>
+            ) : null}
+          </div>
+          {me ? (
+            <Button size="sm" variant="outline" onClick={() => setEditor({ mode: "add" })}>
+              <PlusIcon aria-hidden />
+              Add Member
+            </Button>
           ) : null}
         </div>
       </div>
+      {environmentId ? (
+        <ProposalCards
+          environmentId={environmentId}
+          scope={scopeRef}
+          proposals={data.proposals}
+          canDecide={me?.canDecide ?? false}
+          onDecided={refresh}
+        />
+      ) : null}
       <div className="grid gap-3 md:grid-cols-2">
         {groups.map((group, i) => (
-          <Group key={group.key} group={group} org={org} lens={lens} index={i} onLens={setLens} />
+          <Group
+            key={group.key}
+            group={group}
+            org={org}
+            lens={lens}
+            index={i}
+            onLens={setLens}
+            onEdit={me ? (member) => setEditor({ mode: "edit", member }) : undefined}
+          />
         ))}
       </div>
+      <Dialog open={editor !== null} onOpenChange={(open) => !open && setEditor(null)}>
+        <DialogPopup>
+          {editor && environmentId ? (
+            <MemberEditor
+              key={editor.mode === "edit" ? editor.member.slug : "add"}
+              environmentId={environmentId}
+              scope={scopeRef}
+              org={org}
+              target={editor}
+              canRemove={me?.canDecide ?? false}
+              onDone={(changed) => {
+                setEditor(null);
+                if (changed) refresh();
+              }}
+            />
+          ) : null}
+        </DialogPopup>
+      </Dialog>
     </section>
   );
 }

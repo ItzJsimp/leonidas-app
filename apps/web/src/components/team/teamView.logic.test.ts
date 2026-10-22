@@ -1,7 +1,17 @@
 import type { WorkspaceOrg } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { areaInLens, buildTeamGroups, groupInLens, initials, memberInLens } from "./teamView.logic";
+import {
+  areaInLens,
+  buildTeamGroups,
+  diffRoles,
+  groupInLens,
+  initials,
+  memberInLens,
+  rolesFor,
+  suggestSlug,
+  summarizeResults,
+} from "./teamView.logic";
 
 const member = (
   slug: string,
@@ -15,6 +25,7 @@ const member = (
   status: "active",
   department,
   owner: "",
+  github: "",
   roles,
   ...extra,
 });
@@ -102,5 +113,40 @@ describe("initials", () => {
   it("takes two letters", () => {
     expect(initials("Ada Lovelace Byron")).toBe("AL");
     expect(initials("")).toBe("");
+  });
+});
+
+describe("editor helpers", () => {
+  it("gives an agent no Owner Role", () => {
+    expect(rolesFor("agent")).toEqual(["Viewer", "Member", "Admin"]);
+    expect(rolesFor("person")).toContain("Owner");
+  });
+
+  it("lists only the Areas whose Role changed, and uses null to remove", () => {
+    const bo = org.members[1]!;
+    const areas = [area("home", "ops"), area("deals", "sales"), area("studio", "ops")];
+    expect(diffRoles(bo, areas, { home: "Viewer", deals: "Member" })).toEqual([
+      { kind: "setRole", member: "bo", area: "deals", role: "Member" },
+    ]);
+    expect(diffRoles(bo, areas, { home: "" })).toEqual([
+      { kind: "setRole", member: "bo", area: "home", role: null },
+    ]);
+    expect(diffRoles(bo, areas, {})).toEqual([]);
+  });
+
+  it("makes a short name from a full name", () => {
+    expect(suggestSlug("  Ana Maria O'Neil ")).toBe("ana-maria-o-neil");
+    expect(suggestSlug("!!!")).toBe("");
+  });
+
+  it("sums up a save in one line", () => {
+    expect(summarizeResults([])).toBe("Nothing changed.");
+    expect(
+      summarizeResults([
+        { result: "applied", message: "" },
+        { result: "proposed", message: "" },
+        { result: "denied", message: "No." },
+      ]),
+    ).toBe("1 applied, 1 waiting for an Owner, No.");
   });
 });
