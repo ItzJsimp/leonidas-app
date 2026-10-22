@@ -17,8 +17,8 @@ Sources: `git log` of this repo (456 non-merge commits), `git log -- tasks` of t
 ## Time sink 2: typecheck and gate repairs after the feature commit
 
 - **Evidence:** seven repair commits in six days: `c715aade65` (10-16), `ad02d0b4fb`, `3c7dc2141d`, `7c367b96aa`, `9c1656512c` (10-17), `4e62c05896` (10-21), plus release-build repairs `9b74609911`, `4d407530ce`, `203cde7074`. `13a498e78c` already widened the release gate to server, web and provider-core types.
-- **Cause:** the main checkout has a partial install, so the commit hook and the Effect diagnostics do not run there. The error shows up later, at the release gate. The playbook and `antifragile.md` already record this trap (line 588), but a note did not stop it.
-- **Sharpest cut:** make the commit fail on the main checkout when `vp` is missing, with one message: "commit from an installed `C:/lcw` worktree". A rule that a person must remember did not hold.
+- **Cause:** the main checkout has no local `node_modules/.bin/vp`. A global `vp` is on PATH, so `vp staged` runs and passes there. But the pre-commit hook only formats (`vite.config.ts` says "no lint or typecheck on commit"). No typecheck runs at commit time in any checkout. The error shows up later, at the release gate. The playbook and `antifragile.md` already record the partial install (line 588), but a note did not stop it.
+- **Sharpest cut:** warn at commit time when TypeScript is staged and the local `vp` is missing. Built as `scripts/guard-unchecked-commit.mjs` (`a4a1879a4f`, `3522674911`). It warns and does not block, by your choice. The release gate stays the only hard stop. A pre-push typecheck would close the gap. It is not built.
 
 ## Time sink 3: bulk card writes that damaged cards
 
