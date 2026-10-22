@@ -9,6 +9,7 @@ import * as ImageService from "./images/ImageService.ts";
 import * as LocalModelsService from "./localModels/LocalModelsService.ts";
 import { isPathInRoot } from "./taskBoard/aiosWorkspaces.ts";
 import * as TaskBoardService from "./taskBoard/TaskBoardService.ts";
+import * as AreaSyncService from "./areaSync/AreaSyncService.ts";
 import { SpawnApprovals } from "./subagents/SpawnApprovals.ts";
 import { listSubagents, subagentSources } from "./subagents/subagentCatalog.ts";
 import { subagentWorkspaceProjects } from "./subagents/workspaceProjects.ts";
@@ -1372,6 +1373,7 @@ const layerWsRpc = (
       const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
       const workspaceFileSystem = yield* WorkspaceFileSystem.WorkspaceFileSystem;
       const taskBoard = yield* TaskBoardService.TaskBoardService;
+      const areaSync = yield* AreaSyncService.AreaSyncService;
       const spawnApprovals = yield* SpawnApprovals;
       yield* spawnApprovals.keepStatsIn(`${config.stateDir}/subagent-stats.json`);
       const hardwareWatch = yield* HardwareWatch.HardwareWatch;
@@ -3019,6 +3021,12 @@ const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.workspaceInit(input, projects)),
           ),
+        [WS_METHODS.areaSyncJoin]: (input) =>
+          allTaskBoardProjects.pipe(Effect.flatMap((projects) => areaSync.join(projects, input))),
+        [WS_METHODS.areaSyncSync]: (input) =>
+          allTaskBoardProjects.pipe(Effect.flatMap((projects) => areaSync.sync(projects, input))),
+        [WS_METHODS.areaSyncStatus]: (input) =>
+          allTaskBoardProjects.pipe(Effect.flatMap((projects) => areaSync.status(projects, input))),
         [WS_METHODS.taskBoardAiosDetect]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.aiosDetect(input, projects)),

@@ -586,6 +586,11 @@ export class TaskBoardService extends Context.Service<
     readonly workspaces: (
       projects: ReadonlyArray<Project>,
     ) => Effect.Effect<AiosWorkspacesListResult>;
+    /** The root and type of a ready workspace by id, or `null` when no ready workspace has it. */
+    readonly workspaceRoot: (
+      projects: ReadonlyArray<Project>,
+      workspaceId: string,
+    ) => Effect.Effect<{ readonly root: string; readonly type: "personal" | "business" } | null>;
     /** The setup prompt: writes workspace.json into a listed folder that has none or a bad one. */
     readonly workspaceInit: (
       input: AiosWorkspaceInitInput,
@@ -2011,6 +2016,14 @@ const make = Effect.gen(function* () {
       return { workspaces: found.map((state) => summarize(state, projects, defaultRoot)) };
     });
 
+  const workspaceRoot = (projects: ReadonlyArray<Project>, workspaceId: string) =>
+    Effect.sync(() => {
+      const found = listAiosWorkspaces(workspaceHints(projects)).find(
+        (state) => state.status === "ready" && state.file.id === workspaceId,
+      );
+      return found?.status === "ready" ? { root: found.root, type: found.file.type } : null;
+    });
+
   const workspaceInit = (input: AiosWorkspaceInitInput, projects: ReadonlyArray<Project>) =>
     Effect.gen(function* () {
       const { workspaces: found } = scopeFor(projects);
@@ -2066,6 +2079,7 @@ const make = Effect.gen(function* () {
     direction,
     workspacePackWidgets,
     workspaces,
+    workspaceRoot,
     workspaceInit,
     aiosDetect,
     aiosConfirm,
