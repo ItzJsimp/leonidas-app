@@ -94,15 +94,8 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
 export function buildWidgets(data: SimplygersiData, month: string): ReadonlyArray<PackWidget> {
   const revenue = monthRevenue(data.payments, month);
   const deals = activeDealCount(data.deals);
-  if (data.payments.length === 0 && data.deals.length === 0) {
-    return [
-      {
-        id: "simplygersi-kpis",
-        title: "SimplyGersi",
-        kpis: [{ label: "SimplyGersi", value: "No data", detail: "No payments or deals found" }],
-      },
-    ];
-  }
+  // A business with no payments or deals is not SimplyGersi: show no card at all.
+  if (data.payments.length === 0 && data.deals.length === 0) return [];
   const goal = pickGoal(data.goals, revenue.totalUsd);
   const name = monthName(month);
   const detail =

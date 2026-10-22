@@ -45,9 +45,8 @@ describe("readWidgets", () => {
     assert.equal(widget?.kpis[1]?.value, "1");
   });
 
-  it("shows the empty state for a folder with none of the three folders", async () => {
-    const [widget] = await readWidgets(makeRoot(), OCT);
-    assert.equal(widget?.kpis[0]?.detail, "No payments or deals found");
+  it("shows no card for a folder with none of the three folders", async () => {
+    assert.deepEqual(await readWidgets(makeRoot(), OCT), []);
   });
 
   it("reads only the frontmatter of a large file and survives an unreadable entry", async () => {

@@ -136,9 +136,7 @@ describe("buildWidgets", () => {
     assert.include(widget?.kpis[0]?.detail ?? "", "1 payment in October, 1 not verified");
   });
 
-  it("shows one empty-state row when there are no payments and no deals", () => {
-    const [widget] = buildWidgets({ payments: [], deals: [], goals: [] }, "2026-10");
-    assert.equal(widget?.kpis.length, 1);
-    assert.equal(widget?.kpis[0]?.detail, "No payments or deals found");
+  it("shows no card when there are no payments and no deals", () => {
+    assert.deepEqual(buildWidgets({ payments: [], deals: [], goals: [] }, "2026-10"), []);
   });
 });
