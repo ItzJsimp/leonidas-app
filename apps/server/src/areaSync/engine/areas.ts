@@ -22,9 +22,9 @@ export function parseAreas(text: string): ReadonlyArray<AreaEntry> {
     if (pieces[pieces.length - 1] === "") pieces.pop();
     const cells = pieces.map((piece) => piece.trim().replace(/^`(.*)`$/, "$1"));
     if (cells.length < 6) continue;
-    if (cells[0].toLowerCase() === "slug") continue;
+    if (cells[0]?.toLowerCase() === "slug") continue;
     if (cells.every((cell) => SEPARATOR_CELL.test(cell))) continue;
-    const [slug, name, repo, department, sensitivity, status] = cells;
+    const [slug = "", name = "", repo = "", department = "", sensitivity = "", status = ""] = cells;
     if (!SLUG.test(slug) || seen.has(slug)) continue;
     if (!REPO.test(repo) || repo === "." || repo === "..") continue;
     seen.add(slug);

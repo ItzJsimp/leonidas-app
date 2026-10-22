@@ -188,11 +188,12 @@ export async function syncWorkspace(input: {
 }): Promise<WorkspaceSync> {
   const { root, git } = input;
   const areas: Array<{ slug: string; result: SyncResult }> = [];
-  areas.push({ slug: "home", result: await syncArea({ dir: root, git, now: input.now }) });
+  const clock = input.now ? { now: input.now } : {};
+  areas.push({ slug: "home", result: await syncArea({ dir: root, git, ...clock }) });
   const { results } = await joinWorkspace({ root, git });
   for (const slug of [...areasOnDisk(root)].toSorted()) {
     const dir = NodePath.join(root, AREAS_DIR, slug);
-    areas.push({ slug, result: await syncArea({ dir, git, now: input.now }) });
+    areas.push({ slug, result: await syncArea({ dir, git, ...clock }) });
   }
   return { joined: results, areas };
 }
