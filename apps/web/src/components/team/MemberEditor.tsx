@@ -143,7 +143,7 @@ export function MemberEditor(props: {
         <DialogTitle>{editing ? `Edit ${editing.name}` : "Add a Member"}</DialogTitle>
         <DialogDescription>
           Lowering a Role applies at once. Adding a Member or raising a Role waits for an Owner to
-          approve.
+          approve. A new person then gets an Invite link to send.
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>

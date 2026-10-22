@@ -11,6 +11,7 @@ import { useEnvironmentQuery } from "~/state/query";
 import { workspaceOrgQuery } from "~/state/taskBoard";
 import { MemberEditor, type EditorTarget } from "./MemberEditor";
 import { RolesEditor } from "./RolesEditor";
+import { InviteCards, WelcomeCard } from "./InviteFlow";
 import { ProposalCards } from "./ProposalCards";
 import {
   areaInLens,
@@ -46,8 +47,11 @@ function MemberNode(props: {
   readonly index: number;
   readonly onLens: (lens: TeamLens) => void;
   readonly onEdit?: ((member: Member) => void) | undefined;
+  /** The Member who uses this computer, and whether they just joined. */
+  readonly you?: { readonly slug: string; readonly lit: boolean } | null | undefined;
 }) {
-  const { member, lens, org, index, onLens, onEdit } = props;
+  const { member, lens, org, index, onLens, onEdit, you } = props;
+  const isYou = you?.slug === member.slug;
   const active = isLens(lens, "member", member.slug);
   const dimmed = !memberInLens(org, lens, member);
   return (
@@ -63,6 +67,7 @@ function MemberNode(props: {
           NODE,
           "flex min-w-0 flex-1 items-center gap-3 px-3 py-2",
           active ? "border-primary bg-primary/8" : "hover:bg-accent",
+          isYou && you?.lit && "motion-safe:animate-[pulse_1.2s_ease-out_3] ring-2 ring-primary/50",
         )}
       >
         <span
@@ -75,7 +80,10 @@ function MemberNode(props: {
           {member.kind === "agent" ? <BotIcon className="size-4" /> : initials(member.name)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{member.name}</span>
+          <span className="block truncate text-sm font-medium">
+            {member.name}
+            {isYou ? <span className="ml-1.5 text-xs text-muted-foreground">You</span> : null}
+          </span>
           <span className="block truncate text-xs text-muted-foreground">
             {member.kind === "agent" ? `Agent of ${member.owner || "no one"}` : "Person"}
             {" · "}
@@ -116,8 +124,9 @@ function Group(props: {
   readonly index: number;
   readonly onLens: (lens: TeamLens) => void;
   readonly onEdit?: ((member: Member) => void) | undefined;
+  readonly you?: { readonly slug: string; readonly lit: boolean } | null | undefined;
 }) {
-  const { group, org, lens, index, onLens, onEdit } = props;
+  const { group, org, lens, index, onLens, onEdit, you } = props;
   const dimmed = !groupInLens(org, lens, group);
   const heading = group.name || "Not in a Department";
   const departmentActive = group.name !== "" && isLens(lens, "department", group.key);
@@ -195,6 +204,7 @@ function Group(props: {
               index={i + 1}
               onLens={onLens}
               onEdit={onEdit}
+              you={you}
             />
           ))}
         </ul>
@@ -231,6 +241,7 @@ export function TeamView() {
   const [lens, setLens] = useState<TeamLens>(null);
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
+  const [justJoined, setJustJoined] = useState(false);
   if (!data) return null;
   const org = data.org;
   if (!org) {
@@ -249,6 +260,22 @@ export function TeamView() {
   const groups = buildTeamGroups(org);
   const me = data.me;
   const scopeRef = scope as { readonly workspaceId?: string };
+  // First open of an invited person: the welcome comes before the map.
+  if (me?.invited && environmentId) {
+    return (
+      <WelcomeCard
+        environmentId={environmentId}
+        scope={scopeRef}
+        org={org}
+        slug={me.slug}
+        onJoined={() => {
+          setJustJoined(true);
+          refresh();
+        }}
+      />
+    );
+  }
+  const you = me ? { slug: me.slug, lit: justJoined } : null;
   return (
     <section aria-labelledby="team-view-title" className="space-y-3">
       <div className="flex items-center justify-between gap-3">
@@ -300,10 +327,19 @@ export function TeamView() {
           onDecided={refresh}
         />
       ) : null}
+      {environmentId && data.invites.length > 0 ? (
+        <InviteCards
+          environmentId={environmentId}
+          scope={scopeRef}
+          invites={data.invites}
+          onChanged={refresh}
+        />
+      ) : null}
       <div className="grid gap-3 md:grid-cols-2">
         {groups.map((group, i) => (
           <Group
             key={group.key}
+            you={you}
             group={group}
             org={org}
             lens={lens}

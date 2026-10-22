@@ -16,7 +16,7 @@ import {
   type OrgChange,
   type RoleInput,
 } from "./orgEdit.ts";
-import { decideProposal, readProposals, submitChange } from "./orgStore.ts";
+import { decideProposal, readOrgView, readProposals, submitChange } from "./orgStore.ts";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -448,5 +448,127 @@ describe("permission table", () => {
       permit(o, cy, { kind: "setRole", member: "bo", area: "deals", role: "Viewer" }),
       "deny",
     );
+  });
+});
+
+describe("invites", () => {
+  const add = (login = "dee"): OrgChange => ({
+    kind: "addMember",
+    member: {
+      slug: "dee",
+      name: "Dee",
+      kind: "person",
+      department: "general",
+      github: login,
+      roles: { home: "Viewer", deals: "Member" },
+    },
+  });
+  /** An Owner proposes Dee and approves it, so Dee is invited with an open Invite. */
+  const invite = async (root: string) => {
+    await submitChange(root, "ada-l", add(), NOW);
+    const [proposal] = await readProposals(root);
+    await decideProposal(root, "ada-l", proposal!.id, "approve", NOW);
+  };
+
+  it("approving a new person Member writes an invited Member and a 7 day Invite", async () => {
+    const root = makeRoot();
+    await invite(root);
+    assert.strictEqual((await org(root)).members.find((m) => m.slug === "dee")!.status, "invited");
+    const text = read(root, "org/invites/dee.md");
+    assert.include(text, "status: approved");
+    assert.include(text, "github: dee");
+    assert.include(text, `expires_at: ${new Date(NOW + 7 * 86_400_000).toISOString()}`);
+    assert.notMatch(text, /token|secret/i);
+  });
+
+  it("an agent has no Invite and starts active", async () => {
+    const root = makeRoot();
+    await submitChange(
+      root,
+      "ada-l",
+      {
+        kind: "addMember",
+        member: {
+          slug: "bot",
+          name: "Bot",
+          kind: "agent",
+          department: "general",
+          owner: "ada",
+          roles: { home: "Viewer" },
+        },
+      },
+      NOW,
+    );
+    const [proposal] = await readProposals(root);
+    await decideProposal(root, "ada-l", proposal!.id, "approve", NOW);
+    assert.strictEqual((await org(root)).members.find((m) => m.slug === "bot")!.status, "active");
+    assert.isFalse(NodeFS.existsSync(NodePath.join(root, "org/invites/bot.md")));
+  });
+
+  it("an invited Member can change nothing until they accept", async () => {
+    const root = makeRoot();
+    await invite(root);
+    const change: OrgChange = { kind: "setRole", member: "cy", area: "deals", role: "Member" };
+    assert.strictEqual((await submitChange(root, "dee", change, NOW)).result, "denied");
+  });
+
+  it("the invited person accepts once, and only with the named GitHub account", async () => {
+    const root = makeRoot();
+    await invite(root);
+    const later = NOW + 86_400_000;
+    assert.strictEqual(
+      (await submitChange(root, "stranger", { kind: "acceptInvite" }, later)).result,
+      "unknown_actor",
+    );
+    assert.strictEqual(
+      (await submitChange(root, "Dee", { kind: "acceptInvite" }, later)).result,
+      "applied",
+    );
+    assert.strictEqual((await org(root)).members.find((m) => m.slug === "dee")!.status, "active");
+    assert.include(read(root, "org/invites/dee.md"), "status: accepted");
+    assert.include(read(root, "events/2026-10.jsonl"), "Dee joined");
+    assert.strictEqual(
+      (await submitChange(root, "dee", { kind: "acceptInvite" }, later)).result,
+      "invalid",
+    );
+  });
+
+  it("an expired Invite closes, and only an Owner can renew it", async () => {
+    const root = makeRoot();
+    await invite(root);
+    const late = NOW + 8 * 86_400_000;
+    const expired = await submitChange(root, "dee", { kind: "acceptInvite" }, late);
+    assert.match(expired.message, /expired/);
+    assert.include(read(root, "org/invites/dee.md"), "status: expired");
+    assert.strictEqual((await org(root)).members.find((m) => m.slug === "dee")!.status, "invited");
+    assert.strictEqual(
+      (await submitChange(root, "bo", { kind: "renewInvite", member: "dee" }, late)).result,
+      "denied",
+    );
+    assert.strictEqual(
+      (await submitChange(root, "ada-l", { kind: "renewInvite", member: "dee" }, late)).result,
+      "applied",
+    );
+    assert.strictEqual(
+      (await submitChange(root, "dee", { kind: "acceptInvite" }, late)).result,
+      "applied",
+    );
+  });
+
+  it("an Owner sees open Invites with a link that holds no sign-in", async () => {
+    const root = makeRoot();
+    write(
+      root,
+      ".git/config",
+      '[remote "origin"]\n\turl = https://user:ghp_SECRET@github.com/acme/home.git\n',
+    );
+    await invite(root);
+    const view = await readOrgView(root, "ada-l");
+    assert.strictEqual(view.invites.length, 1);
+    const link = view.invites[0]!.link;
+    assert.include(link, encodeURIComponent("https://github.com/acme/home.git"));
+    assert.notInclude(link, "SECRET");
+    assert.deepStrictEqual((await readOrgView(root, "bo")).invites, []);
+    assert.isTrue((await readOrgView(root, "dee")).me!.invited);
   });
 });

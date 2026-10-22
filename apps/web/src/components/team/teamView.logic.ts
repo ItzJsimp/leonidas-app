@@ -1,4 +1,4 @@
-import type { WorkspaceOrg, WorkspaceOrgChange } from "@t3tools/contracts";
+import type { WorkspaceOrg, WorkspaceOrgChange, WorkspaceOrgResult } from "@t3tools/contracts";
 
 type Member = WorkspaceOrg["members"][number];
 type Area = WorkspaceOrg["areas"][number];
@@ -200,4 +200,34 @@ export function summarizeResults(results: ReadonlyArray<ActionResult>): string {
     );
   }
   return parts.join(", ") || "Nothing changed.";
+}
+
+type Invite = WorkspaceOrgResult["invites"][number];
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Whole days left on an Invite, or `null` once it is closed or past its date. */
+export function inviteDaysLeft(invite: Invite, now: number): number | null {
+  const left = Date.parse(invite.expiresAt) - now;
+  return invite.status === "approved" && left > 0 ? Math.ceil(left / DAY_MS) : null;
+}
+
+/** The GitHub page where an Owner adds a person to the organization, or `null` without a link. */
+export function githubPeopleUrl(link: string): string | null {
+  const home = new URL(link || "leonidas://x").searchParams.get("home");
+  const org = home ? /github\.com[/:]([^/]+)\//.exec(home)?.[1] : null;
+  return org ? `https://github.com/orgs/${org}/people` : null;
+}
+
+/** What the welcome screen says: the business, who is here, and the Roles of the new Member. */
+export function welcomeFacts(org: WorkspaceOrg, slug: string) {
+  const me = org.members.find((member) => member.slug === slug);
+  return {
+    business: org.name,
+    members: org.members.filter((member) => member.status !== "removed").length,
+    departments: org.departments.length,
+    roles: Object.entries(me?.roles ?? {}).map(([area, role]) => ({
+      area: org.areas.find((candidate) => candidate.slug === area)?.name ?? area,
+      role,
+    })),
+  };
 }

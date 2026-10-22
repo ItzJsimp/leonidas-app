@@ -5,6 +5,17 @@ import * as NodeFSP from "node:fs/promises";
 import * as NodePath from "node:path";
 
 import { readFrontmatter } from "./frontmatter.ts";
+import {
+  expiryOf,
+  inviteLink,
+  invitePath,
+  readHomeOrigin,
+  readInvites,
+  renderInvite,
+  setField,
+  type InviteAction,
+  type OrgInvite,
+} from "./orgInvite.ts";
 import { readOrg, type Org } from "./org.ts";
 import {
   canDecide,
@@ -97,13 +108,35 @@ const memberFile = (root: string, slug: string) =>
   NodePath.join(root, "org", "members", `${slug}.md`);
 
 /** Writes the member files a change touches. The caller checked `validate` first. */
-async function writeChange(root: string, org: Org, change: OrgChange) {
+async function writeChange(
+  root: string,
+  org: Org,
+  change: OrgChange,
+  by: { readonly slug: string; readonly now: number },
+) {
   if (change.kind === "addMember") {
     await NodeFSP.mkdir(NodePath.join(root, "org", "members"), { recursive: true });
     await NodeFSP.writeFile(memberFile(root, change.member.slug), renderMember(change.member), {
       encoding: "utf8",
       flag: "wx",
     });
+    // A person gets an Invite. An agent has no one to invite.
+    if (change.member.kind === "person") {
+      await NodeFSP.mkdir(NodePath.join(root, "org", "invites"), { recursive: true });
+      await NodeFSP.writeFile(
+        invitePath(root, change.member.slug),
+        renderInvite({
+          slug: change.member.slug,
+          name: change.member.name,
+          github: change.member.github ?? "",
+          status: "approved",
+          approvedBy: by.slug,
+          createdAt: iso(by.now),
+          expiresAt: expiryOf(by.now),
+        }),
+        { encoding: "utf8", flag: "wx" },
+      );
+    }
     return;
   }
   const after = simulate(org, change);
@@ -196,9 +229,11 @@ export async function readProposals(root: string): Promise<ReadonlyArray<OrgProp
 export async function submitChange(
   root: string,
   githubLogin: string | null,
-  change: OrgChange,
+  change: OrgChange | InviteAction,
   now: number,
 ): Promise<SubmitResult> {
+  if (change.kind === "acceptInvite") return acceptInvite(root, githubLogin, now);
+  if (change.kind === "renewInvite") return renewInvite(root, githubLogin, change.member, now);
   const org = await readOrg(root);
   if (!org) return { result: "invalid", message: "This workspace has no Members yet." };
   const actor = findActor(org, githubLogin);
@@ -216,7 +251,7 @@ export async function submitChange(
     return { result: "denied", message: "Your Role does not let you make this change." };
   const title = describeChange(org, change);
   if (route === "apply") {
-    await writeChange(root, org, change);
+    await writeChange(root, org, change, { slug: actor.slug, now });
     await appendEvent(root, now, { level: "info", type: "org.changed", title, actor: actor.slug });
     return { result: "applied", message: title };
   }
@@ -292,7 +327,7 @@ export async function decideProposal(
   }
   const problem = validate(org, proposal.change);
   if (problem) return { result: "invalid", message: problem };
-  await writeChange(root, org, proposal.change);
+  await writeChange(root, org, proposal.change, { slug: actor!.slug, now });
   await NodeFSP.writeFile(path, stamp("applied"), "utf8");
   await appendEvent(root, now, {
     level: "info",
@@ -303,23 +338,120 @@ export async function decideProposal(
   return { result: "applied", message: proposal.title };
 }
 
+const stamp = (text: string, status: string) => setField(text, "status", status);
+
+/**
+ * The invited person accepts their own Invite on first open. The Invite is bound to the GitHub
+ * login of the Member, so another account cannot use it. An expired Invite stays closed until an
+ * Owner renews it.
+ */
+async function acceptInvite(
+  root: string,
+  githubLogin: string | null,
+  now: number,
+): Promise<SubmitResult> {
+  const org = await readOrg(root);
+  if (!org) return { result: "invalid", message: "This workspace has no Members yet." };
+  const actor = findActor(org, githubLogin);
+  if (!actor)
+    return {
+      result: "unknown_actor",
+      message: "This computer's GitHub account is not a Member of this business.",
+    };
+  if (actor.status === "active") return { result: "invalid", message: "You already joined." };
+  const invite = (await readInvites(root)).find((row) => row.slug === actor.slug);
+  if (actor.status !== "invited" || !invite || invite.status === "accepted")
+    return { result: "invalid", message: "There is no open Invite for you. Ask an Owner." };
+  const path = invitePath(root, actor.slug);
+  const text = await NodeFSP.readFile(path, "utf8");
+  if (invite.status === "expired" || !(Date.parse(invite.expiresAt) > now)) {
+    await NodeFSP.writeFile(path, stamp(text, "expired"), "utf8");
+    return { result: "invalid", message: "This Invite expired. Ask an Owner for a new one." };
+  }
+  await NodeFSP.writeFile(path, setField(stamp(text, "accepted"), "accepted_at", iso(now)), "utf8");
+  const member = memberFile(root, actor.slug);
+  await NodeFSP.writeFile(
+    member,
+    setStatusLine(await NodeFSP.readFile(member, "utf8"), "active"),
+    "utf8",
+  );
+  const title = `${actor.name} joined`;
+  await appendEvent(root, now, { level: "info", type: "org.changed", title, actor: actor.slug });
+  return { result: "applied", message: title };
+}
+
+/** An Owner opens a closed Invite again for 7 days. The access was already approved. */
+async function renewInvite(
+  root: string,
+  githubLogin: string | null,
+  slug: string,
+  now: number,
+): Promise<SubmitResult> {
+  const org = await readOrg(root);
+  if (!org) return { result: "invalid", message: "This workspace has no Members yet." };
+  const actor = findActor(org, githubLogin);
+  if (!canDecide(actor))
+    return { result: "denied", message: "Only an Owner can send a new Invite." };
+  const invite = /^[a-z0-9-]+$/.test(slug)
+    ? (await readInvites(root)).find((row) => row.slug === slug)
+    : undefined;
+  const target = org.members.find((member) => member.slug === slug);
+  if (!invite || target?.status !== "invited" || invite.status === "accepted")
+    return { result: "invalid", message: "There is no open Invite to renew." };
+  const path = invitePath(root, slug);
+  const text = await NodeFSP.readFile(path, "utf8");
+  await NodeFSP.writeFile(
+    path,
+    setField(stamp(text, "approved"), "expires_at", expiryOf(now)),
+    "utf8",
+  );
+  const title = `New Invite for ${target.name}`;
+  await appendEvent(root, now, { level: "info", type: "org.changed", title, actor: actor!.slug });
+  return { result: "applied", message: title };
+}
+
 export interface OrgView {
   readonly org: Org | null;
   /** The Member who uses this computer, matched by GitHub login. */
-  readonly me: { readonly slug: string; readonly canDecide: boolean } | null;
+  readonly me: {
+    readonly slug: string;
+    readonly canDecide: boolean;
+    /** True until the person accepts their Invite on first open. */
+    readonly invited: boolean;
+  } | null;
   /** Proposals that still wait for an Owner. */
   readonly proposals: ReadonlyArray<
     Pick<OrgProposal, "id" | "title" | "proposedBy" | "proposedAt">
   >;
+  /** Open Invites with their link. Only an Owner gets them. */
+  readonly invites: ReadonlyArray<OrgInvite & { readonly link: string }>;
 }
 
 /** What the Team view needs in one read: the org, who is using it, and the waiting proposals. */
 export async function readOrgView(root: string, githubLogin: string | null): Promise<OrgView> {
   const org = await readOrg(root);
-  if (!org) return { org: null, me: null, proposals: [] };
+  if (!org) return { org: null, me: null, proposals: [], invites: [] };
   const actor = findActor(org, githubLogin);
   const proposals = (await readProposals(root))
     .filter((proposal) => proposal.status === "proposed")
     .map(({ id, title, proposedBy, proposedAt }) => ({ id, title, proposedBy, proposedAt }));
-  return { org, me: actor ? { slug: actor.slug, canDecide: canDecide(actor) } : null, proposals };
+  let invites: OrgView["invites"] = [];
+  if (canDecide(actor)) {
+    const origin = await readHomeOrigin(root);
+    invites = (await readInvites(root))
+      .filter(
+        (invite) =>
+          invite.status !== "accepted" &&
+          org.members.some((member) => member.slug === invite.slug && member.status === "invited"),
+      )
+      .map((invite) => ({ ...invite, link: inviteLink(origin, invite.slug) }));
+  }
+  return {
+    org,
+    me: actor
+      ? { slug: actor.slug, canDecide: canDecide(actor), invited: actor.status === "invited" }
+      : null,
+    proposals,
+    invites,
+  };
 }

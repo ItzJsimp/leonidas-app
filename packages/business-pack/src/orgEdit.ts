@@ -88,7 +88,7 @@ export function simulate(org: Org, change: OrgChange): Org {
       slug: change.member.slug,
       name: change.member.name,
       kind: change.member.kind,
-      status: "active",
+      status: initialStatus(change.member),
       department: change.member.department,
       owner: change.member.owner ?? "",
       github: change.member.github ?? "",
@@ -193,7 +193,8 @@ export function validate(org: Org, change: OrgChange): string | null {
     return "That Member does not exist or was removed.";
   }
   const owners = live(simulate(org, change)).filter(
-    (member) => member.kind === "person" && member.roles[HOME_AREA] === "Owner",
+    (member) =>
+      member.kind === "person" && member.status === "active" && member.roles[HOME_AREA] === "Owner",
   );
   return owners.length === 0 ? "The business must keep at least one person Owner." : null;
 }
@@ -289,6 +290,10 @@ export function setStatusLine(text: string, status: string): string {
     : text.replace(/^(kind:.*)$/m, `$1\nstatus: ${status}`);
 }
 
+/** A person starts as `invited` until they accept the Invite. An agent has no one to invite. */
+export const initialStatus = (member: NewMember): "invited" | "active" =>
+  member.kind === "person" ? "invited" : "active";
+
 /** A new member file in the record format of the template. */
 export function renderMember(member: NewMember): string {
   const roles = Object.entries(member.roles).map(([area, role]) => `  ${area}: ${role}`);
@@ -299,7 +304,7 @@ export function renderMember(member: NewMember): string {
     `id: member-${member.slug}`,
     `title: "${member.name.replace(/"/g, "'")}"`,
     `kind: ${member.kind}`,
-    "status: active",
+    `status: ${initialStatus(member)}`,
     ...(member.github ? [`github: ${member.github}`] : []),
     `department: ${member.department}`,
     ...(member.owner ? [`owner: ${member.owner}`] : []),

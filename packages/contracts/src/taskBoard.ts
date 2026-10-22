@@ -526,6 +526,9 @@ export const WorkspaceOrgChange = Schema.Union([
     }),
   }),
   Schema.Struct({ kind: Schema.Literal("removeRoleDef"), role: Schema.String }),
+  // The invited person accepts their own Invite. An Owner renews a closed one.
+  Schema.Struct({ kind: Schema.Literal("acceptInvite") }),
+  Schema.Struct({ kind: Schema.Literal("renewInvite"), member: Schema.String }),
 ]);
 export type WorkspaceOrgChange = typeof WorkspaceOrgChange.Type;
 
@@ -545,9 +548,22 @@ export const WorkspaceOrgResult = Schema.Struct({
     Schema.Struct({
       slug: Schema.String,
       canDecide: Schema.Boolean,
+      invited: Schema.Boolean,
     }),
   ),
   proposals: Schema.Array(WorkspaceOrgProposal),
+  // Open Invites with their link. Only an Owner gets them. The link holds no secret.
+  invites: Schema.Array(
+    Schema.Struct({
+      slug: Schema.String,
+      name: Schema.String,
+      github: Schema.String,
+      status: Schema.String,
+      expiresAt: Schema.String,
+      approvedBy: Schema.String,
+      link: Schema.String,
+    }),
+  ),
 });
 export type WorkspaceOrgResult = typeof WorkspaceOrgResult.Type;
 

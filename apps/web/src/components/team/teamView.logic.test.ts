@@ -7,12 +7,15 @@ import {
   copyRole,
   diffRoleTable,
   diffRoles,
+  githubPeopleUrl,
   groupInLens,
   initials,
+  inviteDaysLeft,
   memberInLens,
   rolesFor,
   suggestSlug,
   summarizeResults,
+  welcomeFacts,
 } from "./teamView.logic";
 
 const member = (
@@ -181,5 +184,43 @@ describe("editor helpers", () => {
         { result: "denied", message: "No." },
       ]),
     ).toBe("1 applied, 1 waiting for an Owner, No.");
+  });
+});
+
+describe("invite helpers", () => {
+  const invite = {
+    slug: "dee",
+    name: "Dee",
+    github: "dee",
+    status: "approved",
+    expiresAt: "2026-10-29T12:00:00.000Z",
+    approvedBy: "ada",
+    link: "leonidas://join?home=https%3A%2F%2Fgithub.com%2Facme%2Fhome.git&invite=dee",
+  };
+  const NOW = Date.parse("2026-10-22T12:00:00.000Z");
+
+  it("counts whole days left, and closes at the date or when not approved", () => {
+    expect(inviteDaysLeft(invite, NOW)).toBe(7);
+    expect(inviteDaysLeft(invite, Date.parse("2026-10-29T11:00:00.000Z"))).toBe(1);
+    expect(inviteDaysLeft(invite, Date.parse("2026-10-29T12:00:00.000Z"))).toBeNull();
+    expect(inviteDaysLeft({ ...invite, status: "expired" }, NOW)).toBeNull();
+  });
+
+  it("finds the GitHub organization page from the link, and none without one", () => {
+    expect(githubPeopleUrl(invite.link)).toBe("https://github.com/orgs/acme/people");
+    expect(githubPeopleUrl("")).toBeNull();
+    expect(githubPeopleUrl("leonidas://join?home=https%3A%2F%2Fexample.com%2Fx.git")).toBeNull();
+  });
+
+  it("lists the Roles of the new Member by Area name", () => {
+    expect(welcomeFacts(org, "ada")).toEqual({
+      business: "Acme",
+      members: 4,
+      departments: 2,
+      roles: [
+        { area: "home", role: "Owner" },
+        { area: "deals", role: "Admin" },
+      ],
+    });
   });
 });

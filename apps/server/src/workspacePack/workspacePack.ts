@@ -33,7 +33,7 @@ export async function widgetsForWorkspace(
   }
 }
 
-const EMPTY_ORG: WorkspaceOrgResult = { org: null, me: null, proposals: [] };
+const EMPTY_ORG: WorkspaceOrgResult = { org: null, me: null, proposals: [], invites: [] };
 const NO_PACK: WorkspaceOrgActionResult = {
   result: "invalid",
   message: "This workspace cannot change its org record.",

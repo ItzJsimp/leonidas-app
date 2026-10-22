@@ -18,8 +18,9 @@ const widget: WorkspacePackWidget = {
 };
 const view: WorkspaceOrgResult = {
   org: { name: "Acme", departments: [], areas: [], members: [], roles: [] },
-  me: { slug: "ada", canDecide: true },
+  me: { slug: "ada", canDecide: true, invited: false },
   proposals: [],
+  invites: [],
 };
 const seenLogin: Array<string | null> = [];
 const seen: string[] = [];
@@ -98,7 +99,7 @@ describe("org actions", () => {
       view,
     );
     assert.deepEqual(seenLogin, ["ada"]);
-    const empty = { org: null, me: null, proposals: [] };
+    const empty = { org: null, me: null, proposals: [], invites: [] };
     assert.deepEqual(await orgForWorkspace(workspaces, "leonidas", "ada", async () => pack), empty);
     assert.deepEqual(await orgForWorkspace(workspaces, "nope", "ada", async () => pack), empty);
     assert.deepEqual(
