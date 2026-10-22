@@ -102,6 +102,18 @@ export function parseAddProjectRemoteSource(
 const GITHUB_REPOSITORY_SHORTHAND =
   /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]+(?:\.git)?$/;
 
+/**
+ * A pasted Invite link (`leonidas://join?home=<url>&invite=<slug>`) clones like its Home repo.
+ * Only an `https://` Home URL is taken, so a link cannot pick a local path or a git helper.
+ * Anything else comes back unchanged.
+ */
+export function unwrapInviteLink(input: string): string {
+  const trimmed = input.trim();
+  if (!/^leonidas:\/\/join\?/i.test(trimmed)) return input;
+  const home = new URLSearchParams(trimmed.slice(trimmed.indexOf("?") + 1)).get("home");
+  return home && /^https:\/\/[^\s/]+\/\S+$/i.test(home) ? home : input;
+}
+
 /** Treat the common owner/repository shorthand as a public GitHub HTTPS URL. */
 export function normalizePastedCloneUrl(input: string): string {
   const trimmed = input.trim();

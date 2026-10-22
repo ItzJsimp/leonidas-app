@@ -21,6 +21,7 @@ import {
   getNewProjectPublishTarget,
   getNewProjectPublishTargets,
   normalizePastedCloneUrl,
+  unwrapInviteLink,
   resolveAddProjectPath,
   sortAddProjectProviderSources,
 } from "./projects.ts";
@@ -58,6 +59,26 @@ describe("add project shared logic", () => {
     expect(normalizePastedCloneUrl("  pingdotgg/t3code  ")).toBe(
       "https://github.com/pingdotgg/t3code.git",
     );
+  });
+
+  it("clones a pasted Invite link like its Home repo, and refuses any other Home", () => {
+    const link = (home: string) => `leonidas://join?home=${encodeURIComponent(home)}&invite=dee`;
+    expect(unwrapInviteLink(link("https://github.com/acme/acme-home.git"))).toBe(
+      "https://github.com/acme/acme-home.git",
+    );
+    expect(unwrapInviteLink(`  ${link("https://github.com/acme/home")}  `)).toBe(
+      "https://github.com/acme/home",
+    );
+    for (const home of [
+      "file:///C:/secret",
+      "ext::sh -c evil",
+      "C:/Users/me/repo",
+      "http://x.io/a",
+    ]) {
+      expect(unwrapInviteLink(link(home))).toBe(link(home));
+    }
+    expect(unwrapInviteLink("imputnet/helium")).toBe("imputnet/helium");
+    expect(unwrapInviteLink("leonidas://join?invite=dee")).toBe("leonidas://join?invite=dee");
   });
 
   it("keeps explicit clone URLs and local paths unchanged", () => {
