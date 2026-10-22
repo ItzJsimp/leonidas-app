@@ -160,6 +160,14 @@ export const aiosDirectionQuery = createEnvironmentRpcQueryAtomFamily(connection
   idleTtlMs: 60_000,
 });
 
+/** The org record (Departments, Areas, Members) of a business workspace. `org` is null otherwise. */
+export const workspaceOrgQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:task-board:workspace-org",
+  tag: WS_METHODS.workspacePackOrg,
+  staleTimeMs: 30_000,
+  idleTtlMs: 60_000,
+});
+
 /** Cards a workspace pack adds to the Command Home. `[]` for a personal workspace. */
 export const workspacePackWidgetsQuery = createEnvironmentRpcQueryAtomFamily(
   connectionAtomRuntime,

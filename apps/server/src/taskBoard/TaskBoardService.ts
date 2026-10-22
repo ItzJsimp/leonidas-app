@@ -39,6 +39,7 @@ import {
   type AiosWorkspaceInitInput,
   type AiosWorkspaceSummary,
   type AiosWorkspacesListResult,
+  type WorkspaceOrgResult,
   type WorkspacePackWidgetsResult,
   type AiosDirection,
 } from "@t3tools/contracts";
@@ -60,7 +61,7 @@ import { ServerSettingsService } from "../serverSettings.ts";
 import { readAiosShape, type AiosShape } from "./aiosShape.ts";
 import { detectAiosCandidates, inspectAiosCandidate } from "./aiosDetect.ts";
 import { buildDirection, readDirection } from "./aiosDirection.ts";
-import { widgetsForWorkspace } from "../workspacePack/workspacePack.ts";
+import { orgForWorkspace, widgetsForWorkspace } from "../workspacePack/workspacePack.ts";
 import { buildHome } from "./aiosHome.ts";
 import {
   addFocusItem,
@@ -577,6 +578,11 @@ export class TaskBoardService extends Context.Service<
       projects: ReadonlyArray<Project>,
       workspaceId?: string,
     ) => Effect.Effect<WorkspacePackWidgetsResult>;
+    /** The org record of a business workspace (ADR-0088); `org` is null unless it has Members. */
+    readonly workspacePackOrg: (
+      projects: ReadonlyArray<Project>,
+      workspaceId?: string,
+    ) => Effect.Effect<WorkspaceOrgResult>;
     /** Counts about the AIOS folder for opt-in usage analytics. */
     readonly usageShape: (
       projects: ReadonlyArray<Project>,
@@ -1990,6 +1996,13 @@ const make = Effect.gen(function* () {
       return { widgets };
     });
 
+  const workspacePackOrg = (projects: ReadonlyArray<Project>, workspaceId?: string) =>
+    Effect.gen(function* () {
+      const { workspaces: found } = scopeFor(projects, { workspaceId });
+      const org = yield* Effect.promise(() => orgForWorkspace(found, workspaceId));
+      return { org };
+    });
+
   const usageShape = (projects: ReadonlyArray<Project>, workspaceId?: string) =>
     Effect.sync(() => readAiosShape(scopeFor(projects, { workspaceId }).root));
 
@@ -2078,6 +2091,7 @@ const make = Effect.gen(function* () {
     usageShape,
     direction,
     workspacePackWidgets,
+    workspacePackOrg,
     workspaces,
     workspaceRoot,
     workspaceInit,

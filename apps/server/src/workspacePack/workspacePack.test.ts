@@ -1,17 +1,19 @@
 import { assert, describe, it } from "@effect/vitest";
-import type { WorkspacePackWidget } from "@t3tools/contracts";
+import type { WorkspaceOrg, WorkspacePackWidget } from "@t3tools/contracts";
 
 import type { AiosWorkspaceState } from "../taskBoard/aiosWorkspaces.ts";
 import { loadBusinessPack } from "./loadBusinessPack.ts";
-import { widgetsForWorkspace, type BusinessPack } from "./workspacePack.ts";
+import { orgForWorkspace, widgetsForWorkspace, type BusinessPack } from "./workspacePack.ts";
 
 const widget: WorkspacePackWidget = {
   id: "w",
   title: "T",
   kpis: [{ label: "L", value: "1", detail: "d" }],
 };
+const org: WorkspaceOrg = { name: "Acme", departments: [], areas: [], members: [] };
 const seen: string[] = [];
 const pack: BusinessPack = {
+  readOrg: async () => org,
   readWidgets: async (root) => {
     seen.push(root);
     return [widget];
@@ -59,12 +61,31 @@ describe("widgetsForWorkspace", () => {
 
   it("returns nothing when the pack throws, so the Home never fails for a widget", async () => {
     const broken: BusinessPack = {
+      readOrg: async () => {
+        throw new Error("boom");
+      },
       readWidgets: async () => {
         throw new Error("boom");
       },
     };
     const load = async () => broken;
     assert.deepEqual(await widgetsForWorkspace(workspaces, "simplygersi", 0, load), []);
+  });
+});
+
+describe("orgForWorkspace", () => {
+  it("returns the org of a business workspace, and null for personal, unknown, absent or broken", async () => {
+    assert.deepEqual(await orgForWorkspace(workspaces, "simplygersi", async () => pack), org);
+    assert.isNull(await orgForWorkspace(workspaces, "leonidas", async () => pack));
+    assert.isNull(await orgForWorkspace(workspaces, "nope", async () => pack));
+    assert.isNull(await orgForWorkspace(workspaces, "simplygersi", async () => null));
+    const broken: BusinessPack = {
+      ...pack,
+      readOrg: async () => {
+        throw new Error("boom");
+      },
+    };
+    assert.isNull(await orgForWorkspace(workspaces, "simplygersi", async () => broken));
   });
 });
 

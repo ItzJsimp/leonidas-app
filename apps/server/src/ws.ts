@@ -3015,6 +3015,11 @@ const layerWsRpc = (
               taskBoard.workspacePackWidgets(projects, input.workspaceId),
             ),
           ),
+        [WS_METHODS.workspacePackOrg]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.orElseSucceed(() => []),
+            Effect.flatMap((projects) => taskBoard.workspacePackOrg(projects, input.workspaceId)),
+          ),
         [WS_METHODS.aiosWorkspacesList]: () =>
           allTaskBoardProjects.pipe(Effect.flatMap(taskBoard.workspaces)),
         [WS_METHODS.aiosWorkspacesInit]: (input) =>

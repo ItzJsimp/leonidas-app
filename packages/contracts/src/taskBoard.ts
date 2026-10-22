@@ -445,6 +445,47 @@ export const WorkspacePackWidgetsResult = Schema.Struct({
 });
 export type WorkspacePackWidgetsResult = typeof WorkspacePackWidgetsResult.Type;
 
+// The org record of a business workspace (ADR-0088): Departments, Areas and Members read from the
+// Home area files. `org` is null for a personal workspace, a build with no pack, or a folder with
+// no Member yet, so the Team view can show its empty state.
+export const WorkspaceOrg = Schema.Struct({
+  name: Schema.String,
+  departments: Schema.Array(
+    Schema.Struct({
+      slug: Schema.String,
+      name: Schema.String,
+      areas: Schema.Array(Schema.String),
+      leads: Schema.Array(Schema.String),
+    }),
+  ),
+  areas: Schema.Array(
+    Schema.Struct({
+      slug: Schema.String,
+      name: Schema.String,
+      department: Schema.String,
+      sensitivity: Schema.String,
+      status: Schema.String,
+    }),
+  ),
+  members: Schema.Array(
+    Schema.Struct({
+      slug: Schema.String,
+      name: Schema.String,
+      kind: Schema.Literals(["person", "agent"]),
+      status: Schema.String,
+      department: Schema.String,
+      owner: Schema.String,
+      roles: Schema.Record(Schema.String, Schema.String),
+    }),
+  ),
+});
+export type WorkspaceOrg = typeof WorkspaceOrg.Type;
+
+export const WorkspaceOrgResult = Schema.Struct({
+  org: Schema.NullOr(WorkspaceOrg),
+});
+export type WorkspaceOrgResult = typeof WorkspaceOrgResult.Type;
+
 export const TaskBoardHomePriority = Schema.Struct({
   title: Schema.String,
   detail: Schema.String,

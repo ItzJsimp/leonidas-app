@@ -20,6 +20,7 @@ import { HomeExtraCards } from "../components/taskBoard/HomeExtraCards";
 import { LayaMonitorCard } from "../components/taskBoard/LayaMonitorCard";
 import { PonytailCard } from "../components/taskBoard/PonytailCard";
 import { SubagentStudio } from "../components/subagents/SubagentStudio";
+import { TeamView } from "../components/team/TeamView";
 import { SidebarInset } from "../components/ui/sidebar";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty";
 import { Spinner } from "../components/ui/spinner";
@@ -109,6 +110,7 @@ function CommandCenterPage() {
           <DirectionSection />
           <AiosHomeCard />
           <WorkspacePackWidgets />
+          <TeamView />
           <HomeExtraCards />
           <LayaMonitorCard />
           <PonytailCard />

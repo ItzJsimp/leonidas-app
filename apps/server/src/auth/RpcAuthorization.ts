@@ -192,6 +192,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.areaSyncSync]: AuthOrchestrationOperateScope,
   [WS_METHODS.areaSyncStatus]: AuthOrchestrationReadScope,
   [WS_METHODS.workspacePackWidgets]: AuthOrchestrationReadScope,
+  [WS_METHODS.workspacePackOrg]: AuthOrchestrationReadScope,
   [WS_METHODS.taskBoardHomeWeather]: AuthOrchestrationReadScope,
   [WS_METHODS.taskBoardHomeNews]: AuthOrchestrationReadScope,
   [WS_METHODS.layaUsage]: AuthOrchestrationReadScope,

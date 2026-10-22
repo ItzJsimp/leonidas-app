@@ -56,6 +56,7 @@ import {
   AiosWorkspaceScopeInput,
   AiosWorkspacesListResult,
   WorkspacePackWidgetsResult,
+  WorkspaceOrgResult,
   AiosWorkspaceSummary,
   AiosWorkspaceInitInput,
   TaskBoardHomeNews,
@@ -602,6 +603,7 @@ export const WS_METHODS = {
   areaSyncSync: "areaSync.sync",
   areaSyncStatus: "areaSync.status",
   workspacePackWidgets: "workspacePack.widgets",
+  workspacePackOrg: "workspacePack.org",
   taskBoardHomeWeather: "taskBoard.homeWeather",
   taskBoardHomeNews: "taskBoard.homeNews",
   layaUsage: "laya.usage",
@@ -1792,6 +1794,12 @@ const WsAiosWorkspacesListRpc = Rpc.make(WS_METHODS.aiosWorkspacesList, {
 const WsWorkspacePackWidgetsRpc = Rpc.make(WS_METHODS.workspacePackWidgets, {
   payload: AiosWorkspaceScopeInput,
   success: WorkspacePackWidgetsResult,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsWorkspacePackOrgRpc = Rpc.make(WS_METHODS.workspacePackOrg, {
+  payload: AiosWorkspaceScopeInput,
+  success: WorkspaceOrgResult,
   error: EnvironmentAuthorizationError,
 });
 
@@ -3013,6 +3021,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsAreaSyncSyncRpc,
   WsAreaSyncStatusRpc,
   WsWorkspacePackWidgetsRpc,
+  WsWorkspacePackOrgRpc,
   WsAiosUsageShapeRpc,
   WsAiosDirectionRpc,
   WsTaskBoardHomeWeatherRpc,

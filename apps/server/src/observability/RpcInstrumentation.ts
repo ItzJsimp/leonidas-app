@@ -197,6 +197,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.areaSyncSync]: "workspace",
   [WS_METHODS.areaSyncStatus]: "workspace",
   [WS_METHODS.workspacePackWidgets]: "workspace",
+  [WS_METHODS.workspacePackOrg]: "workspace",
   [WS_METHODS.taskBoardHomeWeather]: "workspace",
   [WS_METHODS.taskBoardHomeNews]: "workspace",
   [WS_METHODS.layaUsage]: "workspace",
