@@ -92,6 +92,10 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 
 ## 7. Session notes
 
+- **2026-10-21 (area join engine):** `apps/server/src/areaSync/` (engine in `engine/`, service, RPC `areaSync.join|sync|status`) shipped as 6 local commits, not pushed. Traps: `vp` lives in `apps/server/node_modules/.bin`, so run `./node_modules/.bin/vp test run src/areaSync` from `apps/server`; `git commit --only -- <paths>` worked from this main checkout despite the partial install; engine tests use real git in temp folders (git must be on PATH); a new package would need a lockfile importer, so the engine lives in the server app; a test that never reaches a push cannot prove "never force-pushes", so break the code on purpose once to check a safety test can fail. A sync chip UI is the next card.
+
+- **2026-10-21 (reply style picker):** Shipped v0.113.0 (`b8501419ce`). Jake rejected the chip beside the model: it folds effort into the overflow menu. Next: move it (card `move-the-reply-style-chip-out-of-the-composer-footer`). Release trailers must share the last paragraph with `Co-Authored-By`, or git ignores them. Local main is diverged from origin: ship branches with `git push origin <branch>:main`.
+
 - **2026-10-21 (idea-to-ship audit):** Fixed the XS path, fix slices, stop list and `grilling` link in `idea-to-ship`, plus `plan` L size and `ship` step 1 (commit `235f24af8f`, not pushed). The AIOS `.agents/workflow-profile.md` now has Tracker, Ship and Never. XS skips Review by design; untested on a live task.
 
 - **2026-10-20 (mail autopilot slice 1):** `packages/mail-autopilot` shipped to `origin/main` (`57137ebac5`): pure rules engine (`classify`, `plan`, `parsePack`, `parsePackJson`), closed action list with no send, example pack, 64 tests. Slice 2 (Gmail `MailProvider`, draft and label only) comes next; worktree `C:/lcw/mail-autopilot` is installed for it. Real SimplyGersi pack lives in the SimplyGersi AIOS (`projects/email-agent/packs/simplygersi.json`). Local `main` holds a twin commit (`993cb015cf`): drop it at the next sync. Spec and record: the audit task card in the AIOS `tasks/`.
