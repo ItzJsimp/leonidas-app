@@ -68,6 +68,7 @@ import {
   changeOrgForWorkspace,
   decideOrgForWorkspace,
   orgForWorkspace,
+  scaffoldForSetup,
   widgetsForWorkspace,
 } from "../workspacePack/workspacePack.ts";
 import { buildHome } from "./aiosHome.ts";
@@ -2112,6 +2113,14 @@ const make = Effect.gen(function* () {
       }
       if (found.some((state) => state.status === "ready" && state.file.id === input.id)) {
         return yield* storageError("Another workspace already uses that id.");
+      }
+      if (input.type === "business") {
+        const login = yield* viewerLogin;
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const problem = yield* Effect.promise(() =>
+          scaffoldForSetup(target.root, input, login, timezone),
+        );
+        if (problem !== null) return yield* storageError(problem);
       }
       yield* Effect.try({
         try: () => writeWorkspaceFile(target.root, input),

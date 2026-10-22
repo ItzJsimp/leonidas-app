@@ -15,6 +15,17 @@ export interface BusinessPack {
     change: WorkspaceOrgChange,
     now: number,
   ) => Promise<WorkspaceOrgActionResult>;
+  /** Copies the business template into a new business folder. Returns the files written. */
+  readonly scaffoldBusiness: (
+    root: string,
+    input: {
+      readonly id: string;
+      readonly name: string;
+      readonly ownerName: string;
+      readonly ownerGithub: string;
+      readonly timezone: string;
+    },
+  ) => number;
   readonly decideProposal: (
     root: string,
     githubLogin: string | null,

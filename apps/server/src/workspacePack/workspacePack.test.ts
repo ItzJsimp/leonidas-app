@@ -7,6 +7,7 @@ import {
   changeOrgForWorkspace,
   decideOrgForWorkspace,
   orgForWorkspace,
+  scaffoldForSetup,
   widgetsForWorkspace,
   type BusinessPack,
 } from "./workspacePack.ts";
@@ -31,6 +32,10 @@ const pack: BusinessPack = {
   },
   submitChange: async () => ({ result: "applied", message: "ok" }),
   decideProposal: async () => ({ result: "applied", message: "ok" }),
+  scaffoldBusiness: (root) => {
+    seen.push(`scaffold:${root}`);
+    return 1;
+  },
   readWidgets: async (root) => {
     seen.push(root);
     return [widget];
@@ -78,6 +83,7 @@ describe("widgetsForWorkspace", () => {
 
   it("returns nothing when the pack throws, so the Home never fails for a widget", async () => {
     const broken: BusinessPack = {
+      ...pack,
       readOrgView: async () => {
         throw new Error("boom");
       },
@@ -184,6 +190,40 @@ describe("org actions", () => {
       async () => broken,
     );
     assert.deepEqual([a.result, b.result], ["invalid", "invalid"]);
+  });
+});
+
+describe("scaffoldForSetup", () => {
+  const input = { id: "acme", name: "Acme", ownerName: "Ada" };
+  const load = async () => pack;
+
+  it("copies the template when the Owner name and a GitHub login are known", async () => {
+    seen.length = 0;
+    assert.isNull(await scaffoldForSetup("/r", input, "ada-gh", "UTC", load));
+    assert.deepEqual(seen, ["scaffold:/r"]);
+  });
+
+  it("refuses with a plain message, and writes nothing, when something is missing", async () => {
+    seen.length = 0;
+    const noName = await scaffoldForSetup("/r", { id: "a", name: "A" }, "ada", "UTC", load);
+    const noLogin = await scaffoldForSetup("/r", input, null, "UTC", load);
+    const badLogin = await scaffoldForSetup("/r", input, "a/../b", "UTC", load);
+    const noPack = await scaffoldForSetup("/r", input, "ada", "UTC", async () => null);
+    assert.isTrue([noName, noLogin, badLogin, noPack].every((text) => text !== null));
+    assert.deepEqual(seen, []);
+  });
+
+  it("turns a failed copy into a message", async () => {
+    const broken = {
+      ...pack,
+      scaffoldBusiness: () => {
+        throw new Error("EACCES");
+      },
+    };
+    assert.include(
+      (await scaffoldForSetup("/r", input, "ada", "UTC", async () => broken)) ?? "",
+      "writable",
+    );
   });
 });
 

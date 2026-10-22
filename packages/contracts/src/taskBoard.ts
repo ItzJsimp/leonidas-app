@@ -421,6 +421,8 @@ export const AiosWorkspaceInitInput = Schema.Struct({
   id: TrimmedNonEmptyString.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,63}$/)),
   name: TrimmedNonEmptyString.check(Schema.isMaxLength(80)),
   type: AiosWorkspaceType,
+  // The Owner of a new business. Setup copies the business template with this name.
+  ownerName: Schema.optional(TrimmedNonEmptyString.check(Schema.isMaxLength(80))),
 });
 export type AiosWorkspaceInitInput = typeof AiosWorkspaceInitInput.Type;
 

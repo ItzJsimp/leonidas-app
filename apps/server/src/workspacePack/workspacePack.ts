@@ -90,6 +90,38 @@ export async function changeOrgForWorkspace(
   }
 }
 
+/**
+ * Copies the business template into a folder that is being set up as a business. Returns an
+ * error text for the user, or null when it worked.
+ */
+export async function scaffoldForSetup(
+  root: string,
+  input: { readonly id: string; readonly name: string; readonly ownerName?: string | undefined },
+  githubLogin: string | null,
+  timezone: string,
+  load: () => Promise<BusinessPack | null> = loadBusinessPack,
+): Promise<string | null> {
+  if (!input.ownerName) return "A business needs the name of its Owner.";
+  // A GitHub login is plain letters, digits and hyphens; anything else never reaches a file.
+  if (!githubLogin || !/^[A-Za-z0-9-]{1,39}$/.test(githubLogin)) {
+    return "A business needs GitHub signed in on this computer (run gh auth login).";
+  }
+  try {
+    const pack = await load();
+    if (!pack) return "This build has no business template.";
+    pack.scaffoldBusiness(root, {
+      id: input.id,
+      name: input.name,
+      ownerName: input.ownerName,
+      ownerGithub: githubLogin,
+      timezone,
+    });
+    return null;
+  } catch {
+    return "Could not copy the business template. Check that the folder is writable.";
+  }
+}
+
 /** An Owner approves or rejects a waiting proposal. */
 export async function decideOrgForWorkspace(
   workspaces: ReadonlyArray<AiosWorkspaceState>,
