@@ -70,7 +70,7 @@ async function cloneOne(input: JoinInput, base: string, area: AreaEntry): Promis
       detail: "The folder exists and is not an Area repo. It was left as it is.",
     };
   }
-  const run = await input.git(["clone", `${base}${area.repo}.git`, dir], input.root);
+  const run = await input.git(["clone", "--", `${base}${area.repo}.git`, dir], input.root);
   if (run.code === 0) return { slug: area.slug, state: "joined", detail: "" };
   const kind = classifyFailure(run.out);
   return {
