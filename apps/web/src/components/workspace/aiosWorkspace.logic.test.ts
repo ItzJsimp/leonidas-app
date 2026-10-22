@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   pickActiveWorkspace,
+  homeRepository,
   newBusinessFolder,
   scopeToWorkspace,
   suggestWorkspaceId,
@@ -145,6 +146,13 @@ describe("setup prompt helpers", () => {
     expect(workspaceFolderName("C:\\Users\\G\\Documents\\SimplyGersi AIOS\\")).toBe(
       "SimplyGersi AIOS",
     );
+  });
+});
+
+describe("homeRepository", () => {
+  it("names the Home repo from the id, under the owner when the host names one", () => {
+    expect(homeRepository("ada-gh", "acme-studio")).toBe("ada-gh/acme-studio-home");
+    expect(homeRepository(null, "acme-studio")).toBe("acme-studio-home");
   });
 });
 

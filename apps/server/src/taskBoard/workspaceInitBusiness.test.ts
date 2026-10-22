@@ -13,8 +13,12 @@ import * as ProcessRunner from "../processRunner.ts";
 import * as TaskBoardService from "./TaskBoardService.ts";
 
 // The `gh api user` call answers with a login, so setup can name the Owner.
+const calls: string[] = [];
 const signedIn = ProcessRunner.ProcessRunner.of({
-  run: () => Effect.succeed({ code: 0, stdout: "ada-gh\n", stderr: "" } as never),
+  run: (input) => {
+    calls.push(`${input.command} ${input.args.join(" ")} @${input.cwd ?? ""}`);
+    return Effect.succeed({ code: 0, stdout: "ada-gh\n", stderr: "" } as never);
+  },
 });
 
 const project = (id: string, workspaceRoot: string) =>
@@ -63,6 +67,7 @@ it.effect("sets up a project folder with no tasks/ as a business and copies the 
   withFolder(({ fresh, projects }) =>
     Effect.gen(function* () {
       const board = yield* TaskBoardService.TaskBoardService;
+      calls.length = 0;
       const ready = yield* board.workspaceInit(
         { root: fresh, id: "acme", name: "Acme", type: "business", ownerName: "Ada Owner" },
         projects,
@@ -70,6 +75,12 @@ it.effect("sets up a project folder with no tasks/ as a business and copies the 
       expect(ready).toMatchObject({ status: "ready", id: "acme", type: "business" });
       expect(NodeFS.existsSync(NodePath.join(fresh, "org", "members", "ada-owner.md"))).toBe(true);
       expect(NodeFS.existsSync(NodePath.join(fresh, "tasks", "README.md"))).toBe(true);
+      // Home becomes a Git repo with a first commit, so publishing has something to push.
+      expect(calls.filter((call) => call.startsWith("git"))).toEqual([
+        `git init --initial-branch=main @${fresh}`,
+        `git add -A @${fresh}`,
+        `git commit --message Set up Acme @${fresh}`,
+      ]);
     }),
   ),
 );

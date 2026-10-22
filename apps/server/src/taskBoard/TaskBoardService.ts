@@ -2104,6 +2104,26 @@ const make = Effect.gen(function* () {
       return found?.status === "ready" ? { root: found.root, type: found.file.type } : null;
     });
 
+  // The Home area is a Git repo, and its first commit is what publishing pushes. A failure
+  // (say, no Git name on this computer) is soft: the folder still works and can be committed later.
+  const commitHome = (root: string, name: string) => {
+    const git = (args: ReadonlyArray<string>) =>
+      processes.run({
+        command: "git",
+        args,
+        cwd: root,
+        timeout: "30 seconds",
+        maxOutputBytes: 4096,
+      });
+    return Effect.gen(function* () {
+      if (!NodeFS.existsSync(NodePath.join(root, ".git"))) {
+        yield* git(["init", "--initial-branch=main"]);
+      }
+      yield* git(["add", "-A"]);
+      yield* git(["commit", "--message", `Set up ${name}`]);
+    }).pipe(Effect.ignore);
+  };
+
   const workspaceInit = (input: AiosWorkspaceInitInput, projects: ReadonlyArray<Project>) =>
     Effect.gen(function* () {
       const { workspaces: found } = scopeFor(projects);
@@ -2128,7 +2148,8 @@ const make = Effect.gen(function* () {
         return yield* storageError("Another workspace already uses that id.");
       }
       // Only the New business dialog sends an Owner name. Setting up an existing AIOS adds no files.
-      if (input.type === "business" && input.ownerName !== undefined) {
+      const startsBusiness = input.type === "business" && input.ownerName !== undefined;
+      if (startsBusiness) {
         const login = yield* viewerLogin;
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const problem = yield* Effect.promise(() =>
@@ -2140,6 +2161,7 @@ const make = Effect.gen(function* () {
         try: () => writeWorkspaceFile(target.root, input),
         catch: () => storageError("Could not write workspace.json."),
       });
+      if (startsBusiness) yield* commitHome(target.root, input.name);
       const after = scopeFor(projects);
       const written =
         after.workspaces.find(

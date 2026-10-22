@@ -1,7 +1,9 @@
+import { getNewProjectPublishTargets } from "@t3tools/client-runtime/operations/projects";
 import { inferProjectTitleFromPath } from "@t3tools/client-runtime/state/projects";
 import { useId, useState, type FormEvent } from "react";
 
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import {
   Dialog,
   DialogDescription,
@@ -14,13 +16,16 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Spinner } from "~/components/ui/spinner";
+import { stackedThreadToast, toastManager } from "~/components/ui/toast";
 import { newProjectId } from "~/lib/utils";
 import { aiosWorkspaceInit } from "~/state/aiosWorkspaces";
 import { useEnvironments } from "~/state/environments";
 import { projectEnvironment } from "~/state/projects";
+import { useEnvironmentQuery } from "~/state/query";
+import { sourceControlEnvironment } from "~/state/sourceControl";
 import { useAtomCommand } from "~/state/use-atom-command";
 
-import { newBusinessFolder, suggestWorkspaceId } from "./aiosWorkspace.logic";
+import { homeRepository, newBusinessFolder, suggestWorkspaceId } from "./aiosWorkspace.logic";
 import { useNewBusinessStore } from "./newBusinessStore";
 import { useActiveAiosWorkspace } from "./useActiveAiosWorkspace";
 
@@ -69,6 +74,17 @@ function NewBusinessForm(props: {
   const [createdRoot, setCreatedRoot] = useState<string | null>(null);
   const createProject = useAtomCommand(projectEnvironment.create, { reportFailure: false });
   const runInit = useAtomCommand(aiosWorkspaceInit, { reportFailure: false });
+  const publishRepository = useAtomCommand(sourceControlEnvironment.publishRepository, {
+    reportFailure: false,
+  });
+  const discovery = useEnvironmentQuery(
+    sourceControlEnvironment.discovery({ environmentId: props.environmentId, input: {} }),
+  );
+  // Home is a GitHub repo: invites and the area sync match people by GitHub login.
+  const github = getNewProjectPublishTargets(discovery.data ?? null).find(
+    (target) => target.definition.kind === "github",
+  );
+  const [publishes, setPublishes] = useState(false);
   const workspaceId = suggestWorkspaceId(name);
   const folder = newBusinessFolder(props.newProjectsRoot, name);
 
@@ -104,6 +120,32 @@ function NewBusinessForm(props: {
         ownerName: ownerName.trim(),
       },
     });
+    if (result._tag === "Success" && publishes && github) {
+      const published = await publishRepository({
+        environmentId: props.environmentId,
+        input: {
+          cwd: createdRoot ?? folder,
+          provider: github.definition.kind,
+          repository: homeRepository(github.owner, workspaceId),
+          visibility: "private",
+        },
+      });
+      toastManager.add(
+        stackedThreadToast(
+          published._tag === "Success"
+            ? {
+                type: "success",
+                title: "Home published to GitHub",
+                description: published.value.repository.nameWithOwner,
+              }
+            : {
+                type: "error",
+                title: "Could not publish Home to GitHub",
+                description: "Use Publish Repository in the Git menu to try again.",
+              },
+        ),
+      );
+    }
     setBusy(false);
     if (result._tag === "Success") props.onDone(workspaceId);
     else {
@@ -144,6 +186,18 @@ function NewBusinessForm(props: {
               onChange={(event) => setOwnerName(event.target.value)}
             />
           </Label>
+          {github ? (
+            <Label className="flex items-center gap-2 text-sm font-normal">
+              <Checkbox
+                checked={publishes}
+                onCheckedChange={(value) => setPublishes(value === true)}
+              />
+              <span>
+                Publish Home to GitHub as a private repository:{" "}
+                <code>{homeRepository(github.owner, workspaceId)}</code>
+              </span>
+            </Label>
+          ) : null}
           <p className="text-xs text-muted-foreground">
             Goes in <code>{folder}</code>.
           </p>
