@@ -1,1 +1,2 @@
+node scripts/guard-unchecked-commit.mjs
 vp staged

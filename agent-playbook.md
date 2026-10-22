@@ -70,6 +70,7 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Fresh worktrees need an install first:** `pnpm install --frozen-lockfile` (about 7.5 minutes) before any check. Worktrees on D: stall; use `C:/lcw`.
 - **A commit that hangs is usually the hook:** let `vp fmt` finish; never bypass it.
 - **MCP service test fixtures are partial records:** `OrchestratorMcpService.test.ts` casts runs without `startedAt`/`completedAt`. New code that reads run or turn fields must guard with `== null`, or 7 unrelated tests fail.
+- **`scripts/guard-unchecked-commit.mjs` blocks staged TypeScript in a checkout with no `node_modules/.bin/vp`** (the main checkout). Commit from `C:/lcw`, or set `LEONIDAS_ALLOW_UNCHECKED_COMMIT=1` once for a commit you checked by hand. Docs-only commits pass.
 - **The main checkout cannot commit when its install is partial:** the `vp` pre-commit hook fails (code 127, or vite.config cannot load `vitest`). Commit from an installed worktree under `C:/lcw`; a PATH borrow of another worktree's `vp` does not work.
 - **Server typecheck has existing errors** in unrelated test files (`aiosDetect.test.ts`, `relativeImportExtensions.test.ts`). Filter the output to your changed paths instead of reading the total.
 - **`.agents/skills/<name>` in the AIOS is a link into this repo:** edit and commit shared skills here (`git commit --only -- <paths>`), not in the AIOS. The AIOS git ignores them. The AIOS `Stage-AIOSDistribution.ps1` list must name every skill that a shipped skill calls (`review` needs `review-two-axis`).
