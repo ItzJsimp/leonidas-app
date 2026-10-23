@@ -25,6 +25,12 @@ const PRIORITY_RANK = { critical: 3, high: 2, medium: 1, low: 0 } as const;
 
 const lower = (value: string) => value.trim().toLowerCase();
 
+/** Highest priority first, then the most recently updated. One order for the list and the focus. */
+const byPriorityThenNewest = (
+  a: Pick<LensTask, "priority" | "updatedAt">,
+  b: Pick<LensTask, "priority" | "updatedAt">,
+) => PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority] || b.updatedAt - a.updatedAt;
+
 /**
  * The open tasks that belong to the lens. A task belongs when its owner is a Member the lens keeps
  * (`memberInLens`). Unowned tasks and agent run records are in no lens.
@@ -47,9 +53,7 @@ export function lensTasks<T extends LensTask>(
       const owner = ownerOf(task, team);
       return owner !== null && names.has(lower(owner));
     })
-    .sort(
-      (a, b) => PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority] || b.updatedAt - a.updatedAt,
-    );
+    .sort(byPriorityThenNewest);
 }
 
 export function lensCounts(tasks: ReadonlyArray<Pick<LensTask, "status">>) {
@@ -69,13 +73,7 @@ export function topLensTask<T extends Pick<LensTask, "priority" | "updatedAt">>(
 ): T | null {
   let best: T | null = null;
   for (const task of tasks) {
-    if (
-      best === null ||
-      PRIORITY_RANK[task.priority] > PRIORITY_RANK[best.priority] ||
-      (task.priority === best.priority && task.updatedAt > best.updatedAt)
-    ) {
-      best = task;
-    }
+    if (best === null || byPriorityThenNewest(task, best) < 0) best = task;
   }
   return best;
 }
@@ -139,8 +137,19 @@ export function agentStatusLine(
 ): string {
   const title = work.task?.title ?? "";
   if (work.state === "idle") return "Idle";
-  if (work.state === "waiting") return `Waiting: ${title} is blocked`;
-  return chat ? `Working on ${title} · ${chatStateLabel(chat)}` : `Working on ${title}`;
+  const lead = work.state === "waiting" ? `Waiting: ${title} is blocked` : `Working on ${title}`;
+  return chat ? `${lead} · ${chatStateLabel(chat)}` : lead;
+}
+
+/**
+ * The lens that counts in the current workspace. A lens belongs to the workspace it was set in,
+ * so a slug from one business never filters another.
+ */
+export function lensForScope(
+  state: { readonly scopeKey: string; readonly lens: TeamLens },
+  scopeKey: string,
+): TeamLens {
+  return state.scopeKey === scopeKey ? state.lens : null;
 }
 
 /** The name shown for a lens; the raw slug when the org no longer has it. */

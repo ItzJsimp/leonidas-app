@@ -1,4 +1,4 @@
-import type { TaskBoardTask, TaskBoardTeamMember, WorkspaceOrg } from "@t3tools/contracts";
+import type { TaskBoardTeamMember, WorkspaceOrg } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -6,6 +6,7 @@ import {
   agentWork,
   chatStateLabel,
   lensCounts,
+  lensForScope,
   lensHome,
   lensLabel,
   lensTasks,
@@ -229,6 +230,12 @@ describe("agentStatusLine", () => {
     expect(agentStatusLine(work("idle"), null)).toBe("Idle");
   });
 
+  it("adds the chat state to a waiting agent when a chat is linked", () => {
+    expect(agentStatusLine(work("waiting", "Draft deck"), "limited")).toBe(
+      "Waiting: Draft deck is blocked · Usage limit reached",
+    );
+  });
+
   it("maps every chat state to plain words", () => {
     expect(chatStateLabel("limited")).toBe("Usage limit reached");
     expect(chatStateLabel("input")).toBe("Needs your answer");
@@ -246,6 +253,29 @@ describe("lensLabel", () => {
   });
 });
 
-// Keeps the helper type honest against the real task shape.
-const _shape: Pick<TaskBoardTask, keyof LensTask> = {} as LensTask;
-void _shape;
+describe("lensForScope", () => {
+  const pia = { kind: "member", slug: "pia" } as const;
+
+  it("keeps the lens in the workspace it was set in", () => {
+    expect(lensForScope({ scopeKey: "a", lens: pia }, "a")).toEqual(pia);
+  });
+
+  it("drops the lens when the workspace changes", () => {
+    expect(lensForScope({ scopeKey: "a", lens: pia }, "b")).toBeNull();
+  });
+});
+
+describe("edge cases", () => {
+  it("has no tasks in a lens when no lens is set", () => {
+    expect(lensTasks(org, null, tasks, team)).toEqual([]);
+  });
+
+  it("is idle when the only tasks have no owner", () => {
+    expect(
+      agentWork(org.members[1]!, [task("u"), task("v", { status: "in_progress" })], team),
+    ).toEqual({
+      state: "idle",
+      task: null,
+    });
+  });
+});
