@@ -70,6 +70,15 @@ function MemberNode(props: {
   const isYou = you?.slug === member.slug;
   const active = isLens(lens, "member", member.slug);
   const dimmed = !memberInLens(org, lens, member);
+  const statusText = `${
+    member.kind === "agent" ? `Agent of ${member.owner || "no one"}` : "Person"
+  } · ${agent ? agent.line : member.status === "invited" ? "Invited" : "Active"}${
+    Object.keys(member.roles).length > 0
+      ? ` · ${Object.entries(member.roles)
+          .map(([area, role]) => `${role} in ${area}`)
+          .join(", ")}`
+      : ""
+  }`;
   return (
     <li
       className={cn(ENTER, "flex min-w-0 items-stretch gap-1", dimmed && "opacity-35")}
@@ -103,15 +112,11 @@ function MemberNode(props: {
             {member.name}
             {isYou ? <span className="ml-1.5 text-xs text-muted-foreground">You</span> : null}
           </span>
-          <span className="block text-xs text-muted-foreground max-sm:break-words sm:truncate">
-            {member.kind === "agent" ? `Agent of ${member.owner || "no one"}` : "Person"}
-            {" · "}
-            {agent ? agent.line : member.status === "invited" ? "Invited" : "Active"}
-            {Object.keys(member.roles).length > 0
-              ? ` · ${Object.entries(member.roles)
-                  .map(([area, role]) => `${role} in ${area}`)
-                  .join(", ")}`
-              : ""}
+          <span
+            title={statusText}
+            className="block text-xs text-muted-foreground max-sm:break-words sm:truncate"
+          >
+            {statusText}
           </span>
         </span>
         <span
