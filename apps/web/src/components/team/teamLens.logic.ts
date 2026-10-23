@@ -41,11 +41,15 @@ export function lensTasks<T extends LensTask>(
       .filter((member) => member.status !== "removed" && memberInLens(org, lens, member))
       .map((member) => lower(member.name)),
   );
-  return tasks.filter((task) => {
-    if (!isOpen(task) || isAgentRun(task)) return false;
-    const owner = ownerOf(task, team);
-    return owner !== null && names.has(lower(owner));
-  });
+  return tasks
+    .filter((task) => {
+      if (!isOpen(task) || isAgentRun(task)) return false;
+      const owner = ownerOf(task, team);
+      return owner !== null && names.has(lower(owner));
+    })
+    .sort(
+      (a, b) => PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority] || b.updatedAt - a.updatedAt,
+    );
 }
 
 export function lensCounts(tasks: ReadonlyArray<Pick<LensTask, "status">>) {

@@ -111,6 +111,21 @@ describe("lensTasks", () => {
     ]);
   });
 
+  it("lists the highest priority first, then the newest", () => {
+    const list = [
+      task("lo", { assignee: "pia", priority: "low", updatedAt: 9 }),
+      task("hi-old", { assignee: "pia", priority: "high", updatedAt: 1 }),
+      task("crit", { assignee: "pia", priority: "critical", updatedAt: 1 }),
+      task("hi-new", { assignee: "pia", priority: "high", updatedAt: 5 }),
+    ];
+    expect(lensTasks(org, { kind: "member", slug: "pia" }, list, team).map((t) => t.id)).toEqual([
+      "crit",
+      "hi-new",
+      "hi-old",
+      "lo",
+    ]);
+  });
+
   it("never keeps an unowned task, a done task or an agent run record", () => {
     for (const slug of ["pia", "bot", "sam"]) {
       const list = lensTasks(org, { kind: "member", slug }, tasks, team);
