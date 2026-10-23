@@ -8,6 +8,8 @@ import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useEnvironmentQuery } from "~/state/query";
 import { taskBoardHomeQuery } from "~/state/taskBoard";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
+import { lensHome } from "~/components/team/teamLens.logic";
+import { useLensWork } from "~/components/team/useLensWork";
 
 const localDate = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -20,6 +22,8 @@ export function AiosHomeCard() {
     environmentId && scopeReady ? taskBoardHomeQuery({ environmentId, input: scope }) : null,
   );
   const { data, error, refresh } = home;
+  const { lens } = useLensWork();
+  const filtered = lens ? lensHome(lens.label, lens.tasks) : null;
 
   if (data === null && error !== null) {
     return (
@@ -60,7 +64,9 @@ export function AiosHomeCard() {
     );
   }
 
-  const { brief, counts, move } = data;
+  const { brief } = data;
+  const counts = filtered?.counts ?? data.counts;
+  const move = filtered?.move ?? data.move;
   const done = brief?.priorities.filter((priority) => priority.done).length ?? 0;
   return (
     <section aria-labelledby="aios-home-title" className="rounded-lg border border-border p-5">

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   agentWork,
   lensCounts,
+  lensHome,
   lensLabel,
   lensTasks,
   topLensTask,
@@ -136,6 +137,21 @@ describe("lensCounts and topLensTask", () => {
     ];
     expect(topLensTask(list)?.id).toBe("z");
     expect(topLensTask([])).toBeNull();
+  });
+});
+
+describe("lensHome", () => {
+  it("counts only the lens tasks and focuses the top one", () => {
+    const list = tasks.filter((t) => ["a", "b", "c"].includes(t.id));
+    const home = lensHome("PIA", list);
+    expect(home.counts).toEqual({ todo: 1, inProgress: 1, review: 0, blocked: 1 });
+    expect(home.move).toEqual({ title: "Task a", reason: "Top high task for PIA." });
+  });
+
+  it("says so when the lens has no open task", () => {
+    const home = lensHome("SAM", []);
+    expect(home.counts).toEqual({ todo: 0, inProgress: 0, review: 0, blocked: 0 });
+    expect(home.move.title).toBe("No open tasks for SAM");
   });
 });
 

@@ -13,6 +13,7 @@ import { MemberEditor, type EditorTarget } from "./MemberEditor";
 import { RolesEditor } from "./RolesEditor";
 import { InviteCards, WelcomeCard } from "./InviteFlow";
 import { ProposalCards } from "./ProposalCards";
+import { useTeamLens } from "./TeamLensContext";
 import {
   areaInLens,
   buildTeamGroups,
@@ -241,7 +242,7 @@ export function TeamView() {
   const { data, refresh } = useEnvironmentQuery(
     environmentId && scopeReady ? workspaceOrgQuery({ environmentId, input: scope }) : null,
   );
-  const [lens, setLens] = useState<TeamLens>(null);
+  const { lens, setLens } = useTeamLens();
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [justJoined, setJustJoined] = useState(false);

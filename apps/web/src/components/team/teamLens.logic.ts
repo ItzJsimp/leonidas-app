@@ -75,6 +75,20 @@ export function topLensTask<T extends Pick<LensTask, "priority" | "updatedAt">>(
   return best;
 }
 
+/** What the Home card shows while a lens is set: the lens counts and its top task as the focus. */
+export function lensHome(label: string, tasks: ReadonlyArray<LensTask>) {
+  const top = topLensTask(tasks);
+  return {
+    counts: lensCounts(tasks),
+    move: top
+      ? { title: top.title, reason: `Top ${top.priority} task for ${label}.` }
+      : {
+          title: `No open tasks for ${label}`,
+          reason: "Pick another Member or clear the filter.",
+        },
+  };
+}
+
 export type AgentWork<T> = {
   readonly state: "working" | "waiting" | "idle";
   readonly task: T | null;

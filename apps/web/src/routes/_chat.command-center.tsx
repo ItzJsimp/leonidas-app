@@ -20,6 +20,7 @@ import { HomeExtraCards } from "../components/taskBoard/HomeExtraCards";
 import { LayaMonitorCard } from "../components/taskBoard/LayaMonitorCard";
 import { PonytailCard } from "../components/taskBoard/PonytailCard";
 import { SubagentStudio } from "../components/subagents/SubagentStudio";
+import { TeamLensProvider } from "../components/team/TeamLensContext";
 import { TeamView } from "../components/team/TeamView";
 import { SidebarInset } from "../components/ui/sidebar";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty";
@@ -68,7 +69,7 @@ const SECTIONS = [
   },
 ] as const;
 
-function CommandCenterPage() {
+function CommandCenterBody() {
   const threads = useThreadShells();
   const projects = useProjects();
   const bootstrapped = useAllEnvironmentShellsBootstrapped();
@@ -238,6 +239,14 @@ function CommandCenterPage() {
         </WorkspacePageContainer>
       </main>
     </SidebarInset>
+  );
+}
+
+function CommandCenterPage() {
+  return (
+    <TeamLensProvider>
+      <CommandCenterBody />
+    </TeamLensProvider>
   );
 }
 
