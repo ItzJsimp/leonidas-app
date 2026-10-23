@@ -33,10 +33,11 @@ export function useLensWork(options: { readonly poll?: boolean } = {}): LensWork
   const orgQuery = useEnvironmentQuery(
     ready ? workspaceOrgQuery({ environmentId, input: scope }) : null,
   );
-  const board = useEnvironmentQuery(
-    ready ? taskBoardWorkspaceQuery({ environmentId, input: scope }) : null,
-  );
   const org = orgQuery.data?.org ?? null;
+  // A personal workspace has no org, so it never reads the task list for the lens.
+  const board = useEnvironmentQuery(
+    ready && org ? taskBoardWorkspaceQuery({ environmentId, input: scope }) : null,
+  );
   useVisibleInterval(board.refresh, POLL_MS, Boolean(options.poll && org));
   const tasks = board.data?.tasks ?? NO_TASKS;
   const team = board.data?.team ?? NO_TEAM;
