@@ -199,7 +199,7 @@ function NewBusinessForm(props: {
             </Label>
           ) : null}
           <p className="text-xs text-muted-foreground">
-            Goes in <code>{folder}</code>.
+            Goes in <code className="break-all">{folder}</code>.
           </p>
           {error ? (
             <p role="alert" className="text-sm text-destructive">
