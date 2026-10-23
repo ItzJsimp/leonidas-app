@@ -69,6 +69,7 @@ import {
   decideOrgForWorkspace,
   orgForWorkspace,
   scaffoldForSetup,
+  teamForWorkspace,
   widgetsForWorkspace,
 } from "../workspacePack/workspacePack.ts";
 import { buildHome } from "./aiosHome.ts";
@@ -1433,6 +1434,8 @@ const make = Effect.gen(function* () {
       const tasks = yield* readLocalCards(projects, now, { workspaceId });
       // Only this workspace's projects reach the board, so no other shared board loads.
       const scoped = projects.filter(scope.inScope);
+      // A business workspace's Members are its team, so the Owner picker takes them.
+      const members = yield* Effect.promise(() => teamForWorkspace(scope.workspaces, workspaceId));
       return buildWorkspace({
         root,
         member: resolveMember(),
@@ -1441,7 +1444,7 @@ const make = Effect.gen(function* () {
         discovered: root ? discoverProjects(root) : [],
         tasks,
         roadmaps: readProjectRoadmaps(scoped),
-        team: readProjectTeams(scoped),
+        team: members.length > 0 ? [...members] : readProjectTeams(scoped),
       });
     });
 

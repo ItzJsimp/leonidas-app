@@ -16,7 +16,7 @@ import {
   UsersIcon,
   XIcon,
 } from "lucide-react";
-import { ownerOf } from "./owner.logic";
+import { ownerOf, ownerPickerItems, ownerPickerValue } from "./owner.logic";
 import { lazy, memo, Suspense, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Badge } from "~/components/ui/badge";
@@ -180,11 +180,11 @@ function TaskDetailBody(props: {
   const closed = task.status === "done" || task.status === "parked" || task.status === "retired";
   const mine = sameName(task.claimedBy, context.member);
   const owner = ownerOf(task, context.team);
-  const ownerItems = [
-    ...new Set([...context.team.map((member) => member.name), ...(owner ? [owner] : [])]),
-  ]
-    .map((name) => ({ value: name, label: name }))
-    .concat({ value: ANYONE_VALUE, label: "Anyone (available to take)" });
+  const ownerItems = ownerPickerItems(context.team, owner).concat({
+    value: ANYONE_VALUE,
+    label: "Anyone (available to take)",
+  });
+  const ownerValue = ownerPickerValue(context.team, owner);
   const canSend = actions.canSendToAgent(task);
   const canShare = actions.canShare(task);
   const linkedSlug = task.section === "general" ? null : task.section;
@@ -406,12 +406,12 @@ function TaskDetailBody(props: {
           </Property>
           <Property label="Owner">
             <Select
-              value={owner ?? ANYONE_VALUE}
+              value={ownerValue ?? ANYONE_VALUE}
               items={ownerItems}
               onValueChange={(value) => {
                 if (!value) return;
                 const next = value === ANYONE_VALUE ? null : value;
-                if (next !== owner) actions.setAssignee(task, next);
+                if (next !== ownerValue) actions.setAssignee(task, next);
               }}
             >
               <SelectTrigger size="sm" aria-label="Owner" disabled={busy || !actions.canEdit}>

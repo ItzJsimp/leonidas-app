@@ -5,6 +5,8 @@ import {
   matchesOwnerLens,
   ownerLensOptions,
   ownerOf,
+  ownerPickerItems,
+  ownerPickerValue,
   parseOwnerLens,
 } from "./owner.logic";
 
@@ -79,5 +81,37 @@ describe("owners", () => {
     expect(parseOwnerLens("agents")).toBe("agents");
     expect(parseOwnerLens("person:")).toBe("everyone");
     expect(parseOwnerLens(42)).toBe("everyone");
+  });
+});
+
+describe("owner picker", () => {
+  const business = [
+    {
+      name: "Ada Owner",
+      aliases: ["ada-owner", "ada-gh"],
+      slug: "ada-owner",
+      kind: "person" as const,
+    },
+    { name: "Scout", aliases: ["scout"], slug: "scout", kind: "agent" as const },
+  ];
+
+  it("lists each Member by slug, marks an agent, and keeps an unlisted owner", () => {
+    expect(ownerPickerItems(business, "Ada Owner")).toEqual([
+      { value: "ada-owner", label: "Ada Owner" },
+      { value: "scout", label: "Scout (agent)" },
+    ]);
+    expect(ownerPickerItems(team, "Zed")).toEqual([
+      { value: "Jake", label: "Jake" },
+      { value: "Mob", label: "Mob" },
+      { value: "Zed", label: "Zed" },
+    ]);
+  });
+
+  it("maps a stored slug to the same row the picker offers", () => {
+    const owner = ownerOf(task({ assignee: "scout" }), business);
+    expect(owner).toBe("Scout");
+    expect(ownerPickerValue(business, owner)).toBe("scout");
+    expect(ownerPickerValue(team, "Jake")).toBe("Jake");
+    expect(ownerPickerValue(business, null)).toBeNull();
   });
 });

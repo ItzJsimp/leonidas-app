@@ -1,4 +1,5 @@
 import type {
+  TaskBoardTeamMember,
   WorkspaceOrgActionResult,
   WorkspaceOrgChange,
   WorkspaceOrgResult,
@@ -69,6 +70,27 @@ export async function orgForWorkspace(
   } catch {
     return EMPTY_ORG;
   }
+}
+
+/**
+ * The Members of a business workspace as the board's team: the display name is the name, and the
+ * slug and GitHub login are aliases, so a task file may store any of them. A removed Member is
+ * left out. Any failure gives an empty team.
+ */
+export async function teamForWorkspace(
+  workspaces: ReadonlyArray<AiosWorkspaceState>,
+  workspaceId: string | undefined,
+  load: () => Promise<BusinessPack | null> = loadBusinessPack,
+): Promise<ReadonlyArray<TaskBoardTeamMember>> {
+  const view = await orgForWorkspace(workspaces, workspaceId, null, load);
+  return (view.org?.members ?? [])
+    .filter((member) => member.status !== "removed")
+    .map((member) => ({
+      name: member.name,
+      aliases: [member.slug, member.github].filter(Boolean),
+      slug: member.slug,
+      kind: member.kind,
+    }));
 }
 
 /** A change to the org record. The pack decides: apply at once, file a proposal, or refuse. */

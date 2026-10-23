@@ -105,3 +105,37 @@ export function parseOwnerLens(value: unknown): OwnerLens {
     ? (value as OwnerLens)
     : DEFAULT_OWNER_LENS;
 }
+
+export interface OwnerPickerItem {
+  readonly value: string;
+  readonly label: string;
+}
+
+/**
+ * The Owner picker's rows, one for each teammate. A business Member is stored by slug, and an
+ * agent says so in its label. An owner the team does not list still gets a row.
+ */
+export function ownerPickerItems(
+  team: ReadonlyArray<TaskBoardTeamMember>,
+  owner: string | null,
+): Array<OwnerPickerItem> {
+  const items = new Map<string, string>();
+  for (const member of team) {
+    items.set(
+      member.slug ?? member.name,
+      member.kind === "agent" ? `${member.name} (agent)` : member.name,
+    );
+  }
+  if (owner && !team.some((member) => member.name === owner)) items.set(owner, owner);
+  return [...items].map(([value, label]) => ({ value, label }));
+}
+
+/** The picker value for the task's owner: the Member's slug when it has one, else the name. */
+export function ownerPickerValue(
+  team: ReadonlyArray<TaskBoardTeamMember>,
+  owner: string | null,
+): string | null {
+  if (!owner) return null;
+  const member = team.find((candidate) => candidate.name === owner);
+  return member ? (member.slug ?? member.name) : owner;
+}

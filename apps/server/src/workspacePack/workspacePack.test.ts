@@ -8,6 +8,7 @@ import {
   decideOrgForWorkspace,
   orgForWorkspace,
   scaffoldForSetup,
+  teamForWorkspace,
   widgetsForWorkspace,
   type BusinessPack,
 } from "./workspacePack.ts";
@@ -190,6 +191,46 @@ describe("org actions", () => {
       async () => broken,
     );
     assert.deepEqual([a.result, b.result], ["invalid", "invalid"]);
+  });
+});
+
+describe("teamForWorkspace", () => {
+  const member = (slug: string, name: string, kind: "person" | "agent", status: string) => ({
+    slug,
+    name,
+    kind,
+    status,
+    department: "general",
+    owner: "",
+    github: kind === "person" ? `${slug}-gh` : "",
+    roles: {},
+  });
+  const withMembers: BusinessPack = {
+    ...pack,
+    readOrgView: async () => ({
+      ...view,
+      org: {
+        ...view.org!,
+        members: [
+          member("ada", "Ada Owner", "person", "active"),
+          member("scout", "Scout", "agent", "active"),
+          member("gone", "Gone", "person", "removed"),
+        ],
+      },
+    }),
+  };
+
+  it("gives the business Members as the team, by slug, and leaves a removed one out", async () => {
+    const team = await teamForWorkspace(workspaces, "simplygersi", async () => withMembers);
+    assert.deepEqual(team, [
+      { name: "Ada Owner", aliases: ["ada", "ada-gh"], slug: "ada", kind: "person" },
+      { name: "Scout", aliases: ["scout"], slug: "scout", kind: "agent" },
+    ]);
+  });
+
+  it("gives no team for a personal workspace or a missing pack", async () => {
+    assert.deepEqual(await teamForWorkspace(workspaces, "leonidas", async () => withMembers), []);
+    assert.deepEqual(await teamForWorkspace(workspaces, "simplygersi", async () => null), []);
   });
 });
 

@@ -263,6 +263,9 @@ export type TaskBoardWorkspaceProject = typeof TaskBoardWorkspaceProject.Type;
 export const TaskBoardTeamMember = Schema.Struct({
   name: TrimmedNonEmptyString,
   aliases: Schema.Array(TrimmedNonEmptyString),
+  // A business Member: the slug is what a task file stores as its assignee.
+  slug: Schema.optional(TrimmedNonEmptyString),
+  kind: Schema.optional(Schema.Literals(["person", "agent"])),
 });
 export type TaskBoardTeamMember = typeof TaskBoardTeamMember.Type;
 
