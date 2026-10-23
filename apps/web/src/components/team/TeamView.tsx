@@ -19,7 +19,7 @@ import { RolesEditor } from "./RolesEditor";
 import { InviteCards, WelcomeCard } from "./InviteFlow";
 import { ProposalCards } from "./ProposalCards";
 import { LensWorkList } from "./LensWorkList";
-import { agentStatusLine, agentWork } from "./teamLens.logic";
+import { agentStatusLine, agentWork, lensLabel } from "./teamLens.logic";
 import { useTeamLens } from "./TeamLensContext";
 import { useLensWork } from "./useLensWork";
 import {
@@ -251,12 +251,7 @@ function Group(props: {
 
 /** What the lens covers, in one plain line for the live region. */
 function lensSummary(org: WorkspaceOrg, lens: NonNullable<TeamLens>): string {
-  const label =
-    lens.kind === "department"
-      ? (org.departments.find((d) => d.slug === lens.slug)?.name ?? lens.slug)
-      : lens.kind === "area"
-        ? (org.areas.find((a) => a.slug === lens.slug)?.name ?? lens.slug)
-        : (org.members.find((m) => m.slug === lens.slug)?.name ?? lens.slug);
+  const label = lensLabel(org, lens);
   const count = org.members.filter(
     (member) => member.status !== "removed" && memberInLens(org, lens, member),
   ).length;
