@@ -25,6 +25,10 @@ type Row = { readonly role: Role; readonly fresh: boolean };
 const SELECT =
   "h-8 w-full min-w-28 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
 
+// Below `sm` each row stacks into a card and each cell shows its column name from `data-label`.
+const CELL =
+  "pr-2 max-sm:block max-sm:pr-0 max-sm:before:block max-sm:before:text-xs max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]";
+
 // Every Role sees the whole Area, so the table only edits what a Role may do (roles.md).
 const WRITE: ReadonlyArray<readonly [Role["write"], string]> = [
   ["none", "Nothing"],
@@ -127,9 +131,9 @@ export function RolesEditor(props: {
       </DialogHeader>
       <DialogPanel>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[34rem] border-separate border-spacing-y-1.5 text-sm">
+          <table className="w-full border-separate border-spacing-y-1.5 text-sm max-sm:block sm:min-w-[34rem]">
             <caption className="sr-only">Permissions of each Role</caption>
-            <thead>
+            <thead className="max-sm:sr-only">
               <tr className="text-left text-xs text-muted-foreground">
                 <th scope="col" className="pr-2 font-medium">
                   Role
@@ -148,12 +152,18 @@ export function RolesEditor(props: {
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="max-sm:block">
               {draft.map(({ role, fresh }, index) => {
                 const locked = role.name === "Owner";
                 return (
-                  <tr key={fresh ? `${id}-new-${index}` : role.name}>
-                    <th scope="row" className="pr-2 text-left font-medium align-middle">
+                  <tr
+                    key={fresh ? `${id}-new-${index}` : role.name}
+                    className="max-sm:mb-3 max-sm:block max-sm:space-y-2 max-sm:rounded-md max-sm:border max-sm:p-3"
+                  >
+                    <th
+                      scope="row"
+                      className="pr-2 text-left font-medium align-middle max-sm:block max-sm:pr-0"
+                    >
                       {fresh ? (
                         <Input
                           aria-label="Name of the new Role"
@@ -169,7 +179,7 @@ export function RolesEditor(props: {
                         </span>
                       )}
                     </th>
-                    <td className="pr-2">
+                    <td className={CELL} data-label="Can write">
                       <Pick
                         label={`${role.name}: can write`}
                         value={role.write}
@@ -178,7 +188,7 @@ export function RolesEditor(props: {
                         onChange={(write) => patch(index, { write })}
                       />
                     </td>
-                    <td className="pr-2">
+                    <td className={CELL} data-label="Can approve">
                       {locked ? (
                         <span className="text-muted-foreground">Across the wall</span>
                       ) : (
@@ -190,7 +200,7 @@ export function RolesEditor(props: {
                         />
                       )}
                     </td>
-                    <td className="pr-2">
+                    <td className={CELL} data-label="Can manage">
                       {locked ? (
                         <span className="text-muted-foreground">The business</span>
                       ) : (
@@ -202,7 +212,7 @@ export function RolesEditor(props: {
                         />
                       )}
                     </td>
-                    <td>
+                    <td className="max-sm:block">
                       <div className="flex justify-end gap-1">
                         <Button
                           type="button"
