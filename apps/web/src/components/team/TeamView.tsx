@@ -13,7 +13,9 @@ import { MemberEditor, type EditorTarget } from "./MemberEditor";
 import { RolesEditor } from "./RolesEditor";
 import { InviteCards, WelcomeCard } from "./InviteFlow";
 import { ProposalCards } from "./ProposalCards";
+import { LensWorkList } from "./LensWorkList";
 import { useTeamLens } from "./TeamLensContext";
+import { useLensWork } from "./useLensWork";
 import {
   areaInLens,
   buildTeamGroups,
@@ -243,6 +245,7 @@ export function TeamView() {
     environmentId && scopeReady ? workspaceOrgQuery({ environmentId, input: scope }) : null,
   );
   const { lens, setLens } = useTeamLens();
+  const work = useLensWork({ poll: true });
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [justJoined, setJustJoined] = useState(false);
@@ -353,6 +356,9 @@ export function TeamView() {
           />
         ))}
       </div>
+      {work.lens ? (
+        <LensWorkList label={work.lens.label} tasks={work.lens.tasks} team={work.team} />
+      ) : null}
       <Dialog open={editor !== null} onOpenChange={(open) => !open && setEditor(null)}>
         <DialogPopup>
           {editor && environmentId ? (
