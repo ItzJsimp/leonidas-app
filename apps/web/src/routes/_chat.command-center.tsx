@@ -21,6 +21,7 @@ import { LayaMonitorCard } from "../components/taskBoard/LayaMonitorCard";
 import { PonytailCard } from "../components/taskBoard/PonytailCard";
 import { SubagentStudio } from "../components/subagents/SubagentStudio";
 import { TeamLensProvider } from "../components/team/TeamLensContext";
+import { useActiveAiosWorkspace } from "../components/workspace/useActiveAiosWorkspace";
 import { TeamView } from "../components/team/TeamView";
 import { SidebarInset } from "../components/ui/sidebar";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty";
@@ -243,8 +244,9 @@ function CommandCenterBody() {
 }
 
 function CommandCenterPage() {
+  const { scope } = useActiveAiosWorkspace();
   return (
-    <TeamLensProvider>
+    <TeamLensProvider scopeKey={JSON.stringify(scope)}>
       <CommandCenterBody />
     </TeamLensProvider>
   );
