@@ -322,6 +322,12 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
       release: (task) => void patchAction(task, { claimedBy: null }, "Could not release the task"),
       setAssignee: (task, assignee) =>
         void patchAction(task, { assignee }, "Could not change the owner"),
+      setPrivateArea: (task, area) =>
+        void patchAction(
+          task,
+          { privateArea: area },
+          area === null ? "Could not make the task public" : "Could not make the task private",
+        ),
       linkProject: (task, slug) =>
         void patchAction(task, { projectSlug: slug }, "Could not change the project"),
       setShared: (task, shared) => void setShared(task, shared),

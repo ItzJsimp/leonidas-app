@@ -58,7 +58,8 @@ const withFolder = <A, E>(
       ),
     ({ temp, previous }) =>
       Effect.sync(() => {
-        if (previous !== undefined) process.env.LEONIDAS_AIOS_ROOT = previous;
+        if (previous === undefined) delete process.env.LEONIDAS_AIOS_ROOT;
+        else process.env.LEONIDAS_AIOS_ROOT = previous;
         NodeFS.rmSync(temp, { recursive: true, force: true });
       }),
   );
@@ -111,6 +112,100 @@ it.effect("refuses an unlisted folder with no Owner name, and one that is no pro
       expect(NodeFS.existsSync(NodePath.join(fresh, "org"))).toBe(false);
       expect(NodeFS.existsSync(NodePath.join(stranger, "org"))).toBe(false);
       expect(NodeFS.existsSync(NodePath.join(NodePath.dirname(fresh), "org"))).toBe(false);
+    }),
+  ),
+);
+
+it.effect("makes a task private in an Area and shows the real title only where the Area is", () =>
+  withFolder(({ temp, fresh, projects }) =>
+    Effect.gen(function* () {
+      const board = yield* TaskBoardService.TaskBoardService;
+      // A business card goes to the business folder only when another workspace is the default.
+      const personal = NodePath.join(temp, "personal");
+      NodeFS.mkdirSync(NodePath.join(personal, "tasks"), { recursive: true });
+      NodeFS.mkdirSync(NodePath.join(personal, "projects"));
+      NodeFS.writeFileSync(
+        NodePath.join(personal, "workspace.json"),
+        JSON.stringify({ id: "personal", name: "Personal", type: "personal", schemaVersion: 1 }),
+      );
+      process.env.LEONIDAS_AIOS_ROOT = personal;
+      yield* board.workspaceInit(
+        { root: fresh, id: "acme", name: "Acme", type: "business", ownerName: "Ada Owner" },
+        projects,
+      );
+      const areas = NodePath.join(fresh, "org", "areas.md");
+      NodeFS.writeFileSync(
+        areas,
+        NodeFS.readFileSync(areas, "utf8").replace(
+          "| `home` | Home |",
+          "| `deals` | Deals | `acme-deals` | `general` | private | active |\n| `home` | Home |",
+        ),
+      );
+      const made = yield* board.cardCreate(
+        { title: "Secret plan", description: "Hush deal notes", actor: "Ada", workspaceId: "acme" },
+        projects,
+      );
+      const notJoined = yield* Effect.exit(
+        board.cardUpdate(
+          { taskId: made.id, actor: "Ada", workspaceId: "acme", privateArea: "deals" },
+          projects,
+        ),
+      );
+      expect(Exit.isFailure(notJoined)).toBe(true);
+
+      NodeFS.mkdirSync(NodePath.join(fresh, "areas", "deals"), { recursive: true });
+      // The task page sends the version it saw; a good move must not read as a stale edit.
+      const seen = (yield* board.workspace(projects, "acme")).tasks.find((t) => t.id === made.id)!;
+      const stale = yield* Effect.exit(
+        board.cardUpdate(
+          {
+            taskId: made.id,
+            actor: "Ada",
+            workspaceId: "acme",
+            privateArea: "deals",
+            expectedUpdatedAt: seen.updatedAt - 1,
+          },
+          projects,
+        ),
+      );
+      expect(Exit.isFailure(stale)).toBe(true);
+      expect(
+        NodeFS.readFileSync(
+          NodePath.join(
+            fresh,
+            "tasks",
+            NodeFS.readdirSync(NodePath.join(fresh, "tasks")).find((f) => f !== "README.md")!,
+          ),
+          "utf8",
+        ),
+      ).toContain("Secret plan");
+      const updated = yield* board.cardUpdate(
+        {
+          taskId: made.id,
+          actor: "Ada",
+          workspaceId: "acme",
+          privateArea: "deals",
+          expectedUpdatedAt: seen.updatedAt,
+        },
+        projects,
+      );
+      expect(updated.labels).toContain("private");
+      expect(NodeFS.readdirSync(NodePath.join(fresh, "tasks")).length).toBeGreaterThan(1);
+      expect(updated.title).toBe("Private task in Deals");
+      const homeFiles = NodeFS.readdirSync(NodePath.join(fresh, "tasks"));
+      const homeText = homeFiles
+        .map((name) => NodeFS.readFileSync(NodePath.join(fresh, "tasks", name), "utf8"))
+        .join("\n");
+      expect(homeText).not.toContain("Secret plan");
+      expect(homeText).not.toContain("Hush deal");
+
+      const here = (yield* board.workspace(projects, "acme")).tasks.find((t) => t.id === made.id);
+      expect(here?.title).toBe("Secret plan");
+      NodeFS.rmSync(NodePath.join(fresh, "areas"), { recursive: true });
+      const elsewhere = (yield* board.workspace(projects, "acme")).tasks.find(
+        (t) => t.id === made.id,
+      );
+      expect(elsewhere?.title).toBe("Private task in Deals");
     }),
   ),
 );

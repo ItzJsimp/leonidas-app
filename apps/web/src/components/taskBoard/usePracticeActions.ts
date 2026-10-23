@@ -89,6 +89,8 @@ export function usePracticeActions(): PracticeState {
           assignee,
           note: assignee ? `Assigned to ${assignee}` : "Made available to anyone",
         }),
+      // The practice project is not a business workspace, so it has no private tasks.
+      setPrivateArea: () => {},
       linkProject: () =>
         toastManager.add({
           type: "info",

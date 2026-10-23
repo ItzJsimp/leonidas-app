@@ -568,7 +568,14 @@ export function cardToTask(input: {
     assignee: assignee || null,
     ...(kind === "agent_run" ? { kind } : {}),
     ...(field(fields, "private").toLowerCase() === "true"
-      ? { labels: [...labels, "private"] }
+      ? {
+          // A private task names its Area, so a computer that has the Area can show the real title.
+          labels: [
+            ...labels,
+            "private",
+            ...(field(fields, "area") ? [`area:${field(fields, "area")}`] : []),
+          ],
+        }
       : {}),
     sourceId: declaredId || stem,
     sourceFile: NodePath.basename(input.fileName),

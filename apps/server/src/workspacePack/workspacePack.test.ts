@@ -7,6 +7,8 @@ import {
   changeOrgForWorkspace,
   decideOrgForWorkspace,
   orgForWorkspace,
+  privacyForWorkspace,
+  revealPrivateTitles,
   scaffoldForSetup,
   teamForWorkspace,
   widgetsForWorkspace,
@@ -37,6 +39,8 @@ const pack: BusinessPack = {
     seen.push(`scaffold:${root}`);
     return 1;
   },
+  setCardPrivacy: async (_root, _file, _taskId, area) => (area === "home" ? "No Home." : null),
+  readPrivateTitle: async (_root, _area, taskId) => (taskId === "t-1" ? "Real title" : null),
   readWidgets: async (root) => {
     seen.push(root);
     return [widget];
@@ -231,6 +235,42 @@ describe("teamForWorkspace", () => {
   it("gives no team for a personal workspace or a missing pack", async () => {
     assert.deepEqual(await teamForWorkspace(workspaces, "leonidas", async () => withMembers), []);
     assert.deepEqual(await teamForWorkspace(workspaces, "simplygersi", async () => null), []);
+  });
+});
+
+describe("private tasks", () => {
+  const load = async () => pack;
+  const task = (id: string, labels: string[]) => ({
+    id,
+    title: "Private task in Deals",
+    labels,
+    sourceRoot: "/r",
+  });
+
+  it("passes the Area to the pack and gives back its refusal", async () => {
+    assert.isNull(await privacyForWorkspace(workspaces, "simplygersi", "/f", "t-1", "deals", load));
+    assert.equal(
+      await privacyForWorkspace(workspaces, "simplygersi", "/f", "t-1", "home", load),
+      "No Home.",
+    );
+    assert.include(
+      (await privacyForWorkspace(workspaces, "leonidas", "/f", "t-1", "deals", load)) ?? "",
+      "business workspace",
+    );
+  });
+
+  it("shows the real title only where the Area folder is, and keeps the mask elsewhere", async () => {
+    const tasks = [
+      task("t-1", ["private", "area:deals"]),
+      task("t-2", ["private", "area:deals"]),
+      task("t-3", []),
+    ];
+    const shown = await revealPrivateTitles(tasks, load);
+    assert.deepEqual(
+      shown.map((entry) => entry.title),
+      ["Real title", "Private task in Deals", "Private task in Deals"],
+    );
+    assert.equal(await revealPrivateTitles(tasks, async () => null), tasks);
   });
 });
 

@@ -5,6 +5,7 @@ import type {
   TaskBoardWorkspaceProject,
 } from "@t3tools/contracts";
 
+import type { AreaOption } from "./privateArea.logic";
 import type { TaskView, TriageSuggestion } from "./taskBoard.logic";
 
 /** Everything the Tasks views need to render and act on tasks, supplied by `TasksPage`. */
@@ -16,6 +17,8 @@ export type TaskContext = {
   readonly now: number;
   readonly aiosRoot: string | null;
   readonly projects: ReadonlyArray<TaskBoardWorkspaceProject>;
+  /** The Areas a task can be private in. Empty outside a business workspace. */
+  readonly areas: ReadonlyArray<AreaOption>;
 };
 
 /** Mutations the views can trigger. Every call is fire-and-forget; the page reports failures and refreshes. */
@@ -30,6 +33,8 @@ export type TaskActions = {
   readonly release: (task: TaskView) => void;
   /** Gives the task to a teammate; `null` makes it available to anyone. */
   readonly setAssignee: (task: TaskView, assignee: string | null) => void;
+  /** Makes the task private in an Area (Home keeps a masked row); `null` makes it public. */
+  readonly setPrivateArea: (task: TaskView, area: string | null) => void;
   /** `null` unlinks the task from its project. */
   readonly linkProject: (task: TaskView, slug: string | null) => void;
   /** Publishes the task to (or withdraws it from) its project's shared board. */

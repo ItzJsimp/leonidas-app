@@ -26,6 +26,15 @@ export interface BusinessPack {
       readonly timezone: string;
     },
   ) => number;
+  /** Makes a Home task card private in an Area, or public with null. An error text, or null. */
+  readonly setCardPrivacy: (
+    root: string,
+    file: string,
+    taskId: string,
+    area: string | null,
+  ) => Promise<string | null>;
+  /** The real title of a private task, from its Area folder, or null when it is not here. */
+  readonly readPrivateTitle: (root: string, area: string, taskId: string) => Promise<string | null>;
   readonly decideProposal: (
     root: string,
     githubLogin: string | null,

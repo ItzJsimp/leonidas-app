@@ -68,6 +68,8 @@ import {
   changeOrgForWorkspace,
   decideOrgForWorkspace,
   orgForWorkspace,
+  privacyForWorkspace,
+  revealPrivateTitles,
   scaffoldForSetup,
   teamForWorkspace,
   widgetsForWorkspace,
@@ -1431,7 +1433,8 @@ const make = Effect.gen(function* () {
       const now = yield* Clock.currentTimeMillis;
       const scope = scopeFor(projects, { workspaceId });
       const root = scope.root;
-      const tasks = yield* readLocalCards(projects, now, { workspaceId });
+      const masked = yield* readLocalCards(projects, now, { workspaceId });
+      const tasks = yield* Effect.promise(() => revealPrivateTitles(masked));
       // Only this workspace's projects reach the board, so no other shared board loads.
       const scoped = projects.filter(scope.inScope);
       // A business workspace's Members are its team, so the Owner picker takes them.
@@ -1580,8 +1583,9 @@ const make = Effect.gen(function* () {
       });
     });
 
-  const cardUpdate = (input: TaskBoardCardUpdateInput, projects: ReadonlyArray<Project>) =>
+  const cardUpdate = (requested: TaskBoardCardUpdateInput, projects: ReadonlyArray<Project>) =>
     Effect.gen(function* () {
+      let input: TaskBoardCardUpdateInput = requested;
       const now = yield* Clock.currentTimeMillis;
       const card = (yield* readLocalCards(projects, now, input)).find(
         (candidate) => candidate.id === input.taskId,
@@ -1603,6 +1607,33 @@ const make = Effect.gen(function* () {
           });
         }
         return yield* boardCardUpdate(project, input);
+      }
+      if (requested.privateArea !== undefined) {
+        // The move rewrites the file, so the stale check runs here and not after it.
+        if (
+          requested.expectedUpdatedAt !== undefined &&
+          card.updatedAt !== requested.expectedUpdatedAt
+        ) {
+          return yield* staleRevision();
+        }
+        const { expectedUpdatedAt: _checked, ...unchecked } = requested;
+        input = unchecked;
+        const cardFile = card.sourceFile ? findCardFile(root, card.sourceFile) : null;
+        const problem = cardFile
+          ? yield* Effect.promise(() =>
+              privacyForWorkspace(
+                scope.workspaces,
+                input.workspaceId,
+                cardFile,
+                card.id,
+                input.privateArea ?? null,
+              ),
+            )
+          : "The task card file is missing.";
+        if (problem !== null) {
+          return yield* new TaskBoardOperationError({ reason: "invalid_data", message: problem });
+        }
+        cardReader.invalidate(root);
       }
       const target = mirrorTarget(
         boardProjects,

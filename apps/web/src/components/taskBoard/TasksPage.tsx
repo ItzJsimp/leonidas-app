@@ -22,7 +22,10 @@ import { Spinner } from "~/components/ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { isElectron } from "~/env";
 import { cn } from "~/lib/utils";
-import { taskBoardCardCreate } from "~/state/taskBoard";
+import { usePrimaryEnvironmentId } from "~/state/environments";
+import { useEnvironmentQuery } from "~/state/query";
+import { taskBoardCardCreate, workspaceOrgQuery } from "~/state/taskBoard";
+import { privateAreaOptions } from "./privateArea.logic";
 
 import { TaskCreateDialog } from "./TaskCreateDialog";
 import { TaskDashboardView } from "./TaskDashboard";
@@ -132,7 +135,14 @@ export function TasksPage() {
   const practice = usePracticeActions();
   const inPractice = prefs.section === PRACTICE_SLUG;
   // A workspace file names the AIOS folder, so the old folder prompt is only for setups without one.
-  const { active: activeWorkspace } = useActiveAiosWorkspace();
+  const { active: activeWorkspace, scope, scopeReady } = useActiveAiosWorkspace();
+  const orgEnvironmentId = usePrimaryEnvironmentId();
+  const org = useEnvironmentQuery(
+    orgEnvironmentId && scopeReady
+      ? workspaceOrgQuery({ environmentId: orgEnvironmentId, input: scope })
+      : null,
+  ).data?.org;
+  const areas = useMemo(() => privateAreaOptions(org?.areas ?? []), [org]);
   const board = useTaskBoard({
     selectedSlug: prefs.section,
     prefs,
@@ -192,8 +202,9 @@ export function TasksPage() {
       now: board.now,
       aiosRoot: board.aiosRoot,
       projects: board.projects,
+      areas,
     }),
-    [board.aiosRoot, board.member, board.viewer, board.team, board.now, board.projects],
+    [board.aiosRoot, board.member, board.viewer, board.team, board.now, board.projects, areas],
   );
 
   const selectedTask = selectedId

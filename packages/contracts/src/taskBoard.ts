@@ -313,6 +313,8 @@ export const TaskBoardCardUpdateInput = Schema.Struct({
   effort: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   // Replaces the card's tags.
   labels: Schema.optional(Schema.Array(TrimmedNonEmptyString)),
+  // Business workspace: the Area slug that makes the task private, or `null` to make it public.
+  privateArea: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   // Appended to the card's activity log.
   note: Schema.optional(Schema.String.check(Schema.isMaxLength(4_000))),
 });

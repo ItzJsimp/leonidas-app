@@ -17,6 +17,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { ownerOf, ownerPickerItems, ownerPickerValue } from "./owner.logic";
+import { taskPrivateArea } from "./privateArea.logic";
 import { lazy, memo, Suspense, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Badge } from "~/components/ui/badge";
@@ -60,6 +61,7 @@ const EDITABLE_STATUSES: ReadonlyArray<TaskBoardTaskStatus> = [
 ];
 const PRIORITIES: ReadonlyArray<TaskBoardTaskPriority> = ["critical", "high", "medium", "low"];
 const ANYONE_VALUE = "__anyone__";
+const PUBLIC_VALUE = "__public__";
 
 const HISTORY_VERBS: Record<TaskBoardHistoryEntry["action"], string> = {
   created: "created this",
@@ -185,6 +187,14 @@ function TaskDetailBody(props: {
     label: "Anyone (available to take)",
   });
   const ownerValue = ownerPickerValue(context.team, owner);
+  const privateArea = taskPrivateArea(task);
+  const privateItems = [
+    { value: PUBLIC_VALUE, label: "No (every Member reads it)" },
+    ...context.areas.map((area) => ({ value: area.slug, label: `Private in ${area.name}` })),
+    ...(privateArea && !context.areas.some((area) => area.slug === privateArea)
+      ? [{ value: privateArea, label: `Private in ${privateArea}` }]
+      : []),
+  ];
   const canSend = actions.canSendToAgent(task);
   const canShare = actions.canShare(task);
   const linkedSlug = task.section === "general" ? null : task.section;
@@ -426,6 +436,30 @@ function TaskDetailBody(props: {
               </SelectPopup>
             </Select>
           </Property>
+          {context.areas.length > 0 || privateArea ? (
+            <Property label="Private">
+              <Select
+                value={privateArea ?? PUBLIC_VALUE}
+                items={privateItems}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  const next = value === PUBLIC_VALUE ? null : value;
+                  if (next !== privateArea) actions.setPrivateArea(task, next);
+                }}
+              >
+                <SelectTrigger size="sm" aria-label="Private" disabled={busy || !actions.canEdit}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {privateItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </Property>
+          ) : null}
           <Property label="Taken by">
             {task.claimedBy ? (
               <div className="flex min-w-0 flex-col gap-0.5">

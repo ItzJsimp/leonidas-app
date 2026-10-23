@@ -93,6 +93,67 @@ export async function teamForWorkspace(
     }));
 }
 
+/**
+ * Makes one task of a business workspace private in an Area, or public with null. Returns an
+ * error text for the user, or null when it worked.
+ */
+export async function privacyForWorkspace(
+  workspaces: ReadonlyArray<AiosWorkspaceState>,
+  workspaceId: string | undefined,
+  file: string,
+  taskId: string,
+  area: string | null,
+  load: () => Promise<BusinessPack | null> = loadBusinessPack,
+): Promise<string | null> {
+  const root = businessRoot(workspaces, workspaceId);
+  if (root === null) return "Only a business workspace has private tasks.";
+  try {
+    const pack = await load();
+    return pack
+      ? await pack.setCardPrivacy(root, file, taskId, area)
+      : "This build has no business pack.";
+  } catch {
+    return "Could not change the privacy of this task.";
+  }
+}
+
+interface MaskedTask {
+  readonly id: string;
+  readonly title: string;
+  readonly labels: ReadonlyArray<string>;
+  readonly sourceRoot?: string | undefined;
+}
+
+/**
+ * A private task shows its Area name in Home. On a computer that has the Area folder, the real
+ * title comes back. Any failure keeps the masked title.
+ */
+export async function revealPrivateTitles<T extends MaskedTask>(
+  tasks: ReadonlyArray<T>,
+  load: () => Promise<BusinessPack | null> = loadBusinessPack,
+): Promise<ReadonlyArray<T>> {
+  const areaOf = (task: T) =>
+    task.labels.find((label) => label.startsWith("area:"))?.slice("area:".length);
+  const hidden = tasks.filter(
+    (task) => task.labels.includes("private") && task.sourceRoot && areaOf(task),
+  );
+  if (hidden.length === 0) return tasks;
+  const pack = await load().catch(() => null);
+  if (!pack) return tasks;
+  const titles = new Map<string, string>();
+  await Promise.all(
+    hidden.map(async (task) => {
+      const title = await pack
+        .readPrivateTitle(task.sourceRoot!, areaOf(task)!, task.id)
+        .catch(() => null);
+      if (title) titles.set(task.id, title);
+    }),
+  );
+  return titles.size === 0
+    ? tasks
+    : tasks.map((task) => (titles.has(task.id) ? { ...task, title: titles.get(task.id)! } : task));
+}
+
 /** A change to the org record. The pack decides: apply at once, file a proposal, or refuse. */
 export async function changeOrgForWorkspace(
   workspaces: ReadonlyArray<AiosWorkspaceState>,
