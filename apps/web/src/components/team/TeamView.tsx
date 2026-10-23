@@ -80,11 +80,11 @@ function MemberNode(props: {
           {member.kind === "agent" ? <BotIcon className="size-4" /> : initials(member.name)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">
+          <span className="block text-sm font-medium max-sm:break-words sm:truncate">
             {member.name}
             {isYou ? <span className="ml-1.5 text-xs text-muted-foreground">You</span> : null}
           </span>
-          <span className="block truncate text-xs text-muted-foreground">
+          <span className="block text-xs text-muted-foreground max-sm:break-words sm:truncate">
             {member.kind === "agent" ? `Agent of ${member.owner || "no one"}` : "Person"}
             {" · "}
             {member.status === "invited" ? "Invited" : "Active"}
