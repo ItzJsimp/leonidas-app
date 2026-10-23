@@ -80,7 +80,10 @@ function MemberNode(props: {
           {member.kind === "agent" ? <BotIcon className="size-4" /> : initials(member.name)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium max-sm:break-words sm:truncate">
+          <span
+            title={member.name}
+            className="block text-sm font-medium max-sm:break-words sm:truncate"
+          >
             {member.name}
             {isYou ? <span className="ml-1.5 text-xs text-muted-foreground">You</span> : null}
           </span>
