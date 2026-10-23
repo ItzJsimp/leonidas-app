@@ -1,12 +1,17 @@
 import type { WorkspaceOrg } from "@t3tools/contracts";
-import { BotIcon, PencilIcon, PlusIcon, ShieldIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { Link } from "@tanstack/react-router";
+import { BotIcon, MessageSquareIcon, PencilIcon, PlusIcon, ShieldIcon, XIcon } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogPopup } from "~/components/ui/dialog";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
 import { cn } from "~/lib/utils";
+import { useThreadShells } from "~/state/entities";
 import { usePrimaryEnvironmentId } from "~/state/environments";
+import { buildThreadRouteParams } from "~/threadRoutes";
+import { resolveSidebarThreadStatus } from "../Sidebar.logic";
 import { useEnvironmentQuery } from "~/state/query";
 import { workspaceOrgQuery } from "~/state/taskBoard";
 import { MemberEditor, type EditorTarget } from "./MemberEditor";
@@ -14,6 +19,7 @@ import { RolesEditor } from "./RolesEditor";
 import { InviteCards, WelcomeCard } from "./InviteFlow";
 import { ProposalCards } from "./ProposalCards";
 import { LensWorkList } from "./LensWorkList";
+import { agentStatusLine, agentWork } from "./teamLens.logic";
 import { useTeamLens } from "./TeamLensContext";
 import { useLensWork } from "./useLensWork";
 import {
@@ -40,6 +46,12 @@ const NODE =
 
 type Member = WorkspaceOrg["members"][number];
 
+/** What an agent row shows: one status line, and the chat to open when its task links one. */
+interface AgentRow {
+  readonly line: string;
+  readonly chat: ReturnType<typeof buildThreadRouteParams> | null;
+}
+
 const isLens = (lens: TeamLens, kind: NonNullable<TeamLens>["kind"], slug: string) =>
   lens?.kind === kind && lens.slug === slug;
 
@@ -50,10 +62,11 @@ function MemberNode(props: {
   readonly index: number;
   readonly onLens: (lens: TeamLens) => void;
   readonly onEdit?: ((member: Member) => void) | undefined;
+  readonly agent?: AgentRow | undefined;
   /** The Member who uses this computer, and whether they just joined. */
   readonly you?: { readonly slug: string; readonly lit: boolean } | null | undefined;
 }) {
-  const { member, lens, org, index, onLens, onEdit, you } = props;
+  const { member, lens, org, index, onLens, onEdit, agent, you } = props;
   const isYou = you?.slug === member.slug;
   const active = isLens(lens, "member", member.slug);
   const dimmed = !memberInLens(org, lens, member);
@@ -93,7 +106,7 @@ function MemberNode(props: {
           <span className="block text-xs text-muted-foreground max-sm:break-words sm:truncate">
             {member.kind === "agent" ? `Agent of ${member.owner || "no one"}` : "Person"}
             {" · "}
-            {member.status === "invited" ? "Invited" : "Active"}
+            {agent ? agent.line : member.status === "invited" ? "Invited" : "Active"}
             {Object.keys(member.roles).length > 0
               ? ` · ${Object.entries(member.roles)
                   .map(([area, role]) => `${role} in ${area}`)
@@ -109,6 +122,16 @@ function MemberNode(props: {
           )}
         />
       </button>
+      {agent?.chat ? (
+        <Link
+          to="/$environmentId/$threadId"
+          params={agent.chat}
+          aria-label={`Open the chat of ${member.name}`}
+          className={cn(NODE, "grid w-9 shrink-0 place-items-center hover:bg-accent")}
+        >
+          <MessageSquareIcon aria-hidden className="size-3.5" />
+        </Link>
+      ) : null}
       {onEdit ? (
         <button
           type="button"
@@ -130,9 +153,10 @@ function Group(props: {
   readonly index: number;
   readonly onLens: (lens: TeamLens) => void;
   readonly onEdit?: ((member: Member) => void) | undefined;
+  readonly agents: ReadonlyMap<string, AgentRow>;
   readonly you?: { readonly slug: string; readonly lit: boolean } | null | undefined;
 }) {
-  const { group, org, lens, index, onLens, onEdit, you } = props;
+  const { group, org, lens, index, onLens, onEdit, agents, you } = props;
   const dimmed = !groupInLens(org, lens, group);
   const heading = group.name || "Not in a Department";
   const departmentActive = group.name !== "" && isLens(lens, "department", group.key);
@@ -210,6 +234,7 @@ function Group(props: {
               index={i + 1}
               onLens={onLens}
               onEdit={onEdit}
+              agent={agents.get(member.slug)}
               you={you}
             />
           ))}
@@ -246,6 +271,23 @@ export function TeamView() {
   );
   const { lens, setLens } = useTeamLens();
   const work = useLensWork({ poll: true });
+  const threads = useThreadShells();
+  const agents = useMemo(() => {
+    const rows = new Map<string, AgentRow>();
+    for (const member of work.org?.members ?? []) {
+      if (member.kind !== "agent" || member.status === "removed") continue;
+      const doing = agentWork(member, work.tasks, work.team);
+      const threadId = doing.task?.claimedAgent?.threadId;
+      const thread = threadId ? threads.find((candidate) => candidate.id === threadId) : undefined;
+      rows.set(member.slug, {
+        line: agentStatusLine(doing, thread ? resolveSidebarThreadStatus(thread) : null),
+        chat: thread
+          ? buildThreadRouteParams(scopeThreadRef(thread.environmentId, thread.id))
+          : null,
+      });
+    }
+    return rows;
+  }, [work.org, work.tasks, work.team, threads]);
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [justJoined, setJustJoined] = useState(false);
@@ -353,6 +395,7 @@ export function TeamView() {
             index={i}
             onLens={setLens}
             onEdit={me ? (member) => setEditor({ mode: "edit", member }) : undefined}
+            agents={agents}
           />
         ))}
       </div>

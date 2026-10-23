@@ -1,5 +1,6 @@
 import type { TaskBoardTask, TaskBoardTeamMember, WorkspaceOrg } from "@t3tools/contracts";
 
+import type { SidebarThreadStatus } from "../Sidebar.logic";
 import { isAgentRun, ownerOf } from "../taskBoard/owner.logic";
 import { isOpen } from "../taskBoard/taskBoard.logic";
 import { memberInLens, type TeamLens } from "./teamView.logic";
@@ -113,6 +114,29 @@ export function agentWork<T extends LensTask>(
   if (working) return { state: "working", task: working };
   const blocked = own.find((task) => task.status === "blocked");
   return blocked ? { state: "waiting", task: blocked } : { state: "idle", task: null };
+}
+
+const CHAT_STATE: Record<SidebarThreadStatus, string> = {
+  approval: "Needs permission",
+  input: "Needs your answer",
+  limited: "Usage limit reached",
+  working: "Chat running",
+  waiting: "Waiting for background work",
+  failed: "Chat failed",
+  ready: "Chat idle",
+};
+
+export const chatStateLabel = (status: SidebarThreadStatus): string => CHAT_STATE[status];
+
+/** One plain line for an agent row: what it does, and the state of its chat when one is linked. */
+export function agentStatusLine(
+  work: AgentWork<Pick<LensTask, "title">>,
+  chat: SidebarThreadStatus | null,
+): string {
+  const title = work.task?.title ?? "";
+  if (work.state === "idle") return "Idle";
+  if (work.state === "waiting") return `Waiting: ${title} is blocked`;
+  return chat ? `Working on ${title} · ${chatStateLabel(chat)}` : `Working on ${title}`;
 }
 
 /** The name shown for a lens; the raw slug when the org no longer has it. */

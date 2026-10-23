@@ -2,7 +2,9 @@ import type { TaskBoardTask, TaskBoardTeamMember, WorkspaceOrg } from "@t3tools/
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  agentStatusLine,
   agentWork,
+  chatStateLabel,
   lensCounts,
   lensHome,
   lensLabel,
@@ -186,6 +188,37 @@ describe("agentWork", () => {
       team,
     );
     expect(work.task?.id).toBe("n");
+  });
+});
+
+describe("agentStatusLine", () => {
+  const work = (state: "working" | "waiting" | "idle", title?: string) => ({
+    state,
+    task: title ? task("w", { title }) : null,
+  });
+
+  it("names the task and the chat state of a working agent", () => {
+    expect(agentStatusLine(work("working", "Draft deck"), "approval")).toBe(
+      "Working on Draft deck · Needs permission",
+    );
+  });
+
+  it("omits the chat state when no chat is linked", () => {
+    expect(agentStatusLine(work("working", "Draft deck"), null)).toBe("Working on Draft deck");
+  });
+
+  it("says a waiting agent is blocked and an idle agent is idle", () => {
+    expect(agentStatusLine(work("waiting", "Draft deck"), null)).toBe(
+      "Waiting: Draft deck is blocked",
+    );
+    expect(agentStatusLine(work("idle"), null)).toBe("Idle");
+  });
+
+  it("maps every chat state to plain words", () => {
+    expect(chatStateLabel("limited")).toBe("Usage limit reached");
+    expect(chatStateLabel("input")).toBe("Needs your answer");
+    expect(chatStateLabel("working")).toBe("Chat running");
+    expect(chatStateLabel("ready")).toBe("Chat idle");
   });
 });
 
