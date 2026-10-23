@@ -53,8 +53,8 @@ export function ProposalCards(props: {
             style={{ transitionDelay: `${Math.min(index, 6) * 60}ms` }}
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{proposal.title}</p>
-              <p className="truncate text-xs text-muted-foreground">
+              <p className="text-sm font-medium max-sm:break-words sm:truncate">{proposal.title}</p>
+              <p className="text-xs text-muted-foreground max-sm:break-words sm:truncate">
                 Proposed by {proposal.proposedBy}
               </p>
             </div>
@@ -63,6 +63,7 @@ export function ProposalCards(props: {
                 <Button
                   size="sm"
                   variant="outline"
+                  aria-label={`Reject: ${proposal.title}`}
                   disabled={busyId !== null}
                   onClick={() => void decide(proposal.id, "reject")}
                 >
@@ -70,6 +71,7 @@ export function ProposalCards(props: {
                 </Button>
                 <Button
                   size="sm"
+                  aria-label={`Approve: ${proposal.title}`}
                   disabled={busyId !== null}
                   onClick={() => void decide(proposal.id, "approve")}
                 >
