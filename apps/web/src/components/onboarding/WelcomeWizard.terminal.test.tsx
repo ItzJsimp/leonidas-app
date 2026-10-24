@@ -130,6 +130,20 @@ vi.mock("./LeonidasAiosStep", () => ({
     </button>
   ),
 }));
+vi.mock("./VoiceStep", () => ({
+  VoiceStep: ({ onContinue }: { onContinue: () => void }) => (
+    <button type="button" onClick={onContinue}>
+      Skip voice
+    </button>
+  ),
+}));
+vi.mock("./AiLevelStep", () => ({
+  AiLevelStep: ({ onContinue }: { onContinue: () => void }) => (
+    <button type="button" onClick={onContinue}>
+      Skip level
+    </button>
+  ),
+}));
 vi.mock("./ApiKeysStep", async () => {
   const { useEffect } = await import("react");
   return {
@@ -365,6 +379,8 @@ describe("welcome agent terminal setup", () => {
     expect(state.write).not.toHaveBeenCalled();
     expect(state.close).not.toHaveBeenCalled();
     await click("Continue without an AI");
+    await click("Skip voice");
+    await click("Skip level");
     await click("Skip skills");
     await click("Skip Laya");
     await click("Skip importing projects");
@@ -490,6 +506,8 @@ describe("welcome agent terminal setup", () => {
     expect(hasViewport()).toBe(false);
     expect(state.close).not.toHaveBeenCalled();
     await click("Continue without an AI");
+    await click("Skip voice");
+    await click("Skip level");
     await click("Skip skills");
     await click("Skip Laya");
     expect(text(renderer!.root)).toContain("Import your projects");
