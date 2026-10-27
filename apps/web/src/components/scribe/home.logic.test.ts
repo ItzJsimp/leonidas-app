@@ -4,6 +4,8 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   commandErrorMessage,
   dictateButton,
+  homeShortcuts,
+  liveLine,
   relativeTimeLabel,
   rowMeta,
   shouldRetryHistory,
@@ -11,6 +13,31 @@ import {
 
 const NOW = Date.parse("2026-10-17T12:00:00Z");
 const ago = (ms: number) => new Date(NOW - ms).toISOString();
+
+describe("homeShortcuts", () => {
+  it("lists hold, toggle and rewrite, with the engine rewrite default", () => {
+    const hotkeys = { hold: ["Ctrl + Shift + T"], toggle: ["Mouse5"], cancel: ["Escape"] };
+    expect(homeShortcuts(hotkeys)).toEqual([
+      { label: "Hold to talk", bindings: ["Ctrl + Shift + T"] },
+      { label: "Start and stop", bindings: ["Mouse5"] },
+      { label: "Rewrite selected text", bindings: ["Ctrl + Shift + A"] },
+    ]);
+    expect(homeShortcuts({ ...hotkeys, rewrite: [] } as never)[2]?.bindings).toEqual([]);
+  });
+});
+
+describe("liveLine", () => {
+  it("shows live words, then the last result, and guide text in between", () => {
+    expect(liveLine("listening", "hello", "")).toEqual({ text: "hello", hint: false });
+    expect(liveLine("listening", "", "old")).toEqual({ text: "Listening…", hint: true });
+    expect(liveLine("processing", "", "")).toEqual({ text: "Writing your text…", hint: true });
+    expect(liveLine("ready", "", "Done.")).toEqual({ text: "Done.", hint: false });
+    expect(liveLine(null, "", "")).toEqual({
+      text: "Press Start or a shortcut, then speak.",
+      hint: true,
+    });
+  });
+});
 
 describe("dictateButton", () => {
   it("disables when the engine is stopped or unknown", () => {

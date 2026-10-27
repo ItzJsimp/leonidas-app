@@ -3,24 +3,28 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import type { ScribeHistoryItem } from "@t3tools/contracts";
-import { ChevronDownIcon, ChevronRightIcon, CopyIcon, MicIcon, Trash2Icon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, MicIcon, Trash2Icon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { scribeDeleteHistory, scribeListHistoryPage } from "~/state/scribe";
 import { useAtomCommand } from "~/state/use-atom-command";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
 import { toastManager } from "../ui/toast";
 import { commandErrorReason } from "./home.logic";
+import { CopyButton } from "./ScribeParts";
 import type { ScribeTabProps } from "./ScribePage";
 import {
   DAYS_PER_PAGE,
   dayLabel,
+  daySummary,
   groupByDay,
   mergeTranscripts,
   moreDaysLabel,
+  rewriteLabel,
   timeLabel,
   visibleDayItems,
   type DayGroup,
@@ -357,7 +361,7 @@ function DaySection(props: {
         type="button"
         aria-expanded={!props.collapsed}
         onClick={props.onToggleCollapsed}
-        className="flex items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-accent/50"
+        className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md px-1 py-1 text-left outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring"
       >
         {props.collapsed ? (
           <ChevronRightIcon aria-hidden className="size-4" />
@@ -365,9 +369,8 @@ function DaySection(props: {
           <ChevronDownIcon aria-hidden className="size-4" />
         )}
         <span className="text-sm font-medium">{label}</span>
-        <span className="ms-auto text-xs text-muted-foreground">
-          {count} {count === 1 ? "dictation" : "dictations"} · {group.words.toLocaleString("en-US")}{" "}
-          words
+        <span className="ms-auto text-xs text-muted-foreground tabular-nums">
+          {daySummary(group)}
         </span>
       </button>
       {props.collapsed ? null : (
@@ -397,7 +400,11 @@ function TranscriptCard(props: {
   readonly onDelete: (id: string) => void;
 }) {
   const { item } = props;
-  const text = props.showRaw ? item.rawText || item.cleanedText : item.cleanedText;
+  const rewrite = rewriteLabel(item);
+  // A rewrite always shows its result first and the original selection below it.
+  const text =
+    props.showRaw && rewrite === null ? item.rawText || item.cleanedText : item.cleanedText;
+  const noun = rewrite === null ? "dictation" : "rewrite";
   const meta = [
     timeLabel(item.at),
     item.app.trim(),
@@ -409,20 +416,28 @@ function TranscriptCard(props: {
     <li className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
       <div className="min-w-0 flex-1">
         <p className="text-sm whitespace-pre-wrap">{text}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{meta}</p>
+        {rewrite !== null && item.rawText.trim() ? (
+          <div className="mt-2 rounded-md bg-muted/50 px-2.5 py-2">
+            <p className="text-xs font-medium text-muted-foreground">Original</p>
+            <p className="mt-0.5 line-clamp-4 text-sm whitespace-pre-wrap text-muted-foreground">
+              {item.rawText}
+            </p>
+          </div>
+        ) : null}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {rewrite !== null ? (
+            <Badge variant="info" size="sm">
+              {rewrite}
+            </Badge>
+          ) : null}
+          <p className="text-xs text-muted-foreground">{meta}</p>
+        </div>
       </div>
+      <CopyButton text={text} label={`Copy ${noun}`} />
       <Button
         size="icon-sm"
         variant="ghost"
-        aria-label="Copy dictation"
-        onClick={() => void navigator.clipboard.writeText(text)}
-      >
-        <CopyIcon aria-hidden />
-      </Button>
-      <Button
-        size="icon-sm"
-        variant="ghost"
-        aria-label="Delete dictation"
+        aria-label={`Delete ${noun}`}
         onClick={() => props.onDelete(item.id)}
       >
         <Trash2Icon aria-hidden />

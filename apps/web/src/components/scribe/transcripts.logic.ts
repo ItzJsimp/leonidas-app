@@ -9,6 +9,21 @@ export interface DayGroup {
   readonly day: string;
   readonly items: readonly ScribeHistoryItem[];
   readonly words: number;
+  readonly rewrites: number;
+}
+
+/** "3 dictations · 1 rewrite · 120 words" for a day header. */
+export function daySummary(group: DayGroup): string {
+  const dictations = group.items.length - group.rewrites;
+  const parts = [];
+  if (dictations > 0 || group.rewrites === 0) {
+    parts.push(`${dictations} ${dictations === 1 ? "dictation" : "dictations"}`);
+  }
+  if (group.rewrites > 0) {
+    parts.push(`${group.rewrites} ${group.rewrites === 1 ? "rewrite" : "rewrites"}`);
+  }
+  parts.push(`${group.words.toLocaleString("en-US")} ${group.words === 1 ? "word" : "words"}`);
+  return parts.join(" · ");
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -43,8 +58,22 @@ export function dayLabel(day: string, today: Date = new Date()): string {
   return `${weekday}, ${month} ${ordinal(date.getDate())}, ${date.getFullYear()}`;
 }
 
-/** Spoken words: the raw words, or the cleaned words when the raw text is empty. */
+/** A rewrite of selected text (contract v1.4): `rawText` is the selection, `cleanedText` the result. */
+export function isRewrite(item: ScribeHistoryItem): boolean {
+  return item.mode === "rewrite";
+}
+
+/** "Rewrite: Shorter", or "Rewrite" when the item has no preset name. Null for a dictation. */
+export function rewriteLabel(item: ScribeHistoryItem): string | null {
+  if (!isRewrite(item)) return null;
+  // `preset` is optional and not in the shared contract yet, so read it defensively.
+  const preset: unknown = (item as { preset?: unknown }).preset;
+  return typeof preset === "string" && preset.trim() ? `Rewrite: ${preset.trim()}` : "Rewrite";
+}
+
+/** Spoken words: the raw words, or the cleaned words when the raw text is empty. A rewrite has none. */
 export function spokenWords(item: ScribeHistoryItem): number {
+  if (isRewrite(item)) return 0;
   const text = item.rawText.trim() ? item.rawText : item.cleanedText;
   return text.replaceAll("⏸", " ").split(/\s+/).filter(Boolean).length;
 }
@@ -59,7 +88,7 @@ export function groupByDay(
   hidden: ReadonlySet<string>,
 ): DayGroup[] {
   const needle = query.trim().toLowerCase();
-  const groups = new Map<string, { items: ScribeHistoryItem[]; words: number }>();
+  const groups = new Map<string, { items: ScribeHistoryItem[]; words: number; rewrites: number }>();
   for (const item of items) {
     if (hidden.has(item.id)) continue;
     if (
@@ -70,9 +99,10 @@ export function groupByDay(
       continue;
     }
     const key = dayKey(item.at);
-    const group = groups.get(key) ?? { items: [], words: 0 };
+    const group = groups.get(key) ?? { items: [], words: 0, rewrites: 0 };
     group.items.push(item);
     group.words += spokenWords(item);
+    if (isRewrite(item)) group.rewrites += 1;
     groups.set(key, group);
   }
   return [...groups].map(([day, group]) => ({ day, ...group }));

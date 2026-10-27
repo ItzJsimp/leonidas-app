@@ -19,6 +19,7 @@ import * as SystemCare from "./hardwareWatch/SystemCare.ts";
 import * as PromptPrediction from "./workspace/PromptPrediction.ts";
 import * as VoiceDictation from "./scribe/VoiceDictation.ts";
 import * as ScribeEngine from "./scribe/ScribeEngine.ts";
+import * as ScribeStats from "./scribe/scribeStats.ts";
 import * as ScribeStatus from "./scribe/ScribeStatus.ts";
 import * as ScribeSupervisor from "./scribe/ScribeSupervisor.ts";
 import { readLayaUsage } from "./laya/layaUsage.ts";
@@ -3355,6 +3356,8 @@ const layerWsRpc = (
         [WS_METHODS.scribeStop]: (input) => scribeEngine.stop(input),
         [WS_METHODS.scribeListHistory]: (input) => scribeEngine.listHistory(input),
         [WS_METHODS.scribeDeleteHistory]: (input) => scribeEngine.deleteHistory(input),
+        [WS_METHODS.scribeGetInsights]: (input) => ScribeStats.getInsights(scribeEngine, input),
+        [WS_METHODS.scribeGetGoals]: (input) => ScribeStats.getGoals(scribeEngine, input),
         [WS_METHODS.scribeGetDictionary]: () => scribeEngine.getDictionary,
         [WS_METHODS.scribePutDictionary]: (input) => scribeEngine.putDictionary(input),
         [WS_METHODS.scribeListSuggestions]: () => scribeEngine.listSuggestions,

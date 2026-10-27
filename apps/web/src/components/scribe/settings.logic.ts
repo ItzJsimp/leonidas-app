@@ -3,9 +3,27 @@ import type { ScribeSettings } from "@t3tools/contracts";
 type Sections = ScribeSettings["sections"];
 type Transcription = Sections["transcription"];
 
+/** The engine binds this when the settings carry no `rewrite` list (contract v1.4). */
+export const DEFAULT_REWRITE_KEY = "Ctrl + Shift + A";
+
+/** The rewrite shortcuts. A missing list means the engine default; an empty list means none. */
+export function rewriteBindings(hotkeys: Sections["hotkeys"]): string[] {
+  const value: unknown = (hotkeys as { rewrite?: unknown }).rewrite;
+  if (!Array.isArray(value)) return [DEFAULT_REWRITE_KEY];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+/** "Ctrl + Shift + A" as its key caps: ["Ctrl", "Shift", "A"]. */
+export function bindingKeys(binding: string): string[] {
+  return binding
+    .split("+")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 /** What the page edits. The Groq key is never part of it: it has its own commands. */
 export interface SettingsDraft {
-  hotkeys: { hold: string[]; toggle: string[]; cancel: string[] };
+  hotkeys: { hold: string[]; toggle: string[]; cancel: string[]; rewrite: string[] };
   audio: { -readonly [K in keyof Sections["audio"]]: Sections["audio"][K] };
   transcription: { -readonly [K in keyof Omit<Transcription, "groqKey">]: Transcription[K] };
   hud: { -readonly [K in keyof Sections["hud"]]: Sections["hud"][K] };
@@ -15,7 +33,12 @@ export function toDraft(settings: ScribeSettings): SettingsDraft {
   const { hotkeys, audio, transcription, hud } = settings.sections;
   const { groqKey: _groqKey, ...rest } = transcription;
   return structuredClone({
-    hotkeys: { hold: [...hotkeys.hold], toggle: [...hotkeys.toggle], cancel: [...hotkeys.cancel] },
+    hotkeys: {
+      hold: [...hotkeys.hold],
+      toggle: [...hotkeys.toggle],
+      cancel: [...hotkeys.cancel],
+      rewrite: rewriteBindings(hotkeys),
+    },
     audio,
     transcription: rest,
     hud,

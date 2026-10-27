@@ -5,12 +5,14 @@ import {
   addBinding,
   bindingFromKey,
   bindingFromMouse,
+  bindingKeys,
   checkGroqKey,
   clampMaxRecordSeconds,
   diffDraft,
   modelChoices,
   removeBinding,
   restartMessage,
+  rewriteBindings,
   settingsErrorMessage,
   toDraft,
   validateBinding,
@@ -65,6 +67,29 @@ describe("diffDraft", () => {
     expect(diffDraft(draft, back)).toEqual([
       { section: "transcription", values: { polishInstructions: null } },
     ]);
+  });
+});
+
+describe("rewrite shortcut", () => {
+  it("uses the engine default when the settings have no rewrite list", () => {
+    expect(toDraft(settings).hotkeys.rewrite).toEqual(["Ctrl + Shift + A"]);
+    const hotkeys = { ...settings.sections.hotkeys, rewrite: [] };
+    expect(rewriteBindings(hotkeys)).toEqual([]);
+    expect(rewriteBindings({ ...hotkeys, rewrite: ["F9", 3] } as never)).toEqual(["F9"]);
+  });
+
+  it("sends a changed rewrite list in the hotkeys patch", () => {
+    const saved = toDraft(settings);
+    const draft = structuredClone(saved);
+    draft.hotkeys.rewrite = ["Ctrl + Alt + R"];
+    expect(diffDraft(saved, draft)).toEqual([
+      { section: "hotkeys", values: { rewrite: ["Ctrl + Alt + R"] } },
+    ]);
+  });
+
+  it("splits a shortcut into key caps", () => {
+    expect(bindingKeys("Ctrl + Shift + A")).toEqual(["Ctrl", "Shift", "A"]);
+    expect(bindingKeys("Mouse5")).toEqual(["Mouse5"]);
   });
 });
 

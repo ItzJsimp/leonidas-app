@@ -16,6 +16,7 @@ export type ScribeRecordMode = typeof ScribeRecordMode.Type;
 export const ScribeHistoryItem = Schema.Struct({
   id: Schema.String,
   at: Schema.String,
+  // `rewrite` is a preset rewrite. A plain string, so one unknown mode cannot break the whole page.
   mode: Schema.String,
   app: Schema.String,
   rawText: Schema.String,
@@ -27,6 +28,7 @@ export const ScribeHistoryItem = Schema.Struct({
     totalMs: Schema.Number,
   }),
   pasted: Schema.Boolean,
+  preset: Schema.optional(Schema.String),
 });
 export type ScribeHistoryItem = typeof ScribeHistoryItem.Type;
 
@@ -102,6 +104,112 @@ export type ScribeDeleteHistoryInput = typeof ScribeDeleteHistoryInput.Type;
 
 export const ScribeDeleteHistoryResult = Schema.Struct({ deleted: Schema.Literal(true) });
 export type ScribeDeleteHistoryResult = typeof ScribeDeleteHistoryResult.Type;
+
+/** `timeZone` is an IANA name such as `America/Phoenix`. The server falls back to its own zone. */
+export const ScribeStatsInput = Schema.Struct({
+  timeZone: Schema.optional(Schema.String.check(Schema.isMaxLength(64))),
+});
+export type ScribeStatsInput = typeof ScribeStatsInput.Type;
+
+const ScribeCount = Schema.Struct({ key: Schema.String, count: Schema.Number });
+
+/**
+ * Computed by the server from `GET /v1/history` (port of the Python `load_insights`).
+ * Days are local `YYYY-MM-DD`. `truncated` is true when more history exists than the 5,000 rows read.
+ */
+export const ScribeInsights = Schema.Struct({
+  words: Schema.Number,
+  transcripts: Schema.Number,
+  daysActive: Schema.Number,
+  firstDay: Schema.NullOr(Schema.String),
+  lastDay: Schema.NullOr(Schema.String),
+  todayWords: Schema.Number,
+  todayTranscripts: Schema.Number,
+  streakDays: Schema.Number,
+  weekAvgWords: Schema.Number,
+  weekly: Schema.Struct({
+    words: Schema.Number,
+    prevWords: Schema.Number,
+    transcripts: Schema.Number,
+    prevTranscripts: Schema.Number,
+    p50: Schema.Number,
+    prevP50: Schema.Number,
+    topApp: Schema.String,
+    days: Schema.Array(Schema.Struct({ day: Schema.String, words: Schema.Number })),
+  }),
+  latencySamples: Schema.Number,
+  p50: Schema.Number,
+  p90: Schema.Number,
+  sttP50: Schema.Number,
+  polishP50: Schema.Number,
+  sttShare: Schema.Number,
+  polishShare: Schema.Number,
+  byDay: Schema.Record(Schema.String, Schema.Number),
+  byMode: Schema.Array(ScribeCount),
+  byApp: Schema.Array(ScribeCount),
+  truncated: Schema.Boolean,
+});
+export type ScribeInsights = typeof ScribeInsights.Type;
+
+/** Computed by the server from `GET /v1/history` (port of the Python `goals.compute`). */
+export const ScribeGoals = Schema.Struct({
+  xp: Schema.Number,
+  level: Schema.Number,
+  rank: Schema.String,
+  levelFloor: Schema.Number,
+  levelCeil: Schema.Number,
+  levelFrac: Schema.Number,
+  nextRank: Schema.NullOr(Schema.Struct({ level: Schema.Number, name: Schema.String })),
+  today: Schema.Struct({
+    day: Schema.String,
+    words: Schema.Number,
+    goal: Schema.Number,
+    deep: Schema.Number,
+    deepGoal: Schema.Number,
+    xp: Schema.Number,
+    dictations: Schema.Number,
+  }),
+  quests: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      title: Schema.String,
+      desc: Schema.String,
+      have: Schema.Number,
+      need: Schema.Number,
+      done: Schema.Boolean,
+      xp: Schema.Number,
+    }),
+  ),
+  questsDone: Schema.Number,
+  streak: Schema.Number,
+  bestStreak: Schema.Number,
+  depth7d: Schema.Number,
+  depthPrev: Schema.Number,
+  metrics: Schema.Struct({
+    dictations: Schema.Number,
+    words: Schema.Number,
+    longestPrompt: Schema.Number,
+    bestStreak: Schema.Number,
+    bestDay: Schema.Number,
+    agentApps: Schema.Number,
+    deepPrompts: Schema.Number,
+    sweeps: Schema.Number,
+  }),
+  achievements: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      name: Schema.String,
+      how: Schema.String,
+      glyph: Schema.String,
+      key: Schema.String,
+      have: Schema.Number,
+      need: Schema.Number,
+      unlocked: Schema.Boolean,
+    }),
+  ),
+  truncated: Schema.Boolean,
+});
+export type ScribeGoals = typeof ScribeGoals.Type;
 
 /** Contract v1.2 `GET` and `PUT /v1/dictionary`. The engine allows at most 800 vocabulary words. */
 export const ScribeDictionary = Schema.Struct({

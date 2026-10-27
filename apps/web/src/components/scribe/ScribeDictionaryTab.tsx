@@ -133,7 +133,7 @@ export function ScribeDictionaryTab({ environmentId, live }: ScribeTabProps) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        Word fixes change a wrong word after clean up. Words to know help Scribe hear names and
+        Word fixes replace a word Scribe gets wrong. Words to know help Scribe hear names and
         special terms.
       </p>
       <ToggleGroup
@@ -472,8 +472,8 @@ function SuggestionsPane(props: {
 
 function EmptyLine(props: { readonly title: string; readonly body: string }) {
   return (
-    <div className="text-sm">
-      <p>{props.title}</p>
+    <div className="rounded-lg border border-dashed border-border p-4 text-sm">
+      <p className="font-medium">{props.title}</p>
       <p className="text-muted-foreground">{props.body}</p>
     </div>
   );

@@ -6,9 +6,11 @@ import {
   ITEMS_PER_DAY,
   dayKey,
   dayLabel,
+  daySummary,
   groupByDay,
   mergeTranscripts,
   moreDaysLabel,
+  rewriteLabel,
   spokenWords,
   timeLabel,
   visibleDayItems,
@@ -96,6 +98,37 @@ describe("groupByDay", () => {
     const groups = groupByDay(items, "", new Set(["c"]));
     expect(groups.map((g) => g.day)).toEqual(["2026-09-25"]);
     expect(groupByDay(items, "", new Set(["a", "b", "c"]))).toEqual([]);
+  });
+});
+
+describe("rewrites", () => {
+  const rewrite = (id: string, preset?: string): ScribeHistoryItem =>
+    ({
+      ...item(id, local(2026, 9, 25, 10), "the old words here", "New words."),
+      mode: "rewrite",
+      ...(preset === undefined ? {} : { preset }),
+    }) as ScribeHistoryItem;
+
+  it("labels a rewrite with its preset and leaves a dictation alone", () => {
+    expect(rewriteLabel(rewrite("r1", "Shorter"))).toBe("Rewrite: Shorter");
+    expect(rewriteLabel(rewrite("r2"))).toBe("Rewrite");
+    expect(rewriteLabel(rewrite("r3", "  "))).toBe("Rewrite");
+    expect(rewriteLabel(item("d", local(2026, 9, 25), "a", "A."))).toBeNull();
+  });
+
+  it("counts a rewrite apart and adds no spoken words for it", () => {
+    const [group] = groupByDay(
+      [rewrite("r1", "Clarity"), item("d", local(2026, 9, 25, 9), "hello there", "Hello there.")],
+      "",
+      new Set(),
+    );
+    expect(spokenWords(rewrite("r1"))).toBe(0);
+    expect(group).toMatchObject({ words: 2, rewrites: 1 });
+    expect(daySummary(group!)).toBe("1 dictation · 1 rewrite · 2 words");
+    expect(daySummary({ day: "", items: [rewrite("r1")], words: 0, rewrites: 1 })).toBe(
+      "1 rewrite · 0 words",
+    );
+    expect(daySummary({ day: "", items: [], words: 1, rewrites: 0 })).toBe("0 dictations · 1 word");
   });
 });
 

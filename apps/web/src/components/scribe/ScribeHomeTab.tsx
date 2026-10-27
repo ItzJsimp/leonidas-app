@@ -4,17 +4,28 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import type { ScribeHistoryItem } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
-import { CopyIcon, MicIcon, SquareIcon } from "lucide-react";
+import { MicIcon, SquareIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { cn } from "~/lib/utils";
 import { useEnvironmentQuery } from "~/state/query";
-import { scribeHistoryQuery, scribeStart, scribeStop } from "~/state/scribe";
+import { scribeHistoryQuery, scribeSettingsQuery, scribeStart, scribeStop } from "~/state/scribe";
 import { useAtomCommand } from "~/state/use-atom-command";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
-import { commandErrorMessage, dictateButton, rowMeta, shouldRetryHistory } from "./home.logic";
+import {
+  commandErrorMessage,
+  dictateButton,
+  homeShortcuts,
+  liveLine,
+  rowMeta,
+  shouldRetryHistory,
+} from "./home.logic";
+import { CopyButton, KeyCaps } from "./ScribeParts";
 import type { ScribeTabProps } from "./ScribePage";
 import { mergeRecent } from "./scribeLive.logic";
+import { rewriteLabel } from "./transcripts.logic";
 
 export function ScribeHomeTab({ environmentId, live }: ScribeTabProps) {
   const history = useEnvironmentQuery(scribeHistoryQuery({ environmentId, input: { limit: 20 } }));
@@ -28,12 +39,12 @@ export function ScribeHomeTab({ environmentId, live }: ScribeTabProps) {
     previousConnected.current = live.connected;
   }, [live.connected, historyFailed, refresh]);
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <DictateCard environmentId={environmentId} live={live} />
       {live.connected === false ? null : (
         <section aria-labelledby="scribe-recent" className="flex flex-col gap-2">
-          <h2 id="scribe-recent" className="text-sm font-medium">
-            Recent dictations
+          <h2 id="scribe-recent" className="text-base font-semibold">
+            Recent
           </h2>
           <RecentList
             items={items}
@@ -72,35 +83,75 @@ function DictateCard({ environmentId, live }: ScribeTabProps) {
   };
 
   const message = live.connected === false ? "Scribe engine is not running." : error;
+  const line = liveLine(live.state, live.partial, live.lastTranscript);
   return (
-    <section
-      aria-label="Dictate"
-      className="flex flex-col items-start gap-3 rounded-lg border border-border bg-card p-5"
-    >
-      <Button
-        size="xl"
-        variant={button.action === "stop" ? "destructive" : "default"}
-        disabled={button.disabled || busy || !allowed}
-        onClick={() => void press()}
-      >
-        {button.action === "stop" ? <SquareIcon aria-hidden /> : <MicIcon aria-hidden />}
-        {button.label}
-      </Button>
-      {message ? (
-        <p role="alert" className="text-sm text-muted-foreground">
-          {message}
-        </p>
-      ) : null}
-      {live.lastError ? (
-        <div role="alert" className="text-sm">
-          <p className="font-medium">Microphone problem</p>
-          <p className="text-muted-foreground">{live.lastError.message}</p>
+    <section aria-label="Dictate" className="rounded-lg border border-border bg-card">
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
+        <Button
+          size="xl"
+          className="sm:min-w-32"
+          variant={button.action === "stop" ? "destructive" : "default"}
+          disabled={button.disabled || busy || !allowed}
+          onClick={() => void press()}
+        >
+          {button.action === "stop" ? <SquareIcon aria-hidden /> : <MicIcon aria-hidden />}
+          {button.label}
+        </Button>
+        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:pt-2.5">
+          <p
+            aria-live="polite"
+            className={cn(
+              "line-clamp-4 text-sm",
+              line.hint ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {line.text}
+          </p>
+          {message ? (
+            <p role="alert" className="text-sm text-destructive-foreground">
+              {message}
+            </p>
+          ) : null}
+          {live.lastError ? (
+            <div role="alert" className="text-sm">
+              <p className="font-medium">Microphone problem</p>
+              <p className="text-muted-foreground">{live.lastError.message}</p>
+            </div>
+          ) : null}
         </div>
-      ) : null}
-      <p aria-live="polite" className="min-h-5 text-sm text-muted-foreground">
-        {live.state === "listening" ? live.partial : live.lastTranscript}
-      </p>
+      </div>
+      <Shortcuts environmentId={environmentId} />
     </section>
+  );
+}
+
+/** The shortcuts as key caps, so a new user finds them without the Settings tab. */
+function Shortcuts(props: { readonly environmentId: ScribeTabProps["environmentId"] }) {
+  const settings = useEnvironmentQuery(
+    scribeSettingsQuery({ environmentId: props.environmentId, input: {} }),
+  ).data;
+  // Hidden until the settings load, so the card does not jump or show wrong keys.
+  if (settings === null) return null;
+  return (
+    <dl className="grid gap-x-6 gap-y-3 border-t border-border/60 px-5 py-4 sm:grid-cols-3">
+      {homeShortcuts(settings.sections.hotkeys).map((row) => (
+        <div key={row.label} className="flex min-w-0 flex-col gap-1.5">
+          <dt className="text-xs text-muted-foreground">{row.label}</dt>
+          <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {row.bindings.length === 0 ? (
+              <span className="text-sm text-muted-foreground">Not set</span>
+            ) : (
+              row.bindings.map((binding, index) => (
+                <span key={binding} className="inline-flex items-center gap-2">
+                  {index > 0 ? <span className="text-xs text-muted-foreground">or</span> : null}
+                  <KeyCaps binding={binding} />
+                </span>
+              ))
+            )}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -129,7 +180,7 @@ function RecentList(props: {
   }
   if (props.failed) {
     return (
-      <div className="flex flex-col items-start gap-2 text-sm">
+      <div className="flex flex-col items-start gap-2 text-sm" role="alert">
         <p>Could not load your dictations.</p>
         <Button size="sm" variant="outline" onClick={props.onRetry}>
           Try again
@@ -139,7 +190,7 @@ function RecentList(props: {
   }
   if (props.items.length === 0) {
     return (
-      <div className="text-sm">
+      <div className="rounded-lg border border-dashed border-border p-4 text-sm">
         <p>No dictations yet.</p>
         <p className="text-muted-foreground">Press Start, speak, then press Stop.</p>
       </div>
@@ -147,25 +198,31 @@ function RecentList(props: {
   }
   return (
     <ul className="flex flex-col gap-2">
-      {props.items.map((item) => (
-        <li
-          key={item.id}
-          className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="line-clamp-3 text-sm">{item.cleanedText}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{rowMeta(item, now)}</p>
-          </div>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label="Copy dictation"
-            onClick={() => void navigator.clipboard.writeText(item.cleanedText)}
+      {props.items.map((item) => {
+        const rewrite = rewriteLabel(item);
+        return (
+          <li
+            key={item.id}
+            className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
           >
-            <CopyIcon aria-hidden />
-          </Button>
-        </li>
-      ))}
+            <div className="min-w-0 flex-1">
+              <p className="line-clamp-3 text-sm">{item.cleanedText}</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {rewrite !== null ? (
+                  <Badge variant="info" size="sm">
+                    {rewrite}
+                  </Badge>
+                ) : null}
+                <p className="text-xs text-muted-foreground">{rowMeta(item, now)}</p>
+              </div>
+            </div>
+            <CopyButton
+              text={item.cleanedText}
+              label={rewrite === null ? "Copy dictation" : "Copy rewrite"}
+            />
+          </li>
+        );
+      })}
     </ul>
   );
 }

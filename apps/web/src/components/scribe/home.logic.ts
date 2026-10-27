@@ -1,4 +1,35 @@
-import type { ScribeEngineState, ScribeHistoryItem } from "@t3tools/contracts";
+import type { ScribeEngineState, ScribeHistoryItem, ScribeSettings } from "@t3tools/contracts";
+
+import { rewriteBindings } from "./settings.logic";
+
+export interface ShortcutRow {
+  readonly label: string;
+  readonly bindings: readonly string[];
+}
+
+/** The shortcuts Home shows as key caps, in the order a new user needs them. */
+export function homeShortcuts(hotkeys: ScribeSettings["sections"]["hotkeys"]): ShortcutRow[] {
+  return [
+    { label: "Hold to talk", bindings: hotkeys.hold },
+    { label: "Start and stop", bindings: hotkeys.toggle },
+    { label: "Rewrite selected text", bindings: rewriteBindings(hotkeys) },
+  ];
+}
+
+/** The line under the dictate button. `hint` is true for guide text, false for real words. */
+export function liveLine(
+  state: ScribeEngineState | null,
+  partial: string,
+  lastTranscript: string,
+): { readonly text: string; readonly hint: boolean } {
+  if (state === "listening") {
+    return partial ? { text: partial, hint: false } : { text: "Listening…", hint: true };
+  }
+  if (state === "processing") return { text: "Writing your text…", hint: true };
+  return lastTranscript
+    ? { text: lastTranscript, hint: false }
+    : { text: "Press Start or a shortcut, then speak.", hint: true };
+}
 
 export interface DictateButtonModel {
   readonly label: string;

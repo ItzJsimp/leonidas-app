@@ -10,6 +10,7 @@ import { SidebarInset } from "../ui/sidebar";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { ScribeDictionaryTab } from "./ScribeDictionaryTab";
 import { ScribeHomeTab } from "./ScribeHomeTab";
+import { ScribeRewriteTab } from "./ScribeRewriteTab";
 import { ScribeSettingsTab } from "./ScribeSettingsTab";
 import { ScribeTranscriptsTab } from "./ScribeTranscriptsTab";
 import { INITIAL_SCRIBE_LIVE, engineStrip, type ScribeLiveSnapshot } from "./scribeLive.logic";
@@ -24,6 +25,7 @@ const TABS = [
   { id: "home", label: "Home", render: ScribeHomeTab },
   { id: "transcripts", label: "Transcripts", render: ScribeTranscriptsTab },
   { id: "dictionary", label: "Dictionary", render: ScribeDictionaryTab },
+  { id: "rewrite", label: "Rewrite", render: ScribeRewriteTab },
   { id: "settings", label: "Settings", render: ScribeSettingsTab },
 ] as const;
 
@@ -76,38 +78,41 @@ function ScribeBody(props: {
   const Tab = active.render;
   return (
     <>
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <div className="min-w-0 flex-1">
+      <header className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Scribe</h1>
-          <p className="text-sm text-muted-foreground">
-            Speak instead of type. Scribe writes what you say into the window you use.
-          </p>
+          <Badge
+            variant={strip.tone === "muted" ? "outline" : strip.tone}
+            size="lg"
+            aria-live="polite"
+          >
+            {strip.label}
+          </Badge>
         </div>
-        <Badge
-          variant={strip.tone === "muted" ? "outline" : strip.tone}
-          size="lg"
-          aria-live="polite"
-        >
-          {strip.label}
-        </Badge>
+        <p className="text-sm text-muted-foreground">
+          Speak instead of typing, and rewrite any text you select.
+        </p>
       </header>
 
       {TABS.length > 1 ? (
-        <ToggleGroup
-          aria-label="Scribe pages"
-          className="w-full *:flex-1 *:pointer-coarse:min-h-11 sm:w-auto sm:*:min-w-24"
-          value={[active.id]}
-          onValueChange={(next) => {
-            const tab = next[0];
-            if (isScribeTabId(tab)) props.onTabChange(tab);
-          }}
-        >
-          {TABS.map((tab) => (
-            <Toggle key={tab.id} value={tab.id}>
-              {tab.label}
-            </Toggle>
-          ))}
-        </ToggleGroup>
+        // Scrolls sideways on a narrow screen, so more tabs can join the strip.
+        <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+          <ToggleGroup
+            aria-label="Scribe pages"
+            className="w-max min-w-full *:shrink-0 *:flex-1 *:pointer-coarse:min-h-11 sm:min-w-0 sm:*:min-w-24"
+            value={[active.id]}
+            onValueChange={(next) => {
+              const tab = next[0];
+              if (isScribeTabId(tab)) props.onTabChange(tab);
+            }}
+          >
+            {TABS.map((tab) => (
+              <Toggle key={tab.id} value={tab.id}>
+                {tab.label}
+              </Toggle>
+            ))}
+          </ToggleGroup>
+        </div>
       ) : null}
 
       <Tab environmentId={props.environmentId} live={live} />

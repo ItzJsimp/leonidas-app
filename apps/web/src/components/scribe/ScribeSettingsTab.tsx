@@ -25,6 +25,7 @@ import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { toastManager } from "../ui/toast";
 import { commandErrorReason } from "./home.logic";
+import { KeyCaps } from "./ScribeParts";
 import type { ScribeTabProps } from "./ScribePage";
 import {
   addBinding,
@@ -53,6 +54,11 @@ const HOTKEY_ROWS = [
   { key: "hold", label: "Hold to talk", hint: "Speak while the shortcut is held down." },
   { key: "toggle", label: "Press to start and stop", hint: "Press once to start, again to stop." },
   { key: "cancel", label: "Cancel", hint: "Throws away the recording in progress." },
+  {
+    key: "rewrite",
+    label: "Rewrite selected text",
+    hint: "Opens the preset picker for the text you selected.",
+  },
 ] as const;
 
 export function ScribeSettingsTab({ environmentId, live }: ScribeTabProps) {
@@ -500,9 +506,9 @@ function HotkeyRow(props: {
         {list.map((binding) => (
           <span
             key={binding}
-            className="inline-flex items-center gap-1 rounded-md border bg-muted/40 py-1 pl-2 pr-1 text-sm"
+            className="inline-flex items-center gap-1 rounded-md border bg-muted/40 py-0.5 pl-1.5 pr-0.5"
           >
-            {binding}
+            <KeyCaps binding={binding} />
             <Button
               size="icon-xs"
               variant="ghost"
@@ -536,9 +542,10 @@ function HotkeyRow(props: {
           type="button"
           size="sm"
           variant={recording ? "default" : "outline"}
+          aria-pressed={recording}
           onClick={() => setRecording((value) => !value)}
         >
-          {recording ? "Press a key… (click to stop)" : "Record"}
+          {recording ? "Press the keys now" : "Record"}
         </Button>
       </form>
     </div>

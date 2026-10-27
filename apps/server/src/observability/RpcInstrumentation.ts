@@ -84,6 +84,8 @@ const RPC_AGGREGATES = {
   [WS_METHODS.scribeGetStatus]: "scribe",
   [WS_METHODS.scribeListHistory]: "scribe",
   [WS_METHODS.scribeDeleteHistory]: "scribe",
+  [WS_METHODS.scribeGetInsights]: "scribe",
+  [WS_METHODS.scribeGetGoals]: "scribe",
   [WS_METHODS.scribeGetDictionary]: "scribe",
   [WS_METHODS.scribePutDictionary]: "scribe",
   [WS_METHODS.scribeListSuggestions]: "scribe",
