@@ -9,6 +9,57 @@ use std::time::SystemTime;
 
 pub(crate) const VOCABULARY_CAP: usize = 800;
 
+/// Words every user gets. They load under the user's file, so a user entry with the same
+/// key wins, and they are never written back to the file.
+/// Only add a phrase that no one says on purpose: a real word ("Cloud") never goes in.
+pub(crate) const BUILTIN_VOCABULARY: &[&str] = &[
+    "Leonidas",
+    "Leonidas Code",
+    "Leonidas Scribe",
+    "Claude",
+    "Claude Code",
+    "Codex",
+    "ChatGPT",
+    "OpenAI",
+    "Anthropic",
+    "Groq",
+    "OpenRouter",
+    "Gemini",
+    "Antigravity",
+    "Ollama",
+    "Wispr Flow",
+    "GitHub",
+    "PowerShell",
+    "MCP",
+    "AIOS",
+    "n8n",
+    "mem0",
+    "subagent",
+];
+pub(crate) const BUILTIN_REPLACEMENTS: &[(&str, &str)] = &[
+    ("Leonidas scribe", "Leonidas Scribe"),
+    ("Leonidas code", "Leonidas Code"),
+    ("United Scribe", "Leonidas Scribe"),
+    ("Leonard's scribe", "Leonidas Scribe"),
+    ("Loonidas", "Leonidas"),
+    ("Leonias", "Leonidas"),
+    ("LeoNight", "Leonidas"),
+    ("Clawd", "Claude"),
+    ("Clawed Code", "Claude Code"),
+    ("CloudCode", "Claude Code"),
+    ("Clawdecode", "Claude Code"),
+    ("Claude code", "Claude Code"),
+    ("chat gpt", "ChatGPT"),
+    ("open AI", "OpenAI"),
+    ("open router", "OpenRouter"),
+    ("Git Hub", "GitHub"),
+    ("Power Shell", "PowerShell"),
+    ("Whisper Flow", "Wispr Flow"),
+    ("Antigrity", "Antigravity"),
+    ("Antigarity", "Antigravity"),
+    ("memzero", "mem0"),
+];
+
 pub(crate) fn is_word(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
@@ -44,6 +95,8 @@ pub struct Dictionary {
     pub replacements: Vec<(String, String)>,
     pub vocabulary: Vec<String>,
     rules: Vec<Rule>,
+    /// Built-in prompt terms. Not part of `body()`, so a save never copies them to the file.
+    builtin_vocabulary: &'static [&'static str],
 }
 
 impl Dictionary {
@@ -73,16 +126,40 @@ impl Dictionary {
             replacements,
             vocabulary,
             rules,
+            builtin_vocabulary: &[],
         }
     }
 
-    /// A missing or bad file gives an empty dictionary. This never panics.
+    /// The user's lists over the built-in words. A user entry wins on the same key.
+    pub fn with_builtins(replacements: Vec<(String, String)>, vocabulary: Vec<String>) -> Self {
+        let all = BUILTIN_REPLACEMENTS
+            .iter()
+            .map(|(from, to)| ((*from).to_owned(), (*to).to_owned()))
+            .chain(replacements.iter().cloned())
+            .collect();
+        Self {
+            replacements,
+            vocabulary,
+            builtin_vocabulary: BUILTIN_VOCABULARY,
+            ..Self::new(all, Vec::new())
+        }
+    }
+
+    /// Prompt terms: the user's terms first, then the built-in words.
+    pub fn terms(&self) -> impl Iterator<Item = &str> {
+        self.vocabulary
+            .iter()
+            .map(String::as_str)
+            .chain(self.builtin_vocabulary.iter().copied())
+    }
+
+    /// A missing or bad file gives only the built-in words. This never panics.
     pub fn load(path: &Path) -> Self {
         let Ok(text) = std::fs::read_to_string(path) else {
-            return Self::default();
+            return Self::with_builtins(Vec::new(), Vec::new());
         };
         let Ok(data) = serde_json::from_str::<serde_json::Value>(&text) else {
-            return Self::default();
+            return Self::with_builtins(Vec::new(), Vec::new());
         };
         let replacements = data["replacements"]
             .as_object()
@@ -100,7 +177,7 @@ impl Dictionary {
                     .collect()
             })
             .unwrap_or_default();
-        Self::new(replacements, vocabulary)
+        Self::with_builtins(replacements, vocabulary)
     }
 
     /// Phrase rules, then email joining, then ellipsis cleanup.
@@ -151,7 +228,7 @@ impl Dictionary {
         let mut seen: HashSet<String> = HashSet::from(["vocabulary".to_owned()]);
         let mut terms: Vec<&str> = Vec::new();
         let mut length = 0;
-        for term in &self.vocabulary {
+        for term in self.terms() {
             let term = term.trim();
             if term.is_empty() || term.contains(',') || seen.contains(&term.to_lowercase()) {
                 continue;
@@ -436,4 +513,41 @@ pub(crate) fn normalize_pause_ellipses(text: &str) -> String {
         let n = blanks(rest);
         (n > 0).then_some((n, " "))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builtins_apply_under_the_user_file_and_never_leave_it() {
+        let user =
+            Dictionary::with_builtins(vec![("clawd".into(), "Clawd".into())], vec!["Gersi".into()]);
+        assert_eq!(
+            user.apply("open router and United Scribe"),
+            "OpenRouter and Leonidas Scribe"
+        );
+        // The user's identity entry wins over the built-in Clawd -> Claude rule.
+        assert_eq!(user.apply("Clawd"), "Clawd");
+        assert_eq!(user.body().replacements.len(), 1);
+        assert_eq!(user.body().vocabulary, vec!["Gersi".to_owned()]);
+        let prompt = user.vocabulary_prompt();
+        assert!(prompt.starts_with("Gersi, Leonidas"));
+        assert!(Dictionary::new(vec![], vec![])
+            .vocabulary_prompt()
+            .is_empty());
+    }
+
+    #[test]
+    fn builtin_phrases_are_not_common_words() {
+        let common = ["cloud", "leo", "leonard", "anti-gravity", "clawed"];
+        for (from, _) in BUILTIN_REPLACEMENTS {
+            assert!(!common.contains(&from.to_lowercase().as_str()), "{from}");
+        }
+        let chars: usize = BUILTIN_VOCABULARY.iter().map(|t| t.len() + 2).sum();
+        assert!(
+            chars < VOCABULARY_CAP / 2,
+            "built-ins leave room for the user's words"
+        );
+    }
 }

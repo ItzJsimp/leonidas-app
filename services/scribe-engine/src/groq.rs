@@ -305,11 +305,7 @@ fn join_segments(segments: &[&Value], dictionary: &Dictionary) -> String {
             }
         }
     }
-    let vocabulary: Vec<String> = dictionary
-        .vocabulary
-        .iter()
-        .map(|v| v.to_lowercase())
-        .collect();
+    let vocabulary: Vec<String> = dictionary.terms().map(str::to_lowercase).collect();
     let mut parts: Vec<&str> = Vec::new();
     for segment in segments {
         let text = segment["text"].as_str().unwrap_or_default().trim();
