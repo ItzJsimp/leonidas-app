@@ -178,7 +178,49 @@ fn run() -> Result<(), String> {
     std::thread::Builder::new()
         .name("scribe-hotkey-actions".into())
         .spawn(move || {
+            #[cfg(windows)]
+            let picker_open = Arc::new(AtomicBool::new(false));
             for event in hotkey_rx {
+                #[cfg(windows)]
+                if matches!(event, HotkeyEvent::Rewrite(_)) {
+                    if picker_open.swap(true, Ordering::AcqRel) {
+                        continue;
+                    }
+                    let engine = engine.clone();
+                    let settings = settings.clone();
+                    let picker_open = picker_open.clone();
+                    std::thread::spawn(move || {
+                        struct Reset(Arc<AtomicBool>);
+                        impl Drop for Reset {
+                            fn drop(&mut self) {
+                                self.0.store(false, Ordering::Release);
+                            }
+                        }
+                        let _reset = Reset(picker_open);
+                        if engine.state() != State::Ready {
+                            return;
+                        }
+                        let hwnd = scribe_engine::paste::foreground_window();
+                        let app = scribe_engine::foreground::foreground_app();
+                        let Some(text) = scribe_engine::paste::copy_selection() else {
+                            engine.report_error("Select text first, then press the rewrite key.");
+                            return;
+                        };
+                        let presets = scribe_engine::rewrite::presets(&settings.current());
+                        let names: Vec<String> = presets.iter().map(|p| p.name.clone()).collect();
+                        if let Some(index) = scribe_engine::hud::picker::pick(&names) {
+                            scribe_engine::paste::restore_focus(hwnd);
+                            let _ = engine.rewrite(
+                                text,
+                                presets[index].clone(),
+                                app,
+                                settings.current().private_mode,
+                                move || scribe_engine::paste::restore_focus(hwnd),
+                            );
+                        }
+                    });
+                    continue;
+                }
                 on_hotkey(&engine, event, || {
                     if !settings.current().private_mode {
                         groq.warm();
@@ -222,6 +264,7 @@ fn on_hotkey(engine: &Engine, event: HotkeyEvent, warm: impl Fn()) {
             State::Processing => {}
         },
         HotkeyEvent::Cancel => engine.cancel(),
+        HotkeyEvent::Rewrite(_) => {}
     }
 }
 

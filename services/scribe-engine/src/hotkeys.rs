@@ -10,6 +10,7 @@ pub enum HotkeyEvent {
     HoldDown(Instant),
     HoldUp(Instant),
     Toggle(Instant),
+    Rewrite(Instant),
     Cancel,
 }
 
@@ -123,6 +124,7 @@ pub struct Matcher {
     hold: Vec<Binding>,
     toggle: Vec<Binding>,
     cancel: Vec<Binding>,
+    rewrite: Vec<Binding>,
     pressed: [bool; 259],
     suppressed: [Suppression; 259],
     held: Option<Binding>,
@@ -141,6 +143,7 @@ impl Matcher {
             hold: parse_all(&bindings.hold)?,
             toggle: parse_all(&bindings.toggle)?,
             cancel: parse_all(&bindings.cancel)?,
+            rewrite: parse_all(&bindings.rewrite)?,
             pressed: [false; 259],
             suppressed: [Suppression::None; 259],
             held: None,
@@ -227,7 +230,13 @@ impl Matcher {
         {
             (HotkeyEvent::Cancel, None, Suppression::Cancel)
         } else if self.held.is_none() {
-            if let Some(binding) = self.hold.iter().find(matches).copied() {
+            if !active && self.rewrite.iter().find(matches).is_some() {
+                (
+                    HotkeyEvent::Rewrite(at),
+                    self.rewrite.iter().find(matches).copied(),
+                    Suppression::Trigger,
+                )
+            } else if let Some(binding) = self.hold.iter().find(matches).copied() {
                 self.held = Some(binding);
                 (
                     HotkeyEvent::HoldDown(at),
@@ -519,6 +528,7 @@ mod tests {
                 hold: hold.iter().map(|s| (*s).into()).collect(),
                 toggle: toggle.iter().map(|s| (*s).into()).collect(),
                 cancel: vec!["Escape".into()],
+                rewrite: vec![],
             },
             false,
         )
@@ -527,6 +537,24 @@ mod tests {
 
     fn key(m: &mut Matcher, vk: u16, down: bool, at: Instant) -> (Option<HotkeyEvent>, bool) {
         m.feed(Input::Key(vk), down, false, at, false)
+    }
+
+    #[test]
+    fn rewrite_fires_once_only_when_inactive_and_suppresses_trigger() {
+        let mut m = Matcher::new(&Bindings::default(), false).unwrap();
+        let at = Instant::now();
+        key(&mut m, 0x11, true, at);
+        key(&mut m, 0x10, true, at);
+        assert_eq!(
+            key(&mut m, 0x41, true, at),
+            (Some(HotkeyEvent::Rewrite(at)), true)
+        );
+        assert_eq!(key(&mut m, 0x41, true, at), (None, true));
+        assert_eq!(key(&mut m, 0x41, false, at), (None, true));
+        assert_eq!(
+            m.feed(Input::Key(0x41), true, false, at, true),
+            (None, false)
+        );
     }
 
     #[test]
@@ -755,7 +783,8 @@ mod tests {
             &Bindings {
                 hold: vec!["BadKey".into()],
                 toggle: vec![],
-                cancel: vec![]
+                cancel: vec![],
+                rewrite: vec![],
             },
             false
         )
@@ -774,6 +803,7 @@ mod tests {
                 hold: vec![],
                 toggle: vec!["Ctrl+Alt+F9".into()],
                 cancel: vec![],
+                rewrite: vec![],
             },
             Arc::new(AtomicBool::new(false)),
             true,

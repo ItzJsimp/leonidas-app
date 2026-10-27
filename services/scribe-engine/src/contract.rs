@@ -161,6 +161,8 @@ pub struct HistoryItem {
     pub app: String,
     pub raw_text: String,
     pub cleaned_text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<String>,
     pub words: u32,
     pub metrics: HistoryMetrics,
     pub pasted: bool,
@@ -324,6 +326,7 @@ mod tests {
             id: "d1".into(),
             at: "2026-10-18T00:00:00.000Z".into(),
             mode: "hold".into(),
+            preset: None,
             app: String::new(),
             raw_text: "hi".into(),
             cleaned_text: "Hi.".into(),

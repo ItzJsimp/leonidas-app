@@ -48,6 +48,9 @@ pub trait Transcriber: Send + Sync {
 pub trait Polisher: Send + Sync {
     /// Never fails: on any error it returns the best text it has (at least `raw`).
     fn polish(&self, raw: &str) -> String;
+    fn rewrite(&self, _text: &str, _instruction: &str) -> Result<String, String> {
+        Err("Rewrite unavailable.".into())
+    }
 }
 
 /// `main` keeps one handle to change settings live; the engine owns the other.
@@ -61,11 +64,18 @@ impl<T: Polisher + ?Sized> Polisher for Arc<T> {
     fn polish(&self, raw: &str) -> String {
         (**self).polish(raw)
     }
+    fn rewrite(&self, text: &str, instruction: &str) -> Result<String, String> {
+        (**self).rewrite(text, instruction)
+    }
 }
 
 pub trait Paster: Send + Sync {
     /// Paste into the focused window. Returns true when the paste was sent.
     fn paste(&self, text: &str) -> bool;
+    /// Put text on the clipboard only. Used when the target window is gone.
+    fn copy(&self, _text: &str) -> bool {
+        false
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -202,6 +212,97 @@ impl Engine {
         }
     }
 
+    pub fn report_error(&self, message: &str) {
+        Self::emit(
+            &self.0,
+            Event::Error {
+                code: "rewrite_error".into(),
+                message: message.into(),
+                at: now_iso(),
+            },
+        );
+    }
+
+    pub fn rewrite(
+        &self,
+        text: String,
+        preset: crate::rewrite::Preset,
+        app: String,
+        private: bool,
+        focus: impl FnOnce() -> bool + Send + 'static,
+    ) -> Result<State, EngineError> {
+        let mut inner = self.0.inner.lock().unwrap();
+        if inner.state != State::Ready {
+            return Err(EngineError::InvalidState(inner.state));
+        }
+        if private {
+            drop(inner);
+            self.report_error("Rewrite needs the cloud. Turn off private mode.");
+            return Ok(State::Ready);
+        }
+        Self::set_state(&self.0, &mut inner, State::Processing);
+        drop(inner);
+        let engine = self.clone();
+        std::thread::spawn(move || {
+            let started = Instant::now();
+            let shared = &*engine.0;
+            match shared.polisher.rewrite(&text, &preset.instruction) {
+                Ok(result) if !result.trim().is_empty() => {
+                    if focus() && shared.paster.paste(&result) {
+                        let at_ms = crate::contract::unix_ms_now();
+                        let at = crate::contract::iso_from_unix_ms(at_ms);
+                        let saved = shared.history.as_ref().map(|history| {
+                            history.add(NewItem {
+                                at: at.clone(),
+                                mode: "rewrite".into(),
+                                app,
+                                raw_text: text.clone(),
+                                cleaned_text: result.clone(),
+                                preset: Some(preset.name),
+                                metrics: HistoryMetrics {
+                                    transcribe_ms: 0,
+                                    polish_ms: millis(started.elapsed()),
+                                    total_ms: millis(started.elapsed()),
+                                },
+                                pasted: true,
+                                at_ms,
+                            })
+                        });
+                        Self::emit(
+                            shared,
+                            Event::Transcript {
+                                text: result,
+                                raw: text,
+                                duration_ms: 0,
+                                pasted: true,
+                                engine: SttEngine::default(),
+                                at,
+                            },
+                        );
+                        match saved {
+                            Some(Ok(item)) => Self::emit(shared, Event::History { item }),
+                            Some(Err(_)) => {
+                                engine.report_error("Could not save the rewrite to history.")
+                            }
+                            None => {}
+                        }
+                    } else if shared.paster.copy(&result) {
+                        // Never lose a finished rewrite: the user can paste it by hand.
+                        engine
+                            .report_error("Rewrite is on the clipboard. Press Ctrl+V to paste it.");
+                    } else {
+                        engine.report_error("Could not paste the rewrite.");
+                    }
+                }
+                Ok(_) => engine.report_error("Rewrite returned empty text."),
+                Err(message) => engine.report_error(&message),
+            }
+            let mut inner = shared.inner.lock().unwrap();
+            Self::set_state(shared, &mut inner, State::Ready);
+        });
+        Ok(State::Processing)
+    }
+
     /// Start recording. Allowed in `ready` and `mic_error`.
     /// `trigger_at` is the hotkey time, used for the latency budget.
     pub fn start(&self, mode: Mode, trigger_at: Option<Instant>) -> Result<State, EngineError> {
@@ -303,6 +404,7 @@ impl Engine {
                     history.add(NewItem {
                         at: at.clone(),
                         mode: mode_name(mode).into(),
+                        preset: None,
                         app,
                         raw_text: t.text.clone(),
                         cleaned_text: text.clone(),
@@ -462,6 +564,116 @@ mod tests {
             std::thread::sleep(Duration::from_millis(5));
         }
         assert_eq!(engine.state(), State::Ready);
+    }
+
+    #[test]
+    fn rewrite_pastes_and_saves_history_and_private_mode_never_calls_model() {
+        struct Rewriter;
+        impl Polisher for Rewriter {
+            fn polish(&self, raw: &str) -> String {
+                raw.into()
+            }
+            fn rewrite(&self, text: &str, _: &str) -> Result<String, String> {
+                Ok(format!("rewritten {text}"))
+            }
+        }
+        let path = std::env::temp_dir()
+            .join(format!("scribe-rewrite-{}", std::process::id()))
+            .join("history.jsonl");
+        let _ = std::fs::remove_file(&path);
+        let history = Arc::new(History::open(&path));
+        let paster = Arc::new(FakePaster::default());
+        let engine = Engine::new(
+            Box::new(FakeRecorder::default()),
+            Box::new(FakeStt(Ok(String::new()))),
+            Box::new(Rewriter),
+            Box::new(paster.clone()),
+            250,
+            Some(history.clone()),
+        );
+        let rx = engine.subscribe();
+        let preset = crate::rewrite::Preset {
+            name: "Shorter".into(),
+            instruction: "Shorten".into(),
+        };
+        engine
+            .rewrite("text".into(), preset.clone(), "app".into(), true, || true)
+            .unwrap();
+        assert!(matches!(next_transcript_or_error(&rx), Event::Error { .. }));
+        assert!(paster.0.lock().unwrap().is_empty());
+        engine
+            .rewrite("text".into(), preset, "app".into(), false, || true)
+            .unwrap();
+        assert!(matches!(
+            next_transcript_or_error(&rx),
+            Event::Transcript { pasted: true, .. }
+        ));
+        wait_ready(&engine);
+        assert_eq!(*paster.0.lock().unwrap(), ["rewritten text"]);
+        let page = history.page(10, None, Some("rewrite"));
+        assert_eq!(page.items[0].preset.as_deref(), Some("Shorter"));
+        assert_eq!(page.items[0].raw_text, "text");
+    }
+
+    #[test]
+    fn rewrite_goes_to_the_clipboard_when_the_window_is_gone() {
+        struct Copier(Mutex<Vec<String>>);
+        impl Paster for Arc<Copier> {
+            fn paste(&self, _: &str) -> bool {
+                panic!("must not paste into the wrong window")
+            }
+            fn copy(&self, text: &str) -> bool {
+                self.0.lock().unwrap().push(text.to_owned());
+                true
+            }
+        }
+        struct Rewriter;
+        impl Polisher for Rewriter {
+            fn polish(&self, raw: &str) -> String {
+                raw.into()
+            }
+            fn rewrite(&self, text: &str, _: &str) -> Result<String, String> {
+                Ok(format!("rewritten {text}"))
+            }
+        }
+        let copier = Arc::new(Copier(Mutex::default()));
+        let engine = Engine::new(
+            Box::new(FakeRecorder::default()),
+            Box::new(FakeStt(Ok(String::new()))),
+            Box::new(Rewriter),
+            Box::new(copier.clone()),
+            250,
+            None,
+        );
+        let rx = engine.subscribe();
+        let preset = crate::rewrite::Preset {
+            name: "Shorter".into(),
+            instruction: "Shorten".into(),
+        };
+        engine
+            .rewrite("text".into(), preset, String::new(), false, || false)
+            .unwrap();
+        assert!(
+            matches!(next_transcript_or_error(&rx), Event::Error { message, .. } if message.contains("clipboard"))
+        );
+        wait_ready(&engine);
+        assert_eq!(*copier.0.lock().unwrap(), ["rewritten text"]);
+    }
+
+    #[test]
+    fn rewrite_failure_does_not_paste() {
+        let (engine, paster) = engine(FakeRecorder::default(), Ok(""));
+        let rx = engine.subscribe();
+        let preset = crate::rewrite::Preset {
+            name: "test".into(),
+            instruction: "test".into(),
+        };
+        engine
+            .rewrite("text".into(), preset, String::new(), false, || true)
+            .unwrap();
+        assert!(matches!(next_transcript_or_error(&rx), Event::Error { .. }));
+        wait_ready(&engine);
+        assert!(paster.0.lock().unwrap().is_empty());
     }
 
     fn history_engine(name: &str) -> (Engine, Arc<History>, std::path::PathBuf) {

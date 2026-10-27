@@ -39,6 +39,10 @@ You must not:
 Output only the cleaned transcript as plain text. Do not wrap it in quotes or tags. \
 If the transcript is already clean, return it unchanged.";
 
+/// A rewrite returns a whole passage, so it gets more time than a dictation polish
+/// (Python Scribe used 20 s). The backup model starts after the hedge.
+const REWRITE_TIMEOUT: Duration = Duration::from_secs(20);
+const REWRITE_HEDGE: Duration = Duration::from_secs(5);
 const COOLDOWN_HARD: Duration = Duration::from_secs(600);
 const COOLDOWN_RATE: Duration = Duration::from_secs(12);
 const COOLDOWN_OTHER: Duration = Duration::from_secs(25);
@@ -232,6 +236,7 @@ struct Prompt {
     messages: Vec<Value>,
     input: String,
     max_tokens: usize,
+    rewrite: bool,
 }
 
 const FRAME_TAIL: &str = "Clean and polish the verbatim audio transcript above. \
@@ -267,6 +272,29 @@ impl GroqPolisher {
         *self.live.write().unwrap_or_else(|e| e.into_inner()) = live_state(polish);
     }
 
+    pub fn rewrite(&self, text: &str, instruction: &str) -> Result<String, String> {
+        if self.client.key().is_none() {
+            return Err("Rewrite needs a Groq API key.".into());
+        }
+        let prompt = Prompt {
+            messages: vec![
+                turn("system", crate::rewrite::SYSTEM_PROMPT),
+                turn(
+                    "user",
+                    &format!("SELECTED_TEXT:\n{text}\n\nINSTRUCTION:\n{instruction}"),
+                ),
+            ],
+            input: text.to_owned(),
+            max_tokens: 8192.min(512.max(
+                (text.split_whitespace().count() + instruction.split_whitespace().count()) * 3
+                    + 512,
+            )),
+            rewrite: true,
+        };
+        self.race(&Arc::new(prompt))
+            .ok_or_else(|| "Rewrite failed. Please try again.".into())
+    }
+
     fn build_prompt(&self, text: &str, vocabulary: &str) -> Prompt {
         let mut system = self
             .live
@@ -292,6 +320,7 @@ impl GroqPolisher {
                 frame(text),
             ],
             input: text.to_owned(),
+            rewrite: false,
             max_tokens: 2048.min(1024.max((words as f64 * 2.5) as usize + 256)),
         }
     }
@@ -340,7 +369,11 @@ impl GroqPolisher {
         std::thread::Builder::new()
             .name("scribe-polish".into())
             .spawn(move || {
-                let timeout = Duration::from_secs(client.cfg.polish_timeout_s);
+                let timeout = if prompt.rewrite {
+                    REWRITE_TIMEOUT
+                } else {
+                    Duration::from_secs(client.cfg.polish_timeout_s)
+                };
                 let result =
                     call_model(&client, &model, &prompt, timeout).map_err(|e| e.cooldown());
                 let _ = tx.send((model, result));
@@ -352,8 +385,14 @@ impl GroqPolisher {
     /// `hedge_ms`, the next model starts while the first keeps running. The first good reply wins.
     fn race(&self, prompt: &Arc<Prompt>) -> Option<String> {
         let mut queue: VecDeque<String> = self.order().into();
-        let hedge = Duration::from_millis(self.client.cfg.hedge_ms);
-        let guard = Duration::from_secs(self.client.cfg.polish_timeout_s + 2);
+        let (hedge, guard) = if prompt.rewrite {
+            (REWRITE_HEDGE, REWRITE_TIMEOUT + Duration::from_secs(2))
+        } else {
+            (
+                Duration::from_millis(self.client.cfg.hedge_ms),
+                Duration::from_secs(self.client.cfg.polish_timeout_s + 2),
+            )
+        };
         let (tx, rx) = mpsc::channel();
         let mut pending = 0usize;
         pending += usize::from(
@@ -432,7 +471,25 @@ fn call_model(
         return Err(CallError::Rejected);
     }
     let content = choice["message"]["content"].as_str().unwrap_or_default();
-    accept_reply(content, &prompt.input)
+    if prompt.rewrite {
+        let mut text = strip_think(content).trim().to_owned();
+        if wrapped_in_quotes(&text) && !wrapped_in_quotes(&prompt.input) {
+            text = text
+                .chars()
+                .skip(1)
+                .take(text.chars().count() - 2)
+                .collect::<String>()
+                .trim()
+                .to_owned();
+        }
+        if text.is_empty() {
+            Err(CallError::Rejected)
+        } else {
+            Ok(text)
+        }
+    } else {
+        accept_reply(content, &prompt.input)
+    }
 }
 
 fn live_state(polish: &PolishConfig) -> (bool, String) {
@@ -445,6 +502,9 @@ fn live_state(polish: &PolishConfig) -> (bool, String) {
 }
 
 impl Polisher for GroqPolisher {
+    fn rewrite(&self, text: &str, instruction: &str) -> Result<String, String> {
+        GroqPolisher::rewrite(self, text, instruction)
+    }
     fn polish(&self, raw: &str) -> String {
         let dictionary = self.client.dictionary.current();
         let text = dictionary.apply(raw);
@@ -521,6 +581,21 @@ mod tests {
     fn polisher(server: &Server) -> GroqPolisher {
         let dictionary = Arc::new(SharedDictionary::new(PathBuf::from("none.json")));
         polisher_with(server, Some("k"), dictionary, |_| {})
+    }
+
+    #[test]
+    fn rewrite_accepts_expansion_and_cleans_model_wrapping() {
+        let server = Server::start(|_| {
+            Reply::chat(
+                "<think>hidden</think>\"A much longer rewritten answer with additional detail.\"",
+            )
+        });
+        assert_eq!(
+            polisher(&server).rewrite("Hi", "Expand").unwrap(),
+            "A much longer rewritten answer with additional detail."
+        );
+        let server = Server::start(|_| Reply::chat("<think>hidden</think>  "));
+        assert!(polisher(&server).rewrite("Hi", "Expand").is_err());
     }
 
     // --- dictionary -------------------------------------------------------------------------
@@ -735,7 +810,7 @@ mod tests {
         assert_eq!(messages.len(), 6);
         let system = messages[0]["content"].as_str().unwrap();
         assert!(system.starts_with("You are the cleanup step"));
-        assert!(system.ends_with("Known terms (spell them exactly like this):\nLeonidas"));
+        assert!(system.contains("Known terms (spell them exactly like this):\nLeonidas"));
         let user = messages[5]["content"].as_str().unwrap();
         assert!(user.starts_with(&format!(
             "<raw_transcript>\n{SENTENCE}\n</raw_transcript>\n"

@@ -2,6 +2,8 @@
 //! Leonidas window closed. `HudModel` turns engine events into what to draw; `render` draws it;
 //! `window` (Windows only) puts it on screen.
 
+#[cfg(windows)]
+pub mod picker;
 pub mod render;
 #[cfg(windows)]
 pub mod window;

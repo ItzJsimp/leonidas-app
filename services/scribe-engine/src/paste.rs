@@ -41,6 +41,34 @@ impl Paster for ClipboardPaster {
             false
         }
     }
+
+    fn copy(&self, text: &str) -> bool {
+        #[cfg(windows)]
+        {
+            win::copy(text)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = text;
+            false
+        }
+    }
+}
+
+#[cfg(windows)]
+pub fn copy_selection() -> Option<String> {
+    win::copy_selection()
+}
+#[cfg(windows)]
+pub fn foreground_window() -> usize {
+    unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() as usize }
+}
+#[cfg(windows)]
+pub fn restore_focus(hwnd: usize) -> bool {
+    unsafe {
+        windows_sys::Win32::UI::WindowsAndMessaging::SetForegroundWindow(hwnd as _) != 0
+            && windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() == hwnd as _
+    }
 }
 
 #[cfg(windows)]
@@ -205,6 +233,40 @@ mod win {
         if !held.is_empty() {
             send(&held);
         }
+    }
+
+    pub fn copy_selection() -> Option<String> {
+        let saved = Clipboard::open()?.read_text();
+        release_modifiers();
+        let seq = unsafe { GetClipboardSequenceNumber() };
+        let c = u16::from(b'C');
+        if !send(&[
+            key(VK_CONTROL, false),
+            key(c, false),
+            key(c, true),
+            key(VK_CONTROL, true),
+        ]) {
+            return None;
+        }
+        let deadline = Instant::now() + Duration::from_millis(400);
+        while unsafe { GetClipboardSequenceNumber() } == seq && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        if unsafe { GetClipboardSequenceNumber() } == seq {
+            return None;
+        }
+        let clip = Clipboard::open()?;
+        let copied = clip
+            .read_text()
+            .map(|v| String::from_utf16_lossy(&v[..v.len().saturating_sub(1)]));
+        if let Some(saved) = saved {
+            clip.write_text(&saved, false);
+        }
+        copied.filter(|s| !s.trim().is_empty())
+    }
+
+    pub fn copy(text: &str) -> bool {
+        Clipboard::open().is_some_and(|clip| clip.write_text(&to_clipboard_utf16(text), false))
     }
 
     pub fn paste(text: &str) -> bool {

@@ -497,6 +497,7 @@ mod tests {
             for (ms, mode) in [(1, "hold"), (2, "toggle"), (3, "hold")] {
                 history
                     .add(crate::history::NewItem {
+                        preset: None,
                         at: crate::contract::iso_from_unix_ms(ms),
                         mode: mode.into(),
                         app: String::new(),
@@ -1073,6 +1074,10 @@ mod tests {
                 true,
             ),
             (r#"{"section":"hotkeys","values":{"hold":[]}}"#, false),
+            (
+                r#"{"section":"hotkeys","values":{"rewrite":["Ctrl + Alt + A"]}}"#,
+                false,
+            ),
             (r#"{"section":"goals","values":{"dailyWords":500}}"#, false),
         ] {
             let reply = server.request("PATCH", "/v1/settings", body);
@@ -1082,6 +1087,10 @@ mod tests {
         let get = server.request("GET", "/v1/settings", "").body;
         assert_eq!(get["sections"]["goals"], json!({"dailyWords": 500}));
         assert_eq!(get["sections"]["hotkeys"]["hold"], json!([]));
+        assert_eq!(
+            get["sections"]["hotkeys"]["rewrite"],
+            json!(["Ctrl + Alt + A"])
+        );
         assert_eq!(get["sections"]["transcription"]["privateMode"], true);
     }
 
@@ -1151,6 +1160,7 @@ mod tests {
         ] {
             history
                 .add(crate::history::NewItem {
+                    preset: None,
                     at: crate::contract::iso_from_unix_ms(ms),
                     mode: "hold".into(),
                     app: String::new(),

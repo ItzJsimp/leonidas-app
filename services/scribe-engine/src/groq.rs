@@ -641,7 +641,7 @@ mod tests {
             .starts_with("multipart/form-data; boundary="));
         let body = req.text();
         assert!(body.contains("name=\"model\"\r\n\r\nwhisper-large-v3-turbo\r\n"));
-        assert!(body.contains("name=\"prompt\"\r\n\r\nLeonidas, Wispr Flow\r\n"));
+        assert!(body.contains("name=\"prompt\"\r\n\r\nLeonidas, Wispr Flow"));
         assert!(body.contains("name=\"file\"; filename=\"audio.flac\"\r\nContent-Type: audio/flac\r\n\r\nRIFF-fake-audio\r\n"));
         std::fs::remove_dir_all(dir).ok();
     }

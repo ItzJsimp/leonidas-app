@@ -16,6 +16,7 @@ pub mod hud;
 pub mod local_stt;
 pub mod paste;
 pub mod polish;
+pub mod rewrite;
 pub mod settings;
 pub mod suggestions;
 

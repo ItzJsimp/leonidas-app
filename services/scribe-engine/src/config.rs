@@ -62,6 +62,7 @@ pub struct Bindings {
     pub toggle: Vec<String>,
     /// Discard the current recording.
     pub cancel: Vec<String>,
+    pub rewrite: Vec<String>,
 }
 
 impl Default for Bindings {
@@ -70,6 +71,7 @@ impl Default for Bindings {
             hold: vec!["Ctrl + Shift + T".into()],
             toggle: vec!["Mouse5".into(), "Ctrl + Shift + Space".into()],
             cancel: vec!["Escape".into()],
+            rewrite: vec!["Ctrl + Shift + A".into()],
         }
     }
 }
@@ -215,6 +217,7 @@ mod tests {
         assert_eq!(c.port, 8767);
         assert_eq!(c.bindings.hold, vec!["Ctrl + Alt + Space"]);
         assert_eq!(c.bindings.cancel, vec!["Escape"]);
+        assert_eq!(c.bindings.rewrite, vec!["Ctrl + Shift + A"]);
         assert_eq!(c.groq.hedge_ms, 800);
     }
 
