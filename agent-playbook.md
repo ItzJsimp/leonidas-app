@@ -58,6 +58,9 @@ verified: 2026-10-11
 
 - **Voice keys:** `VoiceKeyStore.ts` uses the OS credential vault. `ServerSecretStore` does not encrypt file bytes.
 - **Capture paths:** web dictation lives in `components/voice/`; iOS uses `packages/client-runtime/src/voice-input/controller.ts`. Check both before adding capture logic.
+- **Scribe engine words:** built-in vocabulary and fixes are `BUILTIN_VOCABULARY` and `BUILTIN_REPLACEMENTS` in `services/scribe-engine/src/dictionary.rs`. They load under the user's `dictionary.json` (user key wins) and `body()` never returns them, so a PUT never copies them to the file. Use `Dictionary::terms()` for prompt terms, not `.vocabulary`. Never add a real word ("Cloud", "Leo") as a built-in.
+- **Scribe branches look unmerged but are not:** `git cherry main origin/feat/scribe-*-tab` and `origin/unify/l1-*` report unique commits, because they landed as squash PRs (#8, #10, #12, #15, #19). Check `git log main --grep` before you port them.
+- **`delegate_task` with an explicit `target` fails** (internal server error, 2026-10-27, Codex and Claude targets alike). Without `target` it auto-routes to Gemini Flash. For a chosen model, use the native Agent tool with `model`.
 
 Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.md). Search it before touching updater, release, rebrand, worktree, build-preflight or quota code.
 
@@ -96,6 +99,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Thin rebrand layer:** every branding touch makes `upstream/main` merges harder. Card: [`t3-code-rebrand`](../../tasks/t3-code-rebrand.md).
 
 ## 7. Session notes
+
+- **2026-10-27 (Scribe rewrite and built-in words):** built-in words committed (`5180d90f49`). Jake's 90 Python Scribe words are merged into his own engine `dictionary.json` only (backup `.bak-20261027-153407`). In flight at this note: the engine rewrite key (`Ctrl + Shift + A`) with a native picker (`src/rewrite.rs`, `src/hud/picker.rs`), the Rewrite tab, and the Goals and Insights tabs. Card: AIOS `tasks/add-the-scribe-rewrite-hotkey-with-a-preset-picker-built-in-words-and-the-goals-and-insights-tabs.md`.
 
 - **2026-10-22 (org kit slice 7, Team lens):** commits `719454d1d5` to `0b4406d0bf`, local, not pushed. The lens lives in `apps/web/src/components/team/TeamLensContext.tsx` (provider in `routes/_chat.command-center.tsx`); `useLensWork` joins the org, the board tasks and the lens; `teamLens.logic.ts` holds the pure rules (`lensTasks`, `lensHome`, `agentWork`, `agentStatusLine`). A task stores its Member as `assignee: <slug>` in the card (the `owner:` line is not read as a Member). Agent chat state joins `claimedAgent.threadId` to `useThreadShells` and `resolveSidebarThreadStatus`. Traps: the pairing token is one-time and a hash change does not re-run pairing, so open the pair URL, reload, then navigate by clicking (a `preview_navigate` to another URL asks for a code); `preview_click` on a Workspace or node button can time out, so run `element.click()` through `preview_evaluate`; the `vp fmt` hook re-indents a whole file if you wrap a large JSX block, so wrap with a new small component instead; Bash heredocs over 20 lines are blocked, so write a script with Write and run it by path. Open: no live check of the Open chat button (needs a task that links a real chat).
 
