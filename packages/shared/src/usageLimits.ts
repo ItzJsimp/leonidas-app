@@ -165,6 +165,39 @@ function accountKeyResolver(reports: Iterable<AccountReport>) {
   };
 }
 
+/** Two reads of one window name its reset a few seconds apart (ISO string vs epoch seconds). */
+const SAME_WINDOW_RESET_TOLERANCE = MINUTE;
+
+/**
+ * Merge two reads of one account's quota, window by window. The fresher read
+ * supplies the window list and the details; for each window, a read of the
+ * same window that shows more usage wins, and a read of a later window (a
+ * later reset) wins outright. One device's newer `checkedAt` can come from a
+ * different bar, so the whole-snapshot "fresher wins" rule showed stale
+ * percentages on the device that had not read that bar lately.
+ *
+ * shortcut: usage only grows inside a window, so max wins; a reset credit
+ * lowers it, and the other device's old high read shows until it polls again.
+ */
+export function mergeLimitWindows(
+  fresher: readonly ServerProviderUsageWindow[],
+  older: readonly ServerProviderUsageWindow[],
+): readonly ServerProviderUsageWindow[] {
+  const olderById = new Map(older.map((window) => [window.id, window] as const));
+  return fresher.map((window) => {
+    const other = olderById.get(window.id);
+    if (!other) return window;
+    const at = resetMillis(window);
+    const otherAt = resetMillis(other);
+    if (at !== null && otherAt !== null && Math.abs(at - otherAt) > SAME_WINDOW_RESET_TOLERANCE) {
+      return otherAt > at ? other : window;
+    }
+    return other.usedPercent > window.usedPercent
+      ? { ...window, usedPercent: other.usedPercent }
+      : window;
+  });
+}
+
 /**
  * One subscription account as the pooled views see it, whichever way it was
  * reported. Matching emails or credentials across environments name one
@@ -256,6 +289,10 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
         (creditSource ? creditSource.redeem : (winner.redeem ?? previous.redeem ?? next.redeem)),
       limits: {
         ...winner.limits,
+        windows: mergeLimitWindows(
+          winner.limits.windows,
+          (winner === next ? previous : next).limits.windows,
+        ),
         ...(creditSource?.limits.resetCredits
           ? { resetCredits: creditSource.limits.resetCredits }
           : { resetCredits: undefined }),
@@ -485,7 +522,14 @@ function poolKey(driver: ServerProvider["driver"], window: ServerProviderUsageWi
 function poolWindows(accounts: readonly LimitAccount[], now: number): readonly LimitPoolWindow[] {
   const byKey = new Map<string, LimitPoolMember[]>();
   for (const account of accounts) {
-    for (const window of account.limits.windows) {
+    for (const reported of account.limits.windows) {
+      // A window past its reset is empty until the account next spends; the
+      // last read still holds the old percentage because nothing re-read it.
+      const resetAt = resetMillis(reported);
+      const window =
+        resetAt !== null && resetAt <= now
+          ? { ...reported, usedPercent: 0, resetsAt: undefined }
+          : reported;
       const pooled = poolKey(account.driver, window);
       // An account with two windows of one kind keeps the second apart.
       const key = byKey.get(pooled)?.some((member) => member.account === account)

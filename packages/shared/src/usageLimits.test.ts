@@ -204,6 +204,109 @@ describe("pools", () => {
     expect(accounts[0]?.limits.windows[0]?.usedPercent).toBe(55);
   });
 
+  it("shows the same usage on every device: per window, the higher read of the same window wins", () => {
+    const base = provider({
+      driver: claude,
+      instanceId: ProviderInstanceId.make("claude"),
+      auth: { status: "authenticated", email: "same@example.com" },
+    });
+    // Desktop read both bars at 11:00. The laptop saw a weekly event later (newer
+    // checkedAt) but still holds its older 50% session read of the same window.
+    const desktop = {
+      ...base,
+      usageLimits: {
+        checkedAt: "2026-09-03T11:00:00.000Z",
+        windows: [
+          { ...window, usedPercent: 90 },
+          { ...weekly, usedPercent: 30 },
+        ],
+      },
+    };
+    const laptopRead = {
+      ...base,
+      usageLimits: {
+        checkedAt: "2026-09-03T11:40:00.000Z",
+        windows: [
+          { ...window, usedPercent: 50 },
+          { ...weekly, usedPercent: 31 },
+        ],
+      },
+    };
+    const input = new Map([
+      [EnvironmentId.make("env-a"), { ...laptop, serverConfig: { providers: [laptopRead] } }],
+      [
+        EnvironmentId.make("env-b"),
+        { entry: { target: { label: "Desktop" } }, serverConfig: { providers: [desktop] } },
+      ],
+    ]);
+    const windows = collectLimitAccounts(input)[0]!.limits.windows;
+    expect(windows.find((w) => w.id === "five_hour")?.usedPercent).toBe(90);
+    expect(windows.find((w) => w.id === "seven_day")?.usedPercent).toBe(31);
+  });
+
+  it("shows a window whose reset time has passed as unused, not at its old percentage", () => {
+    const account = collectLimitAccounts(
+      new Map([
+        [
+          EnvironmentId.make("env-a"),
+          {
+            ...laptop,
+            serverConfig: {
+              providers: [
+                provider({
+                  driver: claude,
+                  instanceId: ProviderInstanceId.make("claude"),
+                  auth: { status: "authenticated", email: "same@example.com" },
+                  usageLimits: {
+                    checkedAt,
+                    windows: [{ ...window, usedPercent: 90, resetsAt: "2026-09-03T10:00:00.000Z" }],
+                  },
+                }),
+              ],
+            },
+          },
+        ],
+      ]),
+    );
+    const [pool] = collectLimitPools(account, now);
+    expect(pool?.windows[0]?.usedPercent).toBe(0);
+  });
+
+  it("takes the newer window when two devices disagree on which window it is", () => {
+    const base = provider({
+      driver: claude,
+      instanceId: ProviderInstanceId.make("claude"),
+      auth: { status: "authenticated", email: "same@example.com" },
+    });
+    const old = { ...window, usedPercent: 95, resetsAt: "2026-09-03T08:00:00.000Z" };
+    const fresh = { ...window, usedPercent: 5, resetsAt: "2026-09-03T17:00:00.000Z" };
+    const input = new Map([
+      [
+        EnvironmentId.make("env-a"),
+        {
+          ...laptop,
+          serverConfig: {
+            providers: [
+              { ...base, usageLimits: { checkedAt: "2026-09-03T11:59:00.000Z", windows: [old] } },
+            ],
+          },
+        },
+      ],
+      [
+        EnvironmentId.make("env-b"),
+        {
+          entry: { target: { label: "Desktop" } },
+          serverConfig: {
+            providers: [
+              { ...base, usageLimits: { checkedAt: "2026-09-03T11:00:00.000Z", windows: [fresh] } },
+            ],
+          },
+        },
+      ],
+    ]);
+    expect(collectLimitAccounts(input)[0]!.limits.windows[0]?.usedPercent).toBe(5);
+  });
+
   it("merges OpenCode Go limits from machines with the same API key", () => {
     const go = provider({
       driver: ProviderDriverKind.make("opencode"),

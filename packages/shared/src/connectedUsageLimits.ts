@@ -1,6 +1,6 @@
 import type { UsageLimitsReport } from "@t3tools/contracts";
 import { isProviderAvailable } from "@t3tools/contracts";
-import type { LimitPresentations } from "@t3tools/shared/usageLimits";
+import { type LimitPresentations, mergeLimitWindows } from "@t3tools/shared/usageLimits";
 import * as DateTime from "effect/DateTime";
 
 type Account = UsageLimitsReport["accounts"][number];
@@ -59,7 +59,13 @@ export function collectConnectedUsageLimits(
       ...winner,
       instanceId: previous.instanceId ?? account.instanceId,
       displayName: previous.displayName ?? account.displayName,
-      limits: winner.limits,
+      limits: {
+        ...winner.limits,
+        windows: mergeLimitWindows(
+          winner.limits.windows,
+          (fresher ? previous : account).limits.windows,
+        ),
+      },
     });
   };
   for (const [environmentId, presentation] of presentations) {
