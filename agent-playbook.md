@@ -59,6 +59,7 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **A commit that hangs is usually the hook:** let `vp fmt` finish; never bypass it.
 - **MCP service test fixtures are partial records:** `OrchestratorMcpService.test.ts` casts runs without `startedAt`/`completedAt`. New code that reads run or turn fields must guard with `== null`, or 7 unrelated tests fail.
 - **The main checkout cannot commit when its install is partial:** the `vp` pre-commit hook fails (code 127, or vite.config cannot load `vitest`). Commit from an installed worktree under `C:/lcw`; a PATH borrow of another worktree's `vp` does not work.
+- **Usage limits merge per window, not per snapshot:** `collectLimitAccounts` and `collectConnectedUsageLimits` (`packages/shared/src/`) join one account across devices with `mergeLimitWindows`. Never pick a whole snapshot by `checkedAt`: any one bar's update bumps it, so a device's stale bar wins. Windows past `resetsAt` show 0% in `poolWindows`. Claude polls usage every 60 s only while the app has demand (`ClaudeDriver.ts` `pollUsage`), so an idle device holds old numbers. Run: `npx vp test run packages/shared/src/usageLimits.test.ts` (2 s). Unrelated Windows failures exist in `atomicWrite.test.ts` and `relayClient.test.ts`.
 - **Server typecheck has existing errors** in unrelated test files (`aiosDetect.test.ts`, `relativeImportExtensions.test.ts`). Filter the output to your changed paths instead of reading the total.
 
 ## 6. Why it is this way
@@ -71,6 +72,7 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 
 ## 7. Session notes
 
+- **2026-10-28:** Usage-limit mismatch across devices fixed (commit `4886cd7e08`): per-window merge plus expired windows show 0%. Not pushed. Open: idle devices still hold stale reads (poll runs only on demand); a reset credit shows the old high value until the other device re-reads.
 - **2026-10-16:** Task board perf (branch `perf/task-scan`, worktree `C:/lcw/task-board-v2`): `aiosCardReader.ts` watches each card folder and serves the last scan; call `cardReader.invalidate()` after any card write. The task table renders through LegendList (`flattenGroups` in `taskRows.ts`); board columns page at `COLUMN_PAGE`. Fixture: `node C:/lcw/task-perf/make-fixture.mjs` (600 real cards + project symlinks). Dev pairing: `node apps/server/src/bin.ts auth pairing create --base-dir <home> --json`, field `credential`. `preview_resize` can fail with ECONNRESET; reopen the tab and retry.
 - **2026-10-16:** Subagents (ADR-0082) live in `apps/server/src/subagents/` (spec parser with `extends`, spawn tiers, `SpawnApprovals` broker, Studio catalog) and `apps/web/src/components/subagents/`; starters in `packages/shared/src/subagentStarters/`. Branch `feat/subagent-spawn-path`, worktree `C:/lcw/subagents`. Studio data needs an AIOS root: start the dev server with `LEONIDAS_AIOS_ROOT=<folder with tasks/>`. Code that holds `\n` escapes must go through Write or Edit, not a Bash heredoc.
 - **2026-10-16:** Opt-in usage analytics slice 1 (`apps/web/src/lib/usageAnalytics/`, `components/usageAnalytics/`, commit `24d1511edc`): PostHog EU, random install ID, consent dialog, 5 events. Key via `VITE_POSTHOG_KEY` (`apps/web/.env.local`, CI var `POSTHOG_PROJECT_KEY`). Browser panel default profile shows a blank page (HTTP 431); use the incognito profile. Slice 2 plan: `handoff-docs/2026-10-16-usage-analytics-slice-2.md`.
@@ -79,6 +81,7 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **2026-10-15:** Task board reader (`readAiosTasks`, `aiosCards.ts`) also reads `projects/<slug>/<child>/tasks` when `<child>` has its own `.git` (Goo Busters GB cards). GB words `doing`, `later`, `cut` and priority `P0` to `P3` map in `statusFromCard` and `priorityFromCard`. `findCardFile` searches the game repo, and `applyCardPatch` writes GB words (`doing`, `P0`, unquoted) for cards with `owner` and `system`.
 
 In [project/agent-gotchas.md](./project/agent-gotchas.md); older ones in [project/session-notes-archive.md](./project/session-notes-archive.md).
+
 - **2026-10-15:** Main checkout `node_modules` had no `.bin`; a `pnpm install` there is blocked by `scripts/guard-main-install.mjs`. Install and commit from a worktree under `C:/lcw` (2.5 minutes). The preview pairing token is one-time: pair once, then click, do not navigate by URL.
   In [project/agent-gotchas.md](./project/agent-gotchas.md); older ones in [project/session-notes-archive.md](./project/session-notes-archive.md).
 
