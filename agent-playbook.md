@@ -50,6 +50,7 @@ verified: 2026-10-11
 
 ## 5. Gotchas (the ones that bite first)
 
+- **Phone and mobile questions:** read [project/research/mobile-paths-2026-10-28.md](./project/research/mobile-paths-2026-10-28.md) first. Our `main` has taken no upstream commit since `8d199b4f7b`, so compare an upstream app against our server with `git show upstream/main:<path>`, not the working tree. `ORCHESTRATION_PROTOCOL_VERSION` (`packages/contracts/src/environment.ts:13`) is the hard client gate: re-check it before you promise the App Store app works. Jake's iPhone 13 is on the tailnet (`tailscale status`); he has no Mac, so iOS builds need EAS cloud.
 - **A new workspace package needs a lockfile importer:** copy the `packages/business-pack:` block in `pnpm-lock.yaml`, rename it, and insert it in alphabetical order. A full offline `pnpm install` rewrites 342 lines of peer suffixes; revert that. Prove the hand edit with `pnpm install --frozen-lockfile --lockfile-only --offline` (exit 0, no change).
 - **Never run `pnpm install` in the main checkout to link one package:** it added about 1,900 packages to the shared `node_modules` and stopped on the unrelated `@react-navigation/native-stack` patch. Use a `C:/lcw` worktree.
 - **The Write and Edit tools turn `\u2028` and `\u2029` in your text into real line separators,** which break a regex literal. Fix with Python using `chr(0x2028)`, or build the string with `String.fromCharCode` in the test. A Bash heredoc with backticks or `\n` also fails to parse; use Write.
@@ -102,6 +103,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Thin rebrand layer:** every branding touch makes `upstream/main` merges harder. Card: [`t3-code-rebrand`](../../tasks/t3-code-rebrand.md).
 
 ## 7. Session notes
+
+- **2026-10-28 (mobile paths research):** read-only. Wrote `project/research/mobile-paths-2026-10-28.md` (official app vs our own Expo build vs web over Tailscale). Protocol is 2 on both sides, so the official app should pair today. Not tested on a phone. Open: Jake picks a path to try first.
 
 - **2026-10-27 (Scribe rewrite, later):** engine rewrite key and picker `db4dcd3d58`, Rewrite tab and Goals and Insights server stats `00b925942d`, local, not pushed. Open: hand test of `Ctrl+Shift+A`, and the Goals and Insights web tabs (no web caller of `scribe.getInsights` or `scribe.getGoals` yet).
 - **2026-10-27 (Scribe rewrite and built-in words):** built-in words committed (`5180d90f49`). Jake's 90 Python Scribe words are merged into his own engine `dictionary.json` only (backup `.bak-20261027-153407`). In flight at this note: the engine rewrite key (`Ctrl + Shift + A`) with a native picker (`src/rewrite.rs`, `src/hud/picker.rs`), the Rewrite tab, and the Goals and Insights tabs. Card: AIOS `tasks/add-the-scribe-rewrite-hotkey-with-a-preset-picker-built-in-words-and-the-goals-and-insights-tabs.md`.
