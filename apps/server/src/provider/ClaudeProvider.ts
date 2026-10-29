@@ -671,10 +671,10 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
   // The capabilities probe is cached for minutes, so its usage numbers lag the account.
   // The direct read is one cheap request per check, so it goes first and the cached SDK
   // reading is the fallback when the endpoint is unreachable or rate limited.
-  const usage =
-    !unsupportedUsageMessage && resolveDirectUsage && parsedVersion
-      ? ((yield* resolveDirectUsage(parsedVersion)) ?? capabilities.usage)
-      : capabilities.usage;
+  const triedDirect = !unsupportedUsageMessage && resolveDirectUsage && parsedVersion;
+  const directUsage = triedDirect ? yield* resolveDirectUsage(parsedVersion) : undefined;
+  const usage = directUsage ?? capabilities.usage;
+  const fromCache = Boolean(triedDirect) && directUsage === undefined && usage !== undefined;
   const usageLimits = unsupportedUsageMessage
     ? makeUnavailableUsageLimits({
         checkedAt,
@@ -720,7 +720,11 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
         ...(authMetadata ? authMetadata : {}),
       },
       ...(versionUpgradeMessage ? { message: versionUpgradeMessage } : {}),
-      usageLimits: resetCredits ? { ...usageLimits, resetCredits } : usageLimits,
+      usageLimits: {
+        ...usageLimits,
+        ...(fromCache ? { cached: true } : {}),
+        ...(resetCredits ? { resetCredits } : {}),
+      },
     },
   });
 });

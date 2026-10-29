@@ -127,7 +127,9 @@ export function resolveUsageLimitsAfterProbe(input: {
   readonly probed: ServerProviderUsageLimits | undefined;
 }): ServerProviderUsageLimits | undefined {
   const { published, probed } = input;
-  if (probed?.unavailable?.reason === "probeFailed" && published && !published.unavailable) {
+  // A cached reading is older than whatever a poll or a turn already published.
+  const staleProbe = probed?.unavailable?.reason === "probeFailed" || probed?.cached === true;
+  if (staleProbe && published && !published.unavailable) {
     return published;
   }
   return probed;

@@ -69,6 +69,8 @@ export const ServerProviderUsageLimits = Schema.Struct({
   /** Opaque credential identity when the provider does not report an account. */
   credentialFingerprint: Schema.optional(TrimmedNonEmptyString),
   resetCredits: Schema.optional(ServerProviderResetCredits),
+  /** True when the live read failed and these windows are an older cached reading. */
+  cached: Schema.optional(Schema.Boolean),
   /** Provider-owned usage settings when quota windows are not available to the client. */
   externalUsage: Schema.optional(
     Schema.Struct({

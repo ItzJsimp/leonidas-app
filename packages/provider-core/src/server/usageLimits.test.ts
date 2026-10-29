@@ -86,4 +86,15 @@ describe("resolveUsageLimitsAfterProbe", () => {
     expect(resolveUsageLimitsAfterProbe({ published, probed: unsupported })).toBe(unsupported);
     expect(resolveUsageLimitsAfterProbe({ published: undefined, probed: failed })).toBe(failed);
   });
+
+  it("does not replace published windows with a cached reading", () => {
+    // The live read failed, so the probe fell back to a reading up to five minutes old.
+    const cached = {
+      checkedAt: "2026-09-03T12:03:00.000Z",
+      windows: [{ ...session, usedPercent: 10 }],
+      cached: true,
+    };
+    expect(resolveUsageLimitsAfterProbe({ published, probed: cached })).toBe(published);
+    expect(resolveUsageLimitsAfterProbe({ published: undefined, probed: cached })).toBe(cached);
+  });
 });
