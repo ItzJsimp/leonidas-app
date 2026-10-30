@@ -29,7 +29,7 @@ Shell snapshot size: 2.35 MB on both trees.
 
 - **Batch 2 makes no speed claim.** Every change sits inside the run-to-run spread of the base tree (warm shell: 271 to 397 ms on the same code). No metric moved outside that spread. Do not report batch 2 as faster.
 - **Step 1 (SQLite reader pool) shows no gap.** Base shell reads under 20 writes per second took 327 ms, against 315 ms with no writes. The load was light (small `project.update` writes). A heavier writer may show a gap. The plan gate says to drop a step that moves no number.
-- **Idle cost is real and equal on both trees.** With no client connected, the server tree does about 10,300 file reads (39 MB) and 1.1 CPU seconds per minute. That is 172 reads per second. The cause is not known. It may be SQLite, git processes, or a poll. Find it before step 4.
+- **Idle file reads are SQLite page reads, and they are cheap (traced 2026-10-30, see the section below).** With no client connected, the server tree does about 10,300 file reads (39 MB) and 1.1 CPU seconds per minute. That is 172 reads per second, but SQL time is only about 0.2 seconds per minute.
 - **Shell snapshot weighs 2.35 MB and takes about 300 ms warm.** This is the number step 4 (#27106, #27098) must lower.
 
 ## Not measured (gaps)
@@ -44,3 +44,14 @@ Shell snapshot size: 2.35 MB on both trees.
 1. Find what causes 172 idle file reads per second (trace which files the server tree reads).
 2. Add a WebSocket client to the bench for git status and a connected-client idle run.
 3. Re-run both trees with 5 runs each before any speed claim.
+
+## Idle trace (2026-10-30)
+
+Method: a preload (`--import`) counted every `node:sqlite` call and every `fs` call in the idle server (no client, 45 s window after a 30 s settle). A per-process sampler checked the process tree. Scripts: `C:/lcw/p5/idle-probe.mjs`, `sql-probe.mjs`, `fs-probe.mjs`, `page-read-test.mjs` (not in a repo).
+
+- **Source of the reads:** the server's own `node.exe`, 13,400 read operations and 52 MB per minute, 3.9 KB each. Child processes (`nvidia-smi`, `typeperf`, `powershell` from the hardware watch) read almost nothing.
+- **SQL:** 117 statements per minute in total, using about 220 ms. The most frequent: `BEGIN IMMEDIATE` and `COMMIT` (16 each), the failed-run check (13), scheduled tasks due (13), saved item effects (13 and 13), the effect outbox lease (10 and 10). The heaviest is the shell thread-rows query (once a minute, 167 ms).
+- **fs:** only 289 calls per minute, all `stat`, `access` and `lstat` checks of worktree folders (`C:/lcw` 65 per minute, `C:/` 51). No large file reads.
+- **Why 117 statements make 13,400 reads:** one scan of the thread payloads costs 585 read operations (2.3 MB, 3 ms), even from cache. The SQLite page cache is 2 MB (`cache_size -2000`, 4 KB pages), so each query rereads its pages through the OS. The OS file cache serves them.
+
+**Verdict:** the idle read count looks large but costs little. Do not treat it as a defect. Option if the count matters: raise `PRAGMA cache_size` or set `PRAGMA mmap_size` (would cut `ReadFile` calls; needs a before and after bench with a connected client). The remaining idle CPU (about 0.9 of 1.1 seconds per minute) is not SQL or fs. A `--cpu-prof` run would find it. Not done.
