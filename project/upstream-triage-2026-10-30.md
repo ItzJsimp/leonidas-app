@@ -42,6 +42,28 @@ Every claimed number needs a before and after measure on our tree. No claim with
 
 Migration numbers: ours and upstream's now differ from number 61 on. Any future upstream migration port must take our next free number.
 
+### Plan for the deferred 7 (Jake chose "plan first", 2026-10-29)
+
+**Finding.** For each deferred commit, `git log` lists the upstream commits that touch its conflicting files and that our tree lacks (script: `C:/lcw/p5/prereq.py`). Counts: #27106 has 174, #27103 has 44, #27110 has 36, #27098 has 49, #27097 has 16, #27105 has 16, #27101 has 11. Most are noise. These repeat across the chains:
+
+- **Comment and cleanup refactors, in all 7 chains:** #21514 (halve code comments), #19559 (prune comments), #26238 (delete 18k lines of dead code), #22557 (delete 11k tests). They make conflicts but add no behavior. Resolve by keeping our side. Do not port them.
+- **Real prerequisites:** #23902 (SQLite reads route around the writer) is needed by #27097. #25824, #22081, #18469 and #20445 (connection routing) are needed by #27101. Skipped features also touch the same files: #24104 (guest sharing), #17879 (providers per project), #17451 and #26767 (No project threads).
+
+**Approach: measure first, then port the idea, not the commit.** A commit port pulls in dozens of unrelated changes, which is a full merge by stealth. So:
+
+| Step | Work                                                                                                                                                                | Gate                                                                                     |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 0    | Build a bench on our tree with seeded data: sidebar shell load, thread open, idle query count per minute, git status time, SQLite read under write load.            | Numbers saved for the base commit. A step 1 to 5 that does not move a number is dropped. |
+| 1    | SQLite read path: port #23902, then #27097 (reader pool).                                                                                                           | Read under write load is faster. SQLite and persistence tests pass.                      |
+| 2    | Git status: port #27103 for `GitVcsDriverCore.ts` and `VcsProcess.ts` by hand, keep our side for comment conflicts.                                                 | Git status time drops. VCS tests pass.                                                   |
+| 3    | Connection routing: port #20445, #22081, #25824, then #27101.                                                                                                       | Dead-route probe count drops. Client-runtime tests pass.                                 |
+| 4    | Server shell and idle queries: write our own version of #27106 and #27098 against our files, guided by the upstream diff. Skip if step 0 shows we are already fast. | Shell load and idle query count drop.                                                    |
+| 5    | #27110 (checkpoint size) and #25401: one chat plan, see the [#25401 card](../../../tasks/port-upstream-thread-state-at-timeline-end-t3-25401.md).                   | Done with that card.                                                                     |
+
+Skip #27105: our tree has no `prepareRun`, so nothing to speed up. One step per session. Work in `C:/lcw/up-port`. No push without Jake.
+
+**Open for Jake.** Is step 0 first (recommended), or start with step 1?
+
 ## Port next: security and provider fixes (own batch)
 
 - **Secrets:** #24698 `1cc9d413` clone errors hide URL tokens; #24556 `4afdabab` signed URLs stay out of traces; #23313 `67afdd56` and #24015 `49d01424` redact credential keys; #25222 `7860ee98` pairing codes.
