@@ -21,6 +21,27 @@ Scope: 162 first-parent commits on `upstream/main` after the Oct 28 triage (head
 
 Every claimed number needs a before and after measure on our tree. No claim without one.
 
+### Result (2026-10-29, branch `upstream-port/2026-10-30` in `C:/lcw/up-port`)
+
+5 of 12 ported, 7 not. Most of the big wins depend on earlier upstream server changes that our tree does not have. A hand port of them needs its own plan, like #25401.
+
+| Upstream | Result         | Why                                                                                                                                                                   |
+| -------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #24194   | Ported         | `temp_store = MEMORY`. Dropped the macOS-only `checkpoint_fullfsync` line from an earlier upstream commit. The new test is Linux-only, so it is skipped on Windows.   |
+| #21329   | Ported         | Checkpoint capture scans by record. Test now runs with chunk sizes 1, 3 and 4096.                                                                                     |
+| #25696   | Partial        | 4 of 7 id lists use `json_each`. The other 3 sit in code we do not have.                                                                                              |
+| #27099   | Ported         | Two indexes on active turn items. Migration renumbered from 73 to 66 (our migrations end at 65).                                                                      |
+| #27102   | Ported         | Bitbucket discovery. Skipped the registry test helper change.                                                                                                         |
+| #27110   | Not ported     | Mixes server and web chat changes. Web chat files conflict (`ChatView.logic.ts`, `ChangedFilesTree.tsx`, `TimelineAssistantRows.tsx`). Wait for the #25401 chat plan. |
+| #27106   | Not ported     | 13 conflicting server files (Orchestrator, ProjectionStore, ShellStream, ws and others).                                                                              |
+| #27105   | Not applicable | Our tree has no `prepareRun` or `scheduleRunPreparation`.                                                                                                             |
+| #27097   | Not ported     | Needs the reader-worker pool code that our `nodeSqliteClient.ts` lacks (700 line conflict).                                                                           |
+| #27103   | Not ported     | Conflicts in `GitVcsDriverCore.ts`, `VcsProcess.ts` and two tests.                                                                                                    |
+| #27101   | Not ported     | Conflicts in the connection `driver.ts` and `supervisor.ts`.                                                                                                          |
+| #27098   | Not ported     | Conflicts in 6 files (settings, scheduled tasks, database storage).                                                                                                   |
+
+Migration numbers: ours and upstream's now differ from number 61 on. Any future upstream migration port must take our next free number.
+
 ## Port next: security and provider fixes (own batch)
 
 - **Secrets:** #24698 `1cc9d413` clone errors hide URL tokens; #24556 `4afdabab` signed URLs stay out of traces; #23313 `67afdd56` and #24015 `49d01424` redact credential keys; #25222 `7860ee98` pairing codes.
