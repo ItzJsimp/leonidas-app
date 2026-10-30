@@ -97,7 +97,7 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Upstream port traps (2026-10-29):**
   - A `cherry-pick -n` conflict often means the upstream change needs code we lack (`prepareRun`, the SQLite reader pool). Check that our file has the symbol before you merge by hand; if not, skip and log it.
   - After a failed `cherry-pick -n` there is no sequencer state. Use `git reset --hard HEAD` in your own `C:/lcw` worktree.
-  - Our migration numbers differ from upstream's from 61 up. Port an upstream migration under our next free number and add it to `reconcileV2PreviewMigration.test.ts` (two lists).
+  - Our migration numbers differ from upstream's from 61 up. Port an upstream migration under our next free number and add it to the migration lists in `reconcileV2PreviewMigration.test.ts`, `Migrations.test.ts` and `055_OrchestrationV2.test.ts` (the last also counts 1 to N).
   - `apps/server/src/provider/agentContextBudget.json` pins the instruction and tool-list bytes. Update it when instructions or tools change.
   - To tell a port regression from an old failure, run the same test files in `C:/lcw/up-look` detached at the base commit. The web suite has 49 baseline failures in 5 files.
   - The whole `apps/server` suite hangs. Run the touched folders only.
