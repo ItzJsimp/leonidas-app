@@ -94,6 +94,17 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **The Bash token guard blocks Python heredocs over 20 lines:** write the script with the Write tool and run it by path, or use Edit. A `\n` inside a heredoc string became a real newline in a TS test and broke the parse.
 - **`git commit --only -- <paths>` skips a new file until you `git add` it first** (pathspec error). The pre-commit hook then runs a formatter, so a file may change on disk after commit.
 
+- **Upstream port traps (2026-10-29):**
+  - A `cherry-pick -n` conflict often means the upstream change needs code we lack (`prepareRun`, the SQLite reader pool). Check that our file has the symbol before you merge by hand; if not, skip and log it.
+  - After a failed `cherry-pick -n` there is no sequencer state. Use `git reset --hard HEAD` in your own `C:/lcw` worktree.
+  - Our migration numbers differ from upstream's from 61 up. Port an upstream migration under our next free number and add it to `reconcileV2PreviewMigration.test.ts` (two lists).
+  - `apps/server/src/provider/agentContextBudget.json` pins the instruction and tool-list bytes. Update it when instructions or tools change.
+  - To tell a port regression from an old failure, run the same test files in `C:/lcw/up-look` detached at the base commit. The web suite has 49 baseline failures in 5 files.
+  - The whole `apps/server` suite hangs. Run the touched folders only.
+  - A DOM test needs `// @vitest-environment jsdom` on its first line. DOMPurify keeps `style` values, so drop `url(` with an `uponSanitizeAttribute` hook.
+  - A push to `main` is `git push origin <branch>:main` after you merge `origin/main` into the branch. Undo a port merge with `git revert -m 2 <merge>` (parent 2 is the old `main`).
+  - Background jobs started with `&` inside one background call report "completed" at once. Write results to a file that ends in `DONE` and wait for that line.
+
 ## 6. Why it is this way
 
 - **`dev` is a derived local branch, never pushed:** the dev copy mirrored the main checkout, so feature branches and publishes never reached it. `dev` = origin/main plus clean branches, rebuilt from scratch each time and moved only when the gate is green (bisect to the culprit, drop it, hold the last good tip after 3 drops). Mixed-session branches stay out until a person or agent resolves them in `C:/lcw/dev-rebase`; `git rerere` keeps each resolution.
@@ -105,6 +116,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Thin rebrand layer:** every branding touch makes `upstream/main` merges harder. Card: [`t3-code-rebrand`](../../tasks/t3-code-rebrand.md).
 
 ## 7. Session notes
+
+- **2026-10-29 (upstream port shipped, then server-perf batch):** the Oct 11 to 28 port is on `origin/main` (`affa924167`, 54 commits). A second batch on `upstream-port/2026-10-30` (`C:/lcw/up-port`) holds 5 of 12 server-perf commits; 7 need earlier upstream server code first. Results per commit: `project/upstream-triage-2026-10-30.md`. Not pushed. Open: the 7 deferred commits need their own plan, and the sync agent card `tasks/build-an-agent-that-ports-new-upstream-t3-code-updates-into-leonidas-code-without-breaking-anything.md`.
 
 - **2026-10-28 (mobile paths research):** read-only. Wrote `project/research/mobile-paths-2026-10-28.md` (official app vs our own Expo build vs web over Tailscale). Protocol is 2 on both sides, so the official app should pair today. Not tested on a phone. Open: Jake picks a path to try first.
 
@@ -165,3 +178,4 @@ In [project/agent-gotchas.md](./project/agent-gotchas.md); older ones in [projec
 - 2026-10-17: always-on service built on branch `feat/always-on-service` (worktree `projects/leonidas-code-always-on`, head `99ab65e867`): background mode + tray, catch-up window, idle watchdog, per-task token cap (migration 66). Run `vp` from the worktree root with `node_modules/.bin` on PATH; lint only works from the root. Verify and review still open.
 - 2026-10-17: always-on verify and review done (head `aafd5aee7f`). To prove a test failure is old, run `git checkout --detach <base>` inside the worktree, run the test, then switch back (no second install needed). 33 tests fail on the baseline too: 3 in `apps/server/src/mcp`, 30 in `apps/desktop/src`. `watchRun` now ends after 20 failed thread reads. Open: success criterion 5 (launch at login) and the S6 install proof need Jake.
 - 2026-10-21: slice 2 of the email autopilot shipped to origin/main (`eebed34fc0`): `packages/mail-autopilot` provider, action log and undo; `apps/server/src/mailAutopilot/` Gmail adapter, Google PKCE sign-in, JSONL log. Server and package `tsc` run the Effect language service as errors (no `new Date()`, `console.log`, `setTimeout`, global `fetch`, bare `node:` imports without an injected function or an `@effect-diagnostics` comment). Not yet run against real Gmail: smoke test waits on the Google OAuth app going to Production.
+- 2026-10-29: upstream T3 port: integration branch `upstream-port/2026-10-28` (worktree `C:/lcw/up-port`, head `4d9a038252`) holds groups 1 to 5, most of 6, part of 7. A plain `cherry-pick -x` of upstream commits mostly conflicts, so hand-port with `cherry-pick -n`, resolve, then commit. Codex Terra ended early on 6 delegated runs with 0 commits: do the work inline or give a Claude worker a prepared worktree. Delegated Codex spawns can fail with "internal server error" yet create the task: run `t3_thread_list` before any retry.
