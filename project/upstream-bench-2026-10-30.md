@@ -34,9 +34,9 @@ Shell snapshot size: 2.35 MB on both trees.
 
 ## Not measured (gaps)
 
-- **Git status time through the server.** It needs the WebSocket RPC. The bench has no WebSocket client yet. Step 2 needs one, or an in-process test of `GitVcsDriverCore.ts`.
+- **Git status time through the server:** measured since the WebSocket client was added (see the section below).
 - **Query count per minute.** The bench counts file reads of the process tree, which is a proxy. A true count needs a hook in the SQL client.
-- **Runs with a connected client.** Real idle load comes from client subscriptions over WebSocket.
+- **Runs with a connected client:** measured since the WebSocket client was added (see the section below).
 - One base run had a bad idle counter (the process tree changed). It is dropped from the idle rows.
 
 ## Next
@@ -55,3 +55,25 @@ Method: a preload (`--import`) counted every `node:sqlite` call and every `fs` c
 - **Why 117 statements make 13,400 reads:** one scan of the thread payloads costs 585 read operations (2.3 MB, 3 ms), even from cache. The SQLite page cache is 2 MB (`cache_size -2000`, 4 KB pages), so each query rereads its pages through the OS. The OS file cache serves them.
 
 **Verdict:** the idle read count looks large but costs little. Do not treat it as a defect. Option if the count matters: raise `PRAGMA cache_size` or set `PRAGMA mmap_size` (would cut `ReadFile` calls; needs a before and after bench with a connected client). The remaining idle CPU (about 0.9 of 1.1 seconds per minute) is not SQL or fs. A `--cpu-prof` run would find it. Not done.
+
+## WebSocket bench (2026-10-30, second pass)
+
+Tools: `apps/server/scripts/server-bench-ws.ts` (WebSocket client), `scripts/server-bench.mjs` (adds git status and a connected-client idle run), `scripts/server-bench-git.mjs` (local git status per folder on an empty home). Base `6a95384a6a`, batch 2 `357febc81a`. 3 alternating runs per tree.
+
+| Metric (median of 3)                                           | Base   | Batch 2 |
+| -------------------------------------------------------------- | ------ | ------- |
+| Shell snapshot, warm p50 (ms)                                  | 219    | 224     |
+| Thread open, largest, warm p50 (ms)                            | 134    | 124     |
+| Shell under write load, p50 (ms)                               | 208    | 205     |
+| Explicit git refresh through the server, warm p50 (ms)         | 2,049  | 2,081   |
+| Raw `git status` in the same folder (ms)                       | 103    | 109     |
+| First local git status of a new folder through the server (ms) | 1,107  | 1,107   |
+| Idle file reads per minute, no client                          | 13,743 | 13,787  |
+| Idle file reads per minute, client connected                   | 13,699 | 13,702  |
+| Idle CPU seconds per minute, client connected                  | 0.84   | 1.04    |
+
+- **Batch 2 still shows no speed change.** All pairs sit inside the noise. This pass had less noise than the first (warm shell 212 to 228 ms on the base tree).
+- **Git status has a real gap (step 2).** A new folder takes about 1.1 s through the server, while raw `git status` takes about 0.11 s in the same folder. That is 10 times slower. The overhead is about 1.0 s for each folder. The explicit refresh takes 2.0 s because it also does a remote check.
+- **A connected client adds no idle cost.** The three held subscriptions (server config, shell stream, git status) gave 3 events in 65 s and the same reads as no client.
+- **Plan impact:** step 2 (git status, #27103) has a measurable target: bring 1.1 s toward 0.2 s. Steps 1 and 4 still show no gap. Step 3 (connection routing) has no number yet.
+- **Not known:** where the 1.0 s goes (extra git commands per status, process start cost on Windows, or serial calls). Count the git processes the server starts for one status. That is the next trace.
