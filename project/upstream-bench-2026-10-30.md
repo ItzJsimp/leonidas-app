@@ -77,3 +77,27 @@ Tools: `apps/server/scripts/server-bench-ws.ts` (WebSocket client), `scripts/ser
 - **A connected client adds no idle cost.** The three held subscriptions (server config, shell stream, git status) gave 3 events in 65 s and the same reads as no client.
 - **Plan impact:** step 2 (git status, #27103) has a measurable target: bring 1.1 s toward 0.2 s. Steps 1 and 4 still show no gap. Step 3 (connection routing) has no number yet.
 - **Not known:** where the 1.0 s goes (extra git commands per status, process start cost on Windows, or serial calls). Count the git processes the server starts for one status. That is the next trace.
+
+## Step 2: git status port (2026-10-31)
+
+Trace of one first local status of a folder, before the port: 20 git processes in about 2.7 s on a cold cache. Four were heavy: `ls-files --others` 644 ms, `status` 216 ms, `diff-index` 197 ms, base `diff --numstat` 161 ms. The other 16 cost 32 to 65 ms each. Windows starts a process in about 20 to 40 ms, so many small serial calls add up.
+
+Changes (branch `upstream-port/2026-10-30`, commit `963c9455dc`, not pushed):
+
+- **Repo detection:** one `rev-parse --is-inside-work-tree --show-toplevel --git-common-dir` instead of three (upstream #27103). A path with a newline falls back to separate calls (test added).
+- **Local status:** status, numstat, default branch and remote lookups start together (upstream #27103). The known default branch is passed down, so it is not looked up again.
+- **Ahead count and branch totals** run together (upstream #27103).
+- **Our addition:** the untracked-file listing (`ls-files --others`, the slowest step) runs beside the merge-base lookup. Upstream does not do this.
+- **Left out:** the status broadcaster change in #27103 (it only merges concurrent refreshes), and `isMissingExecutable` handling (needs an earlier upstream commit; our code still fails loudly if `git` is missing).
+
+| First local status of a new folder, through the server | Base      | Step 2    |
+| ------------------------------------------------------ | --------- | --------- |
+| Median over 6 folders, 3 alternating runs (ms)         | 1,321     | 1,073     |
+| After the parallel port alone, before the overlap (ms) | 1,277     | 1,166     |
+| Processes started for one status                       | 20        | 17        |
+| Raw `git status` in the same folders (ms)              | about 115 | about 115 |
+
+- **Gain:** about 19 percent (250 ms). It is real but small. The target was near 200 ms, and the result is about 1,070 ms.
+- **Noise:** single runs range from 0.85 s to 2.8 s. The machine was busier in this pass than in the first (base 1.32 s here, 1.11 s before). Compare medians within one pass only.
+- **What remains:** a serial chain of small git calls (about 100 ms to start, then branch lookups, then the 280 ms listing and the 80 ms diff), plus two `config` calls after the totals. A trace shows a 170 ms gap before `remote get-url` that I did not explain. Further speed needs the Changes totals to start earlier or be cached per folder. That is a design change, not a port.
+- **Checks:** server `tsc` 0 errors; `src/vcs`, `src/sourceControl` and `src/git` tests pass (510).
