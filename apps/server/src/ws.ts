@@ -3339,7 +3339,12 @@ const layerWsRpc = (
               (unsubscribe) => Effect.sync(unsubscribe),
             ),
           ),
-        [WS_METHODS.previewOpen]: (input) => previewManager.open(input),
+        [WS_METHODS.previewOpen]: (input) =>
+          Effect.gen(function* () {
+            if (input.profileId === "leonidas-shared-browser")
+              yield* serverBrowser.checkSharedBrowser();
+            return yield* previewManager.open(input);
+          }),
         [WS_METHODS.previewNavigate]: (input) => previewManager.navigate(input),
         [WS_METHODS.previewResize]: (input) => previewManager.resize(input),
         [WS_METHODS.previewAdjust]: (input) => previewManager.adjust(input),
