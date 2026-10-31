@@ -61,6 +61,7 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **The main checkout cannot commit when its install is partial:** the `vp` pre-commit hook fails (code 127, or vite.config cannot load `vitest`). Commit from an installed worktree under `C:/lcw`; a PATH borrow of another worktree's `vp` does not work.
 - **Usage limits merge per window, not per snapshot:** `collectLimitAccounts` and `collectConnectedUsageLimits` (`packages/shared/src/`) join one account across devices with `mergeLimitWindows`. Never pick a whole snapshot by `checkedAt`: any one bar's update bumps it, so a device's stale bar wins. Windows past `resetsAt` show 0% in `poolWindows`. Claude polls usage every 60 s only while the app has demand (`ClaudeDriver.ts` `pollUsage`), so an idle device holds old numbers. Run: `npx vp test run packages/shared/src/usageLimits.test.ts` (2 s). Unrelated Windows failures exist in `atomicWrite.test.ts` and `relayClient.test.ts`.
 - **Server typecheck has existing errors** in unrelated test files (`aiosDetect.test.ts`, `relativeImportExtensions.test.ts`). Filter the output to your changed paths instead of reading the total.
+- **Cache awareness has two halves:** the server sets `promptCacheTtlMs` and `promptCacheAnchorAt` per provider (`ClaudeContextUsage.ts`, `codexProviderTurnTokenUsage` in `CodexAdapterV2.ts`). The web side only reads them (`cacheAwareness.ts`, `CacheAwareness.tsx`). A provider that sends no TTL gets no countdown and no notice. Codex uses the documented 30m default because the 12h option is opt-in and not reported. Do not hard-code 12h. Self-test: `CacheAwareness.test.tsx`, `CodexAdapterV2.test.ts`.
 
 ## 6. Why it is this way
 
@@ -72,6 +73,7 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 
 ## 7. Session notes
 
+- **2026-10-31:** A chat waiting on a question now shows a cache warning on the card (`usePendingCacheNote`, `ComposerPendingUserInputPanel.tsx`) and one toast when the cache ends while the card is open. Codex chats now report a 30m TTL. Not committed, not pushed. Open: no toast for chats you are not viewing, because the app does not track pending questions per chat.
 - **2026-10-28 (3):** `LimitsFocusRefresh` (mounted in `routes/__root.tsx`) refreshes providers on window focus or return to visible, once a minute per environment (commit `11e99cfa0d`). `UsagePage.refresh.test.tsx` fails alone here with `document is not defined`; not caused by this work.
 - **2026-10-28 (2):** Claude limits no longer regress (commit `5c179f7b7d`): `ClaudeProvider.ts` marks the SDK-cache fallback `cached: true` and `resolveUsageLimitsAfterProbe` keeps published windows over it. Poll pauses on lock, low power, or a background window by design (`BackgroundPolicy.ts`). Not pushed.
 - **2026-10-28:** Usage-limit mismatch across devices fixed (commit `4886cd7e08`): per-window merge plus expired windows show 0%. Not pushed. Open: idle devices still hold stale reads (poll runs only on demand); a reset credit shows the old high value until the other device re-reads.
