@@ -118,6 +118,7 @@ import {
 } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
 import { ProjectDefaultsSettings } from "./ProjectDefaultsSettings";
+import { SharedBrowserSetting } from "./SharedBrowserSetting";
 import { useSettingsScope } from "./SettingsScopeContext";
 import { BrowserImportWizard, type WizardTarget } from "./BrowserImportWizard";
 import type { ImportOutcome } from "./browserImportWizard.logic";
@@ -1542,6 +1543,9 @@ export function IntegrationsSettingsPanel() {
       {/* Server-authoritative agent access is scoped by the header selection;
           the preview defaults below are device-local and ignore it. */}
       <ProjectDefaultsSettings category="integrations" />
+      <SettingsSection title="Website logins">
+        <SharedBrowserSetting />
+      </SettingsSection>
       <SettingsSection id="browser" title="Browser">
         {previewDefaultsDisabled ? (
           <SettingsUnavailableGroup message="Available only in the desktop app. Open Leonidas Code on your computer to use this.">
