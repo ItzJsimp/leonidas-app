@@ -8,7 +8,7 @@ Scope: three commits found by the first `/upstream-review` scan (2026-10-31), to
 | -------- | ------------ | ---------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------- |
 | #24117   | `e9dd8a68ee` | Git actions button offers Commit when the branch is behind | Low: 2 lines in 2 files plus tests | [card](../../../tasks/port-upstream-commit-button-when-behind-upstream-t3-24117.md) |
 
-Our `gitActions.ts` line 146 still has the old condition and no `isBehind` variable. Define `isBehind` as `gitStatus.behindCount > 0`.
+Ported 2026-11-01 as `f2d1359473` on `port/24117-commit-behind` (`C:/lcw/up-port`, not pushed). The cherry-pick applied clean, and `isBehind` already existed in both functions. One of our old tests expected Commit, push & PR for this case. Upstream deleted that test earlier (#22557), so it was removed here.
 
 ## Port next, plan first
 
