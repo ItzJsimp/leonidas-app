@@ -140,3 +140,11 @@ Branch `perf/git-status-prelude` in `C:/lcw/up-port`. Bench: 6 adjacent pairs pe
 - **Checks:** `vp test run src/vcs/GitVcsDriverCore.test.ts src/vcs/GitVcsDriver.test.ts`: 211 pass, 3 skipped. `tsc --noEmit` in `apps/server`: 0 errors. A mock in `reads complete tracked and untracked manifests beyond 1 MB` matched `ls-files`, so it was vacuous after (d): it now matches the new `status` call. New test: untracked names with spaces and non-ASCII.
 - **Risk:** the totals now run a second `git status` beside the main one. In an LFS repo with stat-dirty files, the clean filters run twice. `ls-files` did not run them.
 - **Not reached:** the target of 300 ms. First status is about 500 ms now.
+
+### Step 4b: what remains after lever (d), and one lever that was inconclusive (2026-11-01)
+
+Trace of a first status after step 4 (532 ms, `C:/lcw/up-look`): 5 serial `rev-parse` and `symbolic-ref` calls before `status` (about 100 ms), then a 5-call chain to find the merge base (`symbolic-ref`, `config`, `remote get-url`, `show-ref`, `merge-base`, about 196 ms), then the numstat `diff` (78 ms), then two serial `config` reads in `resolveHostingProvider` (about 100 ms with gaps). `status` itself (175 ms) is no longer on the critical path.
+
+- **Lever (e), tried and reverted:** read the remote config with one `git config -z --get-regexp` beside the status, and resolve the hosting provider from that snapshot. 6 adjacent pairs: median +15 ms, faster in 3 of 6, pooled 532 against 523 ms. The pair spread is about 150 ms, so a gain of 80 ms or less cannot show in this bench. Not shipped. Tests were green (128 in `GitManager.test.ts`); `tsc` flagged an `any` error type until the status effect was named before `Effect.all`.
+- **Lever (f), not tried:** `resolvePrimaryRemoteName` repeats `remote get-url origin` that the first group already ran. About 35 ms by the trace. It needs an option passed through 3 functions.
+- **What this means:** the remaining time is many serial processes of 20 to 40 ms each. Each is below what this bench resolves. To reach 300 ms a structural change is needed, not more call shuffling: send the file list first and the totals after, or cache the base branch and merge base between statuses.
