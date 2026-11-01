@@ -94,6 +94,7 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **The Bash token guard blocks Python heredocs over 20 lines:** write the script with the Write tool and run it by path, or use Edit. A `\n` inside a heredoc string became a real newline in a TS test and broke the parse.
 - **`git commit --only -- <paths>` skips a new file until you `git add` it first** (pathspec error). The pre-commit hook then runs a formatter, so a file may change on disk after commit.
 
+- **Upstream review ledger (2026-10-31):** `project/upstream-review-ledger.json` marks each reviewed upstream commit (`seen:<verdict>`). `IMPLEMENTED` is read live from a cited PR number, never stored. To review an older window, pass `--since <sha>` to `upstream_scan.py`; the marker alone only shows commits after the last review. Change a verdict with `--set`. A task card file with "secret" in its name is gitignored: use "token".
 - **Upstream port traps (2026-10-29):**
   - A `cherry-pick -n` conflict often means the upstream change needs code we lack (`prepareRun`, the SQLite reader pool). Check that our file has the symbol before you merge by hand; if not, skip and log it.
   - After a failed `cherry-pick -n` there is no sequencer state. Use `git reset --hard HEAD` in your own `C:/lcw` worktree.
@@ -120,6 +121,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Thin rebrand layer:** every branding touch makes `upstream/main` merges harder. Card: [`t3-code-rebrand`](../../tasks/t3-code-rebrand.md).
 
 ## 7. Session notes
+
+- **2026-10-31 (upstream review, Oct 24 to 31):** 1,311 commits triaged and marked in the new per-commit ledger; `upstream-triage-2026-10-31.md` and 3 port cards in the AIOS `tasks/`. Not pushed. Open: start the token redaction card first.
 
 - **2026-10-29 (Scribe Copy key, Goals and Insights tabs, design audit):** Copy key (`scribe.getGroqKey`, `664b0a4b4d`) and Goals and Insights tabs (direction A, `9c4393bf94`) sit on `feat/scribe-copy-key` (`C:/lcw/scribe-copy-key`, cut from `27653e87ba`, now 54 commits behind `origin/main`, not pushed). A design audit gave FAIL (0 P0, 5 P1, 6 P2); fixes are in `handoff-docs/2026-10-29-scribe-audit-fixes-and-remaining-build.md`. Traps: a new RPC scope belongs in `packages/contracts/src/clientRpcPermissions.ts` (the `RpcAuthorization.ts` map spreads it, so a second entry is a duplicate-key type error); lint bans the native `title` tooltip (use `Tooltip`); `byApp` counts dictations, not words. To screenshot a tab without the server, use the untracked `apps/web/audit-harness` (real components, mocked `~/state/query` and `~/state/scribe`): run `pnpm exec vp dev --config audit-harness/vite.config.ts` (port 5791), its CSS needs `@source "../src"`, and 375 px must be shot inside an iframe (`frame.html`) because headless Chrome clips windows under about 500 px.
 
