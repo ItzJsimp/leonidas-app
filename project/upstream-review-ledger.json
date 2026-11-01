@@ -2370,9 +2370,9 @@
     "verdict": "port-now"
   },
   "5ef56853ef": {
-    "on": "2026-10-31",
+    "on": "2026-11-01",
     "pr": "19941",
-    "verdict": "later"
+    "verdict": "port-next"
   },
   "5effca10b3": {
     "on": "2026-10-31",
@@ -4320,9 +4320,9 @@
     "verdict": "seen"
   },
   "aaee7743f8": {
-    "on": "2026-10-31",
+    "on": "2026-11-01",
     "pr": "27418",
-    "verdict": "seen"
+    "verdict": "later"
   },
   "ab1e221618": {
     "on": "2026-10-31",
@@ -5835,9 +5835,9 @@
     "verdict": "skip"
   },
   "e9dd8a68ee": {
-    "on": "2026-10-31",
+    "on": "2026-11-01",
     "pr": "24117",
-    "verdict": "seen"
+    "verdict": "port-next"
   },
   "ea3767b248": {
     "on": "2026-10-31",
