@@ -631,18 +631,6 @@ describe("when: on default branch without open PR", () => {
 });
 
 describe("when: working tree has local changes and ref is behind upstream", () => {
-  it("resolveQuickAction still prefers commit, push, and create PR", () => {
-    const quick = resolveQuickAction(
-      status({ hasWorkingTreeChanges: true, behindCount: 1 }),
-      false,
-    );
-    assert.deepInclude(quick, {
-      kind: "run_action",
-      action: "commit_push_pr",
-      label: "Commit, push & PR",
-    });
-  });
-
   it("buildMenuItems enables commit and keeps push and PR disabled", () => {
     const items = buildMenuItems(status({ hasWorkingTreeChanges: true, behindCount: 2 }), false);
     assert.deepEqual(items, [
@@ -711,6 +699,36 @@ describe("when: HEAD is detached and there are no local changes", () => {
         dialogAction: "create_pr",
       },
     ]);
+  });
+});
+
+describe("when: local changes are behind upstream", () => {
+  it("keeps the commit action available without pushing, with or without an open PR", () => {
+    const behind = status({ hasWorkingTreeChanges: true, behindCount: 2 });
+    const commit = {
+      label: "Commit",
+      disabled: false,
+      kind: "run_action",
+      action: "commit",
+    } as const;
+    assert.deepEqual(resolveQuickAction(behind, false), commit);
+    assert.deepEqual(
+      resolveQuickAction(
+        {
+          ...behind,
+          pr: {
+            number: 13,
+            title: "Open PR",
+            url: "https://example.com/pr/13",
+            baseRef: "main",
+            headRef: "feature/test",
+            state: "open",
+          },
+        },
+        false,
+      ),
+      commit,
+    );
   });
 });
 
