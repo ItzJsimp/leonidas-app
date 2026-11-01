@@ -24,6 +24,13 @@ Jake chose this on 2026-11-01. Skip `apps/mobile/src/features/review/reviewModel
 | -------- | ------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | #27418   | `aaee7743f8` | Git actions panel stops re-rendering on streamed updates | Needs `useQuietThreadProjection`, which our tree lacks. It needs an earlier upstream commit. No measured number. |
 
-## Not reviewed in this pass
+## Newer commits, reviewed the same day (range `7195b69954..b50d8a1b15`)
 
-The scan range ended at `37d7615a91` and holds 3 newer commits outside the topic: #28474 (scheduled task runs stay busy after an interrupt), #28549 (desktop preview focus), #28027 (`preview_open` goes to a dev-server port). They are unchecked. The review marker in `upstream-review-state.json` stays at `7195b69954`, so the next scan lists them.
+| Upstream | Commit       | What                                                | Result                                                                                                                                                                                                                                     |
+| -------- | ------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| #28474   | `ce9e016406` | Interrupted scheduled task runs no longer stay busy | Ported by hand as `a5654cb536`. Reserve and release now run as one `acquireUseRelease`. The webhook queue part needs code we lack and is skipped. The new test fails on the old code and passes on the new code.                           |
+| #28573   | `b50d8a1b15` | Space above PR detail metadata                      | Ported clean as `8d703f81e6`. One class added.                                                                                                                                                                                             |
+| #28549   | `37d7615a91` | Desktop preview keeps host focus on pointer presses | Later. Needs `GuestInput.ts`, which our tree lacks (deleted in HEAD), so it needs an earlier upstream commit.                                                                                                                              |
+| #28027   | `6328c84722` | `preview_open` goes straight to a dev-server port   | Later. It adds a `target` field to a tool every agent sees, so `agentContextBudget.json` and the evals change. The source files apply clean, only the tests and the budget conflict. Port it when the tool-list size change is acceptable. |
+
+Branch `port/24117-commit-behind` in `C:/lcw/up-port` holds all three ports (#24117, #28474, #28573) as commits `f2d1359473`, `a5654cb536`, `8d703f81e6`. Not pushed.
