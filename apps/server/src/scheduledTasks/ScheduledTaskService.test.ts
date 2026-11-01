@@ -3,9 +3,11 @@ import * as NodeUtil from "node:util";
 
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, it } from "@effect/vitest";
-import { ScheduledTaskError } from "@t3tools/contracts";
+import { ScheduledTaskError, ScheduledTaskUpsertInput } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as SqlClient from "effect/sql/SqlClient";
@@ -22,6 +24,7 @@ import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as ScheduledTaskService from "./ScheduledTaskService.ts";
 
 const isScheduledTaskError = Schema.is(ScheduledTaskError);
+const decodeUpsertInput = Schema.decodeUnknownEffect(ScheduledTaskUpsertInput);
 
 const insertRow = (
   sql: SqlClient.SqlClient,
@@ -350,4 +353,69 @@ it.effect(
         }),
       );
     }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+);
+
+it.effect("a run interrupted right after it reserves the task does not block the next run", () =>
+  Effect.gen(function* () {
+    const launches = yield* Ref.make(0);
+    const layer = ScheduledTaskService.layer.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          Layer.mock(ThreadLaunchService.ThreadLaunchService)({
+            launch: () =>
+              Ref.update(launches, (n) => n + 1).pipe(
+                Effect.as({ threadId: "thread:launched", resumed: false } as never),
+              ),
+          }),
+          Layer.mock(ThreadManagementService.ThreadManagementService)({}),
+          Layer.mock(SecretRequests.SecretRequests)({}),
+          NodeCrypto.layer,
+          Scheduler.layer,
+        ),
+      ),
+    );
+    yield* Effect.gen(function* () {
+      const service = yield* ScheduledTaskService.ScheduledTaskService;
+      const { task } = yield* service.upsert(
+        yield* decodeUpsertInput({
+          id: "task:interrupted-reservation",
+          title: "Check in",
+          prompt: "Check progress",
+          enabled: true,
+          schedule: { type: "interval", everyMs: 60_000 },
+          projectId: "project:test",
+          workspaceStrategy: { type: "root" },
+          modelSelection: { instanceId: "codex", model: "gpt-5.4" },
+          runtimeMode: "full-access",
+          interactionMode: "default",
+        }),
+      );
+
+      // The reservation is the first Set.add of the task id; interrupt the run right there.
+      const add = Set.prototype.add;
+      let interrupted = false;
+      // A plain patch, not vi.spyOn: the spy's own bookkeeping calls Set.add and recurses.
+      Reflect.set(Set.prototype, "add", function (this: Set<unknown>, value: unknown) {
+        const result = add.call(this, value);
+        if (value === task.id && !interrupted) {
+          interrupted = true;
+          Fiber.getCurrent()?.interruptUnsafe();
+        }
+        return result;
+      });
+      const first = yield* service
+        .runNow({ id: task.id })
+        .pipe(
+          Effect.forkChild,
+          Effect.flatMap(Fiber.await),
+          Effect.ensuring(Effect.sync(() => void Reflect.set(Set.prototype, "add", add))),
+        );
+      assert.isTrue(interrupted);
+      assert.isTrue(Exit.hasInterrupts(first));
+
+      const second = yield* service.runNow({ id: task.id });
+      assert.equal(second.task.runCount, 1);
+      assert.equal(yield* Ref.get(launches), 1);
+    }).pipe(Effect.provide(layer));
+  }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
 );
