@@ -1,20 +1,29 @@
-import type { ServerProviderUsageWindow } from "@t3tools/contracts";
+import type { ServerProviderUsageWindow, UsageLimitsReport } from "@t3tools/contracts";
+import { ProviderDriverKind } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  accountFreshnessLabel,
   accountTitle,
+  compactPercentNumber,
+  compactWindowLabel,
   contextWindowFigures,
   contextWindowTokensForModel,
+  expireElapsedWindow,
+  extraWindowSummaries,
   formatResetCountdown,
   formatResetLabel,
   formatTokenCount,
   glanceLimitRows,
+  groupAccountsByProvider,
   limitLabel,
   limitsFreshness,
   orderPlanWindows,
   parseContextWindowSize,
   percentText,
   shortPlanName,
+  siblingAccountSummary,
+  splitAccountHeader,
   usageSeverity,
   withKnownContextWindow,
 } from "./usageLimitsPopover";
@@ -185,10 +194,48 @@ describe("glance and panel helpers", () => {
     ]);
   });
 
+  it("clears a window whose reset time has passed", () => {
+    const now = Date.parse("2026-10-09T12:00:00Z");
+    const elapsed = window("s", "session", "Session", {
+      usedPercent: 18,
+      resetsAt: "2026-10-09T11:59:00Z",
+    });
+    const active = window("w", "weekly", "Weekly", {
+      usedPercent: 40,
+      resetsAt: "2026-10-09T12:01:00Z",
+    });
+    expect(expireElapsedWindow(elapsed, now)).toEqual({
+      id: "s",
+      kind: "session",
+      label: "Session",
+      usedPercent: 0,
+    });
+    expect(expireElapsedWindow(active, now)).toBe(active);
+    const rows = glanceLimitRows([elapsed, active], now);
+    expect(rows[0]?.window?.usedPercent).toBe(0);
+    expect(rows[0]?.window?.resetsAt).toBeUndefined();
+    expect(rows[1]?.window).toBe(active);
+  });
+
   it("says used or left explicitly", () => {
     expect(percentText(38.4)).toBe("38% used");
     expect(percentText(38.4, "left")).toBe("62% left");
     expect(percentText(120, "left")).toBe("0% left");
+    expect(compactPercentNumber(38.4)).toBe("38%");
+    expect(compactPercentNumber(38.4, "left")).toBe("62%");
+  });
+
+  it("formats compact window labels and extra window summaries", () => {
+    const session = window("s", "session", "Session", { windowDurationMins: 300 });
+    const weekly = window("w", "weekly", "Weekly");
+    const fable = window("w_fable", "weekly", "Weekly · Fable", { usedPercent: 0 });
+    expect(compactWindowLabel(session, "5-hour limit")).toBe("5-hour");
+    expect(compactWindowLabel(weekly, "Weekly limit")).toBe("Weekly");
+    expect(compactWindowLabel(fable, "Weekly limit")).toBe("Fable wk");
+    const primary = glanceLimitRows([fable, weekly, session]);
+    expect(extraWindowSummaries([fable, weekly, session], primary, "used")).toEqual([
+      { id: "w_fable", label: "Fable wk", value: "0%" },
+    ]);
   });
 
   it("counts reset time down in plain and compact form", () => {
@@ -207,10 +254,68 @@ describe("glance and panel helpers", () => {
     expect(formatResetCountdown(at(-5), now, true)).toBe("now");
   });
 
-  it("names accounts by their Providers label first", () => {
+  it("names accounts by their Providers label first and splits provider headers cleanly", () => {
     expect(accountTitle({ displayName: " Work " }, "Claude")).toBe("Work");
     expect(accountTitle({ displayName: "" }, "Claude")).toBe("Claude");
     expect(accountTitle({ sourceLabel: "CLIProxy" }, "Codex")).toBe("Codex · CLIProxy");
+    expect(
+      splitAccountHeader(
+        { displayName: "Claude (Jake)", label: "Claude (Jake)", plan: "Claude Max Subscription" },
+        "Claude",
+      ),
+    ).toEqual({
+      primaryName: "Claude",
+      subtitle: "Jake · Max",
+    });
+  });
+
+  it("groups sibling accounts under their provider card and rotates siblings for Swap", () => {
+    const claudeDriver = ProviderDriverKind.make("claudeAgent");
+    const codexDriver = ProviderDriverKind.make("codex");
+    const makeAcct = (
+      id: string,
+      driver: ProviderDriverKind,
+      displayName: string,
+      used5h: number,
+      usedWk: number,
+    ): UsageLimitsReport["accounts"][number] => ({
+      id,
+      driver,
+      label: displayName,
+      displayName,
+      limits: {
+        checkedAt: "2026-10-09T12:00:00Z",
+        windows: [
+          window(`${id}-5h`, "session", "Session", {
+            windowDurationMins: 300,
+            usedPercent: used5h,
+          }),
+          window(`${id}-wk`, "weekly", "Weekly", { usedPercent: usedWk }),
+        ],
+      },
+    });
+    const jake = makeAcct("c-jake", claudeDriver, "Claude (Jake)", 37, 71);
+    const justine = makeAcct("c-justine", claudeDriver, "Claude (Justine)", 48, 41);
+    const backup = makeAcct("c-backup", claudeDriver, "Claude (Backup)", 10, 12);
+    const codex = makeAcct("cx-jake", codexDriver, "Codex (Jake)", 24, 20);
+    const groups = groupAccountsByProvider([codex, jake, justine, backup], new Set(["c-jake"]));
+    expect(groups).toHaveLength(2);
+    expect(groups[1]?.primary.id).toBe("c-jake");
+    expect(groups[1]?.siblings.map((s) => s.id)).toEqual(["c-justine", "c-backup"]);
+
+    const swappedOnce = groupAccountsByProvider(
+      [codex, jake, justine, backup],
+      new Set(["c-jake"]),
+      { [claudeDriver]: "c-justine" },
+    );
+    expect(swappedOnce[1]?.primary.id).toBe("c-justine");
+    expect(swappedOnce[1]?.siblings.map((s) => s.id)).toEqual(["c-backup", "c-jake"]);
+
+    expect(siblingAccountSummary(justine, "Claude", "used")).toEqual({
+      id: "c-justine",
+      name: "Justine",
+      summary: "5h 48% · wk 41%",
+    });
   });
 
   it("never invents a zero before the first context report", () => {
@@ -244,11 +349,16 @@ describe("limitsFreshness", () => {
       label: "Checked 4 min ago",
       stale: false,
     });
+    expect(limitsFreshness([ago(20_000), ago(2 * 60_000)], now, "updated")).toEqual({
+      label: "updated 2 min ago",
+      stale: false,
+    });
     expect(limitsFreshness([ago(1000), ago(11 * 60_000)], now)).toEqual({
       label: "Checked 11 min ago",
       stale: true,
     });
     expect(limitsFreshness([ago(90 * 60_000)], now)?.label).toBe("Checked 1 hr ago");
+    expect(accountFreshnessLabel(ago(2 * 60_000), now)).toBe("updated 2m ago");
   });
 
   it("says nothing without a usable read time", () => {

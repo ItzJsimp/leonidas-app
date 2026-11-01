@@ -206,7 +206,7 @@ describe("injected instruction budget", () => {
   // Ratchet: every turn pays for this text. Lower the cap when you trim; raise it only on purpose.
   it("stays inside the character budget", () => {
     const total = blocks.reduce((sum, block) => sum + block.length, 0);
-    assert.isAtMost(total, 14_903);
+    assert.isAtMost(total, 14_176);
   });
 
   it("keeps a thread without browser or ACP fallback below the full budget", () => {
@@ -225,7 +225,7 @@ describe("injected instruction budget", () => {
     });
     assert.isAtMost(
       plain.length + LEONIDAS_OUTPUT_STANDARD.length,
-      14_903 - T3_CODE_BROWSER_TOOL_INSTRUCTIONS.length - T3_ACP_FALLBACK_INSTRUCTIONS.length + 600,
+      14_176 - T3_CODE_BROWSER_TOOL_INSTRUCTIONS.length - T3_ACP_FALLBACK_INSTRUCTIONS.length + 600,
     );
     assert.isAbove(
       full.length - plain.length,

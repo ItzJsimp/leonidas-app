@@ -1,7 +1,9 @@
 import type {
   ModelSelection,
+  ProviderDriverKind,
   ServerProviderModel,
   ServerProviderUsageWindow,
+  UsageLimitsReport,
 } from "@t3tools/contracts";
 import { getProviderOptionCurrentValue, getProviderOptionDescriptors } from "@t3tools/shared/model";
 
@@ -192,6 +194,12 @@ export function percentText(usedPercent: number, mode: "used" | "left" = "used")
   return mode === "used" ? `${used}% used` : `${100 - used}% left`;
 }
 
+/** Short numeric percentage (`6%` or `94%`) for compact inline meter columns. */
+export function compactPercentNumber(usedPercent: number, mode: "used" | "left" = "used"): string {
+  const used = usedPercentLabel(usedPercent);
+  return mode === "used" ? `${used}%` : `${100 - used}%`;
+}
+
 /**
  * Time until `resetsAt`: `Resets in 1 hr 30 min`, `Resets in 3 days 4 hr`, or in
  * compact form `1h 30m`, `3d 4h`. Minutes round up, so it never reads 0 before the
@@ -250,11 +258,50 @@ export function limitLabel(window: ServerProviderUsageWindow, style: "glance" | 
   return window.label;
 }
 
+/** Short label for compact inline rows: `5-hour`, `Weekly`, `Monthly`. */
+export function compactWindowLabel(
+  window: ServerProviderUsageWindow | null,
+  fallback: string,
+): string {
+  if (!window) return fallback.replace(/\s+limit$/i, "");
+  if (window.kind === "session") {
+    const hours = sessionHours(window);
+    const group = window.label.includes("·") ? window.label.split("·")[0]?.trim() : "";
+    if (group && group.toLowerCase() !== "session") {
+      return `${group} ${hours ? `${hours}h` : "5h"}`;
+    }
+    return hours ? `${hours}-hour` : "Session";
+  }
+  if (window.kind === "weekly") {
+    const parts = window.label.split("·").map((s) => s.trim());
+    if (parts.length > 1) {
+      const qualifier = parts[0]?.toLowerCase() === "weekly" ? parts[1] : parts[0];
+      if (qualifier) return `${qualifier} wk`;
+    }
+    return "Weekly";
+  }
+  if (window.kind === "monthly") return "Monthly";
+  return window.label.replace(/\s+limit$/i, "");
+}
+
 export interface GlanceLimitRow {
   readonly key: string;
   readonly label: string;
   /** Null when the provider reports other windows but not this one yet. */
   readonly window: ServerProviderUsageWindow | null;
+}
+
+/**
+ * A window whose reset time has passed holds the old window's numbers: the provider no
+ * longer reports it. Read it as fresh, 0% used, with no reset time left to count down.
+ */
+export function expireElapsedWindow(
+  window: ServerProviderUsageWindow,
+  now: number,
+): ServerProviderUsageWindow {
+  if (window.resetsAt === undefined || !(Date.parse(window.resetsAt) <= now)) return window;
+  const { resetsAt: _elapsed, ...rest } = window;
+  return { ...rest, usedPercent: 0 };
 }
 
 /**
@@ -264,9 +311,12 @@ export interface GlanceLimitRow {
  */
 export function glanceLimitRows(
   windows: ReadonlyArray<ServerProviderUsageWindow>,
+  now?: number,
 ): GlanceLimitRow[] {
   if (windows.length === 0) return [];
-  const ordered = orderPlanWindows(windows);
+  const ordered = orderPlanWindows(
+    now === undefined ? windows : windows.map((window) => expireElapsedWindow(window, now)),
+  );
   const plainWeekly =
     ordered.find((window) => window.kind === "weekly" && !window.label.includes("·")) ?? null;
   // Antigravity labels every window by model group (`Gemini · 5-hour`, `Gemini · Weekly`),
@@ -308,6 +358,29 @@ export function glanceLimitRows(
 }
 
 /**
+ * Extra quota windows not shown in the primary 2 rows (e.g. `Weekly · Fable` or secondary
+ * model pools), formatted for the compact bottom sub-pill (`Fable wk 0%`).
+ */
+export function extraWindowSummaries(
+  windows: ReadonlyArray<ServerProviderUsageWindow>,
+  primaryRows: ReadonlyArray<GlanceLimitRow>,
+  mode: "used" | "left" = "used",
+  now?: number,
+): ReadonlyArray<{ readonly id: string; readonly label: string; readonly value: string }> {
+  const shownIds = new Set(primaryRows.flatMap((row) => (row.window ? [row.window.id] : [])));
+  const current =
+    now === undefined ? windows : windows.map((window) => expireElapsedWindow(window, now));
+  return orderPlanWindows(current)
+    .filter((window) => !shownIds.has(window.id))
+    .slice(0, 2)
+    .map((window) => ({
+      id: window.id,
+      label: compactWindowLabel(window, window.label),
+      value: compactPercentNumber(window.usedPercent, mode),
+    }));
+}
+
+/**
  * The account's name as the user set it in Providers; otherwise the provider's name,
  * plus the usage source for hub accounts so two of them stay distinguishable.
  */
@@ -318,6 +391,107 @@ export function accountTitle(
   const custom = account.displayName?.trim();
   if (custom) return custom;
   return account.sourceLabel ? `${driverLabel} · ${account.sourceLabel}` : driverLabel;
+}
+
+/**
+ * Split an account's display name into the provider lead (`Claude`) and account/tier
+ * qualifier (`Jake · Max` or `Personal (Max)`) so grouped cards never repeat the brand.
+ */
+export function splitAccountHeader(
+  account: {
+    readonly displayName?: string | undefined;
+    readonly label: string;
+    readonly plan?: string | undefined;
+    readonly sourceLabel?: string | undefined;
+  },
+  driverLabel: string,
+): { readonly primaryName: string; readonly subtitle: string | null } {
+  const raw = accountTitle(account, driverLabel);
+  const parenMatch = /^(.+?)\s*\(([^)]+)\)\s*$/.exec(raw);
+  const qualifier = parenMatch
+    ? parenMatch[2]!.trim()
+    : raw.toLowerCase() !== driverLabel.toLowerCase()
+      ? raw.replace(new RegExp(`^${driverLabel}\\s*[·\\-:]?\\s*`, "i"), "").trim()
+      : "";
+  const planTier = account.plan ? shortPlanName(account.plan) : "";
+  const parts = [
+    qualifier && qualifier.toLowerCase() !== driverLabel.toLowerCase() ? qualifier : null,
+    planTier &&
+    planTier.toLowerCase() !== qualifier.toLowerCase() &&
+    planTier.toLowerCase() !== driverLabel.toLowerCase()
+      ? planTier
+      : null,
+  ].filter((part): part is string => Boolean(part));
+  return {
+    primaryName: driverLabel,
+    subtitle: parts.length > 0 ? parts.join(" · ") : null,
+  };
+}
+
+/** Short sibling summary for the provider card sub-pill (`Justine: 5h 48% · wk 41%`). */
+export function siblingAccountSummary(
+  account: UsageLimitsReport["accounts"][number],
+  driverLabel: string,
+  mode: "used" | "left" = "used",
+  now?: number,
+): { readonly id: string; readonly name: string; readonly summary: string } {
+  const { subtitle } = splitAccountHeader(account, driverLabel);
+  const name = subtitle ?? accountTitle(account, driverLabel);
+  const rows = glanceLimitRows(account.limits.windows, now);
+  const session = rows.find((r) => r.window?.kind === "session")?.window ?? null;
+  const weekly = rows.find((r) => r.window?.kind === "weekly")?.window ?? null;
+  const metrics = [
+    session ? `5h ${compactPercentNumber(session.usedPercent, mode)}` : null,
+    weekly ? `wk ${compactPercentNumber(weekly.usedPercent, mode)}` : null,
+  ].filter((part): part is string => part !== null);
+  return {
+    id: account.id,
+    name,
+    summary: metrics.length > 0 ? metrics.join(" · ") : "pending",
+  };
+}
+
+export interface ProviderAccountGroup {
+  readonly driver: ProviderDriverKind;
+  readonly primary: UsageLimitsReport["accounts"][number];
+  readonly siblings: ReadonlyArray<UsageLimitsReport["accounts"][number]>;
+  readonly hasActive: boolean;
+}
+
+/**
+ * Group connected accounts by provider driver so 4 Claude accounts render as one sleek
+ * provider card with a sibling summary/swap strip instead of 4 full card blocks.
+ */
+export function groupAccountsByProvider(
+  accounts: ReadonlyArray<UsageLimitsReport["accounts"][number]>,
+  activeIds: ReadonlySet<string>,
+  selectedPrimaryByDriver?: Readonly<Record<string, string>>,
+): ReadonlyArray<ProviderAccountGroup> {
+  const byDriver = new Map<ProviderDriverKind, Array<UsageLimitsReport["accounts"][number]>>();
+  for (const account of accounts) {
+    const existing = byDriver.get(account.driver);
+    if (existing) existing.push(account);
+    else byDriver.set(account.driver, [account]);
+  }
+  return [...byDriver.entries()].map(([driver, members]) => {
+    const pinnedId = selectedPrimaryByDriver?.[driver];
+    const primary =
+      (pinnedId ? members.find((m) => m.id === pinnedId) : undefined) ??
+      members.find((m) => activeIds.has(m.id)) ??
+      members[0]!;
+    const primaryIndex = members.findIndex((m) => m.id === primary.id);
+    // Rotate siblings after the current primary so clicking Swap cycles A -> B -> C -> A.
+    const siblings =
+      primaryIndex >= 0
+        ? [...members.slice(primaryIndex + 1), ...members.slice(0, primaryIndex)]
+        : members.filter((m) => m.id !== primary.id);
+    return {
+      driver,
+      primary,
+      siblings,
+      hasActive: members.some((m) => activeIds.has(m.id)),
+    };
+  });
 }
 
 export type ContextWindowFigures =
@@ -359,16 +533,37 @@ const LIMITS_STALE_AFTER_MS = 10 * MINUTE;
 export function limitsFreshness(
   checkedAt: ReadonlyArray<string>,
   now: number,
+  style: "checked" | "updated" = "checked",
 ): { readonly label: string; readonly stale: boolean } | null {
   const times = checkedAt.map((value) => Date.parse(value)).filter(Number.isFinite);
   if (times.length === 0) return null;
   const age = Math.max(0, now - Math.min(...times));
   const minutes = Math.floor(age / MINUTE);
   const label =
-    minutes < 1
-      ? "Checked just now"
-      : minutes < 60
-        ? `Checked ${minutes} min ago`
-        : `Checked ${Math.floor(minutes / 60)} hr ago`;
+    style === "updated"
+      ? minutes < 1
+        ? "updated just now"
+        : minutes < 60
+          ? `updated ${minutes} min ago`
+          : `updated ${Math.floor(minutes / 60)} hr ago`
+      : minutes < 1
+        ? "Checked just now"
+        : minutes < 60
+          ? `Checked ${minutes} min ago`
+          : `Checked ${Math.floor(minutes / 60)} hr ago`;
   return { label, stale: age > LIMITS_STALE_AFTER_MS };
+}
+
+/** Compact per-account freshness (`updated 2m ago`) for card headers. */
+export function accountFreshnessLabel(checkedAt: string | undefined, now: number): string | null {
+  if (!checkedAt) return null;
+  const time = Date.parse(checkedAt);
+  if (!Number.isFinite(time)) return null;
+  const age = Math.max(0, now - time);
+  const minutes = Math.floor(age / MINUTE);
+  if (minutes < 1) return "updated now";
+  if (minutes < 60) return `updated ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `updated ${hours}h ago`;
+  return `updated ${Math.floor(hours / 24)}d ago`;
 }
