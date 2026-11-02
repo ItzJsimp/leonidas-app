@@ -51,6 +51,7 @@ verified: 2026-10-11
 ## 5. Gotchas (the ones that bite first)
 
 - **Phone and mobile questions:** read [project/research/mobile-paths-2026-10-28.md](./project/research/mobile-paths-2026-10-28.md) first. Our `main` has taken no upstream commit since `8d199b4f7b`, so compare an upstream app against our server with `git show upstream/main:<path>`, not the working tree. `ORCHESTRATION_PROTOCOL_VERSION` (`packages/contracts/src/environment.ts:13`) is the hard client gate: re-check it before you promise the App Store app works. Jake's iPhone 13 is on the tailnet (`tailscale status`); he has no Mac, so iOS builds need EAS cloud.
+- **Phone setup for a new user:** the friend-ready guide is [docs/user/phone-setup.md](./docs/user/phone-setup.md). The working route is Tailscale on both devices, then **Settings, Sharing and access** (route `/settings/access`, never "Connections"), **Network access**, **Tailscale HTTPS**, **Create link**, open in Safari, Add to Home Screen. T3 Connect is off in our build (no Clerk keys). The `app.t3.codes/pair?host=` link opens the official T3 app and burns the one-time code. Evidence: AIOS `memory/observed/antifragile.md` entries of 2026-10-29. Not tested on a clean machine.
 - **A new workspace package needs a lockfile importer:** copy the `packages/business-pack:` block in `pnpm-lock.yaml`, rename it, and insert it in alphabetical order. A full offline `pnpm install` rewrites 342 lines of peer suffixes; revert that. Prove the hand edit with `pnpm install --frozen-lockfile --lockfile-only --offline` (exit 0, no change).
 - **Never run `pnpm install` in the main checkout to link one package:** it added about 1,900 packages to the shared `node_modules` and stopped on the unrelated `@react-navigation/native-stack` patch. Use a `C:/lcw` worktree.
 - **The Write and Edit tools turn `\u2028` and `\u2029` in your text into real line separators,** which break a regex literal. Fix with Python using `chr(0x2028)`, or build the string with `String.fromCharCode` in the test. A Bash heredoc with backticks or `\n` also fails to parse; use Write.
@@ -125,6 +126,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 - **Thin rebrand layer:** every branding touch makes `upstream/main` merges harder. Card: [`t3-code-rebrand`](../../tasks/t3-code-rebrand.md).
 
 ## 7. Session notes
+
+- **2026-11-02 (phone setup guide):** wrote `docs/user/phone-setup.md` from the 2026-10-28 research and the 2026-10-29 pairing lessons. Read-only on code. Open: scan the Create link QR on a phone to see which link it holds, and test the guide on a clean machine. Not pushed.
 
 - **2026-11-01 (upstream review Oct 24 to 31, ports):** 1,311 commits triaged into the ledger. Pushed to `origin/main`: token redaction and data-safety fixes (`3b97438dd7`) and a batch of 39 provider and web fixes from 4 worktree workers (`d028f6aa05`). Held as `later` or `skip` with a reason in the ledger: #27252 Stop always completes, #24473 (needs #15036), #27986 (needs Effect 4.0.5), the pairing-code fixes, Electron #26348, and 8 that need code we lack. Release run result not read yet.
 
