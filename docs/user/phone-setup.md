@@ -19,6 +19,19 @@ Setup takes about 10 minutes. You need the free Tailscale app on both devices.
 
 Done. Open the new icon to use Leonidas Code.
 
+## If your computer is a Mac
+
+The phone steps do not change. On the computer, do these things first:
+
+1. Use an Apple Silicon Mac (M1 or newer). Intel Macs have no build.
+2. Download https://github.com/ItzJsimp/leonidas-code/releases/latest/download/Leonidas-Setup-mac.dmg. Drag **Leonidas Code** to Applications.
+3. Open the app. If macOS blocks it, go to **System Settings, Privacy & Security** and click **Open Anyway**.
+4. If macOS says the app "is damaged", run this once in Terminal, then open the app again: `xattr -dr com.apple.quarantine "/Applications/Leonidas Code.app"`
+5. Install Tailscale on the Mac from https://tailscale.com/download. Then follow "On your computer" above.
+6. To keep the Mac awake: **System Settings, Battery** (or **Energy**), then turn on **Prevent automatic sleeping when the display is off**.
+
+The Mac app does not update itself. Download the .dmg again for each new version.
+
 ## If it does not work
 
 - **The link opens another app first:** the code is now used. Click **Create link** again. Open the new link in Safari.
