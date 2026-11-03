@@ -128,6 +128,25 @@ function ProjectProjectionRetention() {
   return null;
 }
 
+/** WCAG 2.4.1: the first Tab stop on every page skips the app rail and lands in the page's main. */
+function SkipToContent() {
+  return (
+    <a
+      href="#main"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-popover focus:px-3 focus:py-2 focus:text-popover-foreground focus:text-sm focus:shadow-md focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring"
+      onClick={(event) => {
+        const main = document.querySelector<HTMLElement>("main");
+        if (!main) return;
+        event.preventDefault();
+        main.tabIndex = -1;
+        main.focus();
+      }}
+    >
+      Skip to content
+    </a>
+  );
+}
+
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { active: panelAnimationsActive, durationMs: panelAnimationDurationMs } =
@@ -215,6 +234,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         defaultOpen
         style={sidebarProviderStyle}
       >
+        <SkipToContent />
         <SidebarBrandWidthProbe onWidthChange={setBrandWidth} />
         <ProjectProjectionRetention />
         {railVisible ? <AppRail /> : <RailDrawer />}
