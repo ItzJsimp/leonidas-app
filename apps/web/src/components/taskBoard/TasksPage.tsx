@@ -41,7 +41,7 @@ import { AiosConfirmCard } from "./AiosConfirmCard";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
 import { TaskQuickAdd } from "./TaskQuickAdd";
 import { TaskRoadmapView } from "./TaskRoadmap";
-import { OwnerLensTabs } from "./OwnerLensTabs";
+import { OwnerLensPicker } from "./OwnerLensPicker";
 import { isOpen } from "./taskBoard.logic";
 import leonidasRoadmap from "../../../../../project-roadmap.json";
 import type { TaskContext } from "./taskBoard.types";
@@ -446,73 +446,73 @@ export function TasksPage() {
                 : "flex min-h-0 min-w-0 flex-1 flex-col"
             }
           >
-            <div className="flex flex-col gap-3 border-b border-border px-4 pt-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <h2 className="truncate text-xl font-semibold">{heading}</h2>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-4 py-2">
+              <div className="flex min-w-0 items-baseline gap-2">
+                <h2 className="truncate text-lg font-semibold">{heading}</h2>
                 {prefs.view !== "roadmap" ? (
                   <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
                     {searching ? `${board.visibleTasks.length} found` : `${openInLens} open`}
                   </span>
                 ) : null}
-                <div className="ml-auto flex shrink-0 items-center">
-                  <SyncStatus
-                    state={shareState}
-                    canSync={Boolean(railEntry?.projectId)}
-                    busy={isSharingSection}
-                    onSync={() => {
-                      if (railEntry?.projectId) shareSection(railEntry.projectId);
+              </div>
+              <div
+                role="tablist"
+                aria-label="View"
+                className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5"
+              >
+                {VIEW_OPTIONS.map(({ view, label, icon: Icon }) => (
+                  <button
+                    key={view}
+                    type="button"
+                    role="tab"
+                    aria-selected={prefs.view === view}
+                    aria-label={label}
+                    data-tour={view === "roadmap" ? "tasks-roadmap-tab" : undefined}
+                    onClick={() => changeView(view)}
+                    className={cn(
+                      "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                      prefs.view === view
+                        ? "bg-background font-medium text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icon aria-hidden className="size-4" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="ml-auto flex min-w-0 flex-1 basis-64 flex-wrap items-center justify-end gap-1">
+                {prefs.view !== "roadmap" ? (
+                  <OwnerLensPicker
+                    options={board.ownerOptions}
+                    value={prefs.owner}
+                    onChange={(owner) => {
+                      patchPrefs({ owner });
+                      setSelectedId(null);
                     }}
                   />
-                </div>
-              </div>
-              {prefs.view !== "roadmap" ? (
-                <OwnerLensTabs
-                  options={board.ownerOptions}
-                  value={prefs.owner}
-                  onChange={(owner) => {
-                    patchPrefs({ owner });
-                    setSelectedId(null);
+                ) : null}
+                {prefs.view === "list" || prefs.view === "board" ? (
+                  <TaskFilterBar
+                    prefs={prefs}
+                    query={query}
+                    onQueryChange={setQuery}
+                    onPrefsChange={patchPrefs}
+                    showGroupBy={prefs.view === "list"}
+                    showClosedToggle={prefs.view === "list"}
+                    leading={picker}
+                  />
+                ) : (
+                  picker
+                )}
+                <SyncStatus
+                  state={shareState}
+                  canSync={Boolean(railEntry?.projectId)}
+                  busy={isSharingSection}
+                  onSync={() => {
+                    if (railEntry?.projectId) shareSection(railEntry.projectId);
                   }}
                 />
-              ) : null}
-              <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-1">
-                <div role="tablist" aria-label="View" className="flex items-end gap-1">
-                  {VIEW_OPTIONS.map(({ view, label, icon: Icon }) => (
-                    <button
-                      key={view}
-                      type="button"
-                      role="tab"
-                      aria-selected={prefs.view === view}
-                      aria-label={label}
-                      data-tour={view === "roadmap" ? "tasks-roadmap-tab" : undefined}
-                      onClick={() => changeView(view)}
-                      className={cn(
-                        "-mb-px inline-flex h-9 cursor-pointer items-center gap-1.5 border-b-2 px-2 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                        prefs.view === view
-                          ? "border-foreground font-medium text-foreground"
-                          : "border-transparent text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <Icon aria-hidden className="size-4" />
-                      <span className="hidden sm:inline">{label}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex min-w-0 flex-1 basis-64 flex-wrap items-center justify-end gap-1 pb-1.5">
-                  {prefs.view === "list" || prefs.view === "board" ? (
-                    <TaskFilterBar
-                      prefs={prefs}
-                      query={query}
-                      onQueryChange={setQuery}
-                      onPrefsChange={patchPrefs}
-                      showGroupBy={prefs.view === "list"}
-                      showClosedToggle={prefs.view === "list"}
-                      leading={picker}
-                    />
-                  ) : (
-                    picker
-                  )}
-                </div>
               </div>
             </div>
             {activeWorkspace ? null : (

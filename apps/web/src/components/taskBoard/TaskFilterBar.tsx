@@ -72,7 +72,7 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1">
       {props.leading}
-      <InputGroup className="min-w-24 flex-1 sm:w-44 sm:flex-none">
+      <InputGroup className="min-w-24 flex-1 sm:w-36 sm:flex-none">
         <InputGroupAddon>
           <SearchIcon aria-hidden className="size-3.5 text-muted-foreground" />
         </InputGroupAddon>
@@ -87,7 +87,7 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
           onChange={(event) => props.onQueryChange(event.target.value)}
         />
         {query ? null : (
-          <InputGroupAddon align="inline-end">
+          <InputGroupAddon align="inline-end" className="max-sm:hidden">
             <Kbd>/</Kbd>
           </InputGroupAddon>
         )}

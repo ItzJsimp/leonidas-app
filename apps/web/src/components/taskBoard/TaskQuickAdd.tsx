@@ -59,11 +59,12 @@ export function TaskQuickAdd(props: {
     <form
       data-tour="tasks-quick-add"
       onSubmit={(event) => void submit(event)}
-      className="flex flex-col gap-2 border-b border-border px-3 py-3"
+      className="flex flex-col gap-2 border-b border-border px-3 py-1.5"
     >
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-40 flex-1">
           <Input
+            size="sm"
             aria-label="Quick add task"
             placeholder="Add a task, then press Enter"
             maxLength={256}
@@ -80,6 +81,7 @@ export function TaskQuickAdd(props: {
         </div>
         <div className="w-36">
           <Input
+            size="sm"
             aria-label="Quick add due date"
             type="date"
             value={due}
