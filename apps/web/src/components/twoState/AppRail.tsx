@@ -133,14 +133,16 @@ export function AppRail({ expanded = false }: { readonly expanded?: boolean }) {
       <Tip text="Version of Leonidas. See what changed in each update.">
         <button
           type="button"
-          aria-label={`Leonidas version ${APP_VERSION_LABEL}. See what changed.`}
+          aria-label={`Leonidas v${APP_VERSION_LABEL} · what changed`}
           onClick={openReleaseHistoryDialog}
           className={cn(
             "min-w-0 rounded-md text-muted-foreground tabular-nums outline-hidden ring-ring hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset [-webkit-app-region:no-drag]",
-            expanded ? "h-11 px-2.5 text-left text-sm" : "max-w-full truncate px-0.5 text-3xs",
+            expanded
+              ? "me-10 min-h-11 shrink-0 px-2.5 text-left text-sm"
+              : "max-w-full truncate px-0.5 text-3xs",
           )}
         >
-          {expanded ? `Leonidas v${APP_VERSION_LABEL} · what changed` : `v${APP_VERSION_LABEL}`}
+          {expanded ? `v${APP_VERSION_LABEL} · what changed` : `v${APP_VERSION_LABEL}`}
         </button>
       </Tip>
       <span role="status" aria-live="polite" className="sr-only">
