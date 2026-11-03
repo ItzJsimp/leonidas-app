@@ -127,6 +127,8 @@ Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.
 
 ## 7. Session notes
 
+- **2026-11-02 (Mac auto-update):** cause: the Mac app is ad hoc signed, so the updater rejects each new build (`build-desktop-artifact.ts` sets `CSC_IDENTITY_AUTO_DISCOVERY=false`). Fix on `fix/mac-self-signed-update` (`C:/lcw/mac-sign`, `87eaa22f20`, not pushed): `scripts/self-sign-macos.cjs` afterSign hook plus a cert import step in the `mac` job; needs secrets `MAC_SELF_SIGN_P12` and `MAC_SELF_SIGN_PASSWORD`. Not tested on a Mac. `build-desktop-artifact.test.ts` has 10 baseline failures on Windows (Linux and WSL archive tests). A Windows `openssl req -subj` needs `MSYS_NO_PATHCONV=1`.
+
 - **2026-11-02 (phone setup guide):** wrote `docs/user/phone-setup.md` from the 2026-10-28 research and the 2026-10-29 pairing lessons. Read-only on code. Open: scan the Create link QR on a phone to see which link it holds, and test the guide on a clean machine. Not pushed.
 
 - **2026-11-01 (upstream review Oct 24 to 31, ports):** 1,311 commits triaged into the ledger. Pushed to `origin/main`: token redaction and data-safety fixes (`3b97438dd7`) and a batch of 39 provider and web fixes from 4 worktree workers (`d028f6aa05`). Held as `later` or `skip` with a reason in the ledger: #27252 Stop always completes, #24473 (needs #15036), #27986 (needs Effect 4.0.5), the pairing-code fixes, Electron #26348, and 8 that need code we lack. Release run result not read yet.
