@@ -7282,7 +7282,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   type="button"
                   data-chat-composer-transition-prompt="true"
                   className={cn(
-                    "min-w-0 flex-1 truncate bg-transparent p-0 text-left text-sm focus:outline-none",
+                    "relative touch-hit min-w-0 flex-1 bg-transparent p-0 text-left text-sm focus:outline-none",
                     (activePendingProgress ? activePendingProgress.customAnswer : prompt.trim())
                       ? "text-foreground"
                       : "text-placeholder",
@@ -7291,15 +7291,17 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   onClick={isChoiceOnlyPendingQuestion ? undefined : expandMobileComposer}
                   disabled={isChoiceOnlyPendingQuestion}
                 >
-                  {activePendingProgress
-                    ? isChoiceOnlyPendingQuestion
-                      ? "Choose one of the options above"
-                      : activePendingProgress.customAnswer ||
-                        "Type your own answer, or leave this empty to use the option you chose"
-                    : prompt.trim() ||
-                      (showProviderUnavailable
-                        ? "Add an AI account in Settings"
-                        : "Ask anything...")}
+                  <span className="block truncate">
+                    {activePendingProgress
+                      ? isChoiceOnlyPendingQuestion
+                        ? "Choose one of the options above"
+                        : activePendingProgress.customAnswer ||
+                          "Type your own answer, or leave this empty to use the option you chose"
+                      : prompt.trim() ||
+                        (showProviderUnavailable
+                          ? "Add an AI account in Settings"
+                          : "Ask anything...")}
+                  </span>
                 </button>
                 {collapsedComposerImagePreviews}
                 <button

@@ -61,7 +61,7 @@ export function CommandCenterForward() {
           <button
             type="button"
             onClick={home.refresh}
-            className="inline-flex h-8 shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3 text-xs text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+            className="relative touch-hit inline-flex h-8 shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3 text-xs text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
           >
             <RefreshCwIcon
               aria-hidden
