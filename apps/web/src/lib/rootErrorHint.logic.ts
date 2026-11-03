@@ -19,7 +19,19 @@ function readStatus(error: unknown): number | null {
  * A 502, 503 or 504 from the first session request means the server behind the
  * app is down or restarting. Say so in plain words instead of a generic crash.
  */
-export function resolveRootErrorHint(error: unknown): RootErrorHint | null {
+export function resolveRootErrorHint(
+  error: unknown,
+  online: boolean = typeof navigator === "undefined" || navigator.onLine !== false,
+): RootErrorHint | null {
+  // With no network every request fails, so the cause is the device, not the server.
+  if (!online) {
+    return {
+      title: "This device is offline.",
+      description:
+        "Connect to Wi-Fi or mobile data. Leonidas tries again by itself every 3 seconds.",
+      autoRetry: true,
+    };
+  }
   const status = readStatus(error);
   if (status === null || !SERVER_DOWN_STATUS_CODES.has(status)) return null;
   return {

@@ -411,7 +411,8 @@ describe("resolveInitialServerAuthGateState", () => {
         await expect(gateLoads[0]).resolves.toEqual(requiresAuth);
         const rejected = expect(submitServerAuthCredential(token!)).rejects.toMatchObject({
           _tag: "PrimaryEnvironmentPairingCredentialRejectedError",
-          message: "This connection code is not valid. Check the code and try again.",
+          message:
+            "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.",
         });
         await exchangeStarted.promise;
         await expect(resolveInitialServerAuthGateState()).resolves.toEqual(requiresAuth);
@@ -551,7 +552,8 @@ describe("resolveInitialServerAuthGateState", () => {
     expect(error).toMatchObject({
       _tag: "PrimaryEnvironmentPairingCredentialRejectedError",
       providedLength: 9,
-      message: "This connection code is not valid. Check the code and try again.",
+      message:
+        "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.",
     });
     expect(isPrimaryEnvironmentPairingCredentialRejectedError(error)).toBe(true);
     if (!isPrimaryEnvironmentPairingCredentialRejectedError(error)) {
@@ -741,7 +743,8 @@ describe("resolveInitialServerAuthGateState", () => {
     const rejectedState = {
       status: "requires-auth",
       auth: LOOPBACK_AUTH,
-      errorMessage: "This connection code is not valid. Check the code and try again.",
+      errorMessage:
+        "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.",
     } as const;
     await expect(explicitPairing).resolves.toEqual(rejectedState);
     await expect(laterCaller).resolves.toEqual(rejectedState);
@@ -783,7 +786,8 @@ describe("resolveInitialServerAuthGateState", () => {
     await expect(resolveInitialServerAuthGateState()).resolves.toEqual({
       status: "requires-auth",
       auth: LOOPBACK_AUTH,
-      errorMessage: "This connection code is not valid. Check the code and try again.",
+      errorMessage:
+        "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.",
     });
     await expect(resolveInitialServerAuthGateState()).resolves.toEqual({
       status: "requires-auth",

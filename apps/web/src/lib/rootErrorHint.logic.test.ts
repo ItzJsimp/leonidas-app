@@ -17,6 +17,12 @@ describe("resolveRootErrorHint", () => {
     }
   });
 
+  it("names the device, not the server, when the device is offline", () => {
+    const hint = resolveRootErrorHint(new Error("Failed to fetch"), false);
+    expect(hint?.title).toBe("This device is offline.");
+    expect(hint?.autoRetry).toBe(true);
+  });
+
   it("leaves other errors on the generic screen", () => {
     expect(
       resolveRootErrorHint({ _tag: "PrimaryEnvironmentRequestError", status: 401 }),
