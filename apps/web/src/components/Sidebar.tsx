@@ -5440,8 +5440,12 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
     (event?: ReactMouseEvent) => {
       // One project: nothing to pick, create immediately. Shift+click creates
       // directly in the current project even with several projects, skipping
-      // the palette picker.
-      if (shouldCreateNewThreadInCurrentProject(event?.shiftKey ?? false, projectGroups.length)) {
+      // the palette picker. A phone has no Shift key: a tap creates in the current project, and the
+      // new chat's title still lets the user pick another project.
+      if (
+        isMobile ||
+        shouldCreateNewThreadInCurrentProject(event?.shiftKey ?? false, projectGroups.length)
+      ) {
         if (isMobile) setOpenMobile(false);
         void startNewThreadFromContext({
           activeDraftThread: newThreadContext.activeDraftThread,
