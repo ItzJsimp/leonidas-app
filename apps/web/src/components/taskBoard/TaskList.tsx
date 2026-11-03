@@ -223,7 +223,7 @@ const TaskRow = memo(function TaskRow({
               {canSend ? (
                 <MenuItem onClick={() => onAction(task, "send")}>
                   <BotIcon />
-                  Send to AI
+                  Draft AI chat
                 </MenuItem>
               ) : null}
               {open && !task.claimedBy ? (

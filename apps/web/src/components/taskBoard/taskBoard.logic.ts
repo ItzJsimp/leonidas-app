@@ -83,6 +83,28 @@ export function taskFlags(
   };
 }
 
+const headingLevel = (line: string) => /^(#{1,6})\s/.exec(line)?.[1]?.length ?? 0;
+
+/** Takes the "Done when" section out of a card body, so the gates show once, under their bar. */
+export function splitDoneWhen(markdown: string): { gates: string | null; rest: string } {
+  const lines = markdown.split("\n");
+  const start = lines.findIndex((line) => /^#{1,6}\s+done when\s*:?\s*$/i.test(line.trim()));
+  if (start < 0) return { gates: null, rest: markdown };
+  const level = headingLevel(lines[start]!.trim());
+  const next = lines.findIndex(
+    (line, i) => i > start && headingLevel(line) > 0 && headingLevel(line) <= level,
+  );
+  const end = next < 0 ? lines.length : next;
+  const gates = lines
+    .slice(start + 1, end)
+    .join("\n")
+    .trim();
+  return {
+    gates: gates || null,
+    rest: [...lines.slice(0, start), ...lines.slice(end)].join("\n").trim(),
+  };
+}
+
 export function statusLabel(status: TaskBoardTaskStatus): string {
   return STATUS_LABELS[status];
 }

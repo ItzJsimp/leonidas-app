@@ -20,6 +20,7 @@ import {
   taskFlags,
   shareableOpenCount,
   sortTasks,
+  splitDoneWhen,
   statusLabel,
   statusTone,
   type TaskView,
@@ -547,5 +548,27 @@ describe("taskFlags", () => {
       stale: false,
       noGates: false,
     });
+  });
+});
+
+describe("splitDoneWhen", () => {
+  it("moves the Done when list out of the body", () => {
+    const body = "## Why\n\nSo it works.\n\n## Done when\n\n- [ ] One\n- [x] Two\n";
+    expect(splitDoneWhen(body)).toEqual({
+      gates: "- [ ] One\n- [x] Two",
+      rest: "## Why\n\nSo it works.",
+    });
+  });
+
+  it("stops at the next heading of the same or a higher level", () => {
+    const body = "### Done When:\n- [ ] A\n#### Note\nkept with gates\n## Verify\nrun it";
+    expect(splitDoneWhen(body)).toEqual({
+      gates: "- [ ] A\n#### Note\nkept with gates",
+      rest: "## Verify\nrun it",
+    });
+  });
+
+  it("keeps the body when there is no Done when section", () => {
+    expect(splitDoneWhen("## Why\nx")).toEqual({ gates: null, rest: "## Why\nx" });
   });
 });

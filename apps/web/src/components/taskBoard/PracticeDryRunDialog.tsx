@@ -11,7 +11,7 @@ import {
 
 import type { PracticeDryRun } from "./practice.logic";
 
-/** Shows what "Send to AI" would have done, without starting anything. */
+/** Shows what "Draft AI chat" would have done, without starting anything. */
 export function PracticeDryRunDialog(props: {
   readonly dryRun: PracticeDryRun | null;
   readonly onClose: () => void;

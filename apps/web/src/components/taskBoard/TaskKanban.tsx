@@ -97,7 +97,7 @@ const KanbanCard = memo(function KanbanCard({
               <TooltipTrigger
                 render={
                   <Button
-                    aria-label={`Send ${task.title} to the AI`}
+                    aria-label={`Draft an AI chat for ${task.title}`}
                     disabled={busy}
                     onClick={() => onSend(task)}
                     size="icon-xs"
@@ -107,7 +107,7 @@ const KanbanCard = memo(function KanbanCard({
               >
                 <BotIcon />
               </TooltipTrigger>
-              <TooltipPopup>Send to AI</TooltipPopup>
+              <TooltipPopup>Draft AI chat</TooltipPopup>
             </Tooltip>
           ) : null}
           <Menu>

@@ -129,7 +129,7 @@ export const FocusSection = memo(function FocusSection(props: {
               {actions.canSendToAgent(lead) ? (
                 <Button variant="ghost" disabled={busy} onClick={() => actions.sendToAgent(lead)}>
                   <BotIcon />
-                  Send to AI
+                  Draft AI chat
                 </Button>
               ) : null}
             </div>

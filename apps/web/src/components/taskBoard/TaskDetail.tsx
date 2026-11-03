@@ -43,6 +43,7 @@ import {
   formatDue,
   priorityLabel,
   relativeTime,
+  splitDoneWhen,
   statusLabel,
   type TaskView,
 } from "./taskBoard.logic";
@@ -211,6 +212,7 @@ function TaskDetailBody(props: {
     () => task.history.toSorted((a, b) => b.timestamp - a.timestamp),
     [task.history],
   );
+  const body = useMemo(() => splitDoneWhen(task.description), [task.description]);
 
   const statusItems = useMemo(
     () =>
@@ -268,7 +270,7 @@ function TaskDetailBody(props: {
       onClick={() => run("send", () => actions.sendToAgent(task))}
     >
       {spinnerFor("send") ? <Spinner /> : <SparklesIcon />}
-      Send to AI
+      Draft AI chat
     </Button>
   );
 
@@ -284,11 +286,6 @@ function TaskDetailBody(props: {
             <div className="flex flex-wrap items-center gap-1.5">
               <StatusBadge status={task.status} />
               <PriorityBadge priority={task.priority} />
-              {task.labels.map((label) => (
-                <Badge key={label} variant="outline">
-                  {label}
-                </Badge>
-              ))}
             </div>
             <PresenceChips taskId={task.id} />
           </div>
@@ -428,11 +425,27 @@ function TaskDetailBody(props: {
               )}
             </div>
           </Property>
+          {task.labels.length > 0 ? (
+            <Property label="Labels">
+              <div className="flex flex-wrap gap-1.5">
+                {task.labels.map((label) => (
+                  <Badge key={label} variant="outline">
+                    {label}
+                  </Badge>
+                ))}
+              </div>
+            </Property>
+          ) : null}
         </dl>
 
-        {task.checklist && task.checklist.total > 0 ? (
+        {body.gates || task.checklist?.total ? (
           <Section title="Done when">
             <ChecklistBar checklist={task.checklist} />
+            {body.gates ? (
+              <Suspense fallback={<PlainText text={body.gates} />}>
+                <ChatMarkdown text={body.gates} cwd={undefined} className="text-sm" />
+              </Suspense>
+            ) : null}
           </Section>
         ) : null}
 
@@ -460,9 +473,9 @@ function TaskDetailBody(props: {
           </div>
         </Section>
 
-        {task.description.trim().length > 0 ? (
+        {body.rest.length > 0 ? (
           <Section title="Description">
-            <Description key={task.id} text={task.description} />
+            <Description key={task.id} text={body.rest} />
           </Section>
         ) : null}
 
