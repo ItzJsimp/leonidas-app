@@ -213,7 +213,11 @@ export function useCacheActionWarning() {
     >
       <AlertDialogPopup>
         <AlertDialogHeader>
-          <AlertDialogTitle>Change the cache?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {pending?.impact.category === "model"
+              ? "Switch the model?"
+              : "Continue with a new cache?"}
+          </AlertDialogTitle>
           <AlertDialogDescription>{pending?.impact.message}</AlertDialogDescription>
         </AlertDialogHeader>
         <label className="flex items-center gap-2 px-1 text-sm">
@@ -236,7 +240,7 @@ export function useCacheActionWarning() {
               action();
             }}
           >
-            Continue
+            {pending?.impact.category === "model" ? "Switch model" : "Continue"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogPopup>
