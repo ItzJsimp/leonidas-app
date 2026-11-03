@@ -88,13 +88,13 @@ describe("ComposerPendingUserInputPanel", () => {
     expect(markup).toMatch(/<button[^>]*data-pending-user-input-skip/);
   });
 
-  it("says that Send is still needed when a typed note may go with the option", () => {
-    expect(renderPanel()).toContain("then press Send");
+  it("says that Submit is still needed when a typed note may go with the option", () => {
+    expect(renderPanel()).toContain("then press Submit");
     const choiceOnly = renderPanel({
       ...prompt,
       questions: [{ ...prompt.questions[0]!, allowCustomAnswer: false }],
     });
-    expect(choiceOnly).not.toContain("then press Send");
+    expect(choiceOnly).not.toContain("then press Submit");
   });
 
   it("uses crimson only for the recommended pill", () => {

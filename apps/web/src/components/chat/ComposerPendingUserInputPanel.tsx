@@ -260,12 +260,12 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
             {/* Above the options: the body scrolls on phones, so a line below them goes unseen.
                 With a note allowed, a click only marks the option, so Send is still needed. */}
             {activeQuestion.allowCustomAnswer !== false ? (
-              <p className="mt-1 text-secondary-label text-xs">
+              <p className="mt-1 text-secondary-label text-sm">
                 {activeQuestion.multiSelect ? "Pick your options" : "Pick an option"}, then press
-                Send. You can type a note to go with it.
+                Submit. You can type a note to go with it.
               </p>
             ) : activeQuestion.multiSelect ? (
-              <p className="mt-1 text-secondary-label text-xs">Select one or more options.</p>
+              <p className="mt-1 text-secondary-label text-sm">Select one or more options.</p>
             ) : null}
             <div className="mt-2 space-y-1">
               {presentation.options.map((option, index) => {
