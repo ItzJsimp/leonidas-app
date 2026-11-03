@@ -50,6 +50,7 @@ import {
   DEFAULT_TASKS_PREFS,
   TASKS_PREFS_KEY,
   activeFilterCount,
+  landingPrefs,
   parseTasksPrefs,
   sectionShareState,
   tasksInFocus,
@@ -76,9 +77,9 @@ const VIEW_OPTIONS: ReadonlyArray<{
 
 function readSavedPrefs(): TasksPrefs {
   try {
-    return parseTasksPrefs(window.localStorage.getItem(TASKS_PREFS_KEY));
+    return landingPrefs(parseTasksPrefs(window.localStorage.getItem(TASKS_PREFS_KEY)));
   } catch {
-    return DEFAULT_TASKS_PREFS;
+    return landingPrefs(DEFAULT_TASKS_PREFS);
   }
 }
 
@@ -179,6 +180,29 @@ export function TasksPage() {
   const patchPrefs = useCallback((patch: Partial<TasksPrefs>) => {
     setPrefs((current) => ({ ...current, ...patch }));
   }, []);
+  // "/" jumps to search from anywhere on the page, the way most list apps do.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.defaultPrevented || !(event.target instanceof Element)) return;
+      if (event.target.closest("input, textarea, select, [contenteditable], [role=dialog]")) return;
+      event.preventDefault();
+      setPrefs((current) =>
+        current.view === "list" || current.view === "board"
+          ? current
+          : { ...current, view: "list" },
+      );
+      // From Dashboard or Roadmap the search box mounts a frame or two later.
+      const focusSearch = (tries: number) => {
+        const input = document.querySelector<HTMLInputElement>("[data-tasks-search]");
+        if (input) input.focus();
+        else if (tries > 0) requestAnimationFrame(() => focusSearch(tries - 1));
+      };
+      requestAnimationFrame(() => focusSearch(5));
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   const selectSection = useCallback(
     (slug: string | null) => {
       patchPrefs({ section: slug, focus: "all" });
@@ -246,16 +270,19 @@ export function TasksPage() {
     }),
     [board.backlogTasks, board.now],
   );
+  const searching = query.trim().length > 0 && (prefs.view === "list" || prefs.view === "board");
   const heading =
     prefs.view === "roadmap"
       ? `${roadmap?.name ?? railEntry?.name ?? "Project"} roadmap`
-      : prefs.focus === "inbox"
-        ? "Inbox"
-        : prefs.focus === "today"
-          ? "Today"
-          : prefs.focus === "upcoming"
-            ? "Upcoming"
-            : (railEntry?.name ?? "All tasks");
+      : searching
+        ? "Search"
+        : prefs.focus === "inbox"
+          ? "Inbox"
+          : prefs.focus === "today"
+            ? "Today"
+            : prefs.focus === "upcoming"
+              ? "Upcoming"
+              : (railEntry?.name ?? "All tasks");
   const openInLens = board.scopedTasks.filter(isOpen).length;
   const changeView = (view: TasksView) => {
     patchPrefs(
@@ -424,7 +451,7 @@ export function TasksPage() {
                 <h2 className="truncate text-xl font-semibold">{heading}</h2>
                 {prefs.view !== "roadmap" ? (
                   <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
-                    {openInLens} open
+                    {searching ? `${board.visibleTasks.length} found` : `${openInLens} open`}
                   </span>
                 ) : null}
                 <div className="ml-auto flex shrink-0 items-center">

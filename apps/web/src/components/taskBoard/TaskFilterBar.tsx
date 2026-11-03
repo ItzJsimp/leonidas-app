@@ -4,6 +4,7 @@ import { memo, type ReactNode } from "react";
 
 import { Button } from "~/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "~/components/ui/input-group";
+import { Kbd } from "~/components/ui/kbd";
 import {
   Menu,
   MenuCheckboxItem,
@@ -79,10 +80,17 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
           type="search"
           size="sm"
           aria-label="Search tasks"
-          placeholder="Search"
+          aria-keyshortcuts="/"
+          data-tasks-search
+          placeholder="Search all tasks"
           value={query}
           onChange={(event) => props.onQueryChange(event.target.value)}
         />
+        {query ? null : (
+          <InputGroupAddon align="inline-end">
+            <Kbd>/</Kbd>
+          </InputGroupAddon>
+        )}
       </InputGroup>
       <Menu>
         <MenuTrigger

@@ -6,8 +6,11 @@ import {
   activeFilterCount,
   buildRailEntries,
   DEFAULT_TASKS_PREFS,
+  landingPrefs,
+  openFirst,
   parseTasksPrefs,
   placeSharedOnlyIn,
+  searchBase,
   sectionShareState,
   tasksInSection,
   toTaskFilters,
@@ -209,5 +212,32 @@ describe("section helpers", () => {
     expect(tasksInSection(merged, null)).toHaveLength(2);
     const placed = placeSharedOnlyIn(merged, "leonidas-code");
     expect(tasksInSection(placed, "leonidas-code").map((item) => item.id)).toEqual(["a", "z"]);
+  });
+});
+
+describe("landing and search", () => {
+  it("opens on every open task in the Table view and keeps saved filters", () => {
+    const saved = {
+      ...DEFAULT_TASKS_PREFS,
+      view: "board",
+      focus: "inbox",
+      section: "x",
+      sort: "due",
+    } as const;
+    expect(landingPrefs(saved)).toMatchObject({
+      view: "list",
+      focus: "all",
+      section: null,
+      sort: "due",
+    });
+  });
+
+  it("searches every card, closed ones included, open matches first", () => {
+    const all = mergeTasks([task("a", { status: "done" }), task("b"), task("c")], []);
+    const scoped = all.slice(2);
+    expect(searchBase(all, scoped, "  ")).toBe(scoped);
+    expect(searchBase(all, scoped, "task")).toBe(all);
+    expect(toTaskFilters(DEFAULT_TASKS_PREFS, "task").includeClosed).toBe(true);
+    expect(openFirst(all).map((item) => item.id)).toEqual(["b", "c", "a"]);
   });
 });

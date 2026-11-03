@@ -36,6 +36,8 @@ import {
 } from "./taskBoard.logic";
 import {
   buildRailEntries,
+  openFirst,
+  searchBase,
   tasksInSection,
   tasksInFocus,
   toTaskFilters,
@@ -175,10 +177,13 @@ export function useTaskBoard(input: {
     () => focusedTasks.filter((task) => matchesOwnerLens(task, prefs.owner, viewer, team)),
     [focusedTasks, prefs.owner, viewer, team],
   );
-  const visibleTasks = useMemo(
-    () => sortTasks(filterTasks(scopedTasks, toTaskFilters(prefs, query)), prefs.sort),
-    [prefs, query, scopedTasks],
-  );
+  const visibleTasks = useMemo(() => {
+    const found = sortTasks(
+      filterTasks(searchBase(allTasks, scopedTasks, query), toTaskFilters(prefs, query)),
+      prefs.sort,
+    );
+    return query.trim() ? openFirst(found) : found;
+  }, [allTasks, prefs, query, scopedTasks]);
   const sections = useMemo(
     () => groupBySection(visibleTasks, projects, { hideEmpty: true }),
     [projects, visibleTasks],

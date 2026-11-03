@@ -11,6 +11,7 @@ import { DEFAULT_OWNER_LENS, parseOwnerLens, type OwnerLens } from "./owner.logi
 
 import {
   groupBySection,
+  isOpen,
   shareableOpenCount,
   type TaskFilters,
   type TaskSort,
@@ -132,8 +133,28 @@ export function toTaskFilters(prefs: TasksPrefs, query: string): TaskFilters {
     statuses: prefs.statuses ? new Set(prefs.statuses) : null,
     priorities: prefs.priorities ? new Set(prefs.priorities) : null,
     sharedOnly: prefs.sharedOnly,
-    includeClosed: prefs.view === "board" ? true : prefs.includeClosed,
+    // A search finds closed cards too; `openFirst` keeps them below the open matches.
+    includeClosed: prefs.view === "board" || query.trim().length > 0 ? true : prefs.includeClosed,
   };
+}
+
+/** The page opens on every open task in the Table view; saved sort, grouping and filters stay. */
+export function landingPrefs(saved: TasksPrefs): TasksPrefs {
+  return { ...saved, view: "list", focus: "all", section: null };
+}
+
+/** A search looks through every card, not only the selected lens or project. */
+export function searchBase<T>(
+  all: ReadonlyArray<T>,
+  scoped: ReadonlyArray<T>,
+  query: string,
+): ReadonlyArray<T> {
+  return query.trim() ? all : scoped;
+}
+
+/** Open cards first, then closed ones, each group in its existing order. */
+export function openFirst(tasks: ReadonlyArray<TaskView>): TaskView[] {
+  return [...tasks.filter(isOpen), ...tasks.filter((task) => !isOpen(task))];
 }
 
 /** How many filters narrow the list, for the "Clear filters" affordance. */
