@@ -1,5 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
-import { scopeProjectRef } from "@t3tools/client-runtime/environment";
+import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import {
   type AtomCommandResult,
   isAtomCommandInterrupted,
@@ -18,7 +18,7 @@ import { useCallback } from "react";
 
 import { newMessageId, newProjectId, newThreadId } from "../lib/utils";
 import { getDefaultProviderInstanceModel } from "../providerInstances";
-import { readProjects, waitForProject } from "../state/entities";
+import { readProjects, waitForProject, waitForThreadShell } from "../state/entities";
 import { projectEnvironment } from "../state/projects";
 import { serverEnvironment } from "../state/server";
 import { useEnvironmentScope } from "../state/session";
@@ -187,7 +187,12 @@ export function useOnboardingChat(environmentId: EnvironmentId | undefined) {
             }
           }
         }
-        if (failure === null) return { ok: true, threadId };
+        if (failure === null) {
+          // The caller opens the chat next. A chat the app has not received yet reads as missing,
+          // and the chat route then sends the user to a new empty chat.
+          await waitForThreadShell(scopeThreadRef(environmentId, threadId));
+          return { ok: true, threadId };
+        }
         if (isAtomCommandInterrupted(failure)) {
           return { ok: false, message: "Starting the chat was interrupted. Try again." };
         }
