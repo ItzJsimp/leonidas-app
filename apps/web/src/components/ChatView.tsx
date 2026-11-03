@@ -3208,14 +3208,20 @@ export default function ChatView(props: ChatViewProps) {
     const suppressUnavailableBanner =
       environmentReconnecting && (updateRunning || !reconnectWarningGraceElapsed);
     if (activeEnvironmentUnavailableState && unavailableConnection && !suppressUnavailableBanner) {
+      const deviceOffline = typeof navigator !== "undefined" && navigator.onLine === false;
       items.push({
         id: `environment-unavailable:${activeEnvironmentUnavailableState.environmentId}`,
         variant: unavailableConnection.phase === "error" ? "error" : "warning",
         icon: <WifiOffIcon />,
-        title: `${activeEnvironmentUnavailableState.label} is ${activeEnvironmentTurnedOff ? "turned off" : environmentReconnecting ? "reconnecting" : "offline"}`,
+        // When this device lost its network, the computer is not the problem: say so, and offer no
+        // Reconnect, because the app reconnects by itself when the network is back.
+        ...(deviceOffline ? { description: "Leonidas reconnects when the network is back." } : {}),
+        title: deviceOffline
+          ? "This device is offline"
+          : `${activeEnvironmentUnavailableState.label} is ${activeEnvironmentTurnedOff ? "turned off" : environmentReconnecting ? "reconnecting" : "offline"}`,
         actions: (
           <>
-            {activeEnvironmentTurnedOff ? (
+            {deviceOffline ? null : activeEnvironmentTurnedOff ? (
               <Button
                 size="xs"
                 variant="ghost"
