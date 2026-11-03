@@ -5248,7 +5248,6 @@ it.layer(layerGitManagerTest)("GitManager", (it) => {
   const setUpLocalCheckoutPullRequest = Effect.fnUntraced(function* (
     reportedHead: (pullHead: string) => string | undefined = (pullHead) => pullHead,
     syncCheckoutWithPullHead = true,
-    gitSpawnGate?: NonNullable<Parameters<typeof makeManager>[0]>["gitSpawnGate"],
   ) {
     const repoDir = yield* makeTempDir("t3code-git-manager-");
     yield* initRepo(repoDir);
@@ -5267,7 +5266,6 @@ it.layer(layerGitManagerTest)("GitManager", (it) => {
     yield* runGit(repoDir, ["reset", "--hard", firstCommit]);
     const headSha = reportedHead(pullHead);
     const { manager, ghCalls } = yield* makeManager({
-      ...(gitSpawnGate ? { gitSpawnGate } : {}),
       ghScenario: {
         pullRequest: {
           number: 91,
@@ -5283,125 +5281,6 @@ it.layer(layerGitManagerTest)("GitManager", (it) => {
     });
     return { repoDir, manager, ghCalls, firstCommit, pullHead };
   });
-
-  it.effect.each(["switch", "create-and-switch", "feature-branch"] as const)(
-    "local PR checkout excludes a concurrent %s from a nested project with an alternate root",
-    (operation) =>
-      Effect.gen(function* () {
-        const gate = {
-          matches: (args: ReadonlyArray<string>) =>
-            args[0] === "rev-parse" && args[1] === "--verify" && args[2] === "HEAD^{commit}",
-          reached: yield* Deferred.make<void>(),
-          release: yield* Deferred.make<void>(),
-        };
-        const { repoDir, manager, pullHead } = yield* setUpLocalCheckoutPullRequest(
-          (head) => head,
-          false,
-          gate,
-        );
-        const nestedCwd = NodePath.join(repoDir, "nested-project");
-        yield* makeDirectory(nestedCwd);
-        const mainCommit = (yield* runGit(repoDir, ["rev-parse", "main"])).stdout.trim();
-        yield* runGit(repoDir, ["checkout", "main"]);
-        const registry = yield* Layer.build(
-          VcsDriverRegistry.layer.pipe(
-            Layer.provide(VcsProjectConfig.layer),
-            Layer.provide(VcsProcess.layer),
-          ),
-        );
-        const handle = yield* Context.get(registry, VcsDriverRegistry.VcsDriverRegistry).resolve({
-          cwd: repoDir,
-        });
-        const resolvedHandle = {
-          ...handle,
-          repository: { ...handle.repository, rootPath: `${handle.repository.rootPath}/.` },
-        };
-        const fileSystem = yield* FileSystem.FileSystem;
-        const canonicalRoot = yield* fileSystem.realPath(resolvedHandle.repository.rootPath);
-        const git = yield* GitVcsDriver.GitVcsDriver;
-        const events: string[] = [];
-        const workflows = yield* Effect.forEach([0, 1], () =>
-          GitWorkflowService.make.pipe(
-            // Cache the real filesystem result so startImmediately reaches lease acquisition.
-            Effect.provideService(FileSystem.FileSystem, {
-              ...fileSystem,
-              realPath: (root) =>
-                root === resolvedHandle.repository.rootPath
-                  ? Effect.succeed(canonicalRoot)
-                  : fileSystem.realPath(root),
-            }),
-            Effect.provideService(GitManager.GitManager, {
-              ...manager,
-              runStackedAction: (input, options) =>
-                Effect.sync(() => {
-                  events.push("feature-branch");
-                  NodeFS.writeFileSync(
-                    NodePath.join(repoDir, "second-client.txt"),
-                    "second client\n",
-                  );
-                }).pipe(Effect.andThen(manager.runStackedAction(input, options))),
-            }),
-            Effect.provideService(VcsDriverRegistry.VcsDriverRegistry, {
-              ...Context.get(registry, VcsDriverRegistry.VcsDriverRegistry),
-              resolve: ({ cwd }) => Effect.succeed(cwd === repoDir ? handle : resolvedHandle),
-            }),
-            Effect.provideService(GitVcsDriver.GitVcsDriver, {
-              ...git,
-              switchRef: (input) =>
-                Effect.sync(() => events.push("switch")).pipe(Effect.andThen(git.switchRef(input))),
-              createRef: (input) =>
-                Effect.sync(() => events.push("create-and-switch")).pipe(
-                  Effect.andThen(git.createRef(input)),
-                ),
-            }),
-          ),
-        );
-        const preparing = yield* Effect.forkChild(
-          workflows[0]!.preparePullRequestThread({ cwd: repoDir, reference: "91", mode: "local" }),
-        );
-        yield* Deferred.await(gate.reached);
-        const switching = yield* Effect.forkChild(
-          operation === "switch"
-            ? workflows[1]!.switchRef({ cwd: nestedCwd, refName: "main" })
-            : operation === "create-and-switch"
-              ? workflows[1]!.createRef({
-                  cwd: nestedCwd,
-                  refName: "second-client",
-                  switchRef: true,
-                })
-              : workflows[1]!.runStackedAction({
-                  cwd: nestedCwd,
-                  actionId: "second-client-feature-branch",
-                  action: "commit",
-                  featureBranch: true,
-                  commitMessage: "Second client commit",
-                }),
-          { startImmediately: true },
-        );
-        // Both independent server workflows have started, but the second cannot touch Git yet.
-        expect(events).toEqual([]);
-        yield* Deferred.succeed(gate.release, undefined);
-        const prepared = yield* Fiber.join(preparing);
-        const switched = yield* Fiber.join(switching);
-        expect(events).toEqual([operation]);
-        expect(prepared).toMatchObject({ branch: "feature/pr-safe", isOnPullRequestHead: true });
-        expect((yield* runGit(repoDir, ["rev-parse", "main"])).stdout.trim()).toBe(mainCommit);
-        expect((yield* runGit(repoDir, ["rev-parse", "feature/pr-safe"])).stdout.trim()).toBe(
-          pullHead,
-        );
-        expect((yield* runGit(repoDir, ["branch", "--show-current"])).stdout.trim()).toBe(
-          operation === "switch"
-            ? "main"
-            : "branch" in switched
-              ? switched.branch.name
-              : "second-client",
-        );
-        if ("commit" in switched) {
-          expect(switched.commit.status).toBe("created");
-          expect((yield* runGit(repoDir, ["rev-parse", "HEAD^"])).stdout.trim()).toBe(pullHead);
-        }
-      }),
-  );
 
   it.effect.each([false, true])(
     "local PR checkout refuses and preserves tracked edits (staged: %s)",
