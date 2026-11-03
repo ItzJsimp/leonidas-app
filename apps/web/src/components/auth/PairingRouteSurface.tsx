@@ -101,6 +101,7 @@ export function PairingRouteSurface({
           </label>
           <Input
             id="pairing-token"
+            className="pointer-coarse:[&_[data-slot=input]]:h-11"
             autoCapitalize="none"
             autoComplete="off"
             autoCorrect="off"
