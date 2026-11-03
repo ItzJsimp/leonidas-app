@@ -76,6 +76,7 @@ import {
   type ComponentProps,
   type ReactNode,
   useCallback,
+  useDeferredValue,
   useEffect,
   useEffectEvent,
   useId,
@@ -2601,6 +2602,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   });
   const isComposerCollapsedMobile =
     isMobileViewport && !forceExpandedOnMobile && !isComposerFocused && !hasMultilinePrompt;
+  // On expand the editor paints first and the footer controls mount one render later, to keep the tap fast.
+  const isFooterDeferred = useDeferredValue(isComposerCollapsedMobile);
 
   // ------------------------------------------------------------------
   // Refs
@@ -7944,7 +7947,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             />
 
             {/* Bottom toolbar */}
-            {isComposerCollapsedMobile ? null : (
+            {isComposerCollapsedMobile || isFooterDeferred ? null : (
               <div
                 data-chat-composer-footer="true"
                 data-chat-composer-footer-compact={isComposerFooterCompact ? "true" : "false"}
