@@ -6,7 +6,7 @@ import {
   EllipsisIcon,
   ListIcon,
 } from "lucide-react";
-import type { TaskBoardTeamMember } from "@t3tools/contracts";
+import type { TaskBoardTaskStatus, TaskBoardTeamMember } from "@t3tools/contracts";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import {
   memo,
@@ -22,7 +22,15 @@ import { flushSync } from "react-dom";
 
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "~/components/ui/menu";
+import {
+  Menu,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
+} from "~/components/ui/menu";
 import { cn } from "~/lib/utils";
 import {
   ChecklistBar,
@@ -58,7 +66,11 @@ import {
   type ListNavigationKey,
 } from "./taskRows";
 
-type RowAction = "send" | "claim" | "release" | "complete" | "reopen";
+/** A status names the status to set: "done" completes, "todo" reopens. */
+type RowAction = "send" | "claim" | "release" | TaskBoardTaskStatus;
+
+/** Open statuses the row menu can move a card to. Complete covers Done. */
+const MOVE_TO: ReadonlyArray<TaskBoardTaskStatus> = ["todo", "in_progress", "review", "blocked"];
 
 type RowProps = {
   readonly task: TaskView;
@@ -132,7 +144,7 @@ const TaskRow = memo(function TaskRow({
         size="icon-sm"
         disabled={busy}
         aria-label={`${done ? "Reopen" : "Complete"} ${task.title}`}
-        onClick={() => onAction(task, done ? "reopen" : "complete")}
+        onClick={() => onAction(task, done ? "todo" : "done")}
       >
         {done ? <CheckIcon /> : <CircleIcon />}
       </Button>
@@ -218,11 +230,24 @@ const TaskRow = memo(function TaskRow({
               {open && mine ? (
                 <MenuItem onClick={() => onAction(task, "release")}>Give back</MenuItem>
               ) : null}
+              {open ? (
+                <>
+                  <MenuSeparator />
+                  <MenuGroup>
+                    <MenuGroupLabel>Move to</MenuGroupLabel>
+                    {MOVE_TO.filter((status) => status !== task.status).map((status) => (
+                      <MenuItem key={status} onClick={() => onAction(task, status)}>
+                        {statusLabel(status)}
+                      </MenuItem>
+                    ))}
+                  </MenuGroup>
+                </>
+              ) : null}
               <MenuSeparator />
               {done ? (
-                <MenuItem onClick={() => onAction(task, "reopen")}>Reopen</MenuItem>
+                <MenuItem onClick={() => onAction(task, "todo")}>Reopen</MenuItem>
               ) : (
-                <MenuItem onClick={() => onAction(task, "complete")}>Complete</MenuItem>
+                <MenuItem onClick={() => onAction(task, "done")}>Complete</MenuItem>
               )}
             </MenuPopup>
           </Menu>
@@ -339,10 +364,8 @@ export function TaskListView(props: {
           return current.claim(task);
         case "release":
           return current.release(task);
-        case "complete":
-          return current.setStatus(task, "done");
-        case "reopen":
-          return current.setStatus(task, "todo");
+        default:
+          return current.setStatus(task, action);
       }
     },
     [actionsRef],
