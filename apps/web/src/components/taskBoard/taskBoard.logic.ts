@@ -387,7 +387,6 @@ export type TaskDashboard = {
   }>;
   completionsPerDay: Array<{ day: string; count: number }>;
   staleOpen: TaskView[];
-  nextUp: TaskView[];
   recentActivity: Array<{ task: TaskView; at: number; actor: string; text: string }>;
 };
 
@@ -444,20 +443,6 @@ export function buildDashboard(
   const dueDays = (task: TaskBoardTask) => daysUntilDue(task.due, now);
   const staleCutoff = now - STALE_AFTER_DAYS * DAY_MS;
 
-  const nextUp = openTasks
-    .filter((task) => task.status !== "blocked")
-    .toSorted((a, b) => {
-      const priority = priorityRank(a.priority) - priorityRank(b.priority);
-      if (priority !== 0) return priority;
-      const left = dueDays(a) ?? Number.POSITIVE_INFINITY;
-      const right = dueDays(b) ?? Number.POSITIVE_INFINITY;
-      if (left !== right) return left < right ? -1 : 1;
-      const progress = Number(b.status === "in_progress") - Number(a.status === "in_progress");
-      if (progress !== 0) return progress;
-      return a.updatedAt - b.updatedAt;
-    })
-    .slice(0, 5);
-
   const recentActivity = tasks
     .flatMap((task) =>
       task.history.map((entry) => ({
@@ -494,7 +479,6 @@ export function buildDashboard(
       .filter((task) => task.updatedAt < staleCutoff)
       .toSorted((a, b) => a.updatedAt - b.updatedAt)
       .slice(0, 5),
-    nextUp,
     recentActivity,
   };
 }

@@ -156,6 +156,21 @@ describe("buildListGroups", () => {
     expect(flat.every((item) => item.kind === "task")).toBe(true);
   });
 
+  it("groups by state: Now, Next, Closed, each with a hint, and folds Later", () => {
+    const groups = buildListGroups({ tasks, sections: [], groupBy: "state", now: 0 });
+    expect(groups.map((group) => [group.label, group.count])).toEqual([
+      ["Now", 1],
+      ["Next", 1],
+      ["Closed", 2],
+    ]);
+    expect(groups.every((group) => group.hint)).toBe(true);
+    const nine = Array.from({ length: 9 }, (_, i) => view(`t${i}`));
+    const later = buildListGroups({ tasks: nine, sections: [], groupBy: "state", now: 0 }).find(
+      (group) => group.label === "Later",
+    );
+    expect(later?.defaultOpen).toBe(false);
+  });
+
   it("returns one headerless group for a flat list and none when empty", () => {
     expect(buildListGroups({ tasks, sections: [], groupBy: "none" })[0]?.label).toBeNull();
     expect(buildListGroups({ tasks: [], sections: [], groupBy: "none" })).toEqual([]);

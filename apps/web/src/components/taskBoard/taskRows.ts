@@ -5,6 +5,7 @@ import type {
   TaskBoardWorkspaceProject,
 } from "@t3tools/contracts";
 
+import { groupByState, type StateGroups } from "./doNext.logic";
 import { ownerOf } from "./owner.logic";
 import {
   groupByStatus,
@@ -126,17 +127,51 @@ export type ListGroup = {
   openCount: number | null;
   tasks: ReadonlyArray<TaskView>;
   defaultOpen: boolean;
+  /** What puts a card in this group, shown muted after the count. */
+  hint?: string;
 };
+
+const STATE_GROUPS: ReadonlyArray<{
+  key: keyof StateGroups<TaskView>;
+  label: string;
+  hint: string;
+  defaultOpen: boolean;
+}> = [
+  { key: "now", label: "Now", hint: "In progress or past due", defaultOpen: true },
+  {
+    key: "next",
+    label: "Next",
+    hint: "Top to do: due soon, then priority, then closest to done",
+    defaultOpen: true,
+  },
+  { key: "waiting", label: "Waiting", hint: "In review or blocked", defaultOpen: true },
+  { key: "later", label: "Later", hint: "Other open work", defaultOpen: false },
+  { key: "closed", label: "Closed", hint: "Done, parked or retired", defaultOpen: true },
+];
 
 /** Turns the page's tasks and sections into the groups the list renders, empty groups dropped. */
 export function buildListGroups(input: {
   tasks: ReadonlyArray<TaskView>;
   sections: ReadonlyArray<TaskSectionGroup>;
-  groupBy: "owner" | "project" | "status" | "none";
+  groupBy: "state" | "owner" | "project" | "status" | "none";
   /** Needed to group by owner: maps logins to team names. */
   team?: ReadonlyArray<TaskBoardTeamMember>;
+  /** Needed to group by state: due dates compare against this time. */
+  now?: number;
 }): ListGroup[] {
   const { tasks, sections, groupBy } = input;
+  if (groupBy === "state") {
+    const state = groupByState(tasks, input.now ?? Date.now());
+    return STATE_GROUPS.filter((group) => state[group.key].length > 0).map((group) => ({
+      key: `state:${group.key}`,
+      label: group.label,
+      hint: group.hint,
+      count: state[group.key].length,
+      openCount: null,
+      tasks: state[group.key],
+      defaultOpen: group.defaultOpen,
+    }));
+  }
   if (groupBy === "owner") {
     // Teammates in roster order, then other owners as they appear, then unowned work last.
     const team = input.team ?? [];

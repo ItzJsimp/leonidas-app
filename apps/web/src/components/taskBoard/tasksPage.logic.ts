@@ -20,7 +20,7 @@ import {
 
 export type TasksView = "dashboard" | "board" | "list" | "roadmap";
 export type TaskFocus = "all" | "inbox" | "today" | "upcoming";
-export type TaskListGroupBy = "owner" | "project" | "status" | "none";
+export type TaskListGroupBy = "state" | "owner" | "project" | "status" | "none";
 
 /** What the Tasks page remembers between visits. The search text is deliberately not kept. */
 export type TasksPrefs = {
@@ -38,7 +38,8 @@ export type TasksPrefs = {
   groupBy: TaskListGroupBy;
 };
 
-export const TASKS_PREFS_KEY = "leonidas-tasks:prefs";
+// v2: the list now groups by state by default, so older saves start fresh once.
+export const TASKS_PREFS_KEY = "leonidas-tasks:prefs:v2";
 
 /** Task-only projects need a stable key without requiring a repository or folder. */
 export function taskProjectSlug(name: string): string {
@@ -63,11 +64,11 @@ export const DEFAULT_TASKS_PREFS: TasksPrefs = {
   sharedOnly: false,
   includeClosed: false,
   sort: "priority",
-  groupBy: "none",
+  groupBy: "state",
 };
 
 const VIEWS: ReadonlyArray<TasksView> = ["dashboard", "board", "list", "roadmap"];
-const GROUP_BYS: ReadonlyArray<TaskListGroupBy> = ["owner", "project", "status", "none"];
+const GROUP_BYS: ReadonlyArray<TaskListGroupBy> = ["state", "owner", "project", "status", "none"];
 const SORTS: ReadonlyArray<TaskSort> = ["priority", "updated", "due", "title"];
 const STATUSES: ReadonlyArray<TaskBoardTaskStatus> = [
   "todo",

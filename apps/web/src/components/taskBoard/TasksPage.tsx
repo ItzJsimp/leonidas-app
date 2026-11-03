@@ -377,7 +377,8 @@ export function TasksPage() {
       <TaskListView
         tasks={board.visibleTasks}
         sections={board.sections}
-        groupBy={prefs.groupBy}
+        // Search hits show as one flat list so none hide inside a folded group.
+        groupBy={prefs.groupBy === "state" && query.trim() ? "none" : prefs.groupBy}
         context={context}
         actions={actions}
         selectedId={selectedId}

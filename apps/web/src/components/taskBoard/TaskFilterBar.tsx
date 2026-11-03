@@ -35,6 +35,7 @@ const SORT_LABELS: Record<TaskSort, string> = {
   title: "Title",
 };
 const GROUP_LABELS: Record<TaskListGroupBy, string> = {
+  state: "State",
   owner: "Owner",
   project: "Project",
   status: "Status",
@@ -153,40 +154,55 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
           ) : null}
         </MenuPopup>
       </Menu>
-      <Menu>
-        <MenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="compact"
-              aria-label={`Sort by ${SORT_LABELS[prefs.sort]}`}
-            />
-          }
-        >
-          <ArrowUpDownIcon />
-          <span className="hidden sm:inline">{SORT_LABELS[prefs.sort]}</span>
-        </MenuTrigger>
-        <MenuPopup align="end">
-          <MenuGroup>
-            <MenuGroupLabel>Sort by</MenuGroupLabel>
-            <MenuRadioGroup
-              value={prefs.sort}
-              onValueChange={(value) => {
-                if (value in SORT_LABELS) onPrefsChange({ sort: value as TaskSort });
-              }}
-            >
-              {Object.entries(SORT_LABELS).map(([value, label]) => (
-                <MenuRadioItem key={value} value={value}>
-                  {label}
-                </MenuRadioItem>
-              ))}
-            </MenuRadioGroup>
-          </MenuGroup>
-        </MenuPopup>
-      </Menu>
+      {/* State groups always use the do-next order, so a Sort menu there would do nothing. */}
+      {props.showGroupBy && prefs.groupBy === "state" ? null : (
+        <Menu>
+          <MenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="compact"
+                aria-label={`Sort by ${SORT_LABELS[prefs.sort]}`}
+              />
+            }
+          >
+            <ArrowUpDownIcon />
+            <span className="hidden sm:inline">{SORT_LABELS[prefs.sort]}</span>
+          </MenuTrigger>
+          <MenuPopup align="end">
+            <MenuGroup>
+              <MenuGroupLabel>Sort by</MenuGroupLabel>
+              <MenuRadioGroup
+                value={prefs.sort}
+                onValueChange={(value) => {
+                  if (value in SORT_LABELS) onPrefsChange({ sort: value as TaskSort });
+                }}
+              >
+                {Object.entries(SORT_LABELS).map(([value, label]) => (
+                  <MenuRadioItem key={value} value={value}>
+                    {label}
+                  </MenuRadioItem>
+                ))}
+              </MenuRadioGroup>
+            </MenuGroup>
+          </MenuPopup>
+        </Menu>
+      )}
       {props.showGroupBy ? (
         <Menu>
-          <MenuTrigger render={<Button variant="ghost" size="compact" aria-label="Group tasks" />}>
+          <MenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="compact"
+                aria-label={
+                  prefs.groupBy === "none"
+                    ? "Group tasks"
+                    : `Group by ${GROUP_LABELS[prefs.groupBy]}`
+                }
+              />
+            }
+          >
             <GroupIcon />
             <span className="hidden sm:inline">
               {prefs.groupBy === "none" ? "Group" : GROUP_LABELS[prefs.groupBy]}

@@ -34,6 +34,7 @@ import {
   type TaskDashboard,
   type TaskView,
 } from "./taskBoard.logic";
+import { nextUpTasks } from "./doNext.logic";
 import type { TaskActions, TaskContext } from "./taskBoard.types";
 import { DueChip, PriorityBadge, StatusBadge } from "./TaskBadges";
 
@@ -712,6 +713,8 @@ export function TaskDashboardView(props: TaskDashboardViewProps) {
     [tasks, context.projects],
   );
 
+  const nextUp = useMemo(() => nextUpTasks(tasks, context.now), [tasks, context.now]);
+
   if (tasks.length === 0) {
     return (
       <Empty size="compact">
@@ -740,7 +743,7 @@ export function TaskDashboardView(props: TaskDashboardViewProps) {
       <KpiStrip dashboard={dashboard} />
       <div className="grid min-w-0 grid-cols-1 gap-4 @xl:grid-cols-2 @5xl:grid-cols-3">
         <NextUpPanel
-          tasks={dashboard.nextUp}
+          tasks={nextUp}
           names={names}
           now={context.now}
           actions={actions}
