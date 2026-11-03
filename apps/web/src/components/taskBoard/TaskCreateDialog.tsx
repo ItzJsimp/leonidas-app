@@ -179,27 +179,8 @@ function TaskCreateForm(props: {
               onChange={(event) => setDetails(event.target.value)}
             />
           </Label>
+          {/* Fields people set most come first; the version is optional and set least. */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Label className="flex flex-col items-stretch" htmlFor={`${id}-milestone`}>
-              Version milestone
-              <Input
-                id={`${id}-milestone`}
-                placeholder="0.22.0"
-                value={milestone}
-                pattern="(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
-                title="Use a version such as 0.22.0 or 1.0.0"
-                onChange={(event) => setMilestone(event.target.value)}
-              />
-            </Label>
-            <Label className="flex flex-col items-stretch" htmlFor={`${id}-due`}>
-              Due date
-              <Input
-                id={`${id}-due`}
-                type="date"
-                value={due}
-                onChange={(event) => setDue(event.target.value)}
-              />
-            </Label>
             <Label className="flex min-w-0 flex-col items-stretch" htmlFor={`${id}-priority`}>
               Priority
               <Select
@@ -243,6 +224,26 @@ function TaskCreateForm(props: {
                   ))}
                 </SelectPopup>
               </Select>
+            </Label>
+            <Label className="flex flex-col items-stretch" htmlFor={`${id}-due`}>
+              Due date
+              <Input
+                id={`${id}-due`}
+                type="date"
+                value={due}
+                onChange={(event) => setDue(event.target.value)}
+              />
+            </Label>
+            <Label className="flex flex-col items-stretch" htmlFor={`${id}-milestone`}>
+              Version milestone
+              <Input
+                id={`${id}-milestone`}
+                placeholder="Optional, such as 1.0.0"
+                value={milestone}
+                pattern="(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+                title="Use a version such as 0.22.0 or 1.0.0"
+                onChange={(event) => setMilestone(event.target.value)}
+              />
             </Label>
           </div>
           {projectSlug === NEW_PROJECT ? (
