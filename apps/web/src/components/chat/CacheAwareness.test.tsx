@@ -85,7 +85,7 @@ describe("cache controls", () => {
     expect(action).not.toHaveBeenCalled();
     await act(async () => button("Change model").click());
     await act(async () => (document.querySelector('[role="checkbox"]') as HTMLElement).click());
-    await act(async () => button("Continue").click());
+    await act(async () => button("Switch model").click());
     expect(action).toHaveBeenCalledTimes(1);
     expect(settings.value.cacheMutedWarnings).toContain("model");
     await act(async () => button("Change model").click());
