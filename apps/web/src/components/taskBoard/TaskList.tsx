@@ -123,6 +123,7 @@ const TaskRow = memo(function TaskRow({
         setLive(true);
       };
   const titleClass = cn("min-w-0 text-sm", done && "text-muted-foreground line-through");
+  const urgent = task.priority === "critical" || task.priority === "high";
   const menuLabel = `Actions for ${task.title}`;
   return (
     <div
@@ -166,11 +167,21 @@ const TaskRow = memo(function TaskRow({
           ) : (
             <span className={cn("block truncate", titleClass)}>{task.title}</span>
           )}
+          {/* Priority sits with the flags, so rows without one give the title that width. */}
           <span className="hidden shrink-0 items-center gap-1 @min-[30rem]:flex">
+            {urgent ? <PriorityBadge priority={task.priority} /> : null}
             <TaskFlagChips task={task} now={now} />
             <SharedBadge task={task} />
           </span>
           <PresenceChips taskId={task.id} />
+        </span>
+        {/* Narrow rows keep one chip (due, else priority), so a card still shows why it is here. */}
+        <span className="flex shrink-0 @min-[30rem]:hidden">
+          {!done && task.due ? (
+            <DueChip due={task.due} now={now} />
+          ) : urgent ? (
+            <PriorityBadge priority={task.priority} />
+          ) : null}
         </span>
         {showStatusBadge ? (
           <span className="hidden w-22 shrink-0 @min-[36rem]:flex">
@@ -182,11 +193,6 @@ const TaskRow = memo(function TaskRow({
             <ProjectChip name={projectName} />
           </span>
         )}
-        <span className="hidden w-16 shrink-0 @min-[36rem]:flex">
-          {task.priority === "critical" || task.priority === "high" ? (
-            <PriorityBadge priority={task.priority} />
-          ) : null}
-        </span>
         <span className="hidden w-24 shrink-0 @min-[40rem]:flex">
           {done ? null : <DueChip due={task.due} now={now} />}
         </span>

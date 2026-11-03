@@ -491,7 +491,8 @@ export function TasksPage() {
                   </button>
                 ))}
               </div>
-              <div className="ml-auto flex min-w-0 flex-1 basis-64 flex-wrap items-center justify-end gap-1">
+              {/* Narrow panes: the two scope selects share a row, and search gets the next one. */}
+              <div className="ml-auto flex min-w-0 flex-1 basis-64 flex-wrap items-center justify-start gap-1 @4xl/tasks:justify-end">
                 {prefs.view !== "roadmap" ? (
                   <OwnerLensPicker
                     options={board.ownerOptions}
@@ -502,6 +503,7 @@ export function TasksPage() {
                     }}
                   />
                 ) : null}
+                {picker}
                 {prefs.view === "list" || prefs.view === "board" ? (
                   <TaskFilterBar
                     prefs={prefs}
@@ -510,11 +512,8 @@ export function TasksPage() {
                     onPrefsChange={patchPrefs}
                     showGroupBy={prefs.view === "list"}
                     showClosedToggle={prefs.view === "list"}
-                    leading={picker}
                   />
-                ) : (
-                  picker
-                )}
+                ) : null}
                 <SyncStatus
                   state={shareState}
                   canSync={Boolean(railEntry?.projectId)}

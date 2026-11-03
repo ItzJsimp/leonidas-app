@@ -1,6 +1,6 @@
 import type { TaskBoardTaskPriority, TaskBoardTaskStatus } from "@t3tools/contracts";
 import { ArrowUpDownIcon, GroupIcon, ListFilterIcon, SearchIcon, XIcon } from "lucide-react";
-import { memo, type ReactNode } from "react";
+import { memo } from "react";
 
 import { Button } from "~/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "~/components/ui/input-group";
@@ -64,8 +64,6 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
   readonly showGroupBy: boolean;
   /** The Board always shows its Done column, so it has no closed-work toggle. */
   readonly showClosedToggle: boolean;
-  /** The narrow-window project picker, shown in front of the search box. */
-  readonly leading?: ReactNode;
 }) {
   const { prefs, query, onPrefsChange } = props;
   const activeCount = activeFilterCount(prefs, query);
@@ -76,8 +74,7 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
     Number(prefs.flag !== null) +
     Number(props.showClosedToggle && prefs.includeClosed);
   return (
-    <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1">
-      {props.leading}
+    <div className="flex min-w-0 flex-1 basis-56 flex-wrap items-center justify-end gap-1">
       <InputGroup className="min-w-24 flex-1 sm:w-36 sm:flex-none">
         <InputGroupAddon>
           <SearchIcon aria-hidden className="size-3.5 text-muted-foreground" />

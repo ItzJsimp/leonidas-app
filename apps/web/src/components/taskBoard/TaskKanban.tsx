@@ -203,7 +203,7 @@ function KanbanColumn({
     <section
       aria-label={label}
       className={cn(
-        "flex h-full w-[min(85vw,18rem)] shrink-0 snap-start flex-col rounded-xl border bg-muted/40 sm:w-72",
+        "flex h-full w-[min(80vw,14rem)] shrink-0 snap-start flex-col rounded-xl border bg-muted/40 sm:w-56",
         // A wide pane fits every column: open columns share the width; Done and empty ones stay narrow.
         status === "done" || tasks.length + hidden === 0
           ? "@4xl/board:flex-[0_0_11rem]"

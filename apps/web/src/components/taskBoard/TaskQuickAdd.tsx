@@ -70,7 +70,7 @@ export function TaskQuickAdd(props: {
             aria-label="Quick add task"
             aria-keyshortcuts="n"
             data-tasks-quick-add
-            placeholder="Add a task, then press Enter"
+            placeholder="Add a task"
             maxLength={256}
             value={title}
             disabled={busy}
