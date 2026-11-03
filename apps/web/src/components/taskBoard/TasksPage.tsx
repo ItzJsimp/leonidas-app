@@ -427,22 +427,27 @@ export function TasksPage() {
         </WorkspacePageHeader>
 
         <div className="flex min-h-0 flex-1">
-          <aside
-            style={{ width: railWidth }}
-            className="hidden shrink-0 overflow-y-auto p-2 @4xl/tasks:block"
+          {/* An open task takes the rail's width until the pane is wide, so the list keeps room. */}
+          <div
+            className={cn(
+              "hidden min-h-0 shrink-0",
+              selectedTask ? "@7xl/tasks:flex" : "@4xl/tasks:flex",
+            )}
           >
-            <TaskProjectRail
-              entries={rail}
-              allOpen={allOpen}
-              selectedSlug={prefs.section}
-              onSelect={selectSection}
-              focus={prefs.focus}
-              counts={counts}
-              onFocus={selectFocus}
-              {...hiddenProjects}
-            />
-          </aside>
-          {railHandle}
+            <aside style={{ width: railWidth }} className="overflow-y-auto p-2">
+              <TaskProjectRail
+                entries={rail}
+                allOpen={allOpen}
+                selectedSlug={prefs.section}
+                onSelect={selectSection}
+                focus={prefs.focus}
+                counts={counts}
+                onFocus={selectFocus}
+                {...hiddenProjects}
+              />
+            </aside>
+            {railHandle}
+          </div>
 
           <div
             className={
