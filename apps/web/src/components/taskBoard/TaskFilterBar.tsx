@@ -82,7 +82,7 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
           aria-label="Search tasks"
           aria-keyshortcuts="/"
           data-tasks-search
-          placeholder="Search all tasks"
+          placeholder="Search"
           value={query}
           onChange={(event) => props.onQueryChange(event.target.value)}
         />

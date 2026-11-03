@@ -17,6 +17,7 @@ import {
   mergeTasks,
   priorityRank,
   relativeTime,
+  taskFlags,
   shareableOpenCount,
   sortTasks,
   statusLabel,
@@ -498,5 +499,26 @@ describe("shareableOpenCount", () => {
     ];
     expect(shareableOpenCount(tasks, "alpha")).toBe(2);
     expect(shareableOpenCount(tasks, "nope")).toBe(0);
+  });
+});
+
+describe("taskFlags", () => {
+  it("flags open cards with no change for 21 days and open cards with no gates", () => {
+    const old = NOW - 22 * DAY;
+    expect(
+      taskFlags({ status: "todo", updatedAt: old, checklist: { done: 0, total: 2 } }, NOW),
+    ).toEqual({ stale: true, noGates: false });
+    expect(taskFlags({ status: "todo", updatedAt: NOW - 20 * DAY }, NOW)).toEqual({
+      stale: false,
+      noGates: true,
+    });
+    expect(
+      taskFlags({ status: "todo", updatedAt: NOW, checklist: { done: 0, total: 0 } }, NOW).noGates,
+    ).toBe(true);
+    // Closed cards carry no flags.
+    expect(taskFlags({ status: "done", updatedAt: old }, NOW)).toEqual({
+      stale: false,
+      noGates: false,
+    });
   });
 });

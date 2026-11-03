@@ -14,7 +14,15 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "~/components/ui/menu";
 import { cn } from "~/lib/utils";
-import { ChecklistBar, DueChip, PriorityBadge, SharedBadge, StatusBadge } from "./TaskBadges";
+import {
+  ChecklistBar,
+  DueChip,
+  PriorityBadge,
+  SharedBadge,
+  StatusBadge,
+  TaskFlagChips,
+} from "./TaskBadges";
+import { TruncatedText } from "../windows/shared/TruncatedText";
 import { TasksEmpty } from "./TaskEmptyStates";
 import { PresenceChips } from "./TaskPresence";
 import { OwnerCell, ProjectChip, useLatest } from "./TaskRowParts";
@@ -50,6 +58,7 @@ type RowProps = {
   readonly now: number;
   readonly projectName: string | null;
   readonly showStatusBadge: boolean;
+  readonly showOwner: boolean;
   readonly canSend: boolean;
   readonly mine: boolean;
   readonly team: ReadonlyArray<TaskBoardTeamMember>;
@@ -65,6 +74,7 @@ const TaskRow = memo(function TaskRow({
   now,
   projectName,
   showStatusBadge,
+  showOwner,
   canSend,
   mine,
   team,
@@ -101,33 +111,45 @@ const TaskRow = memo(function TaskRow({
         type="button"
       >
         <span className="sr-only">{statusLabel(task.status)}</span>
-        <span
-          title={task.title}
-          className={cn(
-            "min-w-0 flex-1 truncate text-sm",
-            done && "text-muted-foreground line-through",
-          )}
-        >
-          {task.title}
+        {/* Title and its flags share the flexible column; every other column has a fixed width. */}
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <TruncatedText
+            text={task.title}
+            className={cn("min-w-0 text-sm", done && "text-muted-foreground line-through")}
+          />
+          <span className="hidden shrink-0 items-center gap-1 @min-[30rem]:flex">
+            <TaskFlagChips task={task} now={now} />
+            <SharedBadge task={task} />
+          </span>
+          <PresenceChips taskId={task.id} />
         </span>
-        <span className="hidden shrink-0 items-center gap-1.5 @min-[36rem]:flex">
-          {showStatusBadge ? <StatusBadge status={task.status} /> : null}
-          <ProjectChip name={projectName} />
+        {showStatusBadge ? (
+          <span className="hidden w-22 shrink-0 @min-[36rem]:flex">
+            <StatusBadge status={task.status} />
+          </span>
+        ) : null}
+        {projectName === null ? null : (
+          <span className="hidden w-36 min-w-0 shrink-0 @min-[44rem]:flex">
+            <ProjectChip name={projectName} />
+          </span>
+        )}
+        <span className="hidden w-16 shrink-0 @min-[36rem]:flex">
           {task.priority === "critical" || task.priority === "high" ? (
             <PriorityBadge priority={task.priority} />
           ) : null}
-          {done ? null : <DueChip due={task.due} now={now} />}
-          <SharedBadge task={task} />
         </span>
-        <span className="hidden shrink-0 items-center @min-[52rem]:flex">
+        <span className="hidden w-24 shrink-0 @min-[40rem]:flex">
+          {done ? null : <DueChip due={task.due} now={now} />}
+        </span>
+        <span className="hidden w-24 shrink-0 @min-[52rem]:flex">
           <ChecklistBar checklist={task.checklist} />
         </span>
-        <span className="hidden max-w-44 shrink-0 @min-[40rem]:flex">
-          <PresenceChips taskId={task.id} />
-        </span>
-        <span className="hidden w-28 shrink-0 @min-[30rem]:flex">
-          <OwnerCell task={task} team={team} />
-        </span>
+        {/* Only a card someone has taken shows an owner; "Anyone" on every row was noise. */}
+        {showOwner ? (
+          <span className="hidden w-24 shrink-0 @min-[60rem]:flex">
+            {task.claimedBy ? <OwnerCell task={task} team={team} /> : null}
+          </span>
+        ) : null}
         <span className="hidden w-20 shrink-0 text-right text-muted-foreground text-xs tabular-nums @min-[36rem]:block">
           {relativeTime(task.updatedAt, now)}
         </span>
@@ -229,6 +251,8 @@ export function TaskListView(props: {
     () => new Set(tasks.map((task) => task.section)).size <= 1,
     [tasks],
   );
+  // The owner column shows only when some card in the list has an owner.
+  const showOwner = useMemo(() => tasks.some((task) => task.claimedBy), [tasks]);
   const visibleIds = useMemo(() => visibleTaskIds(groups, overrides), [groups, overrides]);
   const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
   const items = useMemo(() => flattenGroups(groups, overrides), [groups, overrides]);
@@ -315,6 +339,7 @@ export function TaskListView(props: {
         }
         selected={selectedId === item.task.id}
         showStatusBadge={groupBy !== "status"}
+        showOwner={showOwner}
         tabbable={tabbableId === item.task.id}
         task={item.task}
       />

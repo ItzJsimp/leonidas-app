@@ -71,6 +71,18 @@ export function isOpen(task: Pick<TaskBoardTask, "status">): boolean {
   return OPEN_STATUSES.has(task.status);
 }
 
+/** Open cards with no change for 21 days are stale; open cards with no "Done when" list have no gates. */
+export function taskFlags(
+  task: Pick<TaskBoardTask, "status" | "updatedAt" | "checklist">,
+  now: number,
+): { readonly stale: boolean; readonly noGates: boolean } {
+  const open = isOpen(task);
+  return {
+    stale: open && task.updatedAt < now - STALE_AFTER_DAYS * DAY_MS,
+    noGates: open && !task.checklist?.total,
+  };
+}
+
 export function statusLabel(status: TaskBoardTaskStatus): string {
   return STATUS_LABELS[status];
 }

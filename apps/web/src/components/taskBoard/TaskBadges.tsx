@@ -1,5 +1,11 @@
 import type { TaskBoardTask, TaskBoardTaskPriority, TaskBoardTaskStatus } from "@t3tools/contracts";
-import { CalendarClockIcon, CircleAlertIcon, UsersIcon } from "lucide-react";
+import {
+  CalendarClockIcon,
+  CircleAlertIcon,
+  CircleDashedIcon,
+  ClockAlertIcon,
+  UsersIcon,
+} from "lucide-react";
 
 import { Badge } from "~/components/ui/badge";
 import {
@@ -8,6 +14,7 @@ import {
   priorityTone,
   statusLabel,
   statusTone,
+  taskFlags,
   type TaskTone,
 } from "./taskBoard.logic";
 
@@ -85,5 +92,32 @@ export function ChecklistBar({ checklist }: { readonly checklist: TaskBoardTask[
         {checklist.done}/{checklist.total}
       </span>
     </div>
+  );
+}
+
+/** Stale (no change for 21 days) and No gates (no "Done when" list) flags, each an icon and a word. */
+export function TaskFlagChips({
+  task,
+  now,
+}: {
+  readonly task: Pick<TaskBoardTask, "status" | "updatedAt" | "checklist">;
+  readonly now: number;
+}) {
+  const flags = taskFlags(task, now);
+  return (
+    <>
+      {flags.stale ? (
+        <Badge variant="warning">
+          <ClockAlertIcon />
+          Stale
+        </Badge>
+      ) : null}
+      {flags.noGates ? (
+        <Badge variant="outline">
+          <CircleDashedIcon />
+          No gates
+        </Badge>
+      ) : null}
+    </>
   );
 }
