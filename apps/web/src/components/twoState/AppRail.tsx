@@ -74,7 +74,7 @@ const ICONS: Readonly<Record<string, LucideIcon>> = {
 };
 
 const TARGET_CLASS =
-  "relative inline-flex size-9 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none [-webkit-app-region:no-drag]";
+  "relative inline-flex size-9 shrink-0 touch-hit items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none [-webkit-app-region:no-drag]";
 const ACTIVE_CLASS = "border-border bg-surface-raised text-foreground";
 
 /** "99+" past 99, so the badge stays small. */
@@ -241,7 +241,7 @@ function WorkspaceAvatar() {
             <button
               type="button"
               aria-label={`Workspace: ${name}. Switch workspace`}
-              className="inline-flex size-[30px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-raised text-xs font-semibold text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [-webkit-app-region:no-drag]"
+              className="relative touch-hit inline-flex size-[30px] shrink-0 items-center justify-center rounded-full border border-border bg-surface-raised text-xs font-semibold text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [-webkit-app-region:no-drag]"
             />
           }
         >
@@ -249,7 +249,7 @@ function WorkspaceAvatar() {
             workspaceId={active?.id}
             name={name}
             pictures={pictures}
-            className="size-full text-xs"
+            className="size-full overflow-hidden rounded-full text-xs"
           />
         </PopoverTrigger>
       </Tip>

@@ -65,7 +65,7 @@ export function UsageAnalyticsConsentDialog() {
             You can change this at any time in Settings, General.{" "}
             <button
               type="button"
-              className="underline"
+              className="relative touch-hit underline"
               onClick={() => void ensureLocalApi().shell.openExternal(USAGE_PRIVACY_URL)}
             >
               Read the privacy notice

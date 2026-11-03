@@ -80,7 +80,7 @@ export const ComposerToolbar = memo(function ComposerToolbar(props: {
                       render={<button type="button" />}
                       aria-label={custom.label}
                       title={custom.label}
-                      className="text-muted-foreground transition-colors duration-200 hover:text-foreground"
+                      className="relative touch-hit text-muted-foreground transition-colors duration-200 hover:text-foreground"
                       onPointerDown={(event) => event.preventDefault()}
                       onClick={() => props.onFillPrompt(custom.prompt)}
                     >
@@ -100,7 +100,7 @@ export const ComposerToolbar = memo(function ComposerToolbar(props: {
               render={<button type="button" />}
               aria-label={props.collapsed ? "Show button bar" : "Hide button bar"}
               title={props.collapsed ? "Show button bar" : "Hide button bar"}
-              className="text-muted-foreground transition-colors duration-200 hover:text-foreground"
+              className="relative touch-hit text-muted-foreground transition-colors duration-200 hover:text-foreground"
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => props.onCollapsedChange(!props.collapsed)}
             >
@@ -159,7 +159,7 @@ function CustomizePopover(props: {
           render={<ComposerBanner.Row render={<button type="button" />} />}
           aria-label="Customize button bar"
           title="Customize button bar"
-          className="text-muted-foreground transition-colors duration-200 hover:text-foreground"
+          className="relative touch-hit text-muted-foreground transition-colors duration-200 hover:text-foreground"
           onPointerDown={(event) => event.preventDefault()}
         >
           <ComposerBanner.Icon>

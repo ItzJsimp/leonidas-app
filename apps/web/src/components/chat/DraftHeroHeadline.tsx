@@ -308,7 +308,7 @@ export function DraftHeroHeadline({
                 isScratchDraft ? "No project" : (activeProjectDisplayName ?? "Choose a project")
               }
               data-draft-project-trigger=""
-              className="pointer-events-auto max-w-64 align-baseline"
+              className="pointer-events-auto relative touch-hit max-w-64 align-baseline"
             />
           }
         >

@@ -26,7 +26,7 @@ export const ComposerNotepadButton = memo(function ComposerNotepadButton(props: 
               data-tour="composer-next-action"
               aria-label={visible ? "Hide the notepad" : "Show the notepad"}
               aria-pressed={visible}
-              className="text-muted-foreground transition-colors duration-200 hover:text-foreground aria-pressed:text-foreground"
+              className="relative touch-hit text-muted-foreground transition-colors duration-200 hover:text-foreground aria-pressed:text-foreground"
               onClick={() => setVisible(!visible)}
             />
           }
