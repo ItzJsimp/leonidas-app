@@ -262,6 +262,36 @@ jobs:
           VITE_POSTHOG_KEY: ${{ vars.POSTHOG_PROJECT_KEY }}
         run: vp run build:desktop
 
+      # The Mac updater accepts a new build only when its signature requirement matches the old one.
+      # A fixed free self-signed certificate keeps that requirement the same on every build.
+      # Without the secrets the app stays ad hoc signed and Mac auto-update fails.
+      - name: Import the Mac signing certificate
+        env:
+          MAC_SIGN_P12: ${{ secrets.MAC_SELF_SIGN_P12 }}
+          MAC_SIGN_PASSWORD: ${{ secrets.MAC_SELF_SIGN_PASSWORD }}
+        run: |
+          if [ -z "$MAC_SIGN_P12" ]; then
+            echo "::warning::No MAC_SELF_SIGN_P12 secret. The Mac app stays ad hoc signed and cannot auto-update."
+            exit 0
+          fi
+          KC="$RUNNER_TEMP/leonidas-sign.keychain-db"
+          KCPASS=$(uuidgen)
+          echo "$MAC_SIGN_P12" | base64 --decode > "$RUNNER_TEMP/sign.p12"
+          security create-keychain -p "$KCPASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPASS" "$KC"
+          security import "$RUNNER_TEMP/sign.p12" -k "$KC" -P "$MAC_SIGN_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPASS" "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" login.keychain-db
+          rm -f "$RUNNER_TEMP/sign.p12"
+          HASH=$(security find-identity -p codesigning "$KC" | grep -oE '[0-9A-F]{40}' | head -n 1)
+          if [ -z "$HASH" ]; then
+            echo "::error::The certificate holds no code signing identity."
+            exit 1
+          fi
+          echo "LEONIDAS_MAC_SELF_SIGN_IDENTITY=$HASH" >> "$GITHUB_ENV"
+          echo "LEONIDAS_MAC_SELF_SIGN_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+
       - name: Build macOS app
         run: vp run dist:desktop:artifact --platform mac --target dmg --arch arm64 --build-version "${{ steps.release.outputs.version }}" --skip-build
 
@@ -270,6 +300,11 @@ jobs:
         run: |
           APP=$(find release -maxdepth 3 -name '*.app' -type d | head -n 1)
           codesign --verify --deep --strict "$APP" || echo "::warning::$APP has no valid ad hoc signature; macOS may report it as damaged."
+          if [ -n "${LEONIDAS_MAC_SELF_SIGN_IDENTITY:-}" ]; then
+            REQ=$(codesign -d -r- "$APP" 2>&1 | grep 'designated =>' || true)
+            echo "$REQ"
+            echo "$REQ" | grep -q 'certificate leaf' || { echo "::error::The Mac app is not signed with the fixed certificate; auto-update would fail."; exit 1; }
+          fi
 
       - name: Save release artifacts
         uses: actions/upload-artifact@v4

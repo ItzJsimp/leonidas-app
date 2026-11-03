@@ -2950,6 +2950,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
         },
       ],
       ...(signed ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") } : {}),
+      // No-op unless LEONIDAS_MAC_SELF_SIGN_IDENTITY is set (see scripts/self-sign-macos.cjs).
+      ...(signed ? {} : { afterSign: path.join(repoRoot, "scripts/self-sign-macos.cjs") }),
       ...(macPasskeySigning
         ? {
             entitlements: macPasskeySigning.entitlementsPath,

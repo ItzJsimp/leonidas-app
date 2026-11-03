@@ -2269,6 +2269,35 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
 
+  it.effect("re-signs unsigned macOS builds with the fixed self-signed identity hook", () =>
+    Effect.gen(function* () {
+      const unsigned = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "1.2.3",
+        false,
+        false,
+        undefined,
+        undefined,
+      );
+      const signed = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "1.2.3",
+        true,
+        false,
+        undefined,
+        undefined,
+      );
+
+      assert.match(
+        String((unsigned.mac as Record<string, unknown>).afterSign),
+        /[\\/]scripts[\\/]self-sign-macos\.cjs$/,
+      );
+      assert.notProperty(signed.mac as Record<string, unknown>, "afterSign");
+    }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
+  );
+
   it.effect("uses the nightly DMG background for nightly macOS builds", () =>
     Effect.gen(function* () {
       const config = yield* createBuildConfig(
