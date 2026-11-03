@@ -32,7 +32,7 @@ export function RailDrawer() {
         <Tip text="Open the menu">
           <Dialog.Trigger
             aria-label="Open the menu"
-            className="pointer-events-auto inline-flex size-[var(--workspace-titlebar-control-size)] items-center justify-center rounded-lg border border-border bg-card text-foreground transition-colors hover:bg-surface-raised focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none [-webkit-app-region:no-drag]"
+            className="pointer-events-auto relative inline-flex size-[var(--workspace-titlebar-control-size)] pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 items-center justify-center rounded-lg border border-border bg-card text-foreground transition-colors hover:bg-surface-raised focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none [-webkit-app-region:no-drag]"
           >
             <MenuIcon aria-hidden className="size-4" />
           </Dialog.Trigger>
