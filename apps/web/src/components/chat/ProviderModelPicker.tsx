@@ -13,7 +13,7 @@ import {
   type BenchmarkRouteProfiles,
 } from "@t3tools/shared/autoRouter";
 import { RouteIcon } from "lucide-react";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useNowMinute } from "../../hooks/useNowMinute";
@@ -82,6 +82,9 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const composerFloatingLayerProps = useComposerMenuProps();
   const [uncontrolledIsMenuOpen, setUncontrolledIsMenuOpen] = useState(false);
   const isMenuOpen = props.open ?? uncontrolledIsMenuOpen;
+  // The tap paints the open popup first and the model list right after. On a slow phone the list
+  // took about 500 ms, and the tap felt stuck for that long.
+  const listOpen = useDeferredValue(isMenuOpen);
   const size = props.size ?? "sm";
 
   // Resolve the active instance entry by exact routing key. The composer
@@ -366,7 +369,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         className="before:hidden"
         padding="none"
       >
-        {props.autoRoute && props.selectedModels === undefined ? (
+        {!listOpen ? <div aria-busy="true" className="h-86.5 w-screen max-w-90" /> : null}
+        {listOpen && props.autoRoute && props.selectedModels === undefined ? (
           <AutoRouterPickerSection
             preference={props.autoRoute.preference}
             candidates={props.autoRoute.candidates}
@@ -378,32 +382,38 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
             onPickModel={handleInstanceModelChange}
           />
         ) : null}
-        <ModelPickerContent
-          environmentId={props.environmentId}
-          activeInstanceId={activeInstanceId}
-          model={props.model}
-          {...(props.selectedModels !== undefined ? { selectedModels: props.selectedModels } : {})}
-          {...(props.onToggleModel
-            ? {
-                onToggleModel: (instanceId: ProviderInstanceId, model: string) => {
-                  if (!props.disabled) props.onToggleModel?.(instanceId, model);
-                },
-              }
-            : {})}
-          lockedProvider={props.lockedProvider}
-          lockedContinuationGroupKey={props.lockedContinuationGroupKey ?? null}
-          instanceEntries={props.instanceEntries}
-          {...(props.keybindings ? { keybindings: props.keybindings } : {})}
-          modelOptionsByInstance={props.modelOptionsByInstance}
-          terminalOpen={props.terminalOpen ?? false}
-          onRequestClose={() => setIsMenuOpen(false)}
-          {...(props.onOpenProviderSetup ? { onOpenProviderSetup: props.onOpenProviderSetup } : {})}
-          {...(props.getModelDisabledReason
-            ? { getModelDisabledReason: props.getModelDisabledReason }
-            : {})}
-          onInstanceModelChange={handleInstanceModelChange}
-        />
-        {props.selectedModels === undefined ? (
+        {listOpen ? (
+          <ModelPickerContent
+            environmentId={props.environmentId}
+            activeInstanceId={activeInstanceId}
+            model={props.model}
+            {...(props.selectedModels !== undefined
+              ? { selectedModels: props.selectedModels }
+              : {})}
+            {...(props.onToggleModel
+              ? {
+                  onToggleModel: (instanceId: ProviderInstanceId, model: string) => {
+                    if (!props.disabled) props.onToggleModel?.(instanceId, model);
+                  },
+                }
+              : {})}
+            lockedProvider={props.lockedProvider}
+            lockedContinuationGroupKey={props.lockedContinuationGroupKey ?? null}
+            instanceEntries={props.instanceEntries}
+            {...(props.keybindings ? { keybindings: props.keybindings } : {})}
+            modelOptionsByInstance={props.modelOptionsByInstance}
+            terminalOpen={props.terminalOpen ?? false}
+            onRequestClose={() => setIsMenuOpen(false)}
+            {...(props.onOpenProviderSetup
+              ? { onOpenProviderSetup: props.onOpenProviderSetup }
+              : {})}
+            {...(props.getModelDisabledReason
+              ? { getModelDisabledReason: props.getModelDisabledReason }
+              : {})}
+            onInstanceModelChange={handleInstanceModelChange}
+          />
+        ) : null}
+        {listOpen && props.selectedModels === undefined ? (
           <ChatGptSharingControl provider={activeEntry?.snapshot ?? null} />
         ) : null}
       </PopoverPopup>
