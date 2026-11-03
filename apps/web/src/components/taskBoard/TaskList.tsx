@@ -18,6 +18,7 @@ import {
   type FocusEvent,
   type KeyboardEvent,
 } from "react";
+import { flushSync } from "react-dom";
 
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -116,7 +117,9 @@ const TaskRow = memo(function TaskRow({
       aria-busy={busy}
       ref={rowRef}
       onFocus={wake}
-      onPointerEnter={live ? undefined : () => setLive(true)}
+      // Swap in the live title before the press starts: a press on a node that a later render
+      // removes fires no click (fast clicks and touch taps on a long title did nothing).
+      onPointerEnter={live ? undefined : () => flushSync(() => setLive(true))}
       role="listitem"
       className={cn(
         "@container group/row flex items-center gap-1 border-b pr-2 pl-3 hover:bg-accent/40",
