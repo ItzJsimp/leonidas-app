@@ -73,7 +73,10 @@ export function AutoRouterPickerSection(props: {
     [preference, candidates, props.profiles],
   );
   return (
-    <div className="flex flex-col gap-1.5 border-b px-3 py-2.5" data-auto-router-section="true">
+    <div
+      className="flex max-w-[calc(100vw-1rem)] flex-col gap-1.5 border-b px-3 py-2.5"
+      data-auto-router-section="true"
+    >
       <div className="flex items-center gap-1.5 text-xs">
         <RouteIcon className="size-3.5 text-muted-foreground" aria-hidden="true" />
         <span className="font-medium">Leonidas Autorouter</span>
@@ -83,7 +86,8 @@ export function AutoRouterPickerSection(props: {
       </div>
       <ToggleGroup
         aria-label="What the autorouter should favor"
-        className="w-full *:flex-1"
+        // The five choices must fit a 320 px screen: they may shrink, with less side padding there.
+        className="w-full *:min-w-0 *:flex-1 max-sm:*:px-1.5"
         value={[preference ?? "off"]}
         onValueChange={(next) => {
           const value = next[0];
