@@ -2,7 +2,7 @@
 import * as NodeChildProcess from "node:child_process";
 import { describe, expect, it } from "vite-plus/test";
 
-import { isCursorShellSpawnFailure } from "./CursorSdk.ts";
+import { isCursorClosedStreamWrite, isCursorShellSpawnFailure } from "./CursorSdk.ts";
 
 const cursorSdkUrl = new URL("./CursorSdk.ts", import.meta.url).href;
 
@@ -179,5 +179,24 @@ describe("Cursor shell spawn guard", () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Unhandled");
     expect(result.stderr).not.toContain("The server will keep running.");
+  });
+});
+
+describe("isCursorClosedStreamWrite", () => {
+  const connectAborted = (code: string) =>
+    Object.assign(new Error("[aborted]", { cause: Object.assign(new Error("x"), { code }) }), {
+      name: "ConnectError",
+    });
+
+  it("matches only writes to a closed stream", () => {
+    expect(
+      isCursorClosedStreamWrite(
+        Object.assign(new Error("closed"), { name: "WriteIterableClosedError" }),
+      ),
+    ).toBe(true);
+    expect(isCursorClosedStreamWrite(connectAborted("ERR_STREAM_WRITE_AFTER_END"))).toBe(true);
+    expect(isCursorClosedStreamWrite(connectAborted("ECONNRESET"))).toBe(false);
+    expect(isCursorClosedStreamWrite(new Error("boom"))).toBe(false);
+    expect(isCursorClosedStreamWrite("ERR_STREAM_WRITE_AFTER_END")).toBe(false);
   });
 });
