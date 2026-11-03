@@ -1,6 +1,9 @@
 import type { TaskBoardTask, TaskBoardTaskPriority, TaskBoardTaskStatus } from "@t3tools/contracts";
 import {
+  BanIcon,
   CalendarClockIcon,
+  ChevronsUpIcon,
+  ChevronUpIcon,
   CircleAlertIcon,
   CircleDashedIcon,
   ClockAlertIcon,
@@ -21,7 +24,7 @@ import {
 const BADGE_VARIANT = {
   neutral: "outline",
   info: "info",
-  review: "warning",
+  warning: "warning",
   danger: "error",
   success: "success",
   muted: "secondary",
@@ -31,11 +34,26 @@ const BADGE_VARIANT = {
 >;
 
 export function StatusBadge({ status }: { readonly status: TaskBoardTaskStatus }) {
-  return <Badge variant={BADGE_VARIANT[statusTone(status)]}>{statusLabel(status)}</Badge>;
+  return (
+    <Badge variant={BADGE_VARIANT[statusTone(status)]}>
+      {status === "blocked" ? <BanIcon /> : null}
+      {statusLabel(status)}
+    </Badge>
+  );
 }
 
+// Red stays for overdue and the main button, so urgency shows as an arrow, not a color.
 export function PriorityBadge({ priority }: { readonly priority: TaskBoardTaskPriority }) {
-  return <Badge variant={BADGE_VARIANT[priorityTone(priority)]}>{priorityLabel(priority)}</Badge>;
+  return (
+    <Badge variant={BADGE_VARIANT[priorityTone(priority)]}>
+      {priority === "critical" ? (
+        <ChevronsUpIcon />
+      ) : priority === "high" ? (
+        <ChevronUpIcon />
+      ) : null}
+      {priorityLabel(priority)}
+    </Badge>
+  );
 }
 
 /** Shows nothing when the task has no due date. */

@@ -46,10 +46,10 @@ const MAX_ATTENTION = 8;
 const PRIORITIES: ReadonlyArray<TaskBoardTaskPriority> = ["critical", "high", "medium", "low"];
 
 const PRIORITY_BAR_CLASS: Record<TaskBoardTaskPriority, string> = {
-  critical: "bg-destructive",
-  high: "bg-warning",
-  medium: "bg-info",
-  low: "bg-muted-foreground/40",
+  critical: "bg-foreground",
+  high: "bg-foreground/60",
+  medium: "bg-foreground/35",
+  low: "bg-foreground/15",
 };
 
 export type TaskDashboardViewProps = {
@@ -108,61 +108,24 @@ function MoreHint({ count, noun }: { readonly count: number; readonly noun: stri
   );
 }
 
-function Kpi(props: {
-  readonly label: string;
-  readonly value: number;
-  readonly dot: string;
-  readonly danger?: boolean;
-  readonly className?: string;
-}) {
-  const alarming = props.danger === true && props.value > 0;
-  return (
-    <div
-      className={`min-w-0 rounded-xl border border-border bg-card px-4 py-3 ${props.className ?? ""}`}
-    >
-      <p
-        className={`text-3xl font-semibold leading-none tracking-tight tabular-nums ${alarming ? "text-destructive" : "text-foreground"}`}
-      >
-        {props.value}
-      </p>
-      <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${props.dot}`} />
-        <span className="truncate">{props.label}</span>
-      </p>
-    </div>
-  );
-}
-
+// Status counts live in the Focus lists; this line adds only what they do not show.
 const KpiStrip = memo(function KpiStrip({ dashboard }: { readonly dashboard: TaskDashboard }) {
   const secondary: Array<{ text: string; danger?: boolean }> = [];
   if (dashboard.overdue > 0) secondary.push({ text: `${dashboard.overdue} overdue`, danger: true });
   secondary.push({ text: `${dashboard.dueSoon} due within a week` });
+  secondary.push({ text: `${dashboard.doneThisWeek} done this week` });
   secondary.push({ text: `${dashboard.mine} mine` });
   secondary.push({ text: `${dashboard.unassigned} unassigned` });
   if (dashboard.sharedOpen > 0) secondary.push({ text: `${dashboard.sharedOpen} shared` });
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-2 gap-3 @xl:grid-cols-5">
-        <Kpi label="Open" value={dashboard.open} dot="bg-muted-foreground/60" />
-        <Kpi label="In progress" value={dashboard.inProgress} dot="bg-info" />
-        <Kpi label="In review" value={dashboard.review} dot="bg-warning" />
-        <Kpi label="Blocked" value={dashboard.blocked} dot="bg-destructive" danger />
-        <Kpi
-          label="Done this week"
-          value={dashboard.doneThisWeek}
-          dot="bg-success"
-          className="col-span-2 @xl:col-span-1"
-        />
-      </div>
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground tabular-nums">
-        {secondary.map((item) => (
-          <span key={item.text} className={item.danger ? "font-medium text-destructive" : ""}>
-            {item.text}
-          </span>
-        ))}
-      </p>
-    </div>
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground tabular-nums">
+      {secondary.map((item) => (
+        <span key={item.text} className={item.danger ? "font-medium text-destructive" : ""}>
+          {item.text}
+        </span>
+      ))}
+    </p>
   );
 });
 
@@ -241,10 +204,15 @@ const OrganizePanel = memo(function OrganizePanel(props: {
       <div className="flex items-center gap-3 px-4 py-3">
         <p className="min-w-0 flex-1 text-sm text-muted-foreground">
           {changes.length} open {changes.length === 1 ? "task has" : "tasks have"} no effort or
-          topic labels. Leonidas can fill them in from the title, description and checklist of each
-          task.
+          topic labels. Organize fills them in from words in each task, on this computer. It uses no
+          AI.
         </p>
-        <Button size="sm" disabled={busy} onClick={() => props.actions.organize(changes)}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => props.actions.organize(changes)}
+        >
           <TagsIcon />
           Organize
         </Button>
@@ -385,7 +353,7 @@ function SegmentedBar(props: {
   const segments = [
     { key: "done", value: props.done, className: "bg-success" },
     { key: "progress", value: props.inProgress, className: "bg-info" },
-    { key: "blocked", value: props.blocked, className: "bg-destructive" },
+    { key: "blocked", value: props.blocked, className: "bg-warning" },
     { key: "open", value: props.otherOpen, className: "bg-muted-foreground/30" },
   ];
   return (
@@ -406,7 +374,7 @@ function SegmentedBar(props: {
 const LEGEND = [
   { label: "Done", dot: "bg-success" },
   { label: "In progress", dot: "bg-info" },
-  { label: "Blocked", dot: "bg-destructive" },
+  { label: "Blocked", dot: "bg-warning" },
   { label: "Other open", dot: "bg-muted-foreground/30" },
 ] as const;
 
@@ -450,7 +418,10 @@ const ProjectsPanel = memo(function ProjectsPanel(props: {
                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                       {section.open} open · {section.done} done
                       {section.blocked > 0 ? (
-                        <span className="text-destructive"> · {section.blocked} blocked</span>
+                        <span className="text-warning-foreground">
+                          {" "}
+                          · {section.blocked} blocked
+                        </span>
                       ) : null}
                     </span>
                   </span>

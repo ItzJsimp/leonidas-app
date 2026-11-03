@@ -17,7 +17,7 @@ export type TaskView = TaskBoardTask & {
   section: string;
 };
 
-export type TaskTone = "neutral" | "info" | "review" | "danger" | "success" | "muted";
+export type TaskTone = "neutral" | "info" | "warning" | "danger" | "success" | "muted";
 export type TaskSort = "priority" | "updated" | "due" | "title";
 
 const GENERAL_SECTION = "general";
@@ -46,8 +46,8 @@ const STATUS_LABELS: Record<TaskBoardTaskStatus, string> = {
 const STATUS_TONES: Record<TaskBoardTaskStatus, TaskTone> = {
   todo: "neutral",
   in_progress: "info",
-  review: "review",
-  blocked: "danger",
+  review: "info",
+  blocked: "warning",
   done: "success",
   parked: "muted",
   retired: "muted",
@@ -61,8 +61,8 @@ const PRIORITY_LABELS: Record<TaskBoardTaskPriority, string> = {
 };
 
 const PRIORITY_TONES: Record<TaskBoardTaskPriority, TaskTone> = {
-  critical: "danger",
-  high: "review",
+  critical: "neutral",
+  high: "neutral",
   medium: "neutral",
   low: "muted",
 };
