@@ -369,7 +369,9 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         className="before:hidden"
         padding="none"
       >
-        {!listOpen ? <div aria-busy="true" className="h-86.5 w-screen max-w-90" /> : null}
+        {!listOpen ? (
+          <div aria-busy="true" className="h-86.5 w-[calc(100vw-1rem)] max-w-90" />
+        ) : null}
         {listOpen && props.autoRoute && props.selectedModels === undefined ? (
           <AutoRouterPickerSection
             preference={props.autoRoute.preference}

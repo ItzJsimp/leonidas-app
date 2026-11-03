@@ -680,7 +680,7 @@ export const UsageOverlayCard = memo(function UsageOverlayCard({
               <button
                 type="button"
                 onClick={() => setExpanded(true)}
-                aria-label={`${percent === null ? "Context" : `${percent}%`}: show memory and accounts`}
+                aria-label={`${percent === null ? "Chat memory" : `${percent}% memory`}: show memory and accounts`}
                 className="pointer-events-auto relative touch-hit flex cursor-pointer items-center gap-2 rounded-full border border-border/60 bg-background/95 py-1 pr-3 pl-1.5 text-xs shadow-sm backdrop-blur transition-colors hover:bg-muted/60 @7xl:hidden"
               />
             }
@@ -693,7 +693,7 @@ export const UsageOverlayCard = memo(function UsageOverlayCard({
               severity={severity}
             />
             <span className="tabular-nums font-medium">
-              {percent === null ? "Context" : `${percent}%`}
+              {percent === null ? "Chat memory" : `${percent}% memory`}
             </span>
             {primary ? (
               <ProviderInstanceIcon
