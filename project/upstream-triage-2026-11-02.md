@@ -34,3 +34,15 @@ Scope: full scan of range `b50d8a1b15..61c3794c32` (315 commits). Classes: REVIE
 #14693 Kiro (not a kept provider), #27756 secret-provider tokens (Settings), #26833 Effect upgrade (overlap 135/352), #29053 thread tags (overlap 23/47).
 
 Open check: #27822 (Chrome security fixes) is not a code port. Check which Chromium our Electron build ships.
+
+## Result of the port-now batch (2026-11-02)
+
+Ported by hand on `port/24117-commit-behind`, each with a test: #29168 (`31087bb694`), #27320 (`c606e652d8`), #27703 (`44b5d55857`). The Cursor test is a unit test of an exported guard, because upstream's test harness is missing in our tree.
+
+Moved to Later. Each fix sits on upstream code our tree lacks:
+
+- #28010: needs `bufferedResultArrivals`, `nativeWakeStarted` and `isClaudeRootTurnFrame`. Our adapter already guards the same hang with `hasNativeWakeFrame`.
+- #27468: a 5-line change on top of #22709 (settle a delegated child after its work ends). Port #22709 first.
+- #27381: needs the provider-turn rollback target code in `CheckpointRollbackService.ts`.
+
+Pre-existing: 3 tests in `ClaudeAdapterV2.test.ts` fail on this branch without these ports (MCP allowlist annotations, MCP registration timeout, todo_list from task-tool frames).
