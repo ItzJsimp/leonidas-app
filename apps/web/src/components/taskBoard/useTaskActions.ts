@@ -307,7 +307,13 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
   const actions = useMemo<TaskActions>(
     () => ({
       canEdit,
-      setStatus: (task, status) => void patchAction(task, { status }, "Could not change status"),
+      setStatus: (task, status, note) =>
+        void patchAction(
+          task,
+          // A note skips the version check in patchAction, so this one carries it itself.
+          note ? { status, note, expectedUpdatedAt: task.updatedAt } : { status },
+          "Could not change status",
+        ),
       setDue: (task, due) => void patchAction(task, { due }, "Could not change due date"),
       setMilestone: (task, milestone) =>
         void patchAction(task, { milestone }, "Could not change milestone"),

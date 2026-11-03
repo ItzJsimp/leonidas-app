@@ -24,7 +24,8 @@ export type TaskContext = {
 /** Mutations the views can trigger. Every call is fire-and-forget; the page reports failures and refreshes. */
 export type TaskActions = {
   readonly canEdit: boolean;
-  readonly setStatus: (task: TaskView, status: TaskBoardTaskStatus) => void;
+  /** A note, when given, is saved with the change in the same write. */
+  readonly setStatus: (task: TaskView, status: TaskBoardTaskStatus, note?: string) => void;
   readonly setPriority: (task: TaskView, priority: TaskBoardTaskPriority) => void;
   readonly setDue: (task: TaskView, due: string | null) => void;
   readonly setMilestone: (task: TaskView, milestone: string | null) => void;

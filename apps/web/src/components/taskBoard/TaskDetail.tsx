@@ -36,6 +36,7 @@ import { Switch } from "~/components/ui/switch";
 import { DictationTextarea } from "~/components/voice/DictationTextarea";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { ChecklistBar, PriorityBadge, StatusBadge } from "./TaskBadges";
+import { Fold } from "./Fold";
 import { TaskHistory } from "./TaskHistory";
 import { PresenceChips } from "./TaskPresence";
 import {
@@ -179,7 +180,7 @@ function TaskDetailBody(props: {
   const { task, context, actions, onClose } = props;
   const [note, setNote] = useState("");
   const [pressed, setPressed] = useState<ActionKey | null>(null);
-  const [tab, setTab] = useState<"details" | "history">("details");
+  const [showRuns, setShowRuns] = useState(false);
 
   const busy = actions.isBusy(task.id);
   const closed = task.status === "done" || task.status === "parked" || task.status === "retired";
@@ -246,6 +247,12 @@ function TaskDetailBody(props: {
     actions.addNote(task, text);
     setNote("");
   };
+  // A typed note goes with the completion in one write, so closing with a note is one step.
+  const complete = () =>
+    run("complete", () => {
+      actions.setStatus(task, "done", note.trim() || undefined);
+      setNote("");
+    });
   const onNoteKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
@@ -255,6 +262,7 @@ function TaskDetailBody(props: {
 
   const sendButton = (
     <Button
+      variant="outline"
       size="sm"
       disabled={busy || !canSend}
       onClick={() => run("send", () => actions.sendToAgent(task))}
@@ -290,18 +298,6 @@ function TaskDetailBody(props: {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {canSend ? (
-            sendButton
-          ) : (
-            <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
-                {sendButton}
-              </TooltipTrigger>
-              <TooltipPopup>
-                Link this task to a project on this computer to send it to the AI.
-              </TooltipPopup>
-            </Tooltip>
-          )}
           {closed ? (
             <Button
               variant="outline"
@@ -314,6 +310,10 @@ function TaskDetailBody(props: {
             </Button>
           ) : (
             <>
+              <Button size="sm" disabled={busy} onClick={complete}>
+                {spinnerFor("complete") ? <Spinner /> : <CheckIcon />}
+                Complete
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -336,49 +336,24 @@ function TaskDetailBody(props: {
                   Mark in review
                 </Button>
               ) : null}
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onClick={() => run("complete", () => actions.setStatus(task, "done"))}
-              >
-                {spinnerFor("complete") ? <Spinner /> : <CheckIcon />}
-                Complete
-              </Button>
             </>
+          )}
+          {canSend ? (
+            sendButton
+          ) : (
+            <Tooltip>
+              <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
+                {sendButton}
+              </TooltipTrigger>
+              <TooltipPopup>
+                Link this task to a project on this computer to send it to the AI.
+              </TooltipPopup>
+            </Tooltip>
           )}
         </div>
       </header>
 
-      <div
-        role="tablist"
-        aria-label="Task sections"
-        className="flex shrink-0 gap-1 border-b border-border px-3 py-1.5"
-      >
-        {(["details", "history"] as const).map((name) => (
-          <Button
-            key={name}
-            role="tab"
-            aria-selected={tab === name}
-            variant={tab === name ? "secondary" : "ghost-muted"}
-            size="sm"
-            onClick={() => setTab(name)}
-          >
-            {name === "details" ? "Details" : "History"}
-          </Button>
-        ))}
-      </div>
-
-      {tab === "history" ? (
-        <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto p-4">
-          <TaskHistory taskId={task.id} />
-        </div>
-      ) : null}
-
-      <div
-        role="tabpanel"
-        className={`min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4 ${tab === "history" ? "hidden" : "flex"}`}
-      >
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
         <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
           <Property label="Status">
             <Select
@@ -424,122 +399,6 @@ function TaskDetailBody(props: {
               </SelectPopup>
             </Select>
           </Property>
-          <Property label="Linked project">
-            <Select
-              value={linkedSlug ?? NO_PROJECT_VALUE}
-              items={projectItems}
-              onValueChange={(value) => {
-                if (!value) return;
-                const next = value === NO_PROJECT_VALUE ? null : value;
-                if (next !== linkedSlug) actions.linkProject(task, next);
-              }}
-            >
-              <SelectTrigger size="sm" aria-label="Linked project" disabled={busy}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectPopup>
-                {projectItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          </Property>
-          <Property label="Owner">
-            <Select
-              value={ownerValue ?? ANYONE_VALUE}
-              items={ownerItems}
-              onValueChange={(value) => {
-                if (!value) return;
-                const next = value === ANYONE_VALUE ? null : value;
-                if (next !== ownerValue) actions.setAssignee(task, next);
-              }}
-            >
-              <SelectTrigger size="sm" aria-label="Owner" disabled={busy || !actions.canEdit}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectPopup>
-                {ownerItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          </Property>
-          {context.areas.length > 0 || privateArea ? (
-            <Property label="Private">
-              <Select
-                value={privateArea ?? PUBLIC_VALUE}
-                items={privateItems}
-                onValueChange={(value) => {
-                  if (!value) return;
-                  const next = value === PUBLIC_VALUE ? null : value;
-                  if (next !== privateArea) actions.setPrivateArea(task, next);
-                }}
-              >
-                <SelectTrigger size="sm" aria-label="Private" disabled={busy || !actions.canEdit}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectPopup>
-                  {privateItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectPopup>
-              </Select>
-            </Property>
-          ) : null}
-          <Property label="Taken by">
-            {task.claimedBy ? (
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="wrap-anywhere">
-                  {task.claimedBy}
-                  {task.claimedAt ? (
-                    <span className="text-muted-foreground">
-                      {" "}
-                      · {relativeTime(task.claimedAt, context.now)}
-                    </span>
-                  ) : null}
-                </span>
-                {agent ? (
-                  <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground text-xs">
-                    {agent.providerInstanceId ? <span>{agent.providerInstanceId}</span> : null}
-                    {agent.model ? <span className="font-mono">{agent.model}</span> : null}
-                    {agent.threadId ? (
-                      <span className="inline-flex min-w-0 items-center gap-1">
-                        chat
-                        <MiddleTruncate value={agent.threadId} />
-                      </span>
-                    ) : null}
-                  </span>
-                ) : null}
-              </div>
-            ) : (
-              <span className="text-muted-foreground">Nobody yet</span>
-            )}
-          </Property>
-          <Property label="Milestone">
-            <Input
-              key={`${task.id}:${task.milestone ?? ""}`}
-              aria-label="Version milestone"
-              placeholder="0.22.0 (empty to unassign)"
-              pattern="(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
-              title="Use a version such as 0.22.0 or 1.0.0"
-              defaultValue={task.milestone ?? ""}
-              disabled={busy || !actions.canEdit}
-              onBlur={(event) => {
-                const milestone = event.target.value || null;
-                if (event.target.reportValidity() && milestone !== (task.milestone ?? null))
-                  actions.setMilestone(task, milestone);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-              }}
-            />
-          </Property>
           <Property label="Due">
             <div className="flex flex-col gap-1">
               <Input
@@ -569,72 +428,37 @@ function TaskDetailBody(props: {
               )}
             </div>
           </Property>
-          <Property label="Effort">
-            {task.effort ? task.effort : <span className="text-muted-foreground">Not set</span>}
-          </Property>
-          <Property label="Energy">
-            {task.energy ? task.energy : <span className="text-muted-foreground">Not set</span>}
-          </Property>
-          <Property label="Created">
-            <time dateTime={new Date(task.createdAt).toISOString()}>
-              {relativeTime(task.createdAt, context.now)}
-            </time>
-          </Property>
-          <Property label="Updated">
-            <time dateTime={new Date(task.updatedAt).toISOString()}>
-              {relativeTime(task.updatedAt, context.now)}
-            </time>
-          </Property>
-          <Property label="Source">
-            <Source task={task} />
-          </Property>
         </dl>
-
-        <Section title="Share with collaborators">
-          <div className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="flex items-center gap-1.5 font-medium text-sm">
-                <UsersIcon className="size-4 text-muted-foreground" aria-hidden />
-                {task.shared ? "Shared" : "Not shared"}
-              </span>
-              <span className="text-muted-foreground text-xs">
-                {!canShare && !task.shared
-                  ? "Link this task to a project with a GitHub repository to share it."
-                  : task.shared
-                    ? `Shared${task.sharedBy ? ` by ${task.sharedBy}` : ""} · visible to everyone on ${projectName}`
-                    : `Publish this task so everyone on ${projectName} can see it.`}
-              </span>
-              {task.shared && task.sharedSync ? (
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <Badge variant={task.sharedSync === "failed" ? "error" : "warning"}>
-                    {task.sharedSync === "failed" ? "Latest edit not shared" : "Share pending"}
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    disabled={busy || !canShare}
-                    onClick={() => actions.setShared(task, true)}
-                  >
-                    {busy ? <Spinner /> : <RotateCcwIcon />}
-                    Retry
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-            <Switch
-              aria-label="Share with collaborators"
-              checked={task.shared === true}
-              disabled={busy || (!canShare && task.shared !== true)}
-              onCheckedChange={(checked) => actions.setShared(task, checked)}
-            />
-          </div>
-        </Section>
 
         {task.checklist && task.checklist.total > 0 ? (
           <Section title="Done when">
             <ChecklistBar checklist={task.checklist} />
           </Section>
         ) : null}
+
+        <Section title="Note">
+          <div className="flex flex-col gap-2">
+            <DictationTextarea
+              size="sm"
+              aria-label="Add a note"
+              placeholder="Add a note. Complete saves it too."
+              value={note}
+              disabled={busy}
+              onChange={(event) => setNote(event.target.value)}
+              onKeyDown={onNoteKeyDown}
+            />
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy || note.trim().length === 0}
+                onClick={submitNote}
+              >
+                Add note
+              </Button>
+            </div>
+          </div>
+        </Section>
 
         {task.description.trim().length > 0 ? (
           <Section title="Description">
@@ -681,28 +505,185 @@ function TaskDetailBody(props: {
           </Section>
         ) : null}
 
-        <Section title="Activity">
-          <div className="flex flex-col gap-2">
-            <DictationTextarea
-              size="sm"
-              aria-label="Add a note"
-              placeholder="Add a note (Ctrl+Enter to submit)"
-              value={note}
-              disabled={busy}
-              onChange={(event) => setNote(event.target.value)}
-              onKeyDown={onNoteKeyDown}
-            />
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy || note.trim().length === 0}
-                onClick={submitNote}
+        <Fold title="More details">
+          <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
+            <Property label="Linked project">
+              <Select
+                value={linkedSlug ?? NO_PROJECT_VALUE}
+                items={projectItems}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  const next = value === NO_PROJECT_VALUE ? null : value;
+                  if (next !== linkedSlug) actions.linkProject(task, next);
+                }}
               >
-                Add note
-              </Button>
+                <SelectTrigger size="sm" aria-label="Linked project" disabled={busy}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {projectItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </Property>
+            <Property label="Owner">
+              <Select
+                value={ownerValue ?? ANYONE_VALUE}
+                items={ownerItems}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  const next = value === ANYONE_VALUE ? null : value;
+                  if (next !== ownerValue) actions.setAssignee(task, next);
+                }}
+              >
+                <SelectTrigger size="sm" aria-label="Owner" disabled={busy || !actions.canEdit}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {ownerItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </Property>
+            {context.areas.length > 0 || privateArea ? (
+              <Property label="Private">
+                <Select
+                  value={privateArea ?? PUBLIC_VALUE}
+                  items={privateItems}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    const next = value === PUBLIC_VALUE ? null : value;
+                    if (next !== privateArea) actions.setPrivateArea(task, next);
+                  }}
+                >
+                  <SelectTrigger size="sm" aria-label="Private" disabled={busy || !actions.canEdit}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {privateItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </Property>
+            ) : null}
+            <Property label="Taken by">
+              {task.claimedBy ? (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="wrap-anywhere">
+                    {task.claimedBy}
+                    {task.claimedAt ? (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · {relativeTime(task.claimedAt, context.now)}
+                      </span>
+                    ) : null}
+                  </span>
+                  {agent ? (
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground text-xs">
+                      {agent.providerInstanceId ? <span>{agent.providerInstanceId}</span> : null}
+                      {agent.model ? <span className="font-mono">{agent.model}</span> : null}
+                      {agent.threadId ? (
+                        <span className="inline-flex min-w-0 items-center gap-1">
+                          chat
+                          <MiddleTruncate value={agent.threadId} />
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                <span className="text-muted-foreground">Nobody yet</span>
+              )}
+            </Property>
+            <Property label="Milestone">
+              <Input
+                key={`${task.id}:${task.milestone ?? ""}`}
+                aria-label="Version milestone"
+                placeholder="0.22.0 (empty to unassign)"
+                pattern="(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+                title="Use a version such as 0.22.0 or 1.0.0"
+                defaultValue={task.milestone ?? ""}
+                disabled={busy || !actions.canEdit}
+                onBlur={(event) => {
+                  const milestone = event.target.value || null;
+                  if (event.target.reportValidity() && milestone !== (task.milestone ?? null))
+                    actions.setMilestone(task, milestone);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                }}
+              />
+            </Property>
+            <Property label="Effort">
+              {task.effort ? task.effort : <span className="text-muted-foreground">Not set</span>}
+            </Property>
+            <Property label="Energy">
+              {task.energy ? task.energy : <span className="text-muted-foreground">Not set</span>}
+            </Property>
+            <Property label="Created">
+              <time dateTime={new Date(task.createdAt).toISOString()}>
+                {relativeTime(task.createdAt, context.now)}
+              </time>
+            </Property>
+            <Property label="Updated">
+              <time dateTime={new Date(task.updatedAt).toISOString()}>
+                {relativeTime(task.updatedAt, context.now)}
+              </time>
+            </Property>
+            <Property label="Source">
+              <Source task={task} />
+            </Property>
+          </dl>
+          <Section title="Share with collaborators">
+            <div className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="flex items-center gap-1.5 font-medium text-sm">
+                  <UsersIcon className="size-4 text-muted-foreground" aria-hidden />
+                  {task.shared ? "Shared" : "Not shared"}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {!canShare && !task.shared
+                    ? "Link this task to a project with a GitHub repository to share it."
+                    : task.shared
+                      ? `Shared${task.sharedBy ? ` by ${task.sharedBy}` : ""} · visible to everyone on ${projectName}`
+                      : `Publish this task so everyone on ${projectName} can see it.`}
+                </span>
+                {task.shared && task.sharedSync ? (
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <Badge variant={task.sharedSync === "failed" ? "error" : "warning"}>
+                      {task.sharedSync === "failed" ? "Latest edit not shared" : "Share pending"}
+                    </Badge>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      disabled={busy || !canShare}
+                      onClick={() => actions.setShared(task, true)}
+                    >
+                      {busy ? <Spinner /> : <RotateCcwIcon />}
+                      Retry
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+              <Switch
+                aria-label="Share with collaborators"
+                checked={task.shared === true}
+                disabled={busy || (!canShare && task.shared !== true)}
+                onCheckedChange={(checked) => actions.setShared(task, checked)}
+              />
             </div>
-          </div>
+          </Section>
+        </Fold>
+        <Fold title={`Activity (${history.length})`}>
           {history.length === 0 ? (
             <p className="text-muted-foreground text-xs">No activity yet.</p>
           ) : (
@@ -729,7 +710,10 @@ function TaskDetailBody(props: {
               ))}
             </ol>
           )}
-        </Section>
+        </Fold>
+        <Fold title="Runs" onToggle={setShowRuns}>
+          {showRuns ? <TaskHistory taskId={task.id} /> : null}
+        </Fold>
       </div>
     </section>
   );
