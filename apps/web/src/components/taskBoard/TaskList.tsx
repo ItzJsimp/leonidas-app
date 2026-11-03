@@ -134,8 +134,10 @@ const TaskRow = memo(function TaskRow({
       onPointerEnter={live ? undefined : () => flushSync(() => setLive(true))}
       role="listitem"
       className={cn(
-        "@container group/row flex items-center gap-1 border-b pr-2 pl-3 hover:bg-accent/40",
-        selected && "bg-accent/70 hover:bg-accent/70",
+        "@container group/row relative flex items-center gap-1 border-b pr-2 pl-3 hover:bg-accent/40",
+        // A lighter fill keeps status badges at 4.5:1 in light mode; the left bar marks the selection.
+        selected &&
+          "bg-accent/50 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary hover:bg-accent/50",
         busy && "opacity-60",
       )}
     >
