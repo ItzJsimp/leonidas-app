@@ -7290,7 +7290,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   onPointerDown={(event) => event.preventDefault()}
                   onClick={isChoiceOnlyPendingQuestion ? undefined : expandMobileComposer}
                   disabled={isChoiceOnlyPendingQuestion}
-                  aria-label="Open the message box"
                 >
                   {activePendingProgress
                     ? isChoiceOnlyPendingQuestion

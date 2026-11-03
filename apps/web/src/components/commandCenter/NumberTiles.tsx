@@ -91,7 +91,6 @@ export function NumberTiles() {
               <Tip text={tile.tip}>
                 <Link
                   {...(tile.id === "running" ? runningTarget : FIXED_TARGETS[tile.id])}
-                  aria-label={`${tile.label}: ${tile.value ?? "loading"} ${tile.unit}. ${tile.note}`}
                   className="block h-full rounded-xl border border-border bg-card p-3.5 shadow-xs shadow-black/30 inset-shadow-2xs inset-shadow-white/4 transition-colors hover:border-ring/40 hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-ring"
                 >
                   <p className="flex items-center gap-2 text-xs text-muted-foreground">
