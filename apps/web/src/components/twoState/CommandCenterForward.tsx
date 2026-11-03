@@ -8,6 +8,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { clipTitle } from "./safeText";
 import { Tip } from "./Tip";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
+import { useHandleNewThread } from "~/hooks/useHandleNewThread";
 import { useOnboardingChat } from "~/onboarding/useOnboardingChat";
 import { buildThreadRouteParams } from "~/threadRoutes";
 
@@ -77,18 +78,25 @@ export function CommandCenterForward() {
   );
 }
 
-/** Sending starts a chat in the AIOS folder and brings Code forward. */
+/** Sending starts a chat in the AIOS folder, or in the newest project without one, and brings Code forward. */
 function AskComposer() {
   const workspace = useActiveAiosWorkspace();
   const root = useAiosHome().data?.root ?? null;
   const { canOperate, ensureFolderProject, startChat } = useOnboardingChat(
     workspace.environmentId ?? undefined,
   );
+  // A phone paired to a computer with projects but no AIOS folder still gets a working box.
+  const { defaultProjectRef } = useHandleNewThread();
+  const fallbackProjectId =
+    defaultProjectRef?.environmentId === workspace.environmentId
+      ? defaultProjectRef.projectId
+      : null;
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ready = root !== null && canOperate && workspace.environmentId;
+  const ready =
+    (root !== null || fallbackProjectId !== null) && canOperate && workspace.environmentId;
   const text = prompt.trim();
 
   const send = async (event: FormEvent) => {
@@ -96,7 +104,10 @@ function AskComposer() {
     if (!ready || text === "" || sending) return;
     setSending(true);
     setError(null);
-    const project = await ensureFolderProject(root);
+    const project =
+      root !== null
+        ? await ensureFolderProject(root)
+        : { ok: true as const, projectId: fallbackProjectId! };
     const chat = project.ok
       ? await startChat({
           projectId: project.projectId,
@@ -125,9 +136,13 @@ function AskComposer() {
         aria-label="Ask Leonidas"
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
-        placeholder="Ask Leonidas to change something in your AIOS..."
+        placeholder={
+          root !== null
+            ? "Ask Leonidas to change something in your AIOS..."
+            : "Ask Leonidas anything..."
+        }
         disabled={sending}
-        className="h-8 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        className="h-11 bg-transparent text-sm outline-none placeholder:text-muted-foreground sm:h-8"
       />
       <div className="flex items-center gap-1.5">
         {root !== null ? (
@@ -142,16 +157,22 @@ function AskComposer() {
           </Tip>
         ) : null}
         {error !== null ? (
-          <span role="alert" className="truncate text-xs text-destructive-foreground">
+          <span role="alert" className="truncate text-sm text-destructive-foreground">
             {error}
           </span>
+        ) : canOperate && root === null && fallbackProjectId === null ? (
+          <span className="text-sm text-muted-foreground">
+            Add a project on your computer to start a chat.
+          </span>
         ) : null}
-        <Tip text={ready ? "Start the chat (Enter)" : "Connect an AIOS folder to start a chat"}>
+        <Tip
+          text={ready ? "Start the chat (Enter)" : "Add a project on your computer to start a chat"}
+        >
           <button
             type="submit"
             disabled={!ready || text === "" || sending}
             aria-label="Start the chat"
-            className="ml-auto grid size-[30px] shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40"
+            className="ml-auto grid size-11 shrink-0 sm:size-[30px] place-items-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40"
           >
             {sending ? (
               <Spinner className="size-4" />
