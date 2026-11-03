@@ -14,6 +14,7 @@ import {
   isOpen,
   shareableOpenCount,
   type TaskFilters,
+  type TaskFlag,
   type TaskSort,
   type TaskView,
 } from "./taskBoard.logic";
@@ -36,6 +37,8 @@ export type TasksPrefs = {
   includeClosed: boolean;
   sort: TaskSort;
   groupBy: TaskListGroupBy;
+  /** Keep only stale, or only gateless, open cards. */
+  flag: TaskFlag | null;
 };
 
 // v2: the list now groups by state by default, so older saves start fresh once.
@@ -65,6 +68,7 @@ export const DEFAULT_TASKS_PREFS: TasksPrefs = {
   includeClosed: false,
   sort: "priority",
   groupBy: "state",
+  flag: null,
 };
 
 const VIEWS: ReadonlyArray<TasksView> = ["dashboard", "board", "list", "roadmap"];
@@ -121,6 +125,7 @@ export function parseTasksPrefs(raw: string | null): TasksPrefs {
     includeClosed: record.includeClosed === true,
     sort: pick(SORTS, record.sort, DEFAULT_TASKS_PREFS.sort),
     groupBy: pick(GROUP_BYS, record.groupBy, DEFAULT_TASKS_PREFS.groupBy),
+    flag: record.flag === "stale" || record.flag === "noGates" ? record.flag : null,
   };
 }
 
@@ -128,7 +133,7 @@ export function parseTasksPrefs(raw: string | null): TasksPrefs {
  * Turns the saved preferences and the live search text into the filter the task logic takes.
  * The board always shows its Done column, so it never hides closed work behind a toggle.
  */
-export function toTaskFilters(prefs: TasksPrefs, query: string): TaskFilters {
+export function toTaskFilters(prefs: TasksPrefs, query: string, now: number): TaskFilters {
   return {
     query,
     statuses: prefs.statuses ? new Set(prefs.statuses) : null,
@@ -136,6 +141,8 @@ export function toTaskFilters(prefs: TasksPrefs, query: string): TaskFilters {
     sharedOnly: prefs.sharedOnly,
     // A search finds closed cards too; `openFirst` keeps them below the open matches.
     includeClosed: prefs.view === "board" || query.trim().length > 0 ? true : prefs.includeClosed,
+    flag: prefs.flag,
+    now,
   };
 }
 
@@ -158,13 +165,29 @@ export function openFirst(tasks: ReadonlyArray<TaskView>): TaskView[] {
   return [...tasks.filter(isOpen), ...tasks.filter((task) => !isOpen(task))];
 }
 
+/** The lists a Dashboard count tile opens. */
+export type FocusList = "now" | "waiting" | TaskFlag;
+
+/** A count tile opens the Table, grouped by state, with only that list's filter set. */
+export function prefsForList(list: FocusList): Partial<TasksPrefs> {
+  return {
+    view: "list",
+    groupBy: "state",
+    statuses: list === "waiting" ? ["review", "blocked"] : null,
+    priorities: null,
+    sharedOnly: false,
+    flag: list === "stale" || list === "noGates" ? list : null,
+  };
+}
+
 /** How many filters narrow the list, for the "Clear filters" affordance. */
 export function activeFilterCount(prefs: TasksPrefs, query: string): number {
   return (
     Number(query.trim().length > 0) +
     Number(prefs.statuses !== null) +
     Number(prefs.priorities !== null) +
-    Number(prefs.sharedOnly)
+    Number(prefs.sharedOnly) +
+    Number(prefs.flag !== null)
   );
 }
 

@@ -179,11 +179,11 @@ export function useTaskBoard(input: {
   );
   const visibleTasks = useMemo(() => {
     const found = sortTasks(
-      filterTasks(searchBase(allTasks, scopedTasks, query), toTaskFilters(prefs, query)),
+      filterTasks(searchBase(allTasks, scopedTasks, query), toTaskFilters(prefs, query, now)),
       prefs.sort,
     );
     return query.trim() ? openFirst(found) : found;
-  }, [allTasks, prefs, query, scopedTasks]);
+  }, [allTasks, now, prefs, query, scopedTasks]);
   const sections = useMemo(
     () => groupBySection(visibleTasks, projects, { hideEmpty: true }),
     [projects, visibleTasks],

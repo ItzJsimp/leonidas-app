@@ -191,7 +191,13 @@ export type TaskFilters = {
   priorities: ReadonlySet<TaskBoardTaskPriority> | null;
   sharedOnly: boolean;
   includeClosed: boolean;
+  /** Keep only stale, or only gateless, open cards. */
+  flag: TaskFlag | null;
+  /** The time the stale flag compares against. */
+  now: number;
 };
+
+export type TaskFlag = "stale" | "noGates";
 
 export const DEFAULT_FILTERS: TaskFilters = {
   query: "",
@@ -199,6 +205,8 @@ export const DEFAULT_FILTERS: TaskFilters = {
   priorities: null,
   sharedOnly: false,
   includeClosed: false,
+  flag: null,
+  now: 0,
 };
 
 function sameName(a: string | null | undefined, b: string): boolean {
@@ -222,6 +230,7 @@ export function filterTasks<T extends TaskView>(
     }
     if (filters.priorities !== null && !filters.priorities.has(task.priority)) return false;
     if (filters.sharedOnly && task.origin === "local") return false;
+    if (filters.flag !== null && !taskFlags(task, filters.now)[filters.flag]) return false;
     if (query.length === 0) return true;
     const haystack = [
       task.title,

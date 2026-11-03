@@ -29,6 +29,7 @@ import { privateAreaOptions } from "./privateArea.logic";
 
 import { TaskCreateDialog } from "./TaskCreateDialog";
 import { TaskDashboardView } from "./TaskDashboard";
+import { useSearchShortcut } from "./useSearchShortcut";
 import { TaskDetailPanel } from "./TaskDetail";
 import { TaskFilterBar } from "./TaskFilterBar";
 import { TaskKanbanView } from "./TaskKanban";
@@ -52,6 +53,8 @@ import {
   activeFilterCount,
   landingPrefs,
   parseTasksPrefs,
+  prefsForList,
+  type FocusList,
   sectionShareState,
   tasksInFocus,
   type TaskFocus,
@@ -180,29 +183,17 @@ export function TasksPage() {
   const patchPrefs = useCallback((patch: Partial<TasksPrefs>) => {
     setPrefs((current) => ({ ...current, ...patch }));
   }, []);
-  // "/" jumps to search from anywhere on the page, the way most list apps do.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.defaultPrevented || !(event.target instanceof Element)) return;
-      if (event.target.closest("input, textarea, select, [contenteditable], [role=dialog]")) return;
-      event.preventDefault();
-      setPrefs((current) =>
-        current.view === "list" || current.view === "board"
-          ? current
-          : { ...current, view: "list" },
-      );
-      // From Dashboard or Roadmap the search box mounts a frame or two later.
-      const focusSearch = (tries: number) => {
-        const input = document.querySelector<HTMLInputElement>("[data-tasks-search]");
-        if (input) input.focus();
-        else if (tries > 0) requestAnimationFrame(() => focusSearch(tries - 1));
-      };
-      requestAnimationFrame(() => focusSearch(5));
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  useSearchShortcut(
+    useCallback(
+      () =>
+        setPrefs((current) =>
+          current.view === "list" || current.view === "board"
+            ? current
+            : { ...current, view: "list" },
+        ),
+      [],
+    ),
+  );
   const selectSection = useCallback(
     (slug: string | null) => {
       patchPrefs({ section: slug, focus: "all" });
@@ -215,6 +206,13 @@ export function TasksPage() {
       patchPrefs({ ...DEFAULT_TASKS_PREFS, focus, section: null, sort: "due", groupBy: "none" });
       setQuery("");
       setSelectedId(null);
+    },
+    [patchPrefs],
+  );
+  const openList = useCallback(
+    (list: FocusList) => {
+      setQuery("");
+      patchPrefs(prefsForList(list));
     },
     [patchPrefs],
   );
@@ -311,7 +309,7 @@ export function TasksPage() {
     activeFilterCount(prefs, query) > 0
       ? () => {
           setQuery("");
-          patchPrefs({ statuses: null, priorities: null, sharedOnly: false });
+          patchPrefs({ statuses: null, priorities: null, sharedOnly: false, flag: null });
         }
       : null;
 
@@ -359,6 +357,7 @@ export function TasksPage() {
         onSelect={selectTask}
         onOpenSection={selectSection}
         onCreate={() => setCreateOpen(true)}
+        onOpenList={openList}
       />
     );
   } else if (prefs.view === "board") {

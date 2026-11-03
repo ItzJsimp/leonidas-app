@@ -9,6 +9,7 @@ import {
   landingPrefs,
   openFirst,
   parseTasksPrefs,
+  prefsForList,
   placeSharedOnlyIn,
   searchBase,
   sectionShareState,
@@ -131,6 +132,7 @@ describe("parseTasksPrefs", () => {
         mine: true,
         sort: "nonsense",
         groupBy: "status",
+        flag: "stale",
       }),
     );
     expect(prefs.view).toBe("board");
@@ -141,13 +143,19 @@ describe("parseTasksPrefs", () => {
     expect(prefs.owner).toBe("mine");
     expect(prefs.sort).toBe("priority");
     expect(prefs.groupBy).toBe("status");
+    expect(prefs.flag).toBe("stale");
+    expect(parseTasksPrefs(JSON.stringify({ flag: "bogus" })).flag).toBeNull();
   });
 });
 
 describe("toTaskFilters", () => {
   it("never hides closed work on the board", () => {
-    expect(toTaskFilters({ ...DEFAULT_TASKS_PREFS, view: "board" }, "").includeClosed).toBe(true);
-    expect(toTaskFilters({ ...DEFAULT_TASKS_PREFS, view: "list" }, "").includeClosed).toBe(false);
+    expect(toTaskFilters({ ...DEFAULT_TASKS_PREFS, view: "board" }, "", 0).includeClosed).toBe(
+      true,
+    );
+    expect(toTaskFilters({ ...DEFAULT_TASKS_PREFS, view: "list" }, "", 0).includeClosed).toBe(
+      false,
+    );
   });
 
   it("counts only the filters that narrow the list", () => {
@@ -155,6 +163,14 @@ describe("toTaskFilters", () => {
     expect(
       activeFilterCount({ ...DEFAULT_TASKS_PREFS, sharedOnly: true, statuses: ["todo"] }, "x"),
     ).toBe(3);
+    expect(activeFilterCount({ ...DEFAULT_TASKS_PREFS, flag: "noGates" }, "")).toBe(1);
+  });
+
+  it("passes the flag and the time through", () => {
+    expect(toTaskFilters({ ...DEFAULT_TASKS_PREFS, flag: "stale" }, "", 5)).toMatchObject({
+      flag: "stale",
+      now: 5,
+    });
   });
 });
 
@@ -237,7 +253,20 @@ describe("landing and search", () => {
     const scoped = all.slice(2);
     expect(searchBase(all, scoped, "  ")).toBe(scoped);
     expect(searchBase(all, scoped, "task")).toBe(all);
-    expect(toTaskFilters(DEFAULT_TASKS_PREFS, "task").includeClosed).toBe(true);
+    expect(toTaskFilters(DEFAULT_TASKS_PREFS, "task", 0).includeClosed).toBe(true);
     expect(openFirst(all).map((item) => item.id)).toEqual(["b", "c", "a"]);
+  });
+});
+
+describe("prefsForList", () => {
+  it("opens the grouped Table with only the tile's own filter", () => {
+    expect(prefsForList("waiting")).toMatchObject({
+      view: "list",
+      groupBy: "state",
+      statuses: ["review", "blocked"],
+      flag: null,
+    });
+    expect(prefsForList("stale")).toMatchObject({ statuses: null, flag: "stale" });
+    expect(prefsForList("now")).toMatchObject({ statuses: null, flag: null, priorities: null });
   });
 });

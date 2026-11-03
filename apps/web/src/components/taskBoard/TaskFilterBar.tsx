@@ -17,7 +17,7 @@ import {
   MenuTrigger,
 } from "~/components/ui/menu";
 
-import { priorityLabel, statusLabel, type TaskSort } from "./taskBoard.logic";
+import { priorityLabel, statusLabel, type TaskFlag, type TaskSort } from "./taskBoard.logic";
 import { activeFilterCount, type TaskListGroupBy, type TasksPrefs } from "./tasksPage.logic";
 
 const STATUS_CHIPS: ReadonlyArray<TaskBoardTaskStatus> = [
@@ -28,6 +28,10 @@ const STATUS_CHIPS: ReadonlyArray<TaskBoardTaskStatus> = [
   "done",
 ];
 const PRIORITIES: ReadonlyArray<TaskBoardTaskPriority> = ["critical", "high", "medium", "low"];
+const FLAGS: ReadonlyArray<readonly [TaskFlag, string]> = [
+  ["stale", "Stale, 21 days or more"],
+  ["noGates", "No gates"],
+];
 const SORT_LABELS: Record<TaskSort, string> = {
   priority: "Priority",
   updated: "Recently updated",
@@ -69,6 +73,7 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
     (prefs.statuses?.length ?? 0) +
     (prefs.priorities?.length ?? 0) +
     Number(prefs.sharedOnly) +
+    Number(prefs.flag !== null) +
     Number(props.showClosedToggle && prefs.includeClosed);
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1">
@@ -134,6 +139,19 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
                 }
               >
                 {priorityLabel(priority)}
+              </MenuCheckboxItem>
+            ))}
+          </MenuGroup>
+          <MenuSeparator />
+          <MenuGroup>
+            <MenuGroupLabel>Flags</MenuGroupLabel>
+            {FLAGS.map(([flag, label]) => (
+              <MenuCheckboxItem
+                key={flag}
+                checked={prefs.flag === flag}
+                onCheckedChange={(on) => onPrefsChange({ flag: on ? flag : null })}
+              >
+                {label}
               </MenuCheckboxItem>
             ))}
           </MenuGroup>
@@ -234,7 +252,7 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
           aria-label="Clear filters"
           onClick={() => {
             props.onQueryChange("");
-            onPrefsChange({ statuses: null, priorities: null, sharedOnly: false });
+            onPrefsChange({ statuses: null, priorities: null, sharedOnly: false, flag: null });
           }}
         >
           <XIcon />

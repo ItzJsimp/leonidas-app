@@ -34,9 +34,9 @@ import {
   type TaskDashboard,
   type TaskView,
 } from "./taskBoard.logic";
-import { nextUpTasks } from "./doNext.logic";
+import { FocusSection } from "./FocusSection";
+import type { FocusList } from "./tasksPage.logic";
 import type { TaskActions, TaskContext } from "./taskBoard.types";
-import { DueChip, PriorityBadge, StatusBadge } from "./TaskBadges";
 
 const DAY_MS = 86_400_000;
 const GENERAL_SECTION = "general";
@@ -52,9 +52,6 @@ const PRIORITY_BAR_CLASS: Record<TaskBoardTaskPriority, string> = {
   low: "bg-muted-foreground/40",
 };
 
-const ROW_BUTTON_CLASS =
-  "min-w-0 flex-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
-
 export type TaskDashboardViewProps = {
   readonly dashboard: TaskDashboard;
   readonly tasks: ReadonlyArray<TaskView>;
@@ -63,6 +60,8 @@ export type TaskDashboardViewProps = {
   readonly onSelect: (task: TaskView) => void;
   readonly onOpenSection: (slug: string) => void;
   readonly onCreate: () => void;
+  /** A Focus count tile opens its list in the Table. */
+  readonly onOpenList: (list: FocusList) => void;
 };
 
 type SectionNames = ReadonlyMap<string, string>;
@@ -164,80 +163,6 @@ const KpiStrip = memo(function KpiStrip({ dashboard }: { readonly dashboard: Tas
         ))}
       </p>
     </div>
-  );
-});
-
-const NextUpPanel = memo(function NextUpPanel(props: {
-  readonly tasks: ReadonlyArray<TaskView>;
-  readonly names: SectionNames;
-  readonly now: number;
-  readonly actions: TaskActions;
-  readonly onSelect: (task: TaskView) => void;
-  readonly onCreate: () => void;
-  readonly className?: string;
-}) {
-  return (
-    <Panel
-      title="Next up"
-      icon={<ListChecksIcon />}
-      meta={props.tasks.length > 0 ? `Top ${props.tasks.length}` : undefined}
-      {...(props.className ? { className: props.className } : {})}
-    >
-      {props.tasks.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 px-4 py-8">
-          <p className="text-sm text-muted-foreground">
-            No open tasks to pick up. Add a task to start.
-          </p>
-          <Button variant="outline" size="sm" onClick={props.onCreate}>
-            <PlusIcon />
-            Add a task
-          </Button>
-        </div>
-      ) : (
-        <ul className="divide-y divide-border">
-          {props.tasks.map((task) => {
-            const showAgent = props.actions.canSendToAgent(task);
-            const busy = props.actions.isBusy(task.id);
-            return (
-              <li
-                key={task.id}
-                className="flex items-center gap-3 pr-4 transition-colors hover:bg-accent/40"
-              >
-                <button
-                  type="button"
-                  onClick={() => props.onSelect(task)}
-                  className={`${ROW_BUTTON_CLASS} py-3 pl-4`}
-                >
-                  <span className="block truncate text-sm font-medium">{task.title}</span>
-                  <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <PriorityBadge priority={task.priority} />
-                    <DueChip due={task.due} now={props.now} />
-                    {task.status !== "todo" ? <StatusBadge status={task.status} /> : null}
-                    {task.section !== GENERAL_SECTION ? (
-                      <Badge variant="secondary">
-                        <FolderIcon />
-                        {sectionName(props.names, task.section)}
-                      </Badge>
-                    ) : null}
-                  </span>
-                </button>
-                {showAgent ? (
-                  <Button
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => props.actions.sendToAgent(task)}
-                    aria-label={`Send to AI: ${task.title}`}
-                  >
-                    <SendIcon />
-                    Send to AI
-                  </Button>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </Panel>
   );
 });
 
@@ -713,8 +638,6 @@ export function TaskDashboardView(props: TaskDashboardViewProps) {
     [tasks, context.projects],
   );
 
-  const nextUp = useMemo(() => nextUpTasks(tasks, context.now), [tasks, context.now]);
-
   if (tasks.length === 0) {
     return (
       <Empty size="compact">
@@ -740,17 +663,17 @@ export function TaskDashboardView(props: TaskDashboardViewProps) {
 
   return (
     <div className="@container flex min-w-0 flex-col gap-4">
+      <FocusSection
+        tasks={tasks}
+        names={names}
+        now={context.now}
+        actions={actions}
+        onSelect={onSelect}
+        onCreate={onCreate}
+        onOpenList={props.onOpenList}
+      />
       <KpiStrip dashboard={dashboard} />
       <div className="grid min-w-0 grid-cols-1 gap-4 @xl:grid-cols-2 @5xl:grid-cols-3">
-        <NextUpPanel
-          tasks={nextUp}
-          names={names}
-          now={context.now}
-          actions={actions}
-          onSelect={onSelect}
-          onCreate={onCreate}
-          className="@xl:col-span-2"
-        />
         <OrganizePanel tasks={tasks} actions={actions} className="@xl:col-span-2" />
         <QuickBatchPanel tasks={tasks} names={names} actions={actions} className="@xl:col-span-2" />
         <ThroughputPanel days={dashboard.completionsPerDay} />
