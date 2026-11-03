@@ -108,7 +108,7 @@ export function NumberTiles() {
                     )}
                     <span className="text-sm text-muted-foreground">{tile.unit}</span>
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">{tile.note}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{tile.note}</p>
                 </Link>
               </Tip>
             </li>
