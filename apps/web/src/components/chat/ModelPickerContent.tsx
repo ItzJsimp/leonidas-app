@@ -307,6 +307,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   const handleSelectInstance = useCallback(
     (instanceId: ProviderInstanceId | "favorites") => {
       setSelectedInstanceId(instanceId);
+      // A search spans every provider, so choosing one from the rail ends it.
+      setSearchQuery("");
       window.requestAnimationFrame(() => {
         focusSearchInput();
       });
@@ -458,7 +460,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     }
     return [...available, ...disabled];
   }, [instanceEntries, isLocked, matchesLockedProvider]);
-  const showSidebar = !isSearching && sidebarInstanceEntries.length > 0;
+  // The rail stays while searching so the results do not jump sideways.
+  const showSidebar = sidebarInstanceEntries.length > 0;
   const instanceOrder = useMemo(
     () => instanceEntries.map((entry) => entry.instanceId),
     [instanceEntries],
