@@ -41,7 +41,7 @@ import {
   TaskFlagChips,
 } from "./TaskBadges";
 import { TruncatedText } from "../windows/shared/TruncatedText";
-import { TasksEmpty } from "./TaskEmptyStates";
+import { TasksEmpty, type TasksEmptyContext } from "./TaskEmptyStates";
 import { PresenceChips } from "./TaskPresence";
 import { OwnerCell, ProjectChip, useLatest } from "./TaskRowParts";
 import {
@@ -322,7 +322,7 @@ export function TaskListView(props: {
   actions: TaskActions;
   selectedId: string | null;
   onSelect: (task: TaskView) => void;
-  onClearFilters: (() => void) | null;
+  empty: TasksEmptyContext;
 }) {
   const { tasks, sections, groupBy, context, actions, selectedId } = props;
   const actionsRef = useLatest(actions);
@@ -403,7 +403,7 @@ export function TaskListView(props: {
   };
 
   if (groups.length === 0) {
-    return <TasksEmpty icon={<ListIcon />} onClearFilters={props.onClearFilters} />;
+    return <TasksEmpty icon={<ListIcon />} {...props.empty} />;
   }
 
   const renderItem = ({ item }: { item: ListItem }) =>

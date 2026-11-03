@@ -13,24 +13,44 @@ import {
 
 import { usePlacePrompt } from "./DirectionSection";
 
-/** The empty List or Board: a clear way out, whether filters or a new board caused it. */
-export function TasksEmpty(props: { icon: ReactNode; onClearFilters: (() => void) | null }) {
-  const filtered = props.onClearFilters !== null;
+export type TasksEmptyContext = {
+  query: string;
+  onClearFilters: (() => void) | null;
+  inbox: { open: number; onShowAll: () => void } | null;
+};
+
+/** The empty List or Board: says why it is empty (search, filters, Inbox) and gives a way out. */
+export function TasksEmpty(props: TasksEmptyContext & { icon: ReactNode }) {
+  const { query, onClearFilters, inbox } = props;
+  const [title, description] = query
+    ? [`No task matches "${query}"`, "Check the spelling, or clear the search to see every task."]
+    : onClearFilters
+      ? ["No task matches your filters", "Clear the filters to see all your tasks again."]
+      : inbox
+        ? [
+            "Inbox is empty",
+            `Inbox holds tasks with no project. ${inbox.open} open ${inbox.open === 1 ? "task is" : "tasks are"} in All tasks.`,
+          ]
+        : [
+            "No tasks here",
+            "Tasks come from the files in your AIOS task folder. Type a task in the box above to add one.",
+          ];
+  const action = onClearFilters
+    ? { label: query ? "Clear search" : "Clear filters", run: onClearFilters }
+    : inbox && inbox.open > 0
+      ? { label: "Show All tasks", run: inbox.onShowAll }
+      : null;
   return (
     <Empty>
       <EmptyHeader>
         <EmptyMedia variant="icon">{props.icon}</EmptyMedia>
-        <EmptyTitle>{filtered ? "No task matches your filters" : "No tasks here"}</EmptyTitle>
-        <EmptyDescription>
-          {filtered
-            ? "Clear the filters to see all your tasks again."
-            : "Type a task in the box above and press Enter to add one."}
-        </EmptyDescription>
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
-      {props.onClearFilters ? (
+      {action ? (
         <EmptyContent>
-          <Button variant="outline" onClick={props.onClearFilters}>
-            Clear filters
+          <Button variant="outline" onClick={action.run}>
+            {action.label}
           </Button>
         </EmptyContent>
       ) : null}

@@ -5,7 +5,7 @@ import type { TaskBoardTask, TaskBoardTaskPriority, TaskBoardTaskStatus } from "
  * (sending to an agent, batching, organizing) without touching real cards, GitHub or agents.
  */
 export const PRACTICE_SLUG = "practice";
-export const PRACTICE_NAME = "Practice project";
+export const PRACTICE_NAME = "Practice (sample tasks)";
 
 const DAY = 86_400_000;
 

@@ -239,9 +239,30 @@ export function TasksPage() {
   const selectedTask = selectedId
     ? (board.allTasks.find((task) => task.id === selectedId) ?? null)
     : null;
+  const roadmapSlug = prefs.section ?? "leonidas-code";
+  const roadmap =
+    board.roadmaps.find((plan) => plan.projectSlug === roadmapSlug) ??
+    (roadmapSlug === "leonidas-code" ? leonidasRoadmap : null);
+  // A roadmap's project with no tasks still gets a rail row, so the scope shows as selected.
+  const roadmapOnly =
+    prefs.view === "roadmap" && roadmap && !board.rail.some((entry) => entry.slug === roadmapSlug)
+      ? roadmap.name
+      : null;
   const rail = useMemo(
     () => [
       ...board.rail,
+      ...(roadmapOnly
+        ? [
+            {
+              slug: roadmapSlug,
+              name: roadmapOnly,
+              projectId: null,
+              repository: null,
+              open: 0,
+              total: 0,
+            },
+          ]
+        : []),
       {
         slug: PRACTICE_SLUG,
         name: PRACTICE_NAME,
@@ -251,15 +272,11 @@ export function TasksPage() {
         total: practice.tasks.length,
       },
     ],
-    [board.rail, practice.tasks],
+    [board.rail, practice.tasks, roadmapOnly, roadmapSlug],
   );
   const railEntry = prefs.section
     ? (rail.find((entry) => entry.slug === prefs.section) ?? null)
     : null;
-  const roadmapSlug = prefs.section ?? "leonidas-code";
-  const roadmap =
-    board.roadmaps.find((plan) => plan.projectSlug === roadmapSlug) ??
-    (roadmapSlug === "leonidas-code" ? leonidasRoadmap : null);
   const shareState = inPractice
     ? ({ kind: "hidden" } as const)
     : sectionShareState(railEntry, board.scopedTasks);
@@ -316,6 +333,11 @@ export function TasksPage() {
           patchPrefs({ statuses: null, priorities: null, sharedOnly: false, flag: null });
         }
       : null;
+  const empty = {
+    query: searching ? query.trim() : "",
+    onClearFilters: clearFilters,
+    inbox: prefs.focus === "inbox" ? { open: allOpen, onShowAll: () => selectFocus("all") } : null,
+  };
 
   let body;
   if (board.isLoading && !inPractice) {
@@ -372,7 +394,7 @@ export function TasksPage() {
         actions={actions}
         selectedId={selectedId}
         onSelect={selectTask}
-        onClearFilters={clearFilters}
+        empty={empty}
       />
     );
   } else {
@@ -386,7 +408,7 @@ export function TasksPage() {
         actions={actions}
         selectedId={selectedId}
         onSelect={selectTask}
-        onClearFilters={clearFilters}
+        empty={empty}
       />
     );
   }

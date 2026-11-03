@@ -15,7 +15,7 @@ import {
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
 import { ChecklistBar, DueChip, PriorityBadge, SharedBadge, TaskFlagChips } from "./TaskBadges";
-import { TasksEmpty } from "./TaskEmptyStates";
+import { TasksEmpty, type TasksEmptyContext } from "./TaskEmptyStates";
 import { PresenceChips } from "./TaskPresence";
 import { OwnerCell, ProjectChip, useLatest } from "./TaskRowParts";
 import { groupByStatus, statusLabel, type TaskView } from "./taskBoard.logic";
@@ -258,7 +258,7 @@ export function TaskKanbanView(props: {
   actions: TaskActions;
   selectedId: string | null;
   onSelect: (task: TaskView) => void;
-  onClearFilters: (() => void) | null;
+  empty: TasksEmptyContext;
 }) {
   const { tasks, context, actions, selectedId } = props;
   const actionsRef = useLatest(actions);
@@ -359,7 +359,7 @@ export function TaskKanbanView(props: {
   );
 
   if (tasks.length === 0) {
-    return <TasksEmpty icon={<KanbanIcon />} onClearFilters={props.onClearFilters} />;
+    return <TasksEmpty icon={<KanbanIcon />} {...props.empty} />;
   }
 
   return (
