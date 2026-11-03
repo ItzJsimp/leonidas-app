@@ -30,7 +30,7 @@ import { privateAreaOptions } from "./privateArea.logic";
 import { TaskCreateDialog } from "./TaskCreateDialog";
 import { TaskDashboardView } from "./TaskDashboard";
 import { useHiddenProjects } from "./useHiddenProjects";
-import { useSearchShortcut } from "./useSearchShortcut";
+import { useFocusShortcut } from "./useFocusShortcut";
 import { TaskDetailPanel } from "./TaskDetail";
 import { TaskFilterBar } from "./TaskFilterBar";
 import { TaskKanbanView } from "./TaskKanban";
@@ -184,17 +184,18 @@ export function TasksPage() {
   const patchPrefs = useCallback((patch: Partial<TasksPrefs>) => {
     setPrefs((current) => ({ ...current, ...patch }));
   }, []);
-  useSearchShortcut(
-    useCallback(
-      () =>
-        setPrefs((current) =>
-          current.view === "list" || current.view === "board"
-            ? current
-            : { ...current, view: "list" },
-        ),
-      [],
-    ),
+  // Search and quick add live in the Table and Board views.
+  const showListView = useCallback(
+    () =>
+      setPrefs((current) =>
+        current.view === "list" || current.view === "board"
+          ? current
+          : { ...current, view: "list" },
+      ),
+    [],
   );
+  useFocusShortcut("/", "[data-tasks-search]", showListView);
+  useFocusShortcut("n", "[data-tasks-quick-add]", showListView);
   const selectSection = useCallback(
     (slug: string | null) => {
       patchPrefs({ section: slug, focus: "all" });

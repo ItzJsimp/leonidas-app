@@ -7,6 +7,8 @@ import { useAtomValue } from "@effect/atom-react";
 import { useState, type FormEvent } from "react";
 
 import { Input } from "~/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "~/components/ui/input-group";
+import { Kbd } from "~/components/ui/kbd";
 import { taskBoardCardCreate } from "~/state/taskBoard";
 import { workspaceScopeInput } from "~/components/workspace/aiosWorkspace.logic";
 import { activeWorkspaceId } from "~/components/workspace/aiosWorkspaceStore";
@@ -62,10 +64,12 @@ export function TaskQuickAdd(props: {
       className="flex flex-col gap-2 border-b border-border px-3 py-1.5"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-40 flex-1">
-          <Input
+        <InputGroup className="min-w-40 flex-1">
+          <InputGroupInput
             size="sm"
             aria-label="Quick add task"
+            aria-keyshortcuts="n"
+            data-tasks-quick-add
             placeholder="Add a task, then press Enter"
             maxLength={256}
             value={title}
@@ -78,7 +82,12 @@ export function TaskQuickAdd(props: {
               event.currentTarget.form?.requestSubmit();
             }}
           />
-        </div>
+          {title ? null : (
+            <InputGroupAddon align="inline-end" className="max-sm:hidden">
+              <Kbd>N</Kbd>
+            </InputGroupAddon>
+          )}
+        </InputGroup>
         <div className="w-36">
           <Input
             size="sm"
