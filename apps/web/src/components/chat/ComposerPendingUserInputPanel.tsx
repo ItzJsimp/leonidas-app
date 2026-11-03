@@ -220,7 +220,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
                 {presentation.question}
               </span>
             ) : (
-              <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">
+              <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
                 Waiting on your answer
               </span>
             )}
