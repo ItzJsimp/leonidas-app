@@ -7127,14 +7127,14 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                       onAdvance={onAdvanceActivePendingUserInput}
                       onDismiss={onDismissActivePendingUserInput}
                     />
-                    {!isChoiceOnlyPendingQuestion ||
-                    activePendingProgress?.activeQuestion?.multiSelect ? (
+                    {/* Every phone question gets its Send here: the collapsed prompt row is hidden. */}
+                    {activePendingProgress ? (
                       <ComposerBanner.Body>
                         <div
                           data-chat-composer-mobile-pending-compact="true"
                           className={cn(
                             "flex min-w-0 items-center gap-2 rounded-lg border border-border/55 bg-background/55 p-1.5 pl-3 transition-colors hover:bg-background/80",
-                            !activePendingProgress?.activeQuestion?.multiSelect && "p-0",
+                            isChoiceOnlyPendingQuestion && "justify-end",
                           )}
                         >
                           {!isChoiceOnlyPendingQuestion ? (
@@ -7145,7 +7145,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                                 activePendingProgress?.customAnswer
                                   ? "text-foreground"
                                   : "text-placeholder",
-                                !activePendingProgress?.activeQuestion?.multiSelect && "px-3 py-2",
                               )}
                               onPointerDown={(event) => event.preventDefault()}
                               onClick={expandMobileComposer}
@@ -7154,33 +7153,29 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                               {activePendingProgress?.customAnswer || "Write your own answer"}
                             </button>
                           ) : null}
-                          {activePendingProgress?.activeQuestion?.multiSelect ? (
-                            <ComposerPrimaryActions
-                              compact
-                              canOperateThread={canOperateThread}
-                              pendingAction={pendingPrimaryAction}
-                              isRunning={false}
-                              canInterrupt={false}
-                              showPlanFollowUpPrompt={false}
-                              promptHasText={false}
-                              isSendBusy={isSendBusy}
-                              sendDisabledReason={sendDisabledReason}
-                              isConnecting={isConnecting}
-                              isEnvironmentUnavailable={
-                                environmentUnavailable !== null ||
-                                noProviderAvailable ||
-                                projectSelectionRequired
-                              }
-                              isPreparingWorktree={false}
-                              hasSendableContent={false}
-                              preserveComposerFocusOnPointerDown
-                              onPreviousPendingQuestion={onPreviousActivePendingUserInputQuestion}
-                              onInterrupt={handleInterruptPrimaryAction}
-                              onImplementPlanInNewThread={
-                                handleImplementPlanInNewThreadPrimaryAction
-                              }
-                            />
-                          ) : null}
+                          <ComposerPrimaryActions
+                            compact
+                            canOperateThread={canOperateThread}
+                            pendingAction={pendingPrimaryAction}
+                            isRunning={false}
+                            canInterrupt={false}
+                            showPlanFollowUpPrompt={false}
+                            promptHasText={false}
+                            isSendBusy={isSendBusy}
+                            sendDisabledReason={sendDisabledReason}
+                            isConnecting={isConnecting}
+                            isEnvironmentUnavailable={
+                              environmentUnavailable !== null ||
+                              noProviderAvailable ||
+                              projectSelectionRequired
+                            }
+                            isPreparingWorktree={false}
+                            hasSendableContent={false}
+                            preserveComposerFocusOnPointerDown
+                            onPreviousPendingQuestion={onPreviousActivePendingUserInputQuestion}
+                            onInterrupt={handleInterruptPrimaryAction}
+                            onImplementPlanInNewThread={handleImplementPlanInNewThreadPrimaryAction}
+                          />
                         </div>
                       </ComposerBanner.Body>
                     ) : null}
