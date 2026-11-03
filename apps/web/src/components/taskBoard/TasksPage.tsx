@@ -104,7 +104,7 @@ function SyncStatus(props: {
     return (
       <Tooltip>
         <TooltipTrigger render={<span className="text-xs text-muted-foreground" />}>
-          Only on this machine
+          Tasks not shared
         </TooltipTrigger>
         <TooltipPopup>{state.reason}</TooltipPopup>
       </Tooltip>

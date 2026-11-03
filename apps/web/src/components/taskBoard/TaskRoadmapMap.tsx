@@ -18,7 +18,7 @@ export function TaskRoadmapMap(props: {
 }) {
   const canvas = useRef<HTMLDivElement>(null);
   const marker = useId().replace(/:/g, "");
-  const [zoom, setZoom] = useState(0.85);
+  const [zoom, setZoom] = useState(1);
   const [drawing, setDrawing] = useState({ width: 0, height: 0, paths: [] as string[] });
 
   useLayoutEffect(() => {
@@ -45,21 +45,26 @@ export function TaskRoadmapMap(props: {
       }
       const paths: string[] = [];
       let previous = points.get("baseline");
+      let stacked = false;
       for (const stage of props.stages) {
         const parent = points.get(`stage:${stage.version}`);
         if (!parent) continue;
-        if (previous) paths.push(`M ${previous.x} ${previous.bottom + 3} V ${parent.top - 6}`);
-        const keys = [
-          ...stage.tasks.map((task) => `task:${task.id}`),
-          ...stage.missing.map((task) => `brief:${task.key}`),
-        ];
-        for (const key of keys) {
-          const child = points.get(key);
-          if (!child) continue;
-          const branch = parent.right + (child.left - parent.right) / 2;
-          paths.push(
-            `M ${parent.right + 3} ${parent.y} H ${branch} V ${child.y} H ${child.left - 6}`,
-          );
+        const children = [
+          ...stage.tasks.map((task) => points.get(`task:${task.id}`)),
+          ...stage.missing.map((task) => points.get(`brief:${task.key}`)),
+        ].filter((point) => point !== undefined);
+        // Narrow panes put tasks under their step, so the lines run in the left indent.
+        if (children[0]) stacked = children[0].top >= parent.bottom;
+        const railX = (point: Point) => (stacked ? point.left + 10 : point.x);
+        if (previous) paths.push(`M ${railX(previous)} ${previous.bottom + 3} V ${parent.top - 6}`);
+        // Arrows reach the first column only, so no line crosses a node.
+        const left = Math.min(...children.map((child) => child.left));
+        const branch = stacked ? railX(parent) : parent.right + (left - parent.right) / 2;
+        const start = stacked
+          ? `M ${branch} ${parent.bottom + 3}`
+          : `M ${parent.right + 3} ${parent.y} H ${branch}`;
+        for (const child of children) {
+          if (child.left - left < 1) paths.push(`${start} V ${child.y} H ${child.left - 6}`);
         }
         previous = parent;
       }
@@ -79,7 +84,8 @@ export function TaskRoadmapMap(props: {
     <section aria-label="Connected update map" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          Follow the arrows down through versions. Branches show the work for each update.
+          Steps run top to bottom. They are not dates, and no AI starts on its own. Select a task to
+          open it.
         </p>
         <div className="flex items-center gap-1" aria-label="Map zoom">
           <Button
@@ -95,7 +101,7 @@ export function TaskRoadmapMap(props: {
             size="sm"
             variant="ghost"
             aria-label={`${Math.round(zoom * 100)}% zoom, select to reset`}
-            onClick={() => setZoom(0.85)}
+            onClick={() => setZoom(1)}
           >
             {Math.round(zoom * 100)}%
           </Button>
@@ -115,7 +121,11 @@ export function TaskRoadmapMap(props: {
         tabIndex={0}
         aria-label="Roadmap canvas. Scroll horizontally or use zoom to inspect branches."
       >
-        <div ref={canvas} className="relative min-w-[560px] space-y-3 p-3" style={{ zoom }}>
+        <div
+          ref={canvas}
+          className="relative space-y-3 p-3 @xl/tasks:min-w-[560px]"
+          style={{ zoom }}
+        >
           <svg
             aria-hidden
             className="pointer-events-none absolute inset-0 text-muted-foreground/50"
@@ -145,24 +155,17 @@ export function TaskRoadmapMap(props: {
               />
             ))}
           </svg>
-          <div className="relative grid grid-cols-[11rem_minmax(0,1fr)] gap-8">
-            <div
-              data-roadmap-node="baseline"
-              className="rounded-lg border border-primary/40 bg-background px-3 py-2"
-            >
-              <p className="text-xs text-muted-foreground">Start here · Last accepted milestone</p>
-              <p className="font-mono text-base font-semibold">V{props.currentVersion}</p>
-            </div>
-            <p className="self-center text-xs leading-relaxed text-muted-foreground">
-              Versions connect in the order of the updates.
-              <br />
-              Select a task node to inspect its brief and actions.
-            </p>
+          <div
+            data-roadmap-node="baseline"
+            className="relative rounded-lg border border-primary/40 bg-background px-3 py-2 @xl/tasks:w-44"
+          >
+            <p className="text-xs text-muted-foreground">Start: last accepted milestone</p>
+            <p className="font-mono text-base font-semibold">V{props.currentVersion}</p>
           </div>
           {props.stages.map((stage, index) => (
             <div
               key={stage.version}
-              className="relative grid grid-cols-[11rem_minmax(0,1fr)] items-center gap-8"
+              className="relative grid grid-cols-1 gap-3 @xl/tasks:grid-cols-[11rem_minmax(0,1fr)] @xl/tasks:items-center @xl/tasks:gap-8"
             >
               <article
                 data-roadmap-node={`stage:${stage.version}`}
@@ -195,7 +198,7 @@ export function TaskRoadmapMap(props: {
               </article>
               <ul
                 aria-label={`Tasks for V${stage.version}`}
-                className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-1.5"
+                className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-1.5 pl-8 @xl/tasks:pl-0"
               >
                 {stage.tasks.map((task) => (
                   <li key={task.id}>

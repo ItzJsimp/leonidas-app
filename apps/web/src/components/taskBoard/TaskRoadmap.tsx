@@ -93,17 +93,12 @@ export function TaskRoadmapView(props: {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 sm:px-6" data-tour="tasks-roadmap">
       <section aria-label="Update goal" className="space-y-3 border-b border-border pb-6">
-        <div className="flex flex-wrap items-center gap-2 text-sm font-medium tabular-nums">
-          <span className="text-muted-foreground">
-            V{plan.currentVersion} · Last accepted milestone
+        <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground tabular-nums">
+          From V{plan.currentVersion} (last accepted) to
+          <span className="inline-flex items-center gap-1 font-medium text-foreground">
+            <FlagIcon aria-hidden className="size-4" />V{plan.targetVersion} (goal)
           </span>
-          <span aria-hidden className="text-muted-foreground">
-            →
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <FlagIcon aria-hidden className="size-4" />V{plan.targetVersion} · Goal update
-          </span>
-        </div>
+        </p>
         <h3 className="text-2xl font-semibold tracking-tight">The path to V{plan.targetVersion}</h3>
         <details className="max-w-2xl text-sm text-muted-foreground">
           <summary className="cursor-pointer rounded outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
@@ -113,8 +108,8 @@ export function TaskRoadmapView(props: {
         </details>
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <p className="text-sm tabular-nums">
-            {done} / {total} tasks complete · {stages.filter((stage) => stage.complete).length} /{" "}
-            {stages.length} steps
+            {done} of {total} tasks done, {stages.filter((stage) => stage.complete).length} of{" "}
+            {stages.length} steps done
           </p>
           {pending.length > 0 ? (
             <Button
@@ -127,10 +122,6 @@ export function TaskRoadmapView(props: {
             </Button>
           ) : null}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Versions show planned work. They do not promise dates. Each step follows the step before.
-          The AI never starts until you choose to start it.
-        </p>
         {error ? (
           <p role="alert" className="text-sm text-destructive">
             {error}
@@ -189,8 +180,8 @@ export function TaskRoadmapView(props: {
                       ? "Step done"
                       : stage.version === nextVersion
                         ? "Next step"
-                        : "Planned"}{" "}
-                    · {stage.done}/{stage.total}
+                        : "Planned"}
+                    , {stage.done} of {stage.total} done
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">{stage.goal}</p>
@@ -269,7 +260,7 @@ export function TaskRoadmapView(props: {
       )}
       {unscheduled.length > 0 ? (
         <section aria-label="Unscheduled tasks" className="space-y-2 border-t border-border pt-5">
-          <h3 className="font-semibold">Unscheduled · {unscheduled.length}</h3>
+          <h3 className="font-semibold">Unscheduled ({unscheduled.length})</h3>
           <p className="text-sm text-muted-foreground">
             Open a task and assign a version milestone to include it in the update plan.
           </p>
