@@ -16,9 +16,9 @@ import {
 } from "./taskBoard.logic";
 
 /** The Done column renders this many cards until the user asks for more. */
-export const DONE_COLUMN_PAGE = 25;
-/** Cards an open board column shows before "Show more"; keeps a 400-card board light to open. */
-export const COLUMN_PAGE = 40;
+export const DONE_COLUMN_PAGE = 10;
+/** Cards an open board column shows before "Show more"; keeps a 700-card board calm and light. */
+export const COLUMN_PAGE = 20;
 
 /** Dot colour per status, from semantic tokens only. */
 const STATUS_DOT_CLASS: Record<TaskBoardTaskStatus, string> = {

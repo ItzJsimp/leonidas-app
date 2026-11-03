@@ -14,7 +14,7 @@ import {
 } from "~/components/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
-import { DueChip, PriorityBadge, SharedBadge, ChecklistBar } from "./TaskBadges";
+import { ChecklistBar, DueChip, PriorityBadge, SharedBadge, TaskFlagChips } from "./TaskBadges";
 import { TasksEmpty } from "./TaskEmptyStates";
 import { PresenceChips } from "./TaskPresence";
 import { OwnerCell, ProjectChip, useLatest } from "./TaskRowParts";
@@ -67,7 +67,7 @@ const KanbanCard = memo(function KanbanCard({
       aria-busy={busy}
       aria-current={selected ? "true" : undefined}
       className={cn(
-        "group/card flex cursor-grab flex-col gap-2 rounded-lg border bg-card p-2.5 text-card-foreground shadow-xs/5 active:cursor-grabbing",
+        "group/card flex cursor-grab flex-col gap-1.5 rounded-lg border bg-card p-2 text-card-foreground shadow-xs/5 active:cursor-grabbing",
         selected && "ring-2 ring-ring",
         (dragging || busy) && "opacity-50",
       )}
@@ -136,15 +136,22 @@ const KanbanCard = memo(function KanbanCard({
           </Menu>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-1">
-        <PriorityBadge priority={task.priority} />
-        {closed ? null : <DueChip due={task.due} now={now} />}
-        <SharedBadge task={task} />
-        <ProjectChip name={projectName} />
-      </div>
-      <ChecklistBar checklist={task.checklist} />
+      {/* A done card keeps only its title, so the narrow Done column stays light. */}
+      {closed ? null : (
+        <>
+          <div className="flex flex-wrap items-center gap-1">
+            <PriorityBadge priority={task.priority} />
+            <DueChip due={task.due} now={now} />
+            <TaskFlagChips task={task} now={now} />
+            <SharedBadge task={task} />
+            <ProjectChip name={projectName} />
+          </div>
+          <ChecklistBar checklist={task.checklist} />
+        </>
+      )}
       <PresenceChips taskId={task.id} />
-      <OwnerCell task={task} team={team} />
+      {/* Only a card someone has taken shows an owner; "Anyone" on every card was noise. */}
+      {task.claimedBy ? <OwnerCell task={task} team={team} /> : null}
     </article>
   );
 });
@@ -197,6 +204,10 @@ function KanbanColumn({
       aria-label={label}
       className={cn(
         "flex h-full w-[min(85vw,18rem)] shrink-0 snap-start flex-col rounded-xl border bg-muted/40 sm:w-72",
+        // A wide pane fits every column: open columns share the width; Done and empty ones stay narrow.
+        status === "done" || tasks.length + hidden === 0
+          ? "@4xl/board:flex-[0_0_11rem]"
+          : "@4xl/board:min-w-0 @4xl/board:flex-[1_1_0%]",
         isOver && "bg-accent/60 ring-2 ring-primary/50",
       )}
       onDragLeave={(event) => onColumnDragLeave(event, status)}
@@ -352,7 +363,7 @@ export function TaskKanbanView(props: {
   }
 
   return (
-    <div className="flex h-full min-h-0 snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain p-3">
+    <div className="@container/board flex h-full min-h-0 snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain p-3">
       {columns.map((column) => (
         <KanbanColumn
           key={column.status}
