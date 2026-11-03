@@ -8,7 +8,16 @@ import {
 } from "lucide-react";
 import type { TaskBoardTeamMember } from "@t3tools/contracts";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
-import { memo, useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+} from "react";
 
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -83,9 +92,31 @@ const TaskRow = memo(function TaskRow({
 }: RowProps) {
   const open = isOpen(task);
   const done = task.status === "done";
+  // Scrolling mounts many rows; the tooltip and the action menu are the heavy parts, so a row
+  // mounts them only once a pointer or focus reaches it. Until then it shows plain stand-ins.
+  const [live, setLive] = useState(false);
+  const refocusMenu = useRef(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!live || !refocusMenu.current) return;
+    refocusMenu.current = false;
+    rowRef.current?.querySelector<HTMLElement>("[data-row-menu]")?.focus();
+  }, [live]);
+  const wake = live
+    ? undefined
+    : (event: FocusEvent) => {
+        refocusMenu.current =
+          event.target instanceof HTMLElement && event.target.hasAttribute("data-row-menu");
+        setLive(true);
+      };
+  const titleClass = cn("min-w-0 text-sm", done && "text-muted-foreground line-through");
+  const menuLabel = `Actions for ${task.title}`;
   return (
     <div
       aria-busy={busy}
+      ref={rowRef}
+      onFocus={wake}
+      onPointerEnter={live ? undefined : () => setLive(true)}
       role="listitem"
       className={cn(
         "@container group/row flex items-center gap-1 border-b pr-2 pl-3 hover:bg-accent/40",
@@ -113,10 +144,11 @@ const TaskRow = memo(function TaskRow({
         <span className="sr-only">{statusLabel(task.status)}</span>
         {/* Title and its flags share the flexible column; every other column has a fixed width. */}
         <span className="flex min-w-0 flex-1 items-center gap-1.5">
-          <TruncatedText
-            text={task.title}
-            className={cn("min-w-0 text-sm", done && "text-muted-foreground line-through")}
-          />
+          {live ? (
+            <TruncatedText text={task.title} className={titleClass} />
+          ) : (
+            <span className={cn("block truncate", titleClass)}>{task.title}</span>
+          )}
           <span className="hidden shrink-0 items-center gap-1 @min-[30rem]:flex">
             <TaskFlagChips task={task} now={now} />
             <SharedBadge task={task} />
@@ -155,40 +187,53 @@ const TaskRow = memo(function TaskRow({
         </span>
       </button>
       <div className="shrink-0 opacity-0 focus-within:opacity-100 group-hover/row:opacity-100 has-[[data-popup-open]]:opacity-100 pointer-coarse:opacity-100">
-        <Menu>
-          <MenuTrigger
-            render={
-              <Button
-                aria-label={`Actions for ${task.title}`}
-                disabled={busy}
-                size="icon-xs"
-                variant="ghost-muted"
-              />
-            }
+        {live ? (
+          <Menu>
+            <MenuTrigger
+              render={
+                <Button
+                  aria-label={menuLabel}
+                  data-row-menu
+                  disabled={busy}
+                  size="icon-xs"
+                  variant="ghost-muted"
+                />
+              }
+            >
+              <EllipsisIcon />
+            </MenuTrigger>
+            <MenuPopup align="end">
+              {canSend ? (
+                <MenuItem onClick={() => onAction(task, "send")}>
+                  <BotIcon />
+                  Send to AI
+                </MenuItem>
+              ) : null}
+              {open && !task.claimedBy ? (
+                <MenuItem onClick={() => onAction(task, "claim")}>Take</MenuItem>
+              ) : null}
+              {open && mine ? (
+                <MenuItem onClick={() => onAction(task, "release")}>Give back</MenuItem>
+              ) : null}
+              <MenuSeparator />
+              {done ? (
+                <MenuItem onClick={() => onAction(task, "reopen")}>Reopen</MenuItem>
+              ) : (
+                <MenuItem onClick={() => onAction(task, "complete")}>Complete</MenuItem>
+              )}
+            </MenuPopup>
+          </Menu>
+        ) : (
+          <Button
+            aria-label={menuLabel}
+            data-row-menu
+            disabled={busy}
+            size="icon-xs"
+            variant="ghost-muted"
           >
             <EllipsisIcon />
-          </MenuTrigger>
-          <MenuPopup align="end">
-            {canSend ? (
-              <MenuItem onClick={() => onAction(task, "send")}>
-                <BotIcon />
-                Send to AI
-              </MenuItem>
-            ) : null}
-            {open && !task.claimedBy ? (
-              <MenuItem onClick={() => onAction(task, "claim")}>Take</MenuItem>
-            ) : null}
-            {open && mine ? (
-              <MenuItem onClick={() => onAction(task, "release")}>Give back</MenuItem>
-            ) : null}
-            <MenuSeparator />
-            {done ? (
-              <MenuItem onClick={() => onAction(task, "reopen")}>Reopen</MenuItem>
-            ) : (
-              <MenuItem onClick={() => onAction(task, "complete")}>Complete</MenuItem>
-            )}
-          </MenuPopup>
-        </Menu>
+          </Button>
+        )}
       </div>
     </div>
   );
