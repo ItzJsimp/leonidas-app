@@ -678,13 +678,13 @@ export function relativeTime(ms: number, now: number): string {
   const diff = now - ms;
   if (diff < 60_000) return "just now";
   const minutes = Math.floor(diff / 60_000);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `${hours} h ago`;
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return `${days} d ago`;
   const weeks = Math.floor(days / 7);
-  if (weeks < 5) return `${weeks}w ago`;
+  if (weeks < 5) return `${weeks} wk ago`;
   const date = new Date(ms);
   const sameYear = date.getFullYear() === new Date(now).getFullYear();
   return date.toLocaleDateString("en-US", {

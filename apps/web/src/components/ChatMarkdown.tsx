@@ -2902,6 +2902,8 @@ const CHAT_MARKDOWN_COMPONENTS = {
           checked={checked}
           disabled={_disabled}
           readOnly={type === "checkbox"}
+          // A read-only checklist mark still needs a name; the item text follows it.
+          aria-label={type === "checkbox" ? (checked ? "Done" : "Not done") : undefined}
         />
       );
     }

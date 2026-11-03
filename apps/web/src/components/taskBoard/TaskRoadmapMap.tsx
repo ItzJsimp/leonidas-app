@@ -94,7 +94,7 @@ export function TaskRoadmapMap(props: {
           <Button
             size="sm"
             variant="ghost"
-            aria-label="Reset roadmap zoom"
+            aria-label={`${Math.round(zoom * 100)}% zoom, select to reset`}
             onClick={() => setZoom(0.85)}
           >
             {Math.round(zoom * 100)}%

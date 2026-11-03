@@ -225,7 +225,7 @@ const NextUpPanel = memo(function NextUpPanel(props: {
                     size="sm"
                     disabled={busy}
                     onClick={() => props.actions.sendToAgent(task)}
-                    aria-label={`Send ${task.title} to the AI`}
+                    aria-label={`Send to AI: ${task.title}`}
                   >
                     <SendIcon />
                     Send to AI

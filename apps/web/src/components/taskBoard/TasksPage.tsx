@@ -412,7 +412,7 @@ export function TasksPage() {
           </aside>
           {railHandle}
 
-          <main
+          <div
             className={
               selectedTask
                 ? "hidden min-h-0 min-w-0 flex-1 flex-col @4xl/tasks:flex"
@@ -529,10 +529,13 @@ export function TasksPage() {
                 body
               )}
             </div>
-          </main>
+          </div>
 
           {selectedTask ? (
-            <aside className="flex min-h-0 w-full shrink-0 flex-col overflow-y-auto border-l border-border @4xl/tasks:w-[26rem]">
+            <aside
+              aria-label="Task details"
+              className="flex min-h-0 w-full shrink-0 flex-col overflow-y-auto border-l border-border @4xl/tasks:w-[26rem]"
+            >
               <TaskDetailPanel
                 task={selectedTask}
                 context={context}

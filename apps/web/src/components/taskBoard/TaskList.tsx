@@ -128,7 +128,7 @@ const TaskRow = memo(function TaskRow({
         <span className="hidden w-28 shrink-0 @min-[30rem]:flex">
           <OwnerCell task={task} team={team} />
         </span>
-        <span className="hidden w-16 shrink-0 text-right text-muted-foreground text-xs tabular-nums @min-[36rem]:block">
+        <span className="hidden w-20 shrink-0 text-right text-muted-foreground text-xs tabular-nums @min-[36rem]:block">
           {relativeTime(task.updatedAt, now)}
         </span>
       </button>
@@ -163,7 +163,7 @@ const TaskRow = memo(function TaskRow({
             {done ? (
               <MenuItem onClick={() => onAction(task, "reopen")}>Reopen</MenuItem>
             ) : (
-              <MenuItem onClick={() => onAction(task, "complete")}>Mark complete</MenuItem>
+              <MenuItem onClick={() => onAction(task, "complete")}>Complete</MenuItem>
             )}
           </MenuPopup>
         </Menu>

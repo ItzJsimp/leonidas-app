@@ -464,10 +464,11 @@ describe("time helpers", () => {
   it("formats relative times", () => {
     expect(relativeTime(NOW - 10_000, NOW)).toBe("just now");
     expect(relativeTime(NOW + 10_000, NOW)).toBe("just now");
-    expect(relativeTime(NOW - 5 * 60_000, NOW)).toBe("5m ago");
-    expect(relativeTime(NOW - 3 * 3_600_000, NOW)).toBe("3h ago");
-    expect(relativeTime(NOW - 2 * DAY, NOW)).toBe("2d ago");
-    expect(relativeTime(NOW - 21 * DAY, NOW)).toBe("3w ago");
+    // Units are spelled out enough that minutes never read as months.
+    expect(relativeTime(NOW - 5 * 60_000, NOW)).toBe("5 min ago");
+    expect(relativeTime(NOW - 3 * 3_600_000, NOW)).toBe("3 h ago");
+    expect(relativeTime(NOW - 2 * DAY, NOW)).toBe("2 d ago");
+    expect(relativeTime(NOW - 21 * DAY, NOW)).toBe("3 wk ago");
     expect(relativeTime(new Date(2026, 5, 1, 12).getTime(), NOW)).toBe("Jun 1");
     expect(relativeTime(new Date(2025, 5, 1, 12).getTime(), NOW)).toBe("Jun 1, 2025");
   });
