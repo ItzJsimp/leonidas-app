@@ -137,7 +137,7 @@ export function AppRail({ expanded = false }: { readonly expanded?: boolean }) {
           onClick={openReleaseHistoryDialog}
           className={cn(
             "min-w-0 rounded-md text-muted-foreground tabular-nums outline-hidden ring-ring hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset [-webkit-app-region:no-drag]",
-            expanded ? "h-11 px-2.5 text-left text-xs" : "max-w-full truncate px-0.5 text-3xs",
+            expanded ? "h-11 px-2.5 text-left text-sm" : "max-w-full truncate px-0.5 text-3xs",
           )}
         >
           {expanded ? `Leonidas v${APP_VERSION_LABEL} · what changed` : `v${APP_VERSION_LABEL}`}
@@ -189,7 +189,7 @@ function RailLink({
     "aria-current": current ? ("page" as const) : undefined,
     className: cn(
       TARGET_CLASS,
-      expanded && "w-full justify-start gap-3 px-2.5",
+      expanded && "h-11 w-full shrink-0 justify-start gap-3 px-2.5",
       current && ACTIVE_CLASS,
     ),
   };
