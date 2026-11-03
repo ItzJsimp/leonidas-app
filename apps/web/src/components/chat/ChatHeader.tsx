@@ -282,8 +282,8 @@ export const ChatHeader = memo(function ChatHeader({
       className={cn(
         "flex min-w-0 flex-1 items-center gap-1",
         // Clears the fixed layout cluster: five buttons, or seven with the bell and split toggle.
-        // Phones drop the pane-layout button, so the cluster is one button narrower.
-        rightPanelOpen ? "pr-10" : hostsShellCorner ? "pr-56 max-sm:pr-48" : "pr-44 max-sm:pr-36",
+        // Phones drop the pane-layout, terminal and memory buttons: details, side panel and bell remain.
+        rightPanelOpen ? "pr-10" : hostsShellCorner ? "pr-56 max-sm:pr-30" : "pr-44 max-sm:pr-22",
       )}
       onContextMenu={handleHeaderContextMenu}
     >

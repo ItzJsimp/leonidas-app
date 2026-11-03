@@ -12091,7 +12091,7 @@ export default function ChatView(props: ChatViewProps) {
     rightPanelOpen,
     rightPanelShortcutLabel: shortcutLabelForCommand(keybindings, "rightPanel.toggle"),
     usageOverlayOpen: usageOverlayEnabled,
-    onToggleUsageOverlay: toggleUsageOverlay,
+    ...(isMobileViewport ? {} : { onToggleUsageOverlay: toggleUsageOverlay }),
     onToggleTerminal: toggleTerminalVisibility,
     onToggleThreadPanel: toggleThreadPanel,
     onToggleRightPanel: toggleRightPanel,
@@ -12101,8 +12101,10 @@ export default function ChatView(props: ChatViewProps) {
       <PanelLayoutControls
         {...panelToggleControlProps}
         showThreadPanelControl={!inlineRightPanelOwnsTitleBar}
-        // Two panes on a phone are too narrow to read; the space goes to the chat title.
+        // A phone has no room for two panes or a terminal, and the chip under the header already
+        // opens memory and accounts. The space goes to the chat title.
         showSplitLayoutControl={!isMobileViewport}
+        showTerminalControl={!isMobileViewport}
       />
       {/* Only the chat at the window's top-right corner holds the bell and split toggle. */}
       {reserveTitleBarControlInset ? <ShellCornerControls claim /> : null}
