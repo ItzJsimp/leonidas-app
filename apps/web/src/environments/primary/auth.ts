@@ -76,7 +76,7 @@ export class PrimaryEnvironmentPairingCredentialRejectedError extends Schema.Tag
   },
 ) {
   override get message(): string {
-    return "This connection code is not valid. Check the code and try again.";
+    return "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.";
   }
 }
 
