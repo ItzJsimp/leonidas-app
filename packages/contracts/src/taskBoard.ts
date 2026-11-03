@@ -414,6 +414,8 @@ export const AiosWorkspaceSummary = Schema.Struct({
   error: Schema.NullOr(Schema.String),
   isDefault: Schema.Boolean,
   projectIds: Schema.Array(ProjectId),
+  // Projects the Tasks rail folds into "More". Optional, so an older server still parses.
+  hiddenProjects: Schema.optional(Schema.Array(Schema.String)),
 });
 export type AiosWorkspaceSummary = typeof AiosWorkspaceSummary.Type;
 
@@ -421,6 +423,16 @@ export const AiosWorkspacesListResult = Schema.Struct({
   workspaces: Schema.Array(AiosWorkspaceSummary),
 });
 export type AiosWorkspacesListResult = typeof AiosWorkspacesListResult.Type;
+
+// Saves the projects the Tasks rail folds into "More" in workspace.json, so the list follows
+// the AIOS folder to every device. An empty list shows every project again.
+export const AiosWorkspaceHiddenProjectsInput = Schema.Struct({
+  ...workspaceScope,
+  hiddenProjects: Schema.Array(TrimmedNonEmptyString.check(Schema.isMaxLength(100))).check(
+    Schema.isMaxLength(200),
+  ),
+});
+export type AiosWorkspaceHiddenProjectsInput = typeof AiosWorkspaceHiddenProjectsInput.Type;
 
 // The setup prompt: writes workspace.json into a folder the app already lists.
 export const AiosWorkspaceInitInput = Schema.Struct({

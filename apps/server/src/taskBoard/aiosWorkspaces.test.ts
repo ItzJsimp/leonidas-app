@@ -10,6 +10,7 @@ import {
   readWorkspaceFile,
   resolveWorkspaceRoot,
   workspaceForPath,
+  writeHiddenProjects,
   writeWorkspaceFile,
 } from "./aiosWorkspaces.ts";
 
@@ -200,6 +201,34 @@ describe("writeWorkspaceFile", () => {
     NodeFS.symlinkSync(outside, NodePath.join(root, "workspace.json"), "file");
     expect(() => writeWorkspaceFile(root, { id: "x", name: "X", type: "personal" })).toThrow();
     expect(NodeFS.readFileSync(outside, "utf8")).toBe("{}");
+  });
+});
+
+describe("writeHiddenProjects", () => {
+  const file = { id: "me", name: "Me", type: "personal", schemaVersion: 1, extra: "keep" };
+
+  it("saves the rail's hidden list once each, keeps other keys, and clears it when empty", () => {
+    const root = makeAios("hide", file);
+    const written = writeHiddenProjects(root, ["prop", "arch", "prop", " "]);
+    expect(written.status === "ready" && written.file.hiddenProjects).toEqual(["prop", "arch"]);
+    const raw = JSON.parse(NodeFS.readFileSync(NodePath.join(root, "workspace.json"), "utf8"));
+    expect(raw).toMatchObject({ extra: "keep", hiddenProjects: ["prop", "arch"] });
+    writeHiddenProjects(root, []);
+    expect(readWorkspaceFile(root)).toEqual({
+      status: "ready",
+      root,
+      file: { id: "me", name: "Me", type: "personal", schemaVersion: 1 },
+    });
+  });
+
+  it("refuses a folder without a valid file, and a file behind a link", () => {
+    expect(() => writeHiddenProjects(makeAios("none"), ["a"])).toThrow();
+    const root = makeAios("linked-hide");
+    const outside = NodePath.join(temp, "outside-hide.json");
+    NodeFS.writeFileSync(outside, JSON.stringify(file));
+    NodeFS.symlinkSync(outside, NodePath.join(root, "workspace.json"), "file");
+    expect(() => writeHiddenProjects(root, ["a"])).toThrow();
+    expect(JSON.parse(NodeFS.readFileSync(outside, "utf8"))).toEqual(file);
   });
 });
 

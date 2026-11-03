@@ -33,3 +33,9 @@ export const aiosWorkspaceInit = createEnvironmentRpcCommand(connectionAtomRunti
   label: "environment-data:aios-workspaces:init",
   tag: WS_METHODS.aiosWorkspacesInit,
 });
+
+/** Saves the projects the Tasks rail folds into "More" in the workspace's workspace.json. */
+export const aiosWorkspaceHiddenProjectsSet = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:aios-workspaces:hidden-projects",
+  tag: WS_METHODS.aiosWorkspaceHiddenProjectsSet,
+});

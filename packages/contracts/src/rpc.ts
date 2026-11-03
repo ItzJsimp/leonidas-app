@@ -95,6 +95,7 @@ import {
   WorkspaceOrgActionResult,
   AiosWorkspaceSummary,
   AiosWorkspaceInitInput,
+  AiosWorkspaceHiddenProjectsInput,
   TaskBoardHomeNews,
   LayaUsage,
   PonytailCodexHooks,
@@ -692,6 +693,7 @@ export const WS_METHODS = {
   aiosWorkspacePicturesList: "aiosWorkspaces.picturesList",
   aiosWorkspacePictureSet: "aiosWorkspaces.pictureSet",
   aiosWorkspacePictureRemove: "aiosWorkspaces.pictureRemove",
+  aiosWorkspaceHiddenProjectsSet: "aiosWorkspaces.hiddenProjectsSet",
   areaSyncJoin: "areaSync.join",
   areaSyncSync: "areaSync.sync",
   areaSyncStatus: "areaSync.status",
@@ -1969,6 +1971,12 @@ const WsWorkspacePackOrgDecideRpc = Rpc.make(WS_METHODS.workspacePackOrgDecide, 
 const WsAiosWorkspacesInitRpc = Rpc.make(WS_METHODS.aiosWorkspacesInit, {
   payload: AiosWorkspaceInitInput,
   success: AiosWorkspaceSummary,
+  error: Schema.Union([TaskBoardReadError, TaskBoardOperationError, EnvironmentAuthorizationError]),
+});
+
+const WsAiosWorkspaceHiddenProjectsSetRpc = Rpc.make(WS_METHODS.aiosWorkspaceHiddenProjectsSet, {
+  payload: AiosWorkspaceHiddenProjectsInput,
+  success: Schema.Void,
   error: Schema.Union([TaskBoardReadError, TaskBoardOperationError, EnvironmentAuthorizationError]),
 });
 
@@ -3425,6 +3433,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsAiosWorkspacePicturesListRpc,
   WsAiosWorkspacePictureSetRpc,
   WsAiosWorkspacePictureRemoveRpc,
+  WsAiosWorkspaceHiddenProjectsSetRpc,
   WsAreaSyncJoinRpc,
   WsAreaSyncSyncRpc,
   WsAreaSyncStatusRpc,

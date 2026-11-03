@@ -3228,6 +3228,10 @@ const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.workspaceInit(input, projects)),
           ),
+        [WS_METHODS.aiosWorkspaceHiddenProjectsSet]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.hiddenProjectsSet(projects, input)),
+          ),
         [WS_METHODS.aiosWorkspacePicturesList]: () => WorkspacePictures.listWorkspacePictures(),
         [WS_METHODS.aiosWorkspacePictureSet]: (input) =>
           WorkspacePictures.setWorkspacePicture(input),

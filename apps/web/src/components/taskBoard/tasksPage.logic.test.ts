@@ -8,8 +8,10 @@ import {
   DEFAULT_TASKS_PREFS,
   landingPrefs,
   openFirst,
+  nextHidden,
   parseTasksPrefs,
   prefsForList,
+  splitRail,
   placeSharedOnlyIn,
   searchBase,
   sectionShareState,
@@ -268,5 +270,30 @@ describe("prefsForList", () => {
     });
     expect(prefsForList("stale")).toMatchObject({ statuses: null, flag: "stale" });
     expect(prefsForList("now")).toMatchObject({ statuses: null, flag: null, priorities: null });
+  });
+});
+
+describe("hidden rail projects", () => {
+  const entries = ["a", "b", "c"].map((slug) => ({
+    slug,
+    name: slug.toUpperCase(),
+    projectId: null,
+    repository: null,
+    open: 1,
+    total: 1,
+  }));
+
+  it("keeps the rail order and moves hidden projects into More", () => {
+    expect(splitRail(entries, ["c", "a", "gone"])).toEqual({
+      shown: [entries[1]],
+      hidden: [entries[0], entries[2]],
+    });
+    expect(splitRail(entries, []).hidden).toEqual([]);
+  });
+
+  it("hides a project once and shows it again", () => {
+    expect(nextHidden(["a"], "b", true)).toEqual(["a", "b"]);
+    expect(nextHidden(["a", "b"], "b", true)).toEqual(["a", "b"]);
+    expect(nextHidden(["a", "b"], "a", false)).toEqual(["b"]);
   });
 });

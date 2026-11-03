@@ -220,6 +220,24 @@ export function buildRailEntries(
     }));
 }
 
+/** The rail in its own order, with hidden projects moved into "More". */
+export function splitRail(
+  entries: ReadonlyArray<RailEntry>,
+  hidden: ReadonlyArray<string>,
+): { shown: RailEntry[]; hidden: RailEntry[] } {
+  const set = new Set(hidden);
+  return {
+    shown: entries.filter((entry) => !set.has(entry.slug)),
+    hidden: entries.filter((entry) => set.has(entry.slug)),
+  };
+}
+
+/** The hidden list after one project is hidden or shown. */
+export function nextHidden(hidden: ReadonlyArray<string>, slug: string, hide: boolean): string[] {
+  const rest = hidden.filter((item) => item !== slug);
+  return hide ? [...rest, slug] : rest;
+}
+
 export type SectionShareState =
   | { kind: "hidden" }
   | { kind: "share"; count: number }

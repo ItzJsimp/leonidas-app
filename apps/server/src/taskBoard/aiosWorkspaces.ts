@@ -19,6 +19,20 @@ export interface AiosWorkspaceFile {
   readonly name: string;
   readonly type: AiosWorkspaceType;
   readonly schemaVersion: number;
+  /** Projects the Tasks rail folds into "More". Present only when the list is not empty. */
+  readonly hiddenProjects?: ReadonlyArray<string>;
+}
+
+const MAX_HIDDEN_PROJECTS = 200;
+
+/** Distinct, trimmed, non-empty slugs in their given order, capped. */
+function parseHiddenProjects(value: unknown): ReadonlyArray<string> {
+  if (!Array.isArray(value)) return [];
+  const slugs = value.filter((slug): slug is string => typeof slug === "string");
+  return [...new Set(slugs.map((slug) => slug.trim()).filter(Boolean))].slice(
+    0,
+    MAX_HIDDEN_PROJECTS,
+  );
 }
 
 export type AiosWorkspaceState =
@@ -28,14 +42,21 @@ export type AiosWorkspaceState =
 
 function parseWorkspaceFile(value: unknown): AiosWorkspaceFile | string {
   if (typeof value !== "object" || value === null) return "The file is not a JSON object.";
-  const { id, name, type, schemaVersion } = value as Record<string, unknown>;
+  const { id, name, type, schemaVersion, hiddenProjects } = value as Record<string, unknown>;
   if (schemaVersion !== SCHEMA_VERSION) return `schemaVersion must be ${SCHEMA_VERSION}.`;
   if (typeof id !== "string" || !ID_PATTERN.test(id)) {
     return "id must be lowercase letters, digits and hyphens.";
   }
   if (typeof name !== "string" || !name.trim()) return "name must not be empty.";
   if (type !== "personal" && type !== "business") return 'type must be "personal" or "business".';
-  return { id, name: name.trim(), type, schemaVersion };
+  const hidden = parseHiddenProjects(hiddenProjects);
+  return {
+    id,
+    name: name.trim(),
+    type,
+    schemaVersion,
+    ...(hidden.length > 0 ? { hiddenProjects: hidden } : {}),
+  };
 }
 
 export function readWorkspaceFile(root: string): AiosWorkspaceState {
@@ -73,6 +94,32 @@ export function writeWorkspaceFile(
   }
   if (existing && !existing.isFile()) throw new Error("workspace.json is not a regular file.");
   NodeFS.writeFileSync(target, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+  listCache.clear();
+  return readWorkspaceFile(root);
+}
+
+/**
+ * Saves the projects the Tasks rail folds into "More". Every other key in the file stays, and the
+ * file lives in the AIOS folder, so the list follows the folder to each device. Throws when the
+ * folder has no valid workspace.json or the file is a link.
+ */
+export function writeHiddenProjects(
+  root: string,
+  slugs: ReadonlyArray<string>,
+): AiosWorkspaceState {
+  if (readWorkspaceFile(root).status !== "ready") {
+    throw new Error("This folder has no valid workspace.json.");
+  }
+  const target = NodePath.join(root, WORKSPACE_FILE);
+  if (!NodeFS.lstatSync(target).isFile()) throw new Error("workspace.json is not a regular file.");
+  const raw = JSON.parse(NodeFS.readFileSync(target, "utf8").replace(/^﻿/, "")) as Record<
+    string,
+    unknown
+  >;
+  const { hiddenProjects: _previous, ...rest } = raw;
+  const hidden = parseHiddenProjects(slugs);
+  const next = hidden.length > 0 ? { ...rest, hiddenProjects: hidden } : rest;
+  NodeFS.writeFileSync(target, `${JSON.stringify(next, null, 2)}\n`, "utf8");
   listCache.clear();
   return readWorkspaceFile(root);
 }

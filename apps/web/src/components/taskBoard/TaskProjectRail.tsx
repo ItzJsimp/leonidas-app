@@ -1,4 +1,4 @@
-import { LayersIcon, UsersIcon } from "lucide-react";
+import { ChevronRightIcon, EyeIcon, EyeOffIcon, LayersIcon, UsersIcon } from "lucide-react";
 import { memo, useMemo } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 
-import type { RailEntry, TaskFocus } from "./tasksPage.logic";
+import { splitRail, type RailEntry, type TaskFocus } from "./tasksPage.logic";
 
 const ALL = "__all__";
 const FOCUS_LABELS = { inbox: "Inbox", today: "Today", upcoming: "Upcoming" } as const;
@@ -63,8 +63,39 @@ export const TaskProjectRail = memo(function TaskProjectRail(props: {
   readonly focus: TaskFocus;
   readonly counts: Record<(typeof DAILY_FOCUSES)[number], number>;
   readonly onFocus: (focus: TaskFocus) => void;
+  /** Slugs folded into "More". */
+  readonly hidden: ReadonlyArray<string>;
+  /** Null when there is no workspace file to save the hidden list in. */
+  readonly onHide: ((slug: string, hide: boolean) => void) | null;
 }) {
-  const { onSelect } = props;
+  const { onSelect, onHide } = props;
+  const split = useMemo(
+    () => splitRail(props.entries, props.hidden),
+    [props.entries, props.hidden],
+  );
+  const row = (entry: RailEntry, hide: boolean) => (
+    <div key={entry.slug} className="group/rail relative">
+      <RailRow
+        label={entry.name}
+        count={entry.open}
+        selected={props.focus === "all" && props.selectedSlug === entry.slug}
+        shareable={entry.repository !== null && entry.projectId !== null}
+        onSelect={() => onSelect(entry.slug)}
+      />
+      {onHide ? (
+        <span className="absolute top-1/2 right-9 -translate-y-1/2 opacity-0 focus-within:opacity-100 group-hover/rail:opacity-100 pointer-coarse:opacity-100">
+          <Button
+            variant="ghost-muted"
+            size="icon-xs"
+            aria-label={`${hide ? "Hide" : "Show"} ${entry.name}`}
+            onClick={() => onHide(entry.slug, hide)}
+          >
+            {hide ? <EyeOffIcon /> : <EyeIcon />}
+          </Button>
+        </span>
+      ) : null}
+    </div>
+  );
   return (
     <nav aria-label="Projects" className="flex flex-col gap-0.5">
       {DAILY_FOCUSES.map((focus) => (
@@ -83,16 +114,22 @@ export const TaskProjectRail = memo(function TaskProjectRail(props: {
         onSelect={() => onSelect(null)}
       />
       <h2 className="px-2 pt-4 pb-1 text-xs font-medium text-muted-foreground">Projects</h2>
-      {props.entries.map((entry) => (
-        <RailRow
-          key={entry.slug}
-          label={entry.name}
-          count={entry.open}
-          selected={props.focus === "all" && props.selectedSlug === entry.slug}
-          shareable={entry.repository !== null && entry.projectId !== null}
-          onSelect={() => onSelect(entry.slug)}
-        />
-      ))}
+      {split.shown.map((entry) => row(entry, true))}
+      {split.hidden.length > 0 ? (
+        <details
+          className="group/more"
+          open={split.hidden.some((entry) => entry.slug === props.selectedSlug)}
+        >
+          <summary className="flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1.5 text-muted-foreground text-xs outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <ChevronRightIcon aria-hidden className="size-3.5 group-open/more:rotate-90" />
+            More ({split.hidden.length})
+          </summary>
+          {split.hidden.map((entry) => row(entry, false))}
+          <p className="px-2 pt-1 text-muted-foreground text-xs">
+            Hidden here and on your other devices.
+          </p>
+        </details>
+      ) : null}
     </nav>
   );
 });

@@ -41,6 +41,7 @@ import {
   type TaskBoardWorkspaceSnapshot,
   type Project,
   type AiosWorkspaceInitInput,
+  type AiosWorkspaceHiddenProjectsInput,
   type AiosWorkspaceSummary,
   type AiosWorkspacesListResult,
   type WorkspaceOrgActionResult,
@@ -114,6 +115,7 @@ import {
   listAiosWorkspaces,
   resolveWorkspaceRoot,
   workspaceForPath,
+  writeHiddenProjects,
   writeWorkspaceFile,
 } from "./aiosWorkspaces.ts";
 import { planSharedSync, publicCopy } from "./sharedSync.ts";
@@ -642,6 +644,11 @@ export class TaskBoardService extends Context.Service<
       input: AiosWorkspaceInitInput,
       projects: ReadonlyArray<Project>,
     ) => Effect.Effect<AiosWorkspaceSummary, TaskBoardOperationError>;
+    /** Saves the projects the Tasks rail folds into "More" in the workspace's workspace.json. */
+    readonly hiddenProjectsSet: (
+      projects: ReadonlyArray<Project>,
+      input: AiosWorkspaceHiddenProjectsInput,
+    ) => Effect.Effect<void, TaskBoardOperationError>;
     /** Folders that look like the user's AIOS, plus the one already confirmed. */
     readonly aiosDetect: (
       input: TaskBoardAiosDetectInput,
@@ -2186,12 +2193,27 @@ const make = Effect.gen(function* () {
     projectIds: projects
       .filter((project) => workspaceForPath([state], project.workspaceRoot) !== undefined)
       .map((project) => project.id),
+    hiddenProjects: state.status === "ready" ? (state.file.hiddenProjects ?? []) : [],
   });
 
   const workspaces = (projects: ReadonlyArray<Project>) =>
     Effect.sync(() => {
       const { workspaces: found, defaultRoot } = scopeFor(projects);
       return { workspaces: found.map((state) => summarize(state, projects, defaultRoot)) };
+    });
+
+  const hiddenProjectsSet = (
+    projects: ReadonlyArray<Project>,
+    input: AiosWorkspaceHiddenProjectsInput,
+  ) =>
+    Effect.gen(function* () {
+      const { root } = scopeFor(projects, { workspaceId: input.workspaceId });
+      if (root === null) return yield* storageError("No AIOS workspace is open.");
+      yield* Effect.try({
+        try: () => writeHiddenProjects(root, input.hiddenProjects),
+        catch: (cause) =>
+          storageError(cause instanceof Error ? cause.message : "Could not write workspace.json."),
+      });
     });
 
   const workspaceRoot = (projects: ReadonlyArray<Project>, workspaceId: string) =>
@@ -2310,6 +2332,7 @@ const make = Effect.gen(function* () {
     workspaces,
     workspaceRoot,
     workspaceInit,
+    hiddenProjectsSet,
     aiosDetect,
     aiosConfirm,
     create,

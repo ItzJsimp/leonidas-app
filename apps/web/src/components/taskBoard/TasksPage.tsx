@@ -29,6 +29,7 @@ import { privateAreaOptions } from "./privateArea.logic";
 
 import { TaskCreateDialog } from "./TaskCreateDialog";
 import { TaskDashboardView } from "./TaskDashboard";
+import { useHiddenProjects } from "./useHiddenProjects";
 import { useSearchShortcut } from "./useSearchShortcut";
 import { TaskDetailPanel } from "./TaskDetail";
 import { TaskFilterBar } from "./TaskFilterBar";
@@ -216,6 +217,8 @@ export function TasksPage() {
     },
     [patchPrefs],
   );
+  const { hidden, setHidden } = useHiddenProjects();
+  const hiddenProjects = { hidden, onHide: setHidden };
   const selectTask = useCallback((task: TaskView) => setSelectedId(task.id), []);
   const closeDetail = useCallback(() => setSelectedId(null), []);
 
@@ -435,6 +438,7 @@ export function TasksPage() {
               focus={prefs.focus}
               counts={counts}
               onFocus={selectFocus}
+              {...hiddenProjects}
             />
           </aside>
           {railHandle}
