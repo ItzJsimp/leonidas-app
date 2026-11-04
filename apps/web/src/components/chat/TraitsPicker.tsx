@@ -278,7 +278,8 @@ export interface TraitsMenuContentProps {
   isComposerOwned?: boolean;
 }
 
-export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
+/** Traits state and change handlers, shared by the traits menu and the model picker's effort column. */
+export function useTraitsSelection({
   provider,
   instanceId,
   models,
@@ -286,7 +287,6 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
   prompt,
   onPromptChange,
   modelOptions,
-  reportedModelSelection,
   allowPromptInjectedEffort = true,
   planModeEnabled,
   ...persistence
@@ -354,6 +354,39 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
     }
     updateDescriptors(replaceDescriptorCurrentValue(descriptors, descriptor.id, value));
   };
+
+  return {
+    modelSelection,
+    descriptors,
+    selectDescriptors,
+    booleanDescriptors,
+    primarySelectDescriptor,
+    ultrathinkPromptControlled,
+    ultrathinkInBodyText,
+    hasAnyControls,
+    modelIsUnavailable,
+    updateDescriptors,
+    handleSelectChange,
+  };
+}
+
+export const TraitsMenuContent = memo(function TraitsMenuContentImpl(
+  props: TraitsMenuContentProps & TraitsPersistence,
+) {
+  const { reportedModelSelection } = props;
+  const {
+    modelSelection,
+    descriptors,
+    selectDescriptors,
+    booleanDescriptors,
+    primarySelectDescriptor,
+    ultrathinkPromptControlled,
+    ultrathinkInBodyText,
+    hasAnyControls,
+    modelIsUnavailable,
+    updateDescriptors,
+    handleSelectChange,
+  } = useTraitsSelection(props);
 
   if (!hasAnyControls) {
     return null;
