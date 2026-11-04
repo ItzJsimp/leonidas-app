@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
+import { renderToStaticMarkup } from "react-dom/server";
+import { DraftId } from "../../composerDraftStore";
 import {
   ProviderDriverKind,
   type ProviderOptionDescriptor,
@@ -13,6 +15,7 @@ import {
   withImplicitFastModeDefault,
 } from "../../composerProviderState";
 import {
+  renderProviderReasoningColumn,
   renderProviderTraitsMenuContent,
   renderProviderTraitsPicker,
 } from "./composerProviderState";
@@ -490,5 +493,40 @@ describe("provider traits render guards", () => {
 
     expect(renderProviderTraitsPicker(args)).toBeNull();
     expect(renderProviderTraitsMenuContent(args)).toBeNull();
+  });
+
+  it("lists the effort levels of the model in the picker column", () => {
+    const models = modelWith([
+      selectDescriptor("effort", [
+        { id: "low", label: "Low" },
+        { id: "high", label: "High", isDefault: true },
+      ]),
+    ]);
+    const markup = renderToStaticMarkup(
+      renderProviderReasoningColumn({
+        provider: PROVIDER,
+        model: MODEL,
+        models,
+        modelOptions: undefined,
+        prompt: "",
+        onPromptChange: () => {},
+        planModeEnabled: true,
+        draftId: DraftId.make("reasoning-column"),
+      }),
+    );
+    expect(markup).toContain('role="radiogroup"');
+    expect(markup).toContain("Low");
+    expect(markup).toContain('aria-checked="true"');
+    expect(
+      renderProviderReasoningColumn({
+        provider: PROVIDER,
+        model: MODEL,
+        models,
+        modelOptions: undefined,
+        prompt: "",
+        onPromptChange: () => {},
+        planModeEnabled: true,
+      }),
+    ).toBeNull();
   });
 });

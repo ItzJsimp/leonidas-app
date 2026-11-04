@@ -74,7 +74,7 @@ export function buildUnavailableModelOptionDescriptors(
   );
 }
 
-type TraitsPersistence =
+export type TraitsPersistence =
   | {
       threadRef?: ScopedThreadRef;
       draftId?: DraftId;
@@ -115,7 +115,7 @@ function replaceDescriptorCurrentValue(
   );
 }
 
-function getDescriptorStringValue(
+export function getDescriptorStringValue(
   descriptor: Extract<ProviderOptionDescriptor, { type: "select" }> | null,
   selection?: ModelSelection | null,
   reportedSelection?: ModelSelection | null,

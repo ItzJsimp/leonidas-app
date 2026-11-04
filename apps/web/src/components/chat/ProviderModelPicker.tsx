@@ -13,7 +13,7 @@ import {
   type BenchmarkRouteProfiles,
 } from "@t3tools/shared/autoRouter";
 import { RouteIcon } from "lucide-react";
-import { memo, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useNowMinute } from "../../hooks/useNowMinute";
@@ -60,6 +60,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   terminalOpen?: boolean;
   open?: boolean;
   triggerClassName?: string;
+  /** Composer-only: a column shown right of the model list, such as the effort levels. */
+  reasoningColumn?: ReactNode;
   /** Aggregate settings can show a neutral value without claiming one provider is selected. */
   triggerLabel?: string;
   triggerAriaLabel?: string;
@@ -385,35 +387,38 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           />
         ) : null}
         {listOpen ? (
-          <ModelPickerContent
-            environmentId={props.environmentId}
-            activeInstanceId={activeInstanceId}
-            model={props.model}
-            {...(props.selectedModels !== undefined
-              ? { selectedModels: props.selectedModels }
-              : {})}
-            {...(props.onToggleModel
-              ? {
-                  onToggleModel: (instanceId: ProviderInstanceId, model: string) => {
-                    if (!props.disabled) props.onToggleModel?.(instanceId, model);
-                  },
-                }
-              : {})}
-            lockedProvider={props.lockedProvider}
-            lockedContinuationGroupKey={props.lockedContinuationGroupKey ?? null}
-            instanceEntries={props.instanceEntries}
-            {...(props.keybindings ? { keybindings: props.keybindings } : {})}
-            modelOptionsByInstance={props.modelOptionsByInstance}
-            terminalOpen={props.terminalOpen ?? false}
-            onRequestClose={() => setIsMenuOpen(false)}
-            {...(props.onOpenProviderSetup
-              ? { onOpenProviderSetup: props.onOpenProviderSetup }
-              : {})}
-            {...(props.getModelDisabledReason
-              ? { getModelDisabledReason: props.getModelDisabledReason }
-              : {})}
-            onInstanceModelChange={handleInstanceModelChange}
-          />
+          <div className="flex min-w-0">
+            <ModelPickerContent
+              environmentId={props.environmentId}
+              activeInstanceId={activeInstanceId}
+              model={props.model}
+              {...(props.selectedModels !== undefined
+                ? { selectedModels: props.selectedModels }
+                : {})}
+              {...(props.onToggleModel
+                ? {
+                    onToggleModel: (instanceId: ProviderInstanceId, model: string) => {
+                      if (!props.disabled) props.onToggleModel?.(instanceId, model);
+                    },
+                  }
+                : {})}
+              lockedProvider={props.lockedProvider}
+              lockedContinuationGroupKey={props.lockedContinuationGroupKey ?? null}
+              instanceEntries={props.instanceEntries}
+              {...(props.keybindings ? { keybindings: props.keybindings } : {})}
+              modelOptionsByInstance={props.modelOptionsByInstance}
+              terminalOpen={props.terminalOpen ?? false}
+              onRequestClose={() => setIsMenuOpen(false)}
+              {...(props.onOpenProviderSetup
+                ? { onOpenProviderSetup: props.onOpenProviderSetup }
+                : {})}
+              {...(props.getModelDisabledReason
+                ? { getModelDisabledReason: props.getModelDisabledReason }
+                : {})}
+              onInstanceModelChange={handleInstanceModelChange}
+            />
+            {props.reasoningColumn}
+          </div>
         ) : null}
         {listOpen && props.selectedModels === undefined ? (
           <ChatGptSharingControl provider={activeEntry?.snapshot ?? null} />

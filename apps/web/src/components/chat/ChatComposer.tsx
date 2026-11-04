@@ -321,6 +321,7 @@ import {
   getComposerProviderState,
 } from "../../composerProviderState";
 import {
+  renderProviderReasoningColumn,
   renderProviderTraitsMenuContent,
   renderProviderTraitsPicker,
 } from "./composerProviderState";
@@ -3193,6 +3194,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     onPromptChange: setPromptFromTraits,
     planModeEnabled: settings.planModeEnabled,
   });
+  const providerReasoningColumn = renderProviderReasoningColumn({
+    provider: selectedProvider,
+    instanceId: selectedInstanceId,
+    ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
+    ...(routeKind === "draft" && draftId ? { draftId } : {}),
+    model: selectedModel,
+    models: selectedProviderModels,
+    modelOptions: composerModelOptions?.[selectedInstanceId],
+    reportedModelSelection,
+    prompt,
+    onPromptChange: setPromptFromTraits,
+    planModeEnabled: settings.planModeEnabled,
+  });
   const providerTraitsPickerInput = {
     provider: selectedProvider,
     instanceId: selectedInstanceId,
@@ -5779,6 +5793,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         environmentId={environmentId}
         compact={false}
         isComposerOwned
+        reasoningColumn={providerReasoningColumn}
         disabled={providerCatalogPending || isSendBusy}
         {...(routeKind === "draft" && supportsMultipleModels
           ? {
