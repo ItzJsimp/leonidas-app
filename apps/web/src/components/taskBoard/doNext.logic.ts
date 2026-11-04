@@ -81,7 +81,7 @@ export function groupByState<T extends TaskBoardTask>(
 }
 
 export type FocusPlan<T> = {
-  /** The one card to start with: in-progress work first, else the top of Next. */
+  /** The one card to start with: late cards first, then in-progress work, then the top of Next. */
   lead: T | null;
   /** The cards after the lead, from Now and then Next. */
   rest: T[];
@@ -96,11 +96,7 @@ export function buildFocus<T extends TaskBoardTask>(
   restCount = 5,
 ): FocusPlan<T> {
   const groups = groupByState(tasks, now);
-  const lead =
-    groups.now.find((task) => task.status === "in_progress") ??
-    groups.next[0] ??
-    groups.now[0] ??
-    null;
+  const lead = groups.now[0] ?? groups.next[0] ?? null;
   const open = tasks.filter(isOpen).map((task) => taskFlags(task, now));
   return {
     lead,

@@ -370,11 +370,23 @@ describe("buildDashboard", () => {
     expect(result[0]?.id).toBe("s7");
   });
 
-  it("leads Focus with in-progress work, then the rest of Now and Next", () => {
+  it("leads Focus with a late card, then the rest of Now and Next", () => {
     const focus = buildFocus(tasks, NOW);
-    expect(focus.lead?.id).toBe("today");
-    expect(focus.rest.map((t) => t.id)).toEqual(["overdue", "soon", "fresh", "later", "stale"]);
+    expect(focus.lead?.id).toBe("overdue");
+    expect(focus.rest.map((t) => t.id)).toEqual(["today", "soon", "fresh", "later", "stale"]);
     expect(focus.counts).toEqual({ now: 2, waiting: 2, stale: 2, noGates: 8 });
+  });
+
+  it("leads Focus with a late card before a to-do card that is due later", () => {
+    const focus = buildFocus(
+      [
+        view("soon", { due: "2026-10-12", priority: "high" }),
+        view("late", { due: "2026-10-05", priority: "low" }),
+      ],
+      NOW,
+    );
+    expect(focus.lead?.id).toBe("late");
+    expect(focus.rest.map((t) => t.id)).toEqual(["soon"]);
   });
 
   it("says why the lead card comes first", () => {
