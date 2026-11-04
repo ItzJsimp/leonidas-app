@@ -180,6 +180,20 @@ export const aiosDirectionQuery = createEnvironmentRpcQueryAtomFamily(connection
   idleTtlMs: 60_000,
 });
 
+/** The task property list from the AIOS task-schema.json. */
+export const taskSchemaQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:task-board:schema",
+  tag: WS_METHODS.taskBoardSchemaGet,
+  staleTimeMs: 30_000,
+  idleTtlMs: 60_000,
+});
+
+/** Adds, changes or removes one task property. Resolves the new property list. */
+export const taskSchemaPropertySet = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:task-board:schema-property-set",
+  tag: WS_METHODS.taskBoardSchemaPropertySet,
+});
+
 /** The org record (Departments, Areas, Members) of a business workspace. `org` is null otherwise. */
 export const workspaceOrgQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
   label: "environment-data:task-board:workspace-org",

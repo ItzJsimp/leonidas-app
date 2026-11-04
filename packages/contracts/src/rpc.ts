@@ -72,6 +72,8 @@ import {
   TaskBoardWorkspaceInput,
   TaskBoardWorkspaceSnapshot,
   TaskBoardCardUpdateInput,
+  TaskSchemaPropertySetInput,
+  TaskSchemaResult,
   TaskBoardCardCreateInput,
   InboxDrop,
   InboxDropInput,
@@ -680,6 +682,8 @@ export const WS_METHODS = {
   taskBoardUpdate: "taskBoard.update",
   taskBoardWorkspace: "taskBoard.workspace",
   taskBoardCardUpdate: "taskBoard.cardUpdate",
+  taskBoardSchemaGet: "taskBoard.schemaGet",
+  taskBoardSchemaPropertySet: "taskBoard.schemaPropertySet",
   taskBoardCardCreate: "taskBoard.cardCreate",
   taskBoardShare: "taskBoard.share",
   taskBoardAiosDetect: "taskBoard.aiosDetect",
@@ -1902,6 +1906,19 @@ const WsSubagentRunsListRpc = Rpc.make(WS_METHODS.subagentRunsList, {
   payload: SubagentRunsInput,
   success: SubagentRunsResult,
   error: Schema.Union([SubagentRunsError, EnvironmentAuthorizationError]),
+});
+
+// The AIOS task-schema.json property list, and one property change at a time.
+const WsTaskBoardSchemaGetRpc = Rpc.make(WS_METHODS.taskBoardSchemaGet, {
+  payload: AiosWorkspaceScopeInput,
+  success: TaskSchemaResult,
+  error: Schema.Union([TaskBoardReadError, EnvironmentAuthorizationError]),
+});
+
+const WsTaskBoardSchemaPropertySetRpc = Rpc.make(WS_METHODS.taskBoardSchemaPropertySet, {
+  payload: TaskSchemaPropertySetInput,
+  success: TaskSchemaResult,
+  error: Schema.Union([TaskBoardReadError, TaskBoardOperationError, EnvironmentAuthorizationError]),
 });
 
 const WsTaskBoardCardUpdateRpc = Rpc.make(WS_METHODS.taskBoardCardUpdate, {
@@ -3443,6 +3460,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsAiosWorkspacePictureRemoveRpc,
   WsAiosWorkspaceHiddenProjectsSetRpc,
   WsAiosWorkspaceTasksLayoutSetRpc,
+  WsTaskBoardSchemaGetRpc,
+  WsTaskBoardSchemaPropertySetRpc,
   WsAreaSyncJoinRpc,
   WsAreaSyncSyncRpc,
   WsAreaSyncStatusRpc,

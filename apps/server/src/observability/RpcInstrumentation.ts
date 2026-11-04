@@ -203,6 +203,8 @@ const RPC_AGGREGATES = {
   [WS_METHODS.taskBoardUpdate]: "workspace",
   [WS_METHODS.taskBoardWorkspace]: "workspace",
   [WS_METHODS.taskBoardCardUpdate]: "workspace",
+  [WS_METHODS.taskBoardSchemaGet]: "workspace",
+  [WS_METHODS.taskBoardSchemaPropertySet]: "workspace",
   [WS_METHODS.taskBoardCardCreate]: "workspace",
   [WS_METHODS.taskBoardShare]: "workspace",
   [WS_METHODS.taskBoardAiosDetect]: "workspace",

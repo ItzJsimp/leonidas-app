@@ -43,6 +43,8 @@ import {
   type AiosWorkspaceInitInput,
   type AiosWorkspaceHiddenProjectsInput,
   type AiosWorkspaceTasksLayoutInput,
+  type TaskSchemaPropertySetInput,
+  type TaskSchemaResult,
   type AiosWorkspaceSummary,
   type AiosWorkspacesListResult,
   type WorkspaceOrgActionResult,
@@ -120,6 +122,7 @@ import {
   writeTasksLayout,
   writeWorkspaceFile,
 } from "./aiosWorkspaces.ts";
+import { readTaskSchema, setTaskSchemaProperty } from "./taskSchema.ts";
 import { planSharedSync, publicCopy } from "./sharedSync.ts";
 import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
@@ -656,6 +659,16 @@ export class TaskBoardService extends Context.Service<
       projects: ReadonlyArray<Project>,
       input: AiosWorkspaceTasksLayoutInput,
     ) => Effect.Effect<void, TaskBoardOperationError>;
+    /** The property list of the workspace's task-schema.json. None when the file is missing. */
+    readonly schemaGet: (
+      projects: ReadonlyArray<Project>,
+      workspaceId: string | undefined,
+    ) => Effect.Effect<TaskSchemaResult>;
+    /** Adds, changes or removes one task-schema.json property. Returns the new list. */
+    readonly schemaPropertySet: (
+      projects: ReadonlyArray<Project>,
+      input: TaskSchemaPropertySetInput,
+    ) => Effect.Effect<TaskSchemaResult, TaskBoardOperationError>;
     /** Folders that look like the user's AIOS, plus the one already confirmed. */
     readonly aiosDetect: (
       input: TaskBoardAiosDetectInput,
@@ -2237,6 +2250,26 @@ const make = Effect.gen(function* () {
       });
     });
 
+  const schemaGet = (projects: ReadonlyArray<Project>, workspaceId: string | undefined) =>
+    Effect.sync(() => {
+      const { root } = scopeFor(projects, { workspaceId });
+      return { properties: root === null ? [] : readTaskSchema(root) };
+    });
+
+  const schemaPropertySet = (projects: ReadonlyArray<Project>, input: TaskSchemaPropertySetInput) =>
+    Effect.gen(function* () {
+      const { root } = scopeFor(projects, { workspaceId: input.workspaceId });
+      if (root === null) return yield* storageError("No AIOS workspace is open.");
+      const properties = yield* Effect.try({
+        try: () => setTaskSchemaProperty(root, input.key, input.property),
+        catch: (cause) =>
+          storageError(
+            cause instanceof Error ? cause.message : "Could not write task-schema.json.",
+          ),
+      });
+      return { properties };
+    });
+
   const workspaceRoot = (projects: ReadonlyArray<Project>, workspaceId: string) =>
     Effect.sync(() => {
       const found = listAiosWorkspaces(workspaceHints(projects)).find(
@@ -2355,6 +2388,8 @@ const make = Effect.gen(function* () {
     workspaceInit,
     hiddenProjectsSet,
     tasksLayoutSet,
+    schemaGet,
+    schemaPropertySet,
     aiosDetect,
     aiosConfirm,
     create,

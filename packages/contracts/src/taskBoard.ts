@@ -447,6 +447,51 @@ export const AiosWorkspaceTasksLayoutInput = Schema.Struct({
 });
 export type AiosWorkspaceTasksLayoutInput = typeof AiosWorkspaceTasksLayoutInput.Type;
 
+// The task property types that the pre-commit Task Schema Gate accepts.
+export const TaskSchemaPropertyType = Schema.Literals([
+  "text",
+  "number",
+  "select",
+  "multi_select",
+  "status",
+  "date",
+  "person",
+  "checkbox",
+  "url",
+]);
+export type TaskSchemaPropertyType = typeof TaskSchemaPropertyType.Type;
+
+// What the app can set on one task-schema.json property. `label` is the shown name: a rename
+// changes only the label, never the card key. `format: "progress"` shows a number as a bar.
+export const TaskSchemaPropertyEdit = Schema.Struct({
+  type: TaskSchemaPropertyType,
+  label: Schema.optional(Schema.String),
+  format: Schema.optional(Schema.Literal("progress")),
+  options: Schema.optional(Schema.Array(Schema.String)),
+  colors: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+});
+export type TaskSchemaPropertyEdit = typeof TaskSchemaPropertyEdit.Type;
+
+// One property of the AIOS task schema. A `builtIn` property keeps its name, type and options,
+// because scripts read it. Only its colors change.
+export const TaskSchemaProperty = Schema.Struct({
+  ...TaskSchemaPropertyEdit.fields,
+  key: Schema.String,
+  builtIn: Schema.Boolean,
+});
+export type TaskSchemaProperty = typeof TaskSchemaProperty.Type;
+
+export const TaskSchemaResult = Schema.Struct({ properties: Schema.Array(TaskSchemaProperty) });
+export type TaskSchemaResult = typeof TaskSchemaResult.Type;
+
+// Adds or changes one property, or removes it on null. Card values stay in the cards.
+export const TaskSchemaPropertySetInput = Schema.Struct({
+  ...workspaceScope,
+  key: TrimmedNonEmptyString,
+  property: Schema.NullOr(TaskSchemaPropertyEdit),
+});
+export type TaskSchemaPropertySetInput = typeof TaskSchemaPropertySetInput.Type;
+
 // The setup prompt: writes workspace.json into a folder the app already lists.
 export const AiosWorkspaceInitInput = Schema.Struct({
   root: TrimmedNonEmptyString,

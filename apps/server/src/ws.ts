@@ -3232,6 +3232,14 @@ const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.hiddenProjectsSet(projects, input)),
           ),
+        [WS_METHODS.taskBoardSchemaGet]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.schemaGet(projects, input.workspaceId)),
+          ),
+        [WS_METHODS.taskBoardSchemaPropertySet]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.schemaPropertySet(projects, input)),
+          ),
         [WS_METHODS.aiosWorkspaceTasksLayoutSet]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.tasksLayoutSet(projects, input)),
