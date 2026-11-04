@@ -66,6 +66,10 @@ import { PracticeDryRunDialog } from "./PracticeDryRunDialog";
 import { PRACTICE_NAME, PRACTICE_SLUG } from "./practice.logic";
 import { usePracticeActions } from "./usePracticeActions";
 import { useTaskActions } from "./useTaskActions";
+import { useTaskUndo } from "./useTaskUndo";
+import type { PendingEdit } from "./taskUndo.logic";
+
+const NO_PENDING: ReadonlyMap<string, PendingEdit> = new Map();
 import { useTaskBoard } from "./useTaskBoard";
 
 const VIEW_OPTIONS: ReadonlyArray<{
@@ -151,12 +155,15 @@ export function TasksPage() {
       : null,
   ).data?.org;
   const areas = useMemo(() => privateAreaOptions(org?.areas ?? []), [org]);
+  const [pending, setPending] = useState<ReadonlyMap<string, PendingEdit>>(NO_PENDING);
   const board = useTaskBoard({
     selectedSlug: prefs.section,
     prefs,
     query,
     practiceTasks: practice.tasks,
+    pending,
   });
+  const undo = useTaskUndo();
   const canCreate = useAtomValue(taskBoardCardCreate.permissionAtom(board.environmentId));
   const {
     actions: realActions,
@@ -169,6 +176,9 @@ export function TasksPage() {
     projects: board.projects,
     selectedSlug: prefs.section,
     refresh: board.refresh,
+    tasks: board.allTasks,
+    undo,
+    setPending,
   });
 
   const actions = inPractice ? practice.actions : realActions;

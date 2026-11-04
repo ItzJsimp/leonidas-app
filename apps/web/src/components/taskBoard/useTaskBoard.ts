@@ -22,6 +22,7 @@ import {
   type OwnerLensOption,
 } from "./owner.logic";
 import type { RoadmapPlan } from "./taskRoadmap.logic";
+import { applyOverlay, type PendingEdit } from "./taskUndo.logic";
 
 import {
   buildDashboard,
@@ -98,8 +99,10 @@ export function useTaskBoard(input: {
   readonly query: string;
   /** Sample tasks shown instead of the real ones while the practice project is selected. */
   readonly practiceTasks?: ReadonlyArray<TaskBoardTask>;
+  /** Edits not yet confirmed by the server, shown at once (see `useTaskActions`). */
+  readonly pending?: ReadonlyMap<string, PendingEdit>;
 }): TaskBoardState {
-  const { selectedSlug, prefs, query, practiceTasks } = input;
+  const { selectedSlug, prefs, query, practiceTasks, pending } = input;
   const environmentId = usePrimaryEnvironmentId();
   const { scope, scopeReady } = useActiveAiosWorkspace();
   const workspace = useEnvironmentQuery(
@@ -144,9 +147,13 @@ export function useTaskBoard(input: {
   useVisibleInterval(refreshShared, SHARED_REFRESH_MS, hasSharedBoards);
 
   const sharedTasks = shared.tasks;
-  const realTasks = useMemo(
+  const mergedTasks = useMemo(
     () => mergeTasks(data?.tasks ?? [], sharedTasks),
     [data?.tasks, sharedTasks],
+  );
+  const realTasks = useMemo(
+    () => (pending ? applyOverlay(mergedTasks, pending) : mergedTasks),
+    [mergedTasks, pending],
   );
   const allTasks = useMemo(
     () =>

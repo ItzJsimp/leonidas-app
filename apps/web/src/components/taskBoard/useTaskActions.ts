@@ -8,11 +8,11 @@ import {
   type EnvironmentId,
   type ProjectId,
   type ThreadId,
-  type TaskBoardCardUpdateInput,
+  type TaskBoardTask,
   type TaskBoardWorkspaceProject,
 } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from "react";
 import { useAtomValue } from "@effect/atom-react";
 
 import { useComposerDraftStore } from "~/composerDraftStore";
@@ -28,13 +28,24 @@ import { toastManager } from "~/components/ui/toast";
 import {
   buildBatchPrompt,
   buildTaskPrompt,
+  priorityLabel,
+  statusLabel,
   type TaskView,
   type TriageSuggestion,
 } from "./taskBoard.logic";
 import type { TaskActions } from "./taskBoard.types";
+import {
+  finishEdit,
+  inversePatch,
+  startEdit,
+  type CardPatch,
+  type PendingEdit,
+} from "./taskUndo.logic";
 import { claimPatch, failureText, pickLaunchProject, planSend } from "./useTaskActions.logic";
+import type { TaskUndo } from "./useTaskUndo";
 
-type CardPatch = Omit<TaskBoardCardUpdateInput, "taskId" | "projectId" | "actor">;
+const shortTitle = (task: TaskView) =>
+  task.title.length > 48 ? `${task.title.slice(0, 47).trimEnd()}...` : task.title;
 
 export type UseTaskActionsInput = {
   readonly environmentId: EnvironmentId | null;
@@ -46,6 +57,12 @@ export type UseTaskActionsInput = {
   readonly selectedSlug: string | null;
   /** Re-reads the task queries; called after every command settles. */
   readonly refresh: () => void;
+  /** The tasks as shown, so an undo edits the newest version of a task. */
+  readonly tasks: ReadonlyArray<TaskView>;
+  /** The tab's shared undo history. */
+  readonly undo: TaskUndo;
+  /** Edits not yet confirmed by the server, shown at once by `useTaskBoard`. */
+  readonly setPending: Dispatch<SetStateAction<ReadonlyMap<string, PendingEdit>>>;
 };
 
 export type UseTaskActionsResult = {
@@ -56,9 +73,9 @@ export type UseTaskActionsResult = {
 };
 
 /**
- * Implements the mutations the Tasks views trigger. Every call is fire and forget: failures
- * surface as a toast and the queries refresh once the command settles, so the views never hold
- * optimistic state.
+ * Implements the mutations the Tasks views trigger. Every call is fire and forget: a card edit
+ * shows at once (`setPending`), adds an undo step, and the queries refresh once the command
+ * settles. A failed save drops its pending edit and undo step and shows a toast.
  */
 export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult {
   const { environmentId, projects: sections } = input;
@@ -118,10 +135,11 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
     [],
   );
 
+  /** Saves one card patch. Resolves the saved task, or null when the save failed (reported). */
   const updateCard = useCallback(
-    (task: TaskView, patch: CardPatch, failureTitle: string) => {
+    (task: TaskView, patch: CardPatch, failureTitle: string): Promise<TaskBoardTask | null> => {
       const { input: current, runCardUpdate: run } = latest.current;
-      if (!current.environmentId) return Promise.resolve(false);
+      if (!current.environmentId) return Promise.resolve(null);
       const environmentId = current.environmentId;
       const projectId = sectionProjectId(task);
       return run({
@@ -133,23 +151,56 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
           ...(projectId ? { projectId } : {}),
           ...patch,
         },
-      }).then((result) => reportResult(result, failureTitle));
+      }).then((result) =>
+        reportResult(result, failureTitle) && result._tag === "Success" ? result.value : null,
+      );
     },
     [reportResult, sectionProjectId],
   );
 
+  // The newest version this page saved per task, so a second quick edit is not refused as stale.
+  const versions = useRef(new Map<string, number>());
+
   // Edits carry the version the user saw, so one made from an old view is refused rather than
   // overwriting a newer change. Notes only append, so they never conflict.
-  const patchAction = useCallback(
-    (task: TaskView, patch: CardPatch, failureTitle: string) =>
-      track(task.id, async () => {
-        await updateCard(
-          task,
-          patch.note !== undefined ? patch : { ...patch, expectedUpdatedAt: task.updatedAt },
-          failureTitle,
-        );
-      }),
+  const save = useCallback(
+    async (fallback: TaskView, patch: CardPatch, failureTitle: string): Promise<boolean> => {
+      const { tasks, setPending } = latest.current.input;
+      const task = tasks.find((item) => item.id === fallback.id) ?? fallback;
+      const version = Math.max(task.updatedAt, versions.current.get(task.id) ?? 0);
+      const versioned =
+        patch.note !== undefined && patch.expectedUpdatedAt === undefined
+          ? patch
+          : { ...patch, expectedUpdatedAt: version };
+      setPending((current) => startEdit(current, task.id, patch));
+      let saved: TaskBoardTask | null = null;
+      await track(task.id, async () => {
+        saved = await updateCard(task, versioned, failureTitle);
+      });
+      const savedAt = (saved as TaskBoardTask | null)?.updatedAt ?? null;
+      if (savedAt !== null) versions.current.set(task.id, savedAt);
+      setPending((current) => finishEdit(current, task.id, savedAt));
+      return savedAt !== null;
+    },
     [track, updateCard],
+  );
+
+  /** Saves a patch and, with a label, adds an undo step that restores the old values. */
+  const patchAction = useCallback(
+    async (task: TaskView, patch: CardPatch, failureTitle: string, label?: string) => {
+      const { undo } = latest.current.input;
+      const before = inversePatch(task, patch);
+      const { note: _note, expectedUpdatedAt: _version, ...redo } = patch;
+      const stepId =
+        label && Object.keys(before).length > 0
+          ? undo.record(label, {
+              undo: () => save(task, before, failureTitle),
+              redo: () => save(task, redo, failureTitle),
+            })
+          : null;
+      if (!(await save(task, patch, failureTitle)) && stepId !== null) undo.drop(stepId);
+    },
+    [save],
   );
 
   // Opens a new chat with the task's prompt typed in but not sent, so the person can change the
@@ -310,15 +361,36 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
       setStatus: (task, status, note) =>
         void patchAction(
           task,
-          // A note skips the version check in patchAction, so this one carries it itself.
+          // A note skips the version check in `save`, so this one carries it itself.
           note ? { status, note, expectedUpdatedAt: task.updatedAt } : { status },
           "Could not change status",
+          status === "done"
+            ? `Done: ${shortTitle(task)}`
+            : status === "retired"
+              ? `Archived: ${shortTitle(task)}`
+              : `${statusLabel(status)}: ${shortTitle(task)}`,
         ),
-      setDue: (task, due) => void patchAction(task, { due }, "Could not change due date"),
+      setDue: (task, due) =>
+        void patchAction(
+          task,
+          { due },
+          "Could not change due date",
+          due ? `Due date changed: ${shortTitle(task)}` : `Due date removed: ${shortTitle(task)}`,
+        ),
       setMilestone: (task, milestone) =>
-        void patchAction(task, { milestone }, "Could not change milestone"),
+        void patchAction(
+          task,
+          { milestone },
+          "Could not change milestone",
+          `Milestone changed: ${shortTitle(task)}`,
+        ),
       setPriority: (task, priority) =>
-        void patchAction(task, { priority }, "Could not change priority"),
+        void patchAction(
+          task,
+          { priority },
+          "Could not change priority",
+          `${priorityLabel(priority)} priority: ${shortTitle(task)}`,
+        ),
       claim: (task) =>
         void patchAction(
           task,
@@ -327,7 +399,12 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
         ),
       release: (task) => void patchAction(task, { claimedBy: null }, "Could not release the task"),
       setAssignee: (task, assignee) =>
-        void patchAction(task, { assignee }, "Could not change the owner"),
+        void patchAction(
+          task,
+          { assignee },
+          "Could not change the owner",
+          `Owner changed: ${shortTitle(task)}`,
+        ),
       setPrivateArea: (task, area) =>
         void patchAction(
           task,
@@ -335,7 +412,12 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
           area === null ? "Could not make the task public" : "Could not make the task private",
         ),
       linkProject: (task, slug) =>
-        void patchAction(task, { projectSlug: slug }, "Could not change the project"),
+        void patchAction(
+          task,
+          { projectSlug: slug },
+          "Could not change the project",
+          `Project changed: ${shortTitle(task)}`,
+        ),
       setShared: (task, shared) => void setShared(task, shared),
       sendToAgent: (task) => void sendToAgent(task),
       sendBatchToAgent: (tasks) => void sendBatchToAgent(tasks),
