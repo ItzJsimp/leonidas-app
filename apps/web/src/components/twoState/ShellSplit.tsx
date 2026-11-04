@@ -7,6 +7,7 @@ import { TeamLensProvider } from "~/components/team/TeamLensContext";
 import { WorkspacePageHeader } from "~/components/WorkspacePageHeader";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
 import { isElectron } from "~/env";
+import { useIsShortTouchScreen } from "~/hooks/useMediaQuery";
 import { observeResize } from "~/lib/observeResize";
 import { cn } from "~/lib/utils";
 import type { ThreadRouteTarget } from "~/threadRoutes";
@@ -37,6 +38,7 @@ export function ShellSplit({
   readonly modalOpen?: boolean;
 }) {
   const width = useViewportWidth();
+  const isShortTouchScreen = useIsShortTouchScreen();
   const split = useTwoStateStore((state) => state.split);
   const ratio = useTwoStateStore((state) => state.ratio);
   const setRatio = useTwoStateStore((state) => state.setRatio);
@@ -117,7 +119,10 @@ export function ShellSplit({
           />
         ) : null}
         {showChat ? (
-          <ChatPane urlTarget={threadTarget} reserveTop={width < DRAWER_BELOW_WIDTH} />
+          <ChatPane
+            urlTarget={threadTarget}
+            reserveTop={width < DRAWER_BELOW_WIDTH || isShortTouchScreen}
+          />
         ) : null}
       </div>
       {modalOpen ? <Outlet /> : null}

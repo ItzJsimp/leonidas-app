@@ -10,6 +10,7 @@ import {
 import { useLocation, useNavigate, useParams } from "@tanstack/react-router";
 
 import { isElectron } from "../env";
+import { useIsShortTouchScreen } from "../hooks/useMediaQuery";
 import { getLocalStorageItem } from "../hooks/useLocalStorage";
 import { resolveShortcutCommand } from "../keybindings";
 import { isEditableFocused } from "../lib/editableFocus";
@@ -174,7 +175,8 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
       : false;
   });
   // Under 728 px the rail becomes a drawer behind a menu button.
-  const railVisible = viewportWidth >= DRAWER_BELOW_WIDTH;
+  const isShortTouchScreen = useIsShortTouchScreen();
+  const railVisible = viewportWidth >= DRAWER_BELOW_WIDTH && !isShortTouchScreen;
   const sidebarProviderStyle = {
     "--sidebar-width": `${clampThreadSidebarWidth(sidebarWidth, sidebarMinimumWidth, sidebarMaximumWidth)}px`,
     "--panel-animation-duration": `${panelAnimationDurationMs}ms`,

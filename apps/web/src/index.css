@@ -1,6 +1,28 @@
 @import "tailwindcss";
 @import "./styles/fonts.css";
 
+/* Keep short touch screens in the phone layout. Match useMediaQuery.ts. */
+@custom-variant sm {
+  @media (width >= 40rem) and ((pointer: fine) or (pointer: none) or (height > 500px)) {
+    @slot;
+  }
+}
+@custom-variant md {
+  @media (width >= 48rem) and ((pointer: fine) or (pointer: none) or (height > 500px)) {
+    @slot;
+  }
+}
+@custom-variant max-sm {
+  @media (width < 40rem), (pointer: coarse) and (height <= 500px) {
+    @slot;
+  }
+}
+@custom-variant max-md {
+  @media (width < 48rem), (pointer: coarse) and (height <= 500px) {
+    @slot;
+  }
+}
+
 @custom-variant dark (&:is(.dark, .dark *));
 @custom-variant light (&:not(.dark, .dark *));
 /* Window Controls Overlay: active when Electron exposes native titlebar control geometry. */

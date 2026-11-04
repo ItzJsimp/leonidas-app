@@ -20,6 +20,7 @@ import { ThreadRouteView } from "~/components/ThreadRouteView";
 import { Button } from "~/components/ui/button";
 import { Sidebar } from "~/components/ui/sidebar";
 import { useHandleNewThread } from "~/hooks/useHandleNewThread";
+import { useIsShortTouchScreen } from "~/hooks/useMediaQuery";
 import { startNewThreadFromContext } from "~/lib/chatThreadActions";
 import { cn } from "~/lib/utils";
 import { observeResize } from "~/lib/observeResize";
@@ -86,7 +87,8 @@ export function ChatPane({
       ? { kind: "server", threadRef: lastRef }
       : null);
 
-  const beside = width >= LIST_BESIDE_MIN_WIDTH;
+  const isShortTouchScreen = useIsShortTouchScreen();
+  const beside = width >= LIST_BESIDE_MIN_WIDTH && !isShortTouchScreen;
   const open = beside ? chatListOpen : floatingOpen;
   const toggle = () => (beside ? setChatListOpen(!chatListOpen) : setFloatingOpen(!floatingOpen));
   const ToggleIcon = open ? PanelLeftCloseIcon : PanelLeftOpenIcon;

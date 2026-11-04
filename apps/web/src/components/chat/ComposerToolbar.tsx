@@ -47,11 +47,11 @@ export const ComposerToolbar = memo(function ComposerToolbar(props: {
           data-icons-only={iconsOnly}
           className={cn(
             // When the labels do not fit, chips show icons only, so no label cuts mid-word.
-            "flex min-w-0 items-center gap-0.5 px-1 data-[icons-only=true]:[&_[data-composer-toolbar-label]]:sr-only data-[icons-only=true]:[&_[data-slot=composer-banner-content]]:sr-only",
+            "flex min-w-0 items-center gap-0.5 px-1 pointer-fine:data-[icons-only=true]:[&_[data-composer-toolbar-label]]:sr-only pointer-fine:data-[icons-only=true]:[&_[data-slot=composer-banner-content]]:sr-only",
             // The strip is one surface: the shoulder tabs inside it lose their own.
             "[&_[data-composer-banner-surface]]:py-0 [&_[data-composer-banner-surface]]:before:hidden [&_[data-composer-banner-surface]]:after:hidden",
             props.collapsed &&
-              "[&_[data-composer-banner-surface]]:[--composer-banner-icon-column:--spacing(4)] [&_[data-slot=composer-banner-content]]:sr-only [&_svg]:size-3",
+              "[&_[data-composer-banner-surface]]:[--composer-banner-icon-column:--spacing(4)] pointer-fine:[&_[data-slot=composer-banner-content]]:sr-only [&_svg]:size-3",
           )}
         >
           <div

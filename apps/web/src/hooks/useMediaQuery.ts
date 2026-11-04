@@ -16,12 +16,16 @@ type BreakpointQuery = Breakpoint | `max-${Breakpoint}` | `${Breakpoint}:max-${B
 
 function resolveMin(value: Breakpoint | number): string {
   const px = typeof value === "number" ? value : BREAKPOINTS[value];
-  return `(min-width: ${px}px)`;
+  return value === "sm" || value === "md"
+    ? `(min-width: ${px}px) and ((pointer: fine) or (pointer: none) or (height > 500px))`
+    : `(min-width: ${px}px)`;
 }
 
 function resolveMax(value: Breakpoint | number): string {
   const px = typeof value === "number" ? value : BREAKPOINTS[value];
-  return `(max-width: ${px - 1}px)`;
+  return value === "sm" || value === "md"
+    ? `((max-width: ${px - 1}px) or ((pointer: coarse) and (height <= 500px)))`
+    : `(max-width: ${px - 1}px)`;
 }
 
 function parseQuery(query: BreakpointQuery | MediaQueryInput | (string & {})): string {
@@ -84,4 +88,8 @@ export function useMediaQuery(query: BreakpointQuery | MediaQueryInput | (string
 
 export function useIsMobile(): boolean {
   return useMediaQuery("max-md");
+}
+
+export function useIsShortTouchScreen(): boolean {
+  return useMediaQuery("(pointer: coarse) and (height <= 500px)");
 }
