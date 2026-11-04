@@ -129,3 +129,16 @@ describe("pending edits", () => {
     expect(applyOverlay(tasks, failed)).toBe(tasks);
   });
 });
+
+describe("property values", () => {
+  it("reverts, shows and merges property edits", () => {
+    const t = task("a", { props: { points: "3", mood: "Busy" } } as Partial<TaskView>);
+    expect(inversePatch(t, { props: { points: "5", focus: "Home" } })).toEqual({
+      props: { points: "3", focus: null },
+    });
+    let overlay = startEdit(new Map(), "a", { props: { points: null } });
+    overlay = startEdit(overlay, "a", { props: { focus: "Home" } });
+    const [shown] = applyOverlay([t], overlay);
+    expect(shown?.props).toEqual({ mood: "Busy", focus: "Home" });
+  });
+});

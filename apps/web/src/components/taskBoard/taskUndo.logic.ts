@@ -77,6 +77,11 @@ export function inversePatch(task: TaskView, patch: CardPatch): CardPatch {
   for (const key of UNDOABLE) {
     if (patch[key] !== undefined) before[key] = task[key] ?? null;
   }
+  if (patch.props) {
+    before.props = Object.fromEntries(
+      Object.keys(patch.props).map((key) => [key, task.props?.[key] ?? null]),
+    );
+  }
   return before as CardPatch;
 }
 
@@ -98,7 +103,14 @@ export function startEdit(
 ): Map<string, PendingEdit> {
   const current = overlay.get(taskId);
   return new Map(overlay).set(taskId, {
-    patch: { ...current?.patch, ...patch },
+    patch: {
+      ...current?.patch,
+      ...patch,
+      // Two quick edits of different properties both stay pending.
+      ...(current?.patch.props && patch.props
+        ? { props: { ...current.patch.props, ...patch.props } }
+        : {}),
+    },
     inFlight: (current?.inFlight ?? 0) + 1,
     savedAt: current?.savedAt ?? 0,
   });
@@ -140,6 +152,11 @@ export function applyOverlay(
     const shown: Record<string, unknown> = { ...task };
     for (const key of UNDOABLE) {
       if (edit.patch[key] !== undefined) shown[key] = edit.patch[key];
+    }
+    if (edit.patch.props) {
+      const props: Record<string, unknown> = { ...task.props, ...edit.patch.props };
+      for (const key of Object.keys(props)) if (props[key] === null) delete props[key];
+      shown.props = props;
     }
     if (edit.patch.projectSlug !== undefined) {
       shown.section = edit.patch.projectSlug?.trim() || GENERAL_SECTION;

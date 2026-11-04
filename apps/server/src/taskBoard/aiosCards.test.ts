@@ -1009,3 +1009,61 @@ describe("game card board fields", () => {
     );
   });
 });
+
+describe("added property values", () => {
+  const raw = card(
+    [
+      "type: task",
+      "id: task-p",
+      'name: "P"',
+      'status: "Not started"',
+      'priority: "Medium"',
+      'energy_type: "Deep Work"',
+      "story_points: 3",
+      "focus_tags: [a, b]",
+      "autonomous: false",
+    ].join("\n"),
+  );
+  const read = (text: string) =>
+    cardToTask({ fileName: "p.md", raw: text, mtimeMs: NOW, now: NOW });
+
+  it("reads the keys that have no task field as props", () => {
+    expect(read(raw)?.props).toEqual({
+      energy_type: "Deep Work",
+      story_points: "3",
+      focus_tags: ["a", "b"],
+      autonomous: "false",
+    });
+  });
+
+  it("writes, changes and clears props with one activity line", () => {
+    const next = applyCardPatch(
+      raw,
+      {
+        actor: "Jake",
+        props: {
+          story_points: "5",
+          mood: "Calm, mostly",
+          review_on: "2026-11-10",
+          focus_tags: ["c"],
+          autonomous: null,
+        },
+      },
+      NOW,
+    );
+    expect(next).toContain("story_points: 5\n");
+    expect(next).toContain('mood: "Calm, mostly"\n');
+    expect(next).toContain("review_on: 2026-11-10\n");
+    expect(next).toContain('focus_tags: ["c"]\n');
+    expect(next).not.toContain("autonomous:");
+    expect(next).toContain("story_points → 5");
+    expect(read(next)?.props).toEqual({
+      energy_type: "Deep Work",
+      story_points: "5",
+      focus_tags: ["c"],
+      mood: "Calm, mostly",
+      review_on: "2026-11-10",
+    });
+    expect(applyCardPatch(next, { actor: "Jake", props: { story_points: "5" } }, NOW)).toBe(next);
+  });
+});

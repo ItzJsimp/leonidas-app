@@ -40,7 +40,42 @@ export interface AiosCardPatch {
   readonly actor: string;
   readonly agentLabel?: string | undefined;
   readonly threadId?: string | null | undefined;
+  /** Property values for keys without a task field; `null` removes the key. Checked by the caller. */
+  readonly props?: Readonly<Record<string, string | ReadonlyArray<string> | null>> | undefined;
 }
+
+/** Card keys that the app maps to task fields or writes itself. The rest come back as `props`. */
+export const CARD_FIELD_KEYS: ReadonlySet<string> = new Set([
+  "type",
+  "id",
+  "name",
+  "title",
+  "status",
+  "priority",
+  "project",
+  "project_id",
+  "due",
+  "milestone",
+  "effort",
+  "tags",
+  "assignee",
+  "claimed_by",
+  "claimed_agent",
+  "claimed_at",
+  "completed_date",
+  "completed_by",
+  "created",
+  "last_touched",
+  "shared",
+  "shared_by",
+  "shared_sync",
+  "thread_id",
+  "thread_ids",
+  "kind",
+  "system",
+  "private",
+  "area",
+]);
 
 const ID_PATTERN = /^[A-Za-z0-9._-]{1,120}$/;
 const KEY_LINE = /^([A-Za-z0-9_-]+):[ \t]*(.*)$/;
@@ -465,6 +500,10 @@ export function cardToTask(input: {
   const history = activity ? parseActivity(id, body.slice(activity.start, activity.end)) : [];
   if (activity) body = body.slice(0, activity.headingStart) + body.slice(activity.end);
   const description = body.trim();
+  const propEntries = Object.entries(fields).filter(
+    ([key, value]) => !CARD_FIELD_KEYS.has(key) && value !== "" && value.length > 0,
+  );
+  const props = propEntries.length > 0 ? Object.fromEntries(propEntries) : undefined;
 
   const doneWhen = findSection(parsed.body, "Done when");
   let checklist: { done: number; total: number } | undefined;
@@ -585,6 +624,7 @@ export function cardToTask(input: {
     sourceFile: NodePath.basename(input.fileName),
     issueUrl: null,
     history,
+    ...(props ? { props } : {}),
   };
   if (game) gameTasks.add(task);
   return task;
@@ -1003,6 +1043,31 @@ export function applyCardPatch(raw: string, patch: AiosCardPatch, now: number): 
       other.push(shared ? "shared with collaborators" : "stopped sharing");
       changed = true;
     }
+  }
+
+  for (const [key, value] of Object.entries(patch.props ?? {})) {
+    const next =
+      value === null ? [] : typeof value === "string" ? [oneLine(value)] : value.map(oneLine);
+    const kept = next.filter(Boolean);
+    const list = Array.isArray(value);
+    const had = fields[key] ?? "";
+    const before = typeof had === "string" ? [had].filter(Boolean) : had;
+    if (JSON.stringify(kept) === JSON.stringify(before)) continue;
+    const scalar = kept[0] ?? "";
+    // Numbers, true or false and dates stay bare, like the cards that scripts write.
+    const bare = /^(-?\d+(\.\d+)?|true|false|\d{4}-\d{2}-\d{2})$/.test(scalar);
+    setKey(
+      key,
+      kept.length === 0
+        ? null
+        : list
+          ? `[${kept.map(quote).join(", ")}]`
+          : bare
+            ? scalar
+            : quote(scalar),
+    );
+    other.push(kept.length === 0 ? `cleared ${key}` : `${key} → ${kept.join(", ")}`);
+    changed = true;
   }
 
   // Withdrawing a card from the shared board also drops its sync state.

@@ -69,6 +69,10 @@ export const TaskBoardHistoryEntry = Schema.Struct({
 });
 export type TaskBoardHistoryEntry = typeof TaskBoardHistoryEntry.Type;
 
+// One card frontmatter value: a scalar, or a list for a multi_select property.
+export const TaskPropValue = Schema.Union([Schema.String, Schema.Array(Schema.String)]);
+export type TaskPropValue = typeof TaskPropValue.Type;
+
 export const TaskBoardTask = Schema.Struct({
   id: TrimmedNonEmptyString,
   project: TrimmedNonEmptyString,
@@ -117,6 +121,8 @@ export const TaskBoardTask = Schema.Struct({
   sourceRoot: Schema.optional(TrimmedNonEmptyString),
   issueUrl: Schema.NullOr(TrimmedNonEmptyString),
   history: Schema.Array(TaskBoardHistoryEntry),
+  // Card frontmatter keys that have no task field (task-schema.json properties and others).
+  props: Schema.optional(Schema.Record(Schema.String, TaskPropValue)),
 });
 export type TaskBoardTask = typeof TaskBoardTask.Type;
 
@@ -319,6 +325,19 @@ export const TaskBoardCardUpdateInput = Schema.Struct({
   privateArea: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   // Appended to the card's activity log.
   note: Schema.optional(Schema.String.check(Schema.isMaxLength(4_000))),
+  // Sets task-schema.json property values on the card; `null` clears one. The server checks
+  // each key and value against the schema.
+  props: Schema.optional(
+    Schema.Record(
+      Schema.String,
+      Schema.NullOr(
+        Schema.Union([
+          Schema.String.check(Schema.isMaxLength(500)),
+          Schema.Array(Schema.String.check(Schema.isMaxLength(80))).check(Schema.isMaxLength(50)),
+        ]),
+      ),
+    ),
+  ),
 });
 export type TaskBoardCardUpdateInput = typeof TaskBoardCardUpdateInput.Type;
 

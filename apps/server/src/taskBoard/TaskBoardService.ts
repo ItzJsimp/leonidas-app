@@ -122,7 +122,7 @@ import {
   writeTasksLayout,
   writeWorkspaceFile,
 } from "./aiosWorkspaces.ts";
-import { readTaskSchema, setTaskSchemaProperty } from "./taskSchema.ts";
+import { checkCardProps, readTaskSchema, setTaskSchemaProperty } from "./taskSchema.ts";
 import { planSharedSync, publicCopy } from "./sharedSync.ts";
 import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
@@ -444,6 +444,7 @@ function cardPatchFor(input: TaskBoardCardUpdateInput, card: TaskBoardTask): Aio
           : undefined,
     effort: input.effort,
     labels: input.labels,
+    props: input.props,
     note: input.note,
     agentLabel: agentLabel(input.agent),
     threadId: input.agent?.threadId,
@@ -1572,6 +1573,12 @@ const make = Effect.gen(function* () {
             reason: "task_not_found",
             message: "Task not found.",
           });
+        if (input.props) {
+          throw new TaskBoardOperationError({
+            reason: "invalid_data",
+            message: "Added properties need the task's card file in this AIOS.",
+          });
+        }
         // Checked on every attempt, so a GitHub retry re-validates against the latest board.
         if (input.expectedUpdatedAt !== undefined && existing.updatedAt !== input.expectedUpdatedAt)
           throw staleRevision();
@@ -1710,6 +1717,9 @@ const make = Effect.gen(function* () {
           }
           const conflict = claimConflict(current, input);
           if (conflict) throw conflict;
+          const problem = input.props ? checkCardProps(readTaskSchema(root), input.props) : null;
+          if (problem)
+            throw new TaskBoardOperationError({ reason: "invalid_data", message: problem });
           const pending = current.shared === true && target !== undefined;
           writeCardAtomically(
             file,

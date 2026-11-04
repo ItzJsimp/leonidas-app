@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import {
   TASK_SCHEMA_FILE,
+  checkCardProps,
   editTaskSchema,
   formatTaskSchema,
   readTaskSchema,
@@ -174,5 +175,21 @@ describe("task schema on disk", () => {
     expect(
       setTaskSchemaProperty(root, "story_points", { type: "number", format: "progress" }).at(-1),
     ).toMatchObject({ type: "number", format: "progress" });
+  });
+});
+
+describe("checkCardProps", () => {
+  const properties = [
+    { key: "story_points", type: "number", builtIn: false },
+    { key: "status", type: "status", options: ["Not started", "Done"], builtIn: true },
+    { key: "energy_type", type: "select", options: ["Deep Work"], builtIn: true },
+  ] as const;
+
+  it("allows schema keys without a task field and refuses the rest", () => {
+    expect(checkCardProps(properties, { story_points: "3", energy_type: null })).toBeNull();
+    expect(checkCardProps(properties, { status: "Done" })).toMatch(/cannot set/);
+    expect(checkCardProps(properties, { mood: "x" })).toMatch(/cannot set/);
+    expect(checkCardProps(properties, { story_points: "lots" })).toMatch(/does not fit/);
+    expect(checkCardProps(properties, { energy_type: "Nap" })).toMatch(/does not fit/);
   });
 });

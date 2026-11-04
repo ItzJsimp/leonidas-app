@@ -10,7 +10,12 @@ import * as NodePath from "node:path";
 
 import type { TaskSchemaProperty, TaskSchemaPropertyEdit } from "@t3tools/contracts";
 
-import { aiosTaskFolders, isRealPathInside, parseFrontmatter } from "./aiosCards.ts";
+import {
+  CARD_FIELD_KEYS,
+  aiosTaskFolders,
+  isRealPathInside,
+  parseFrontmatter,
+} from "./aiosCards.ts";
 
 export const TASK_SCHEMA_FILE = "projects/leonidas-command-center/config/task-schema.json";
 
@@ -282,6 +287,25 @@ export function readTaskSchema(root: string): ReadonlyArray<TaskSchemaProperty> 
     const property = toProperty(key, definition);
     return property ? [property] : [];
   });
+}
+
+/**
+ * Why a card cannot take these property values, or null when it can. A key must be a schema
+ * property without a task field of its own, and each value must pass the gate.
+ */
+export function checkCardProps(
+  properties: ReadonlyArray<Pick<TaskSchemaProperty, "key" | "type" | "options" | "label">>,
+  props: Readonly<Record<string, string | ReadonlyArray<string> | null>>,
+): string | null {
+  const byKey = new Map(properties.map((property) => [property.key, property]));
+  for (const [key, value] of Object.entries(props)) {
+    const property = byKey.get(key);
+    if (!property || CARD_FIELD_KEYS.has(key)) return `A card cannot set "${key}" as a property.`;
+    if (value !== null && !valueFits(property, value)) {
+      return `"${String(value)}" does not fit ${property.label ?? key}.`;
+    }
+  }
+  return null;
 }
 
 /** Every value that cards hold for `key`. */
