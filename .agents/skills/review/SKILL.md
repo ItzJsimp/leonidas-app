@@ -7,7 +7,7 @@ distribution: core
 portable: true
 type: skill
 id: skill-review
-title: "Review"
+title: "review"
 kind: procedure
 load: on-demand
 owner: shared

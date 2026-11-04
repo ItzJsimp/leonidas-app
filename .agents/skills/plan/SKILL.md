@@ -7,7 +7,7 @@ distribution: core
 portable: true
 type: skill
 id: skill-plan
-title: "Plan"
+title: "plan"
 kind: procedure
 load: on-demand
 owner: shared
