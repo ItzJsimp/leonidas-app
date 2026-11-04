@@ -50,8 +50,11 @@ describe("rankSkills rules", () => {
 
   it("honors the cap", () => {
     const prompt = "review the diff, write a failing test first, and tune the slow SQL query";
-    expect(rank(prompt, { cap: 1 }).length).toBeLessThanOrEqual(1);
-    expect(rank(prompt, { cap: 5 }).length).toBeLessThanOrEqual(5);
+    const five = rank(prompt, { cap: 5 });
+    expect(five.length).toBeGreaterThan(2);
+    expect(five.length).toBeLessThanOrEqual(5);
+    expect(rank(prompt, { cap: 1 })).toEqual(five.slice(0, 1));
+    expect(rank(prompt, { cap: 2 })).toEqual(five.slice(0, 2));
   });
 
   it("skips skills the prompt already names", () => {
