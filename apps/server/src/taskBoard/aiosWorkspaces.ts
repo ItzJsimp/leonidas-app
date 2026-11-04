@@ -21,9 +21,21 @@ export interface AiosWorkspaceFile {
   readonly schemaVersion: number;
   /** Projects the Tasks rail folds into "More". Present only when the list is not empty. */
   readonly hiddenProjects?: ReadonlyArray<string>;
+  /** The Tasks tab's saved views, columns and row order. The web client owns its shape. */
+  readonly tasksLayout?: Readonly<Record<string, unknown>>;
 }
 
 const MAX_HIDDEN_PROJECTS = 200;
+// About 1,500 dragged rows plus the views. A bigger value is refused so workspace.json stays small.
+const MAX_TASKS_LAYOUT_CHARS = 100_000;
+
+/** The layout when it is a JSON object within the size limit, else undefined. */
+function parseTasksLayout(value: unknown): Readonly<Record<string, unknown>> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  return JSON.stringify(value).length <= MAX_TASKS_LAYOUT_CHARS
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
 
 /** Distinct, trimmed, non-empty slugs in their given order, capped. */
 function parseHiddenProjects(value: unknown): ReadonlyArray<string> {
@@ -42,7 +54,10 @@ export type AiosWorkspaceState =
 
 function parseWorkspaceFile(value: unknown): AiosWorkspaceFile | string {
   if (typeof value !== "object" || value === null) return "The file is not a JSON object.";
-  const { id, name, type, schemaVersion, hiddenProjects } = value as Record<string, unknown>;
+  const { id, name, type, schemaVersion, hiddenProjects, tasksLayout } = value as Record<
+    string,
+    unknown
+  >;
   if (schemaVersion !== SCHEMA_VERSION) return `schemaVersion must be ${SCHEMA_VERSION}.`;
   if (typeof id !== "string" || !ID_PATTERN.test(id)) {
     return "id must be lowercase letters, digits and hyphens.";
@@ -50,12 +65,14 @@ function parseWorkspaceFile(value: unknown): AiosWorkspaceFile | string {
   if (typeof name !== "string" || !name.trim()) return "name must not be empty.";
   if (type !== "personal" && type !== "business") return 'type must be "personal" or "business".';
   const hidden = parseHiddenProjects(hiddenProjects);
+  const layout = parseTasksLayout(tasksLayout);
   return {
     id,
     name: name.trim(),
     type,
     schemaVersion,
     ...(hidden.length > 0 ? { hiddenProjects: hidden } : {}),
+    ...(layout ? { tasksLayout: layout } : {}),
   };
 }
 
@@ -107,6 +124,27 @@ export function writeHiddenProjects(
   root: string,
   slugs: ReadonlyArray<string>,
 ): AiosWorkspaceState {
+  const hidden = parseHiddenProjects(slugs);
+  return writeWorkspaceKey(root, "hiddenProjects", hidden.length > 0 ? hidden : undefined);
+}
+
+/**
+ * Saves the Tasks tab layout (views, columns, row order), or removes it on `null`. Every other key
+ * stays. Throws when the layout is not an object or is too large, and in the cases of
+ * `writeHiddenProjects`.
+ */
+export function writeTasksLayout(
+  root: string,
+  layout: Readonly<Record<string, unknown>> | null,
+): AiosWorkspaceState {
+  const parsed = layout === null ? undefined : parseTasksLayout(layout);
+  if (layout !== null && !parsed)
+    throw new Error("The Tasks layout is not an object or too large.");
+  return writeWorkspaceKey(root, "tasksLayout", parsed);
+}
+
+/** Sets one top-level key of a ready workspace.json (`undefined` removes it) and keeps the rest. */
+function writeWorkspaceKey(root: string, key: string, value: unknown): AiosWorkspaceState {
   if (readWorkspaceFile(root).status !== "ready") {
     throw new Error("This folder has no valid workspace.json.");
   }
@@ -116,9 +154,8 @@ export function writeHiddenProjects(
     string,
     unknown
   >;
-  const { hiddenProjects: _previous, ...rest } = raw;
-  const hidden = parseHiddenProjects(slugs);
-  const next = hidden.length > 0 ? { ...rest, hiddenProjects: hidden } : rest;
+  const { [key]: _previous, ...rest } = raw;
+  const next = value === undefined ? rest : { ...rest, [key]: value };
   NodeFS.writeFileSync(target, `${JSON.stringify(next, null, 2)}\n`, "utf8");
   listCache.clear();
   return readWorkspaceFile(root);

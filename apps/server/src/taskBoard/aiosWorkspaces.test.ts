@@ -11,6 +11,7 @@ import {
   resolveWorkspaceRoot,
   workspaceForPath,
   writeHiddenProjects,
+  writeTasksLayout,
   writeWorkspaceFile,
 } from "./aiosWorkspaces.ts";
 
@@ -229,6 +230,39 @@ describe("writeHiddenProjects", () => {
     NodeFS.symlinkSync(outside, NodePath.join(root, "workspace.json"), "file");
     expect(() => writeHiddenProjects(root, ["a"])).toThrow();
     expect(JSON.parse(NodeFS.readFileSync(outside, "utf8"))).toEqual(file);
+  });
+});
+
+describe("writeTasksLayout", () => {
+  const file = { id: "me", name: "Me", type: "personal", schemaVersion: 1, hiddenProjects: ["a"] };
+  const layout = { views: [{ id: "today", name: "Today" }], ranks: { "task-1": 1.5 } };
+
+  it("saves the layout, keeps other keys, and removes it on null", () => {
+    const root = makeAios("layout", file);
+    const written = writeTasksLayout(root, layout);
+    expect(written.status === "ready" && written.file.tasksLayout).toEqual(layout);
+    const raw = JSON.parse(NodeFS.readFileSync(NodePath.join(root, "workspace.json"), "utf8"));
+    expect(raw).toMatchObject({ hiddenProjects: ["a"], tasksLayout: layout });
+    writeTasksLayout(root, null);
+    const cleared = readWorkspaceFile(root);
+    expect(cleared.status === "ready" && "tasksLayout" in cleared.file).toBe(false);
+  });
+
+  it("ignores a layout that is not an object or is too large, and refuses to write one", () => {
+    const big = {
+      ranks: Object.fromEntries(Array.from({ length: 9_000 }, (_, i) => [`t${i}`, i])),
+    };
+    for (const bad of [[1], "x", big]) {
+      const root = makeAios(`bad-${typeof bad}-${Array.isArray(bad)}`, {
+        ...file,
+        tasksLayout: bad,
+      });
+      const state = readWorkspaceFile(root);
+      expect(state.status).toBe("ready");
+      expect(state.status === "ready" && "tasksLayout" in state.file).toBe(false);
+    }
+    expect(() => writeTasksLayout(makeAios("big", file), big)).toThrow();
+    expect(() => writeTasksLayout(makeAios("none-layout"), layout)).toThrow();
   });
 });
 
