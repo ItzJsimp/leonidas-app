@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import * as NodeZlib from "node:zlib";
 
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -149,6 +150,41 @@ function resolveDevProxyTarget(
 
 const devProxyTarget = resolveDevProxyTarget(process.env.T3CODE_PORT, configuredWsUrl);
 
+// Writes `<file>.br` (Brotli quality 11) next to every built script and stylesheet. The server sends it
+// as is, so a phone downloads about 20% fewer bytes than the on-the-fly quality the server can afford.
+function precompressBrotliPlugin(): Plugin {
+  let outDir = "";
+  return {
+    name: "leonidas:precompress-brotli",
+    apply: "build",
+    configResolved(config) {
+      outDir = `${config.root}/${config.build.outDir}/assets`;
+    },
+    async closeBundle() {
+      const names = (await readdir(outDir)).filter((name) => /\.(js|css)$/.test(name));
+      const brotli = NodeZlib.brotliCompress.bind(NodeZlib);
+      const encode = (input: Buffer) =>
+        new Promise<Buffer>((resolve, reject) =>
+          brotli(
+            input,
+            { params: { [NodeZlib.constants.BROTLI_PARAM_QUALITY]: 11 } },
+            (error, result) => (error ? reject(error) : resolve(result)),
+          ),
+        );
+      // Four at a time keeps the encode on libuv's pool without starving the build.
+      for (let at = 0; at < names.length; at += 4) {
+        await Promise.all(
+          names.slice(at, at + 4).map(async (name) => {
+            const input = await readFile(`${outDir}/${name}`);
+            if (input.length < 1024) return;
+            await writeFile(`${outDir}/${name}.br`, await encode(input));
+          }),
+        );
+      }
+    },
+  };
+}
+
 // Vite's dev server sends JS uncompressed. On localhost that is free; over a
 // shared origin (tailnet, LAN) it is the whole cold-start: bundled dev serves
 // one ~25 MB chunk, and a typical uplink moves that in about a minute while
@@ -216,6 +252,7 @@ export default defineConfig(() => {
     assetsInclude: ["**/*.wasm"],
     plugins: [
       devCompressionPlugin(),
+      precompressBrotliPlugin(),
       devIconPlugin(),
       thirdPartyLicensesPlugin({
         bundleName: "web",

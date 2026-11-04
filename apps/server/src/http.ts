@@ -664,8 +664,27 @@ const handleStaticAndDevRequest = Effect.fn("handleStaticAndDevRequest")(
     }
 
     const contentType = isHtml ? "text/html; charset=utf-8" : mimeType;
+    // The web build ships `<asset>.br` at Brotli quality 11. Send it as is when the client takes
+    // Brotli: it is about 20% smaller than the on-the-fly encode, which matters on a phone link.
+    // A build without the file, or a client without Brotli, takes the normal path below.
+    const precompressed =
+      immutable &&
+      /\.(js|css)$/.test(filePath) &&
+      /\bbr\b/.test(request.headers["accept-encoding"] ?? "")
+        ? yield* openStaticFile(`${filePath}.br`)
+        : null;
     // The request scope closes the handle for GET, HEAD, 304, errors, and cancellation.
     // HEAD still passes through compression, which selects headers without reading the stream.
+    if (precompressed) {
+      return HttpServerResponse.stream(
+        streamStaticFile(precompressed.file, precompressed.info.size),
+        {
+          headers: { ...headers, "Content-Encoding": "br", Vary: "Accept-Encoding" },
+          contentType,
+          contentLength: Number(precompressed.info.size),
+        },
+      );
+    }
     return HttpServerResponse.stream(streamStaticFile(opened.file, fileInfo.size), {
       headers,
       contentType,
