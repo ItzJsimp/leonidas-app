@@ -295,6 +295,7 @@ import { type TimestampFormat } from "@t3tools/contracts/settings";
 import {
   formatChatTimestampTooltip,
   formatDayAwareTimestamp,
+  formatLocalTimeZoneName,
   formatUpcomingTimestamp,
 } from "../../timestampFormat";
 import { FetchedToolOutput, V2ItemInspector } from "./V2ItemInspector";
@@ -5759,7 +5760,9 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
   if (failureItem?.type === "error" && failureItem.status === "failed") {
     const warning = failureItem.failure.class === "usage_limit";
     const resetAt = failureItem.failure.resetAt;
-    const resetTime = resetAt ? formatUpcomingTimestamp(resetAt, timestampFormat) : null;
+    const resetTime = resetAt
+      ? `${formatUpcomingTimestamp(resetAt, timestampFormat)} ${formatLocalTimeZoneName(resetAt)}`.trim()
+      : null;
     const label = warning
       ? `You used all of your AI account limit.${resetTime ? ` Try again after ${resetTime}.` : ""}`
       : workEntry.label;

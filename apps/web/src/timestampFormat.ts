@@ -221,6 +221,17 @@ export function formatUpcomingTimestamp(
   return `${dateFormatter.format(date)} ${time}`;
 }
 
+/** Short name of this device's time zone at that instant (`CDT`), so a shown time is never ambiguous. */
+export function formatLocalTimeZoneName(isoDate: string): string {
+  const date = parseTimestampDate(isoDate);
+  if (!date) return "";
+  return (
+    new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+      .formatToParts(date)
+      .find((part) => part.type === "timeZoneName")?.value ?? ""
+  );
+}
+
 /**
  * Format a relative time string from an ISO date.
  * Returns `{ value: "20s", suffix: "ago" }` or `{ value: "just now", suffix: null }`

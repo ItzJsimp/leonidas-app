@@ -2263,6 +2263,92 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
     }),
   );
 
+  it.effect("shows only the token totals of the active provider thread on the shell", () =>
+    Effect.gen(function* () {
+      const projectionStore = yield* ProjectionStore.ProjectionStoreV2;
+      const now = yield* DateTime.now;
+      const threadId = ThreadId.make("thread:provider-usage");
+      yield* projectionStore.apply({
+        id: EventId.make("event:provider-usage:thread"),
+        type: "thread.created",
+        threadId,
+        occurredAt: now,
+        payload: {
+          createdBy: "user",
+          creationSource: "web",
+          id: threadId,
+          projectId: ProjectId.make("project:provider-usage"),
+          title: "Provider usage",
+          providerInstanceId,
+          modelSelection,
+          runtimeMode: "full-access",
+          interactionMode: "default",
+          branch: null,
+          worktreePath: null,
+          activeProviderThreadId: null,
+          lineage: { parentThreadId: null, relationshipToParent: null, rootThreadId: threadId },
+          forkedFrom: null,
+          createdAt: now,
+          updatedAt: now,
+          archivedAt: null,
+          settledOverride: null,
+          settledAt: null,
+          lastVisitedAt: null,
+          deletedAt: null,
+        },
+      });
+      const applyProviderThread = (
+        suffix: string,
+        contextUsage: OrchestrationV2ProviderThread["contextUsage"],
+        seconds: number,
+      ) =>
+        projectionStore.apply({
+          id: EventId.make(`event:provider-usage:${suffix}:${seconds}`),
+          type: "provider-thread.updated",
+          threadId,
+          driver,
+          occurredAt: DateTime.add(now, { seconds }),
+          payload: {
+            id: ProviderThreadId.make(`provider-thread:provider-usage:${suffix}`),
+            driver,
+            providerInstanceId,
+            providerSessionId: null,
+            appThreadId: threadId,
+            ownerNodeId: null,
+            nativeThreadRef: null,
+            nativeConversationHeadRef: null,
+            status: "idle",
+            firstRunOrdinal: null,
+            lastRunOrdinal: null,
+            handoffIds: [],
+            forkedFrom: null,
+            contextUsage,
+            createdAt: now,
+            updatedAt: DateTime.add(now, { seconds }),
+          },
+        });
+      const shellUsage = Effect.map(
+        projectionStore.getShellSnapshot(),
+        (snapshot) => snapshot.threads.find((thread) => thread.id === threadId)?.contextUsage,
+      );
+
+      yield* applyProviderThread(
+        "first",
+        { usedTokens: 182_000, maxTokens: 1_000_000, totalProcessedTokens: 4_100_000, toolUses: 9 },
+        0,
+      );
+      // Extra snapshot fields stay on the provider thread.
+      assert.deepEqual(yield* shellUsage, {
+        usedTokens: 182_000,
+        maxTokens: 1_000_000,
+        totalProcessedTokens: 4_100_000,
+      });
+      // A handoff moves the conversation; the previous provider's totals stay behind.
+      yield* applyProviderThread("second", null, 1);
+      assert.isNull(yield* shellUsage);
+    }),
+  );
+
   it.effect("reads the shell snapshot first and decodes it in a separate step", () =>
     Effect.gen(function* () {
       const projectionStore = yield* ProjectionStore.ProjectionStoreV2;

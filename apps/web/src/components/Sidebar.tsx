@@ -234,6 +234,7 @@ import {
   type SidebarListMarker,
   type SidebarSection,
   threadActivityTimestamp,
+  threadUsageLines,
 } from "./Sidebar.logic";
 import { resolveLocalCheckoutBranchMismatch } from "./BranchToolbar.logic";
 import {
@@ -590,6 +591,11 @@ function SidebarThreadTooltip({
             </div>
           </div>
         ) : null}
+        {threadUsageLines(thread.contextUsage).map((line) => (
+          <div key={line} className="min-w-0 truncate pl-5 text-foreground/75">
+            {line}
+          </div>
+        ))}
         {terminalStatus ? (
           <div className="flex min-w-0 items-center gap-2">
             <TerminalIcon

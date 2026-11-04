@@ -23,6 +23,7 @@ import {
   type ThreadSortInput,
 } from "../lib/threadSort";
 import type { SidebarThreadSummary, Thread } from "../types";
+import { formatContextWindowTokens } from "../lib/contextWindow";
 import { cn, normalizeSearchText } from "../lib/utils";
 import { isLatestRunSettled } from "../session-logic";
 import { resolveServerBackedAppStageLabel } from "../branding.logic";
@@ -1501,4 +1502,21 @@ export function resolveReplyStatusMark(
 ): "done" | "need-you" | null {
   if (status === "working") return null;
   return lastReplyStatus === "done" || lastReplyStatus === "need-you" ? lastReplyStatus : null;
+}
+
+/** Hover-card lines for a chat's token totals; empty when the provider reported none. */
+export function threadUsageLines(usage: SidebarThreadSummary["contextUsage"]): string[] {
+  if (!usage || usage.usedTokens <= 0) return [];
+  const used = formatContextWindowTokens(usage.usedTokens);
+  const lines = [
+    usage.maxTokens
+      ? `Context ${used} of ${formatContextWindowTokens(usage.maxTokens)} (${Math.min(100, Math.round((usage.usedTokens / usage.maxTokens) * 100))}%)`
+      : `Context ${used} tokens`,
+  ];
+  if (usage.totalProcessedTokens && usage.totalProcessedTokens > usage.usedTokens) {
+    lines.push(
+      `${formatContextWindowTokens(usage.totalProcessedTokens)} tokens processed in total`,
+    );
+  }
+  return lines;
 }

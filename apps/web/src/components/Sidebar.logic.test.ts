@@ -16,6 +16,7 @@ import {
   deleteSelectedThreadEntries,
   filterSidebarProjectScopeItems,
   filterSidebarV2VisibleThreads,
+  threadUsageLines,
   floatThreadsNeedingUser,
   formatWorkingDurationLabel,
   getFallbackThreadIdAfterDelete,
@@ -2446,5 +2447,23 @@ describe("resolveReplyStatusMark", () => {
     expect(resolveReplyStatusMark("ready", "blocked")).toBeNull();
     expect(resolveReplyStatusMark("ready", null)).toBeNull();
     expect(resolveReplyStatusMark("ready", undefined)).toBeNull();
+  });
+});
+
+describe("threadUsageLines", () => {
+  it("shows context fill and total processed tokens", () => {
+    expect(
+      threadUsageLines({
+        usedTokens: 182_000,
+        maxTokens: 1_000_000,
+        totalProcessedTokens: 4_100_000,
+      }),
+    ).toEqual(["Context 182k of 1m (18%)", "4.1m tokens processed in total"]);
+  });
+  it("omits the percent without a max and hides empty usage", () => {
+    expect(threadUsageLines({ usedTokens: 900 })).toEqual(["Context 900 tokens"]);
+    expect(threadUsageLines({ usedTokens: 0 })).toEqual([]);
+    expect(threadUsageLines(null)).toEqual([]);
+    expect(threadUsageLines(undefined)).toEqual([]);
   });
 });

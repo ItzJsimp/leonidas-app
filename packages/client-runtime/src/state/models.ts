@@ -118,6 +118,8 @@ export interface EnvironmentThreadShell {
   readonly providerInstanceHistory: ReadonlyArray<ProviderInstanceId>;
   /** Native `/goal` on the active provider thread. */
   readonly goal: OrchestrationV2ProviderGoal | null;
+  /** Token totals for the sidebar hover card; null or absent when the provider reported none. */
+  readonly contextUsage?: OrchestrationV2ThreadShell["contextUsage"];
   readonly itemCount: number;
   readonly visibleItemCount: number;
   readonly createdAt: string;
@@ -273,6 +275,7 @@ export function presentThreadShell(
     pendingBackgroundTasks: thread.pendingBackgroundTasks ?? [],
     providerInstanceHistory: thread.providerInstanceHistory ?? [],
     goal: thread.goal ?? null,
+    contextUsage: thread.contextUsage ?? null,
     itemCount: thread.itemCount,
     visibleItemCount: thread.visibleItemCount,
     createdAt: iso(thread.createdAt),

@@ -10,6 +10,7 @@ import {
   formatRelativeTimeUntilLabel,
   formatShortTimestamp,
   formatTimestamp,
+  formatLocalTimeZoneName,
   formatUpcomingTimestamp,
   getRelativeTimeState,
   resolveTimestampLocale,
@@ -239,6 +240,13 @@ describe("formatUpcomingTimestamp", () => {
     expect(formatUpcomingTimestamp(resetAt, "12-hour", now)).toBe(
       formatDayAwareTimestamp(resetAt, "12-hour", now),
     );
+  });
+});
+
+describe("formatLocalTimeZoneName", () => {
+  it("names this device's zone, and is empty for a bad date", () => {
+    expect(formatLocalTimeZoneName("2026-08-14T19:40:00.000Z")).not.toBe("");
+    expect(formatLocalTimeZoneName("not-a-date")).toBe("");
   });
 });
 

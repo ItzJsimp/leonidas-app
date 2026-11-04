@@ -2050,6 +2050,16 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
   ),
   /** Native goal on the active provider thread; omitted by servers without goals. */
   goal: Schema.optional(Schema.NullOr(OrchestrationV2ProviderGoal)),
+  /** Token totals of the active provider thread, for the sidebar hover card. Omitted by older servers. */
+  contextUsage: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({
+        usedTokens: NonNegativeInt,
+        totalProcessedTokens: Schema.optional(NonNegativeInt),
+        maxTokens: Schema.optional(PositiveInt),
+      }),
+    ),
+  ),
   itemCount: NonNegativeInt,
   visibleItemCount: NonNegativeInt,
   createdAt: Schema.DateTimeUtc,
