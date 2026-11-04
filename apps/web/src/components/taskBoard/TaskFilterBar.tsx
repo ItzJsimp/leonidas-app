@@ -89,7 +89,18 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
           value={query}
           onChange={(event) => props.onQueryChange(event.target.value)}
         />
-        {query ? null : (
+        {query ? (
+          <InputGroupAddon align="inline-end">
+            <Button
+              variant="ghost"
+              size="icon-tiny"
+              aria-label="Clear search"
+              onClick={() => props.onQueryChange("")}
+            >
+              <XIcon />
+            </Button>
+          </InputGroupAddon>
+        ) : (
           <InputGroupAddon align="inline-end" className="max-sm:hidden">
             <Kbd>/</Kbd>
           </InputGroupAddon>
@@ -242,7 +253,8 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
           </MenuPopup>
         </Menu>
       ) : null}
-      {activeCount > 0 ? (
+      {/* Search clears from its own box, so this one shows only when a menu filter is on. */}
+      {activeCount > 0 && menuCount > 0 ? (
         <Button
           variant="ghost"
           size="icon-sm"

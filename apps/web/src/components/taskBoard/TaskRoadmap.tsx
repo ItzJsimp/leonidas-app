@@ -7,6 +7,14 @@ import type { EnvironmentId } from "@t3tools/contracts";
 import { ArrowDownIcon, CheckIcon, CircleIcon, FlagIcon, PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogPopup,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/ui/spinner";
 import { Toggle, ToggleGroup } from "~/components/ui/toggle-group";
@@ -42,7 +50,11 @@ export function TaskRoadmapView(props: {
   const [presentation, setPresentation] = useState<"map" | "details">("map");
   const [error, setError] = useState<string | null>(null);
   const [importedKeys, setImportedKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const [confirming, setConfirming] = useState(false);
   const pending = missing.filter((task) => !importedKeys.has(task.key));
+  const pendingPerStep = new Map<string, number>();
+  for (const task of pending)
+    pendingPerStep.set(task.milestone, (pendingPerStep.get(task.milestone) ?? 0) + 1);
   const total = stages.reduce((count, stage) => count + stage.total, 0);
   const done = stages.reduce((count, stage) => count + stage.done, 0);
   const nextVersion = stages.find((stage) => !stage.complete)?.version;
@@ -108,13 +120,15 @@ export function TaskRoadmapView(props: {
         </details>
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <p className="text-sm tabular-nums">
-            {done} of {total} tasks done, {stages.filter((stage) => stage.complete).length} of{" "}
-            {stages.length} steps done
+            {done} of {total} roadmap tasks done, {stages.filter((stage) => stage.complete).length}{" "}
+            of {stages.length} steps done
+            {pending.length > 0 ? `, ${pending.length} planned tasks not yet added` : null}
           </p>
           {pending.length > 0 ? (
             <Button
               size="sm"
-              onClick={() => void importTasks()}
+              variant="outline"
+              onClick={() => setConfirming(true)}
               disabled={!props.environmentId || !canCreate || importing}
             >
               {importing ? <Spinner /> : <PlusIcon aria-hidden />}
@@ -128,6 +142,40 @@ export function TaskRoadmapView(props: {
           </p>
         ) : null}
       </section>
+
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogPopup>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add {pending.length} planned tasks?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Each one becomes a task card in {plan.name}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="space-y-1 px-6 text-sm tabular-nums">
+            {[...pendingPerStep].map(([version, count]) => (
+              <li key={version} className="flex justify-between gap-4">
+                <span>V{version}</span>
+                <span className="text-muted-foreground">
+                  {count} {count === 1 ? "task" : "tasks"}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirming(false);
+                void importTasks();
+              }}
+            >
+              Add {pending.length} tasks
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogPopup>
+      </AlertDialog>
 
       <ToggleGroup
         aria-label="Roadmap presentation"

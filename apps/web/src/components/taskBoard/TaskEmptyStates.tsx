@@ -26,15 +26,20 @@ export function TasksEmpty(props: TasksEmptyContext & { icon: ReactNode }) {
     ? [`No task matches "${query}"`, "Check the spelling, or clear the search to see every task."]
     : onClearFilters
       ? ["No task matches your filters", "Clear the filters to see all your tasks again."]
-      : inbox
+      : inbox && inbox.open > 0
         ? [
             "Inbox is empty",
             `Inbox holds tasks with no project. ${inbox.open} open ${inbox.open === 1 ? "task is" : "tasks are"} in All tasks.`,
           ]
-        : [
-            "No tasks here",
-            "Tasks come from the files in your AIOS task folder. Type a task in the box above to add one.",
-          ];
+        : inbox
+          ? [
+              "Inbox is empty",
+              "Inbox holds tasks with no project. Type a task in the box above to add one.",
+            ]
+          : [
+              "No tasks here",
+              "Tasks come from the files in your AIOS task folder. Type a task in the box above to add one.",
+            ];
   const action = onClearFilters
     ? { label: query ? "Clear search" : "Clear filters", run: onClearFilters }
     : inbox && inbox.open > 0

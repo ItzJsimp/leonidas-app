@@ -1,6 +1,6 @@
 import type { TaskBoardTeamMember, TaskBoardTaskStatus } from "@t3tools/contracts";
 import { BotIcon, EllipsisIcon, KanbanIcon } from "lucide-react";
-import { memo, useCallback, useMemo, useRef, useState, type DragEvent } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -13,6 +13,7 @@ import {
   MenuTrigger,
 } from "~/components/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
+import { observeResize } from "~/lib/observeResize";
 import { cn } from "~/lib/utils";
 import { ChecklistBar, DueChip, PriorityBadge, SharedBadge, TaskFlagChips } from "./TaskBadges";
 import { TasksEmpty, type TasksEmptyContext } from "./TaskEmptyStates";
@@ -358,12 +359,39 @@ export function TaskKanbanView(props: {
     [select, move, send, dragStart, clearDrag],
   );
 
-  if (tasks.length === 0) {
+  // Columns cut at an edge fade out there, so a narrow window shows that the Board scrolls.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+  const updateEdges = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const start = el.scrollLeft > 1;
+    const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setEdges((current) =>
+      current.start === start && current.end === end ? current : { start, end },
+    );
+  }, []);
+  const empty = tasks.length === 0;
+  useEffect(() => {
+    const el = scrollerRef.current;
+    // shortcut: a column shown or hidden without a resize updates the fade on the next scroll.
+    return el ? observeResize(el, updateEdges) : undefined;
+  }, [updateEdges, empty]);
+
+  if (empty) {
     return <TasksEmpty icon={<KanbanIcon />} {...props.empty} />;
   }
 
   return (
-    <div className="@container/board flex h-full min-h-0 snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain p-3">
+    <div
+      ref={scrollerRef}
+      onScroll={updateEdges}
+      className={cn(
+        "@container/board flex h-full min-h-0 snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain p-3",
+        edges.start && "mask-l-from-90%",
+        edges.end && "mask-r-from-90%",
+      )}
+    >
       {columns.map((column) => (
         <KanbanColumn
           key={column.status}
