@@ -619,6 +619,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["command menu dollar $ slash /"],
   },
   {
+    id: "suggest-skill-cap",
+    title: "Skills added by Suggest",
+    to: "/settings/chat",
+    targetId: "composer",
+    searchTerms: ["suggest button wand skills how many limit"],
+  },
+  {
     id: "skill-folders",
     title: "Skill folders",
     to: "/settings/chat",

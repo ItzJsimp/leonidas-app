@@ -17,8 +17,6 @@ export interface SkillPick {
 const MIN_SCORE = 1;
 const RELATIVE_CUT = 0.5;
 const MIN_MATCHES = 2;
-/** How many skills one click may add. Hard limit is 5. */
-export const DEFAULT_SUGGEST_CAP = 3;
 /** Project words only break ties: a project name matches many skills. */
 const PROJECT_WEIGHT = 0.25;
 

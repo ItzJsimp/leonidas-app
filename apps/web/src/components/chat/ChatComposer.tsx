@@ -144,7 +144,6 @@ import {
 import { ComposerNotepadButton } from "./ComposerNotepadButton";
 import { ComposerSkillsButton } from "./ComposerSkillsButton";
 import { ComposerSkillSuggestButton } from "./ComposerSkillSuggestButton";
-import { DEFAULT_SUGGEST_CAP } from "./composerSkillSuggest";
 import { ComposerSubagentsButton } from "../subagents/ComposerSubagentsButton";
 import { useComposerSubagents } from "../subagents/useComposerSubagents";
 import { searchSubagentOptions } from "../subagents/subagentThread.logic";
@@ -7249,7 +7248,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                         prompt={prompt}
                         projectText={gitCwd?.split(/[\\/]/).findLast(Boolean) ?? ""}
                         skills={selectedProviderSkills}
-                        cap={DEFAULT_SUGGEST_CAP}
+                        cap={settings.composerSuggestSkillCap}
                         getPrompt={() => promptRef.current}
                         setPrompt={setPrompt}
                       />

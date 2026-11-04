@@ -56,6 +56,7 @@ const clientSettings: ClientSettings = {
   planModeEnabled: false,
   proactivePanelsEnabled: true,
   showSkillsInSlashMenu: false,
+  composerSuggestSkillCap: 3,
   persistComposerContextStrip: true,
   providerModelPreferences: {},
   sidebarProjectGroupingMode: "repository_path",

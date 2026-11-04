@@ -588,6 +588,10 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   proactivePanelsEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   showSkillsInSlashMenu: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  // How many skills one click on the composer Suggest button may add.
+  composerSuggestSkillCap: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 5 })).pipe(
+    Schema.withDecodingDefault(Effect.succeed(3)),
+  ),
   // The user's own skill folders. Automatic folders (by category and source) are derived, not stored.
   skillFolders: SkillFolderPrefs.pipe(Schema.withDecodingDefault(Effect.succeed({ folders: [] }))),
   // Button bar above the prompt: collapsed state plus the user's changes to the
@@ -2032,6 +2036,9 @@ export const ClientSettingsPatch = Schema.Struct({
   followUpBehavior: Schema.optionalKey(Schema.Literals(["queue", "steer"])),
   proactivePanelsEnabled: Schema.optionalKey(Schema.Boolean),
   showSkillsInSlashMenu: Schema.optionalKey(Schema.Boolean),
+  composerSuggestSkillCap: Schema.optionalKey(
+    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 5 })),
+  ),
   skillFolders: Schema.optionalKey(SkillFolderPrefs),
   composerToolbarCollapsed: Schema.optionalKey(Schema.Boolean),
   composerToolbar: Schema.optionalKey(ComposerToolbarPrefs),

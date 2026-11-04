@@ -725,6 +725,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.showSkillsInSlashMenu !== DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu
         ? ["Show skills in slash menu"]
         : []),
+      ...(settings.composerSuggestSkillCap !== DEFAULT_UNIFIED_SETTINGS.composerSuggestSkillCap
+        ? ["Skills added by Suggest"]
+        : []),
       ...(settings.composerCollapseOnScroll !== DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll
         ? ["Shrink the message box when you scroll"]
         : []),
@@ -843,6 +846,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.sidebarWorkingShelfEnabled,
       settings.sidebarThreadPreviewCount,
       settings.showSkillsInSlashMenu,
+      settings.composerSuggestSkillCap,
       settings.timestampFormat,
       settings.cacheMutedWarnings,
       settings.cacheNoticesSnoozedUntil,
@@ -933,6 +937,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       diffLayout: DEFAULT_UNIFIED_SETTINGS.diffLayout,
       proactivePanelsEnabled: DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled,
       showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
+      composerSuggestSkillCap: DEFAULT_UNIFIED_SETTINGS.composerSuggestSkillCap,
       composerCollapseOnScroll: DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll,
       composerPromptPredictionEnabled: DEFAULT_UNIFIED_SETTINGS.composerPromptPredictionEnabled,
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
@@ -2892,6 +2897,7 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
                 label="composer"
                 keys={[
                   "showSkillsInSlashMenu",
+                  "composerSuggestSkillCap",
                   "skillFolders",
                   "composerPromptPredictionEnabled",
                   "composerRichTextEnabled",
@@ -2924,6 +2930,49 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
                   }
                   aria-label="Show skills in slash menu"
                 />
+              }
+            />
+            <SettingsRow
+              {...searchableSetting("suggest-skill-cap")}
+              description="The Suggest button above the message box adds up to this many skills to the start of your message. It may add fewer, or none."
+              resetAction={
+                settings.composerSuggestSkillCap !==
+                DEFAULT_UNIFIED_SETTINGS.composerSuggestSkillCap ? (
+                  <SettingResetButton
+                    label="skills added by Suggest"
+                    onClick={() =>
+                      updateSettings({
+                        composerSuggestSkillCap: DEFAULT_UNIFIED_SETTINGS.composerSuggestSkillCap,
+                      })
+                    }
+                  />
+                ) : null
+              }
+              control={
+                <Select
+                  value={String(settings.composerSuggestSkillCap)}
+                  onValueChange={(value) => {
+                    const cap = Number(value);
+                    if (Number.isInteger(cap) && cap >= 1 && cap <= 5) {
+                      updateSettings({ composerSuggestSkillCap: cap });
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="w-auto min-w-0"
+                    aria-label="Skills added by Suggest"
+                  >
+                    <SelectValue>{settings.composerSuggestSkillCap}</SelectValue>
+                  </SelectTrigger>
+                  <SelectPopup align="end" alignItemWithTrigger={false}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
               }
             />
             <SettingsRow
