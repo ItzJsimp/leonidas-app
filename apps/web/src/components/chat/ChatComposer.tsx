@@ -5,7 +5,6 @@ import {
   usePendingCacheNote,
 } from "./CacheAwareness";
 import { ComposerVoiceButton } from "../voice/ComposerVoiceButton";
-import { useBenchmarkRouteProfiles } from "../../lib/useBenchmarkRouteProfiles";
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
 import { usePromptPrediction } from "./usePromptPrediction";
 import { useComposerTypingGuard } from "./useComposerTypingGuard";
@@ -70,7 +69,6 @@ import { useSplitPane } from "../split/splitPaneContext";
 import { folderDropTarget, resolveDroppedFolderPath } from "./folderDrop";
 import { createModelSelection, normalizeModelSlug } from "@t3tools/shared/model";
 import { USAGE_LIMITS_COMMAND } from "@t3tools/shared/usageLimits";
-import { routeTurn } from "@t3tools/shared/autoRouter";
 import {
   memo,
   type ComponentProps,
@@ -320,11 +318,7 @@ import {
   getComposerPromptInjectionState,
   getComposerProviderState,
 } from "../../composerProviderState";
-import {
-  renderProviderReasoningColumn,
-  renderProviderTraitsMenuContent,
-  renderProviderTraitsPicker,
-} from "./composerProviderState";
+import { renderProviderReasoningColumn } from "./composerProviderState";
 import type { VelocitySummary } from "./AgentVelocityMeter.logic";
 import type { ComposerContextSlice } from "./composerContextSlice";
 import type { ComposerAttachmentSlice } from "./composerAttachments";
@@ -1167,10 +1161,6 @@ import { resolveSkillFolders } from "@t3tools/client-runtime/skillFolders";
 import { searchProviderSkills } from "../../providerSkillSearch";
 import { useDelayedStatus } from "../../hooks/useDelayedStatus";
 import { useUpdateClientSettings } from "../../hooks/useSettings";
-import {
-  buildComposerAutoRouteCandidates,
-  composerAutoRouteThreadState,
-} from "./composerAutoRoute";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { usePanelAnimationSettings } from "../../panelAnimations";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -2468,74 +2458,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     }
     return out;
   }, [providerInstanceEntries, selectedInstanceId, selectedModelForPicker, settings]);
-  // Leonidas Autorouter: off while comparing several models in a draft.
   const updateClientSettings = useUpdateClientSettings();
-  const autoRoutePreference =
-    multipleModelSelections === null ? settings.composerAutoRoutePreference : null;
-  const [lastAutoRouteLabel, setLastAutoRouteLabel] = useState<string | null>(null);
-  const autoRouteCandidates = useMemo(
-    () =>
-      buildComposerAutoRouteCandidates({
-        entries: providerInstanceEntries,
-        modelOptionsByInstance,
-        lockedProvider,
-        lockedContinuationGroupKey: lockedContinuationGroupKey ?? null,
-        getModelDisabledReason,
-      }),
-    [
-      getModelDisabledReason,
-      lockedContinuationGroupKey,
-      lockedProvider,
-      modelOptionsByInstance,
-      providerInstanceEntries,
-    ],
-  );
-  const autoRouteProfiles = useBenchmarkRouteProfiles(
-    environmentId,
-    autoRouteCandidates,
-    autoRoutePreference !== null,
-  );
-  const routeAutoTurn = useCallback(
-    (prompt: string) => {
-      if (autoRoutePreference === null) return null;
-      const decision = routeTurn({
-        preference: autoRoutePreference,
-        prompt,
-        candidates: autoRouteCandidates,
-        profiles: autoRouteProfiles,
-        current: activeThreadModelSelection,
-        thread: composerAutoRouteThreadState({
-          contextWindow: activeContextWindow,
-          currentInstanceId: activeThreadModelSelection?.instanceId,
-          entries: providerInstanceEntries,
-        }),
-        attachmentCount: composerImagesRef.current.length + composerFilesRef.current.length,
-        planMode: interactionMode === "plan",
-        now: Date.now(),
-      });
-      if (decision === null) return null;
-      setLastAutoRouteLabel(
-        `${decision.modelName} on ${decision.providerLabel} · ${decision.reason}`,
-      );
-      return {
-        decision,
-        entry: providerInstanceEntries.find(
-          (entry) => entry.instanceId === decision.modelSelection.instanceId,
-        ),
-      };
-    },
-    [
-      activeContextWindow,
-      activeThreadModelSelection,
-      autoRouteCandidates,
-      autoRouteProfiles,
-      autoRoutePreference,
-      composerFilesRef,
-      composerImagesRef,
-      interactionMode,
-      providerInstanceEntries,
-    ],
-  );
   const selectedModelForPickerWithCustomFallback = useMemo(() => {
     const currentOptions = modelOptionsByInstance.get(selectedInstanceId) ?? [];
     return currentOptions.some((option) => option.slug === selectedModelForPicker)
@@ -3181,19 +3104,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     ],
   );
 
-  const providerTraitsMenuContent = renderProviderTraitsMenuContent({
-    provider: selectedProvider,
-    instanceId: selectedInstanceId,
-    ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
-    ...(routeKind === "draft" && draftId ? { draftId } : {}),
-    model: selectedModel,
-    models: selectedProviderModels,
-    modelOptions: composerModelOptions?.[selectedInstanceId],
-    reportedModelSelection,
-    prompt,
-    onPromptChange: setPromptFromTraits,
-    planModeEnabled: settings.planModeEnabled,
-  });
   const providerReasoningColumn = renderProviderReasoningColumn({
     provider: selectedProvider,
     instanceId: selectedInstanceId,
@@ -3207,21 +3117,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     onPromptChange: setPromptFromTraits,
     planModeEnabled: settings.planModeEnabled,
   });
-  const providerTraitsPickerInput = {
-    provider: selectedProvider,
-    instanceId: selectedInstanceId,
-    ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
-    ...(routeKind === "draft" && draftId ? { draftId } : {}),
-    model: selectedModel,
-    models: selectedProviderModels,
-    modelOptions: composerModelOptions?.[selectedInstanceId],
-    reportedModelSelection,
-    prompt,
-    onPromptChange: setPromptFromTraits,
-    planModeEnabled: settings.planModeEnabled,
-    isComposerOwned: true,
-  } satisfies Parameters<typeof renderProviderTraitsPicker>[0];
-  const providerTraitsPicker = renderProviderTraitsPicker(providerTraitsPickerInput);
   const [inlineRestingControlsHost, setInlineRestingControlsHost] = useState<HTMLDivElement | null>(
     null,
   );
@@ -5725,25 +5620,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const iconOnlyBlockCount = composerControlsCollapsed
     ? restingControlsIconOnlyBlockCount
     : expandedControlsLayout.iconOnlyBlockCount;
-  const restingProviderTraitsPicker = renderProviderTraitsPicker({
-    ...providerTraitsPickerInput,
-    size: composerControlsCollapsed ? "xs" : "sm",
-    hidden: composerControlsHidden || restingHiddenBlockCount > 1,
-  });
   const restingBlockDefs = [
-    ...(providerTraitsPicker
-      ? [
-          {
-            id: "traits",
-            content: (
-              <>
-                <ComposerControlSeparator size={composerControlsCollapsed ? "xs" : "sm"} />
-                {restingProviderTraitsPicker}
-              </>
-            ),
-          },
-        ]
-      : []),
     {
       id: "mode",
       content: (
@@ -5886,19 +5763,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         getModelDisabledReason={getModelDisabledReason}
         onInstanceModelChange={(instanceId, model) => {
           setMultipleModelSelections(null);
-          if (autoRoutePreference !== null) {
-            void updateClientSettings({ composerAutoRoutePreference: null });
-          }
           onProviderModelSelect(instanceId, model);
-        }}
-        autoRoute={{
-          preference: autoRoutePreference,
-          lastRouteLabel: lastAutoRouteLabel,
-          candidates: autoRouteCandidates,
-          profiles: autoRouteProfiles,
-          onPreferenceChange: (preference) => {
-            void updateClientSettings({ composerAutoRoutePreference: preference });
-          },
         }}
         onOpenProviderSetup={onOpenProviderSetup}
       />
@@ -5941,9 +5806,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             size={composerControlsCollapsed ? "xs" : "sm"}
             hidden={composerControlsHidden || hiddenRestingBlockIds.length === 0}
             showInteractionModeToggle={planModeUiEnabled && hiddenRestingBlockIds.includes("mode")}
-            traitsMenuContent={
-              hiddenRestingBlockIds.includes("traits") ? providerTraitsMenuContent : undefined
-            }
             onToggleInteractionMode={toggleInteractionMode}
             onRuntimeModeChange={handleRuntimeModeChange}
           />
@@ -6847,9 +6709,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         });
       },
       getSendContext: () => {
-        // With no ready candidate the hand-picked model still sends, so the
-        // server's usual errors explain what is wrong.
-        const routed = routeAutoTurn(promptRef.current);
         return {
           answeringPendingUserInput: activePendingProgress !== null,
           shownPendingApprovalIds: pendingApprovals
@@ -6862,11 +6721,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           previewAnnotations: composerPreviewAnnotations,
           reviewComments: composerReviewComments,
           threadContexts: composerThreadContexts,
-          selectedPromptEffort: routed ? null : selectedPromptEffort,
-          selectedModelOptionsForDispatch: routed
-            ? (routed.decision.modelSelection.options ?? null)
-            : selectedModelOptionsForDispatch,
-          selectedModelSelection: routed?.decision.modelSelection ?? selectedModelSelection,
+          selectedPromptEffort,
+          selectedModelOptionsForDispatch,
+          selectedModelSelection,
           multipleModelSelections:
             routeKind === "draft" && multipleModelSelections !== null
               ? multipleModelSelections.map((selection) =>
@@ -6879,9 +6736,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           providerAvailable:
             multipleModelSelections !== null ||
             (!noProviderAvailable && providerSendBlockReason === null),
-          selectedProvider: routed?.entry?.driverKind ?? selectedProvider,
-          selectedModel: routed?.decision.modelSelection.model ?? selectedModel,
-          selectedProviderModels: routed?.entry?.models ?? selectedProviderModels,
+          selectedProvider,
+          selectedModel,
+          selectedProviderModels,
           interactionMode,
           interactionModeEnabled: planModeUiEnabled,
         };
@@ -6935,7 +6792,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       selectedModel,
       selectedModelOptionsForDispatch,
       selectedModelSelection,
-      routeAutoTurn,
       multipleModelSelections,
       setMultipleModelSelections,
       routeKind,

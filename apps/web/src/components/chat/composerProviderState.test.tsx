@@ -14,11 +14,7 @@ import {
   getComposerProviderState,
   withImplicitFastModeDefault,
 } from "../../composerProviderState";
-import {
-  renderProviderReasoningColumn,
-  renderProviderTraitsMenuContent,
-  renderProviderTraitsPicker,
-} from "./composerProviderState";
+import { renderProviderReasoningColumn } from "./composerProviderState";
 
 // Everything in composerProviderState is now data-driven by the model's
 // optionDescriptors, so these tests use a single synthetic provider/model and
@@ -491,8 +487,7 @@ describe("provider traits render guards", () => {
       planModeEnabled: true,
     };
 
-    expect(renderProviderTraitsPicker(args)).toBeNull();
-    expect(renderProviderTraitsMenuContent(args)).toBeNull();
+    expect(renderProviderReasoningColumn(args)).toBeNull();
   });
 
   it("lists the effort levels of the model in the picker column", () => {

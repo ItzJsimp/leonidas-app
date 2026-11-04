@@ -6,13 +6,6 @@ import {
   type ProviderDriverKind,
   type ResolvedKeybindingsConfig,
 } from "@t3tools/contracts";
-import type { AutoRoutePreference } from "@t3tools/contracts/settings";
-import {
-  AUTO_ROUTE_PREFERENCE_LABELS,
-  type AutoRouteCandidate,
-  type BenchmarkRouteProfiles,
-} from "@t3tools/shared/autoRouter";
-import { RouteIcon } from "lucide-react";
 import { memo, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -22,7 +15,6 @@ import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { ModelPickerContent, resolveModelPickerSelectedModel } from "./ModelPickerContent";
-import { AutoRouterPickerSection } from "./AutoRouterPickerSection";
 import { ChatGptSharingControl } from "./ChatGptSharingControl";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 import {
@@ -69,17 +61,6 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   onOpenProviderSetup?: (instanceId: ProviderInstanceId) => void;
   getModelDisabledReason?: (instanceId: ProviderInstanceId, model: string) => string | null;
   onInstanceModelChange: (instanceId: ProviderInstanceId, model: string) => void;
-  /** Composer-only: the Leonidas Autorouter goal, null when a model is picked by hand. */
-  autoRoute?: {
-    preference: AutoRoutePreference | null;
-    /** The model the last routed message went to, e.g. "Sonnet 5.5 · Light task, balanced". */
-    lastRouteLabel: string | null;
-    onPreferenceChange: (preference: AutoRoutePreference | null) => void;
-    /** Runnable models the goal tabs rank, built from the same rules as routing. */
-    candidates: ReadonlyArray<AutoRouteCandidate>;
-    /** Benchmark-measured profiles; the ranked list matches what routing will pick. */
-    profiles?: BenchmarkRouteProfiles | undefined;
-  };
 }) {
   const composerFloatingLayerProps = useComposerMenuProps();
   const [uncontrolledIsMenuOpen, setUncontrolledIsMenuOpen] = useState(false);
@@ -210,7 +191,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const handleInstanceModelChange = (instanceId: ProviderInstanceId, model: string) => {
     if (props.disabled) return;
     props.onInstanceModelChange(instanceId, model);
-    setIsMenuOpen(false);
+    // The composer picker stays open so you can pick a model, then its effort.
+    if (!props.isComposerOwned) setIsMenuOpen(false);
   };
 
   const shortcutLabel = props.keybindings
@@ -244,16 +226,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const allModelNames = selectedEntries
     ? selectedEntries.map((selection) => selection.label).join(", ") || "Choose models"
     : undefined;
-  const autoRoutePreference =
-    props.selectedModels === undefined ? (props.autoRoute?.preference ?? null) : null;
-  const autoRouteLabel =
-    autoRoutePreference === null
-      ? undefined
-      : `Auto · ${AUTO_ROUTE_PREFERENCE_LABELS[autoRoutePreference]}`;
-  const baseTooltipContent =
-    autoRouteLabel !== undefined
-      ? `Leonidas Autorouter · ${props.autoRoute?.lastRouteLabel ?? "picks a model when you send"}`
-      : (props.triggerLabel ?? allModelNames ?? triggerLabel);
+  const baseTooltipContent = props.triggerLabel ?? allModelNames ?? triggerLabel;
   const triggerTooltipContent = shortcutLabel
     ? `${baseTooltipContent} · ${shortcutLabel}`
     : baseTooltipContent;
@@ -290,9 +263,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         <span
           className={cn("flex min-w-0 flex-1 items-center", size === "xs" ? "gap-1" : "gap-1.5")}
         >
-          {autoRouteLabel !== undefined ? (
-            <RouteIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          ) : selectedEntries && props.triggerLabel === undefined ? (
+          {selectedEntries && props.triggerLabel === undefined ? (
             <span className="flex shrink-0 items-center -space-x-1" aria-hidden="true">
               {selectedEntries
                 .slice(0, 3)
@@ -340,19 +311,16 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                 />
               }
             >
-              {autoRouteLabel ?? props.triggerLabel ?? multipleLabel ?? triggerTitle}
+              {props.triggerLabel ?? multipleLabel ?? triggerTitle}
             </TooltipTrigger>
             <TooltipPopup side="top">{triggerTooltipContent}</TooltipPopup>
           </Tooltip>
-          {selectedModel?.isUnavailable &&
-          !selectedEntries &&
-          props.triggerLabel === undefined &&
-          autoRouteLabel === undefined ? (
+          {selectedModel?.isUnavailable && !selectedEntries && props.triggerLabel === undefined ? (
             <Badge variant="outline" size="sm">
               Unavailable
             </Badge>
           ) : null}
-          {props.triggerLabel === undefined && !selectedEntries && autoRouteLabel === undefined ? (
+          {props.triggerLabel === undefined && !selectedEntries ? (
             <span
               className="flex min-w-0 items-center gap-1 text-2xs text-muted-foreground"
               role="status"
@@ -373,18 +341,6 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       >
         {!listOpen ? (
           <div aria-busy="true" className="h-86.5 w-[calc(100vw-1rem)] max-w-90" />
-        ) : null}
-        {listOpen && props.autoRoute && props.selectedModels === undefined ? (
-          <AutoRouterPickerSection
-            preference={props.autoRoute.preference}
-            candidates={props.autoRoute.candidates}
-            profiles={props.autoRoute.profiles}
-            onPreferenceChange={(preference) => {
-              if (props.disabled) return;
-              props.autoRoute?.onPreferenceChange(preference);
-            }}
-            onPickModel={handleInstanceModelChange}
-          />
         ) : null}
         {listOpen ? (
           <div className="flex min-w-0">

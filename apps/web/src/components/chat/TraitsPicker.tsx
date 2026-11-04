@@ -95,7 +95,7 @@ function DefaultBadge() {
   );
 }
 
-function replaceDescriptorCurrentValue(
+export function replaceDescriptorCurrentValue(
   descriptors: ReadonlyArray<ProviderOptionDescriptor>,
   descriptorId: string,
   currentValue: string | boolean | undefined,

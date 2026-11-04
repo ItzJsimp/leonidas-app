@@ -11,7 +11,7 @@ import type { DraftId } from "../../composerDraftStore";
 import { resolveComposerOptionSelections } from "../../composerProviderState";
 import type { ComposerControlSize } from "./ComposerControl";
 import { PickerReasoningColumn } from "./PickerReasoningColumn";
-import { shouldRenderTraitsControls, TraitsMenuContent, TraitsPicker } from "./TraitsPicker";
+import { shouldRenderTraitsControls } from "./TraitsPicker";
 
 type TraitsRenderInput = {
   provider: ProviderDriverKind;
@@ -32,7 +32,7 @@ type TraitsRenderInput = {
 };
 
 function renderTraitsControl(
-  Component: typeof TraitsMenuContent | typeof TraitsPicker | typeof PickerReasoningColumn,
+  Component: typeof PickerReasoningColumn,
   input: TraitsRenderInput,
 ): ReactNode {
   const {
@@ -94,14 +94,6 @@ function renderTraitsControl(
   );
 }
 
-export function renderProviderTraitsMenuContent(input: TraitsRenderInput): ReactNode {
-  return renderTraitsControl(TraitsMenuContent, input);
-}
-
 export function renderProviderReasoningColumn(input: TraitsRenderInput): ReactNode {
   return renderTraitsControl(PickerReasoningColumn, input);
-}
-
-export function renderProviderTraitsPicker(input: TraitsRenderInput): ReactNode {
-  return renderTraitsControl(TraitsPicker, input);
 }
