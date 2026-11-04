@@ -1,0 +1,754 @@
+{
+  "skills": [
+    {
+      "name": "accessibility",
+      "description": "Audit and fix web accessibility: WCAG 2.2 AA, keyboard use, screen readers, contrast, focus. Use when building or reviewing UI, forms or interactive controls."
+    },
+    {
+      "name": "ad-creative",
+      "description": "Generate, test, and iterate paid ad creative variations, visual hooks, copy angles, and multi-format headlines for Meta, Google, and LinkedIn."
+    },
+    {
+      "name": "ads",
+      "description": "Plan, optimize, and audit paid advertising campaigns across Google Ads, Meta, and LinkedIn with audience targeting, bidding, and ROAS guardrails."
+    },
+    {
+      "name": "agy-customizations",
+      "description": "Guide to the Antigravity Customization System: loading priority, discovery, skills, rules, plugins, hooks and MCP servers. Use when configuring or debugging Antigravity customizations."
+    },
+    {
+      "name": "ai-chats-triage",
+      "description": "Audit open and stale chats across Antigravity and Claude Code, validate naming conventions, and triage sessions for archival."
+    },
+    {
+      "name": "aios-explorer",
+      "description": "Search the AIOS deeply across files, the store cascade and Git history. Use when something may be saved somewhere in the AIOS and a first grep did not find it."
+    },
+    {
+      "name": "antigravity-harness-reference",
+      "description": "Reference for Antigravity settings schema, permissions syntax, storage paths, and Claude bridges."
+    },
+    {
+      "name": "antigravity-session-audit",
+      "description": "Audit Antigravity transcripts for token burn, runaway turn depth, tool call loops, and prompt hygiene."
+    },
+    {
+      "name": "antigravity_guide",
+      "description": "Guide and sitemap for Google Antigravity (AGY): IDE, CLI, Python SDK, slash commands, keybindings and customizations. Use when asked how Antigravity works or where its docs are."
+    },
+    {
+      "name": "archify",
+      "description": "Generate explorable HTML/SVG architecture, sequence and workflow diagrams from specs or Mermaid. Use when asked to diagram, map or visualize a system or flow."
+    },
+    {
+      "name": "asd-ste100",
+      "description": "Write or rewrite text in ASD-STE100 Simplified Technical English so no reader can misread it. Use for replies, instructions, error messages, tool descriptions, task cards and agent prompts. Not for marketing copy."
+    },
+    {
+      "name": "ask-leonidas",
+      "description": "Route user tasks to optimal AIOS skills, resolve workflow boundaries, and plan session handoffs. Use when unsure which skill or workflow fits a task."
+    },
+    {
+      "name": "automation-architect",
+      "description": "Audit AIOS automation gaps, deconstruct workflows into deterministic state machines, and route to optimal 7-tier automation engines."
+    },
+    {
+      "name": "autonomous-prompts",
+      "description": "Generate ten paste-ready prompts for independent work across projects, with active-work overlap checks and verified relevant skills."
+    },
+    {
+      "name": "brand-icons",
+      "description": "Build or refresh Leonidas AIOS app icons (Windows .ico, tray, favicon, PWA) from master avatar recipe."
+    },
+    {
+      "name": "brandkit",
+      "description": "Generate high-end brand guideline boards, logo systems, identity decks, and art-directed visual presentations."
+    },
+    {
+      "name": "break-ui",
+      "description": "Stress-test UI with worst-case data: long names, empty lists, huge counts, emoji, non-Latin text. Use to find edge cases in a component or screen and get a fix for each."
+    },
+    {
+      "name": "build",
+      "description": "Step 4 of Idea to Ship: implement planned slices test-first, one commit per slice, with stop rules for risky work. Use to build the next slice or the whole plan, or when asked for /build or /build auto."
+    },
+    {
+      "name": "caveman",
+      "description": "Terse output mode: answer first, eliminate ceremony, preserve all code, commands, and technical facts. Cuts output tokens by up to 65%."
+    },
+    {
+      "name": "ceo",
+      "description": "Run complex, parallel work with one orchestrator and cheaper bounded workers, then check each result. Use when a task has independent slices or spans many files."
+    },
+    {
+      "name": "chat-closeout",
+      "description": "Pre-archival session gate: extract memories/tasks, write continuation capsule, and stamp archival readiness."
+    },
+    {
+      "name": "chat-sync",
+      "description": "Sync in-session decisions, durable memories, tasks, and glossary terms into local AIOS files."
+    },
+    {
+      "name": "claude-automation-recommender",
+      "description": "Analyze a codebase and recommend hooks, sub-agents, skills and MCP servers to add. Use when asked how to automate or improve a project's Claude setup."
+    },
+    {
+      "name": "claude-harness-reference",
+      "description": "Reference for Claude Code CLI, Desktop, subagents, prompt caching tiers, hooks, and MCP servers."
+    },
+    {
+      "name": "claude-mods",
+      "description": "Single interface for Claude Code mods (function-hook plugins): research, adopt, build, manage and audit them. Use when the user asks about, installs or builds a mod."
+    },
+    {
+      "name": "code-simplification",
+      "description": "Simplify code for clarity without changing behavior. Use when code works but is hard to read or extend, or when refactoring or reviewing accumulated complexity."
+    },
+    {
+      "name": "code-simplify",
+      "description": "Simplify recently changed code without changing behavior, with a test run after each change. Use after review flags readability, or when asked for /code-simplify."
+    },
+    {
+      "name": "code-skimmer",
+      "description": "Read a large code file as a symbol outline, then open only the needed line range. Use before reading any code file over 300 lines or when finding a function in a big file."
+    },
+    {
+      "name": "codebase-design",
+      "description": "Design deep modules: interfaces, seams, testability, AI-navigable structure. Use when designing or improving a module, finding deepening chances, or placing a boundary."
+    },
+    {
+      "name": "cold-email",
+      "description": "Write high-converting B2B cold email sequences, subject lines, personalized openers, and multi-touch follow-ups that get replies."
+    },
+    {
+      "name": "compare-repos",
+      "description": "Compare skills, templates, and standards between Leonidas and SimplyGersi to audit cross-repo drift."
+    },
+    {
+      "name": "competitor-profiling",
+      "description": "Research and analyze competitors from their URLs into structured dossiers covering positioning, pricing, value propositions, and moats."
+    },
+    {
+      "name": "component-audit",
+      "description": "Audit, optimize, and improve any AIOS file, folder, skill, prompt, template, or component with structured analysis and quality gates."
+    },
+    {
+      "name": "constraints",
+      "description": "Define and enforce a repo's quality bar once: detect tools, ask up to 4 questions, write CONSTRAINTS.md with real commands. Use when a repo has no enforced quality bar, or when asked for /constraints."
+    },
+    {
+      "name": "context-budget",
+      "description": "Audit context window token consumption across preloaded files, modes, skills, MCP, and system rules."
+    },
+    {
+      "name": "context-engineering",
+      "description": "Structure context hierarchies, rules files, and knowledge stores for minimal token burn and high agent recall."
+    },
+    {
+      "name": "contract-review",
+      "description": "Review brand agreements, SOWs, and MSAs against SimplyGersi rate cards, usage rights, Spark ad lockouts, and revision policies."
+    },
+    {
+      "name": "coordinator",
+      "description": "Coordinate complex engineering goals across parallel Git worktrees and multi-model worker threads. Use when managing multi-task features, parallel subagents, or full project coordination."
+    },
+    {
+      "name": "copywriting",
+      "description": "Write and rewrite marketing copy for landing pages, headlines, value propositions and buttons. Use when asked for copy, a headline, a tagline, or to make text convert better."
+    },
+    {
+      "name": "cro",
+      "description": "Optimize marketing pages and forms for conversion: diagnose drop-offs, teardown UI friction, and prioritize A/B test experiments."
+    },
+    {
+      "name": "cross-linker",
+      "description": "Scan the Obsidian wiki to discover and insert missing cross-references and connect orphan pages."
+    },
+    {
+      "name": "customer-research",
+      "description": "Synthesize customer interviews, analyze review mining data, extract Jobs-to-be-Done (JTBD), and build grounded customer personas."
+    },
+    {
+      "name": "daily-briefing",
+      "description": "Interactive morning briefing combining 24h git logs, substrate health, tasks, and telemetry schedule."
+    },
+    {
+      "name": "daily-closeout",
+      "description": "Interactive evening closeout: workspace hygiene gate, accomplishments audit, loose ends capture, and morning continuity."
+    },
+    {
+      "name": "de-emdash",
+      "description": "Scan documents and rewrite U+2014 em dashes into clean, fluent punctuation per ADR-0012 standards."
+    },
+    {
+      "name": "deep-research",
+      "description": "Run a free, source-ledgered research pass over arXiv, Crossref, Semantic Scholar and the web with citations. Use for academic or literature questions that need many sources."
+    },
+    {
+      "name": "defuddle",
+      "description": "Fetch a web page as clean Markdown without menus, ads or banners. Use when the user gives a URL to read, summarize or cite, before a plain page fetch."
+    },
+    {
+      "name": "design-audit",
+      "description": "Score a built UI, page, screen or document against a pass/fail design rubric from screenshots at 3 sizes, with plain fixes. Use after any UI change, or when asked to review, check or polish how it looks."
+    },
+    {
+      "name": "design-build",
+      "description": "Design and build a new app, screen, page, dashboard, HTML artifact or document to Apple-grade quality: design read, contact sheet to pick from, token-true build, audit PASS. Use for any new UI or visual deliverable."
+    },
+    {
+      "name": "design-everyday-things",
+      "description": "Apply Norman's design principles: affordances, signifiers, feedback, constraints, mental models. Use when a UI is confusing, users make mistakes, or features are hard to discover."
+    },
+    {
+      "name": "design-taste-frontend-v2-experimental",
+      "description": "Build landing pages, portfolios and redesigns with the preserved experimental Taste V2: infer the brief, set design dials, pick a design system, audit the result. Use when asked for Taste V2."
+    },
+    {
+      "name": "diagnosing-bugs",
+      "description": "Diagnosis loop for hard bugs and performance regressions: reproduce, isolate, fix, prove. Use when something is broken, throwing, failing, flaky or slow, or the user says diagnose or debug this."
+    },
+    {
+      "name": "domain-modeling",
+      "description": "Sharpen the domain model while designing: challenge terms, write CONTEXT.md glossary entries, record ADRs. Use when naming concepts, resolving fuzzy terms, or deciding architecture."
+    },
+    {
+      "name": "effect-ts",
+      "description": "Use this skill when setting up a repository that uses the Effect Typescript library."
+    },
+    {
+      "name": "email-triage",
+      "description": "Triage inbound SimplyGersi emails, enforce commercial rate cards on barter pitches, alert on contracts, and organize Gmail labels."
+    },
+    {
+      "name": "explain-simply",
+      "description": "Re-pitch previous explanations in plain, jargon-free English with missing mental models restored."
+    },
+    {
+      "name": "fable-mode",
+      "description": "Execute multi-gate disciplined tasks with slow-down verification, edge-case probing, and proof gates."
+    },
+    {
+      "name": "financial-audit",
+      "description": "Forensic audit of personal financials, adaptive expense grilling, and accretive optimization roadmap."
+    },
+    {
+      "name": "find-skills",
+      "description": "Discover, evaluate, score, and install external agent skills from skills.sh or GitHub into AIOS. Use when no local skill fits, or when asked to find or install a skill."
+    },
+    {
+      "name": "game-optimization",
+      "description": "Research and tune game engine settings, launch options, shader caches, and graphics benchmarks."
+    },
+    {
+      "name": "gh-cli",
+      "description": "Enforces authenticated gh CLI workflows over unauthenticated curl, WebFetch, and MCP fetch patterns. Use when working with GitHub URLs, API access, pull requests, or issues."
+    },
+    {
+      "name": "git-advanced-workflows",
+      "description": "Advanced Git: interactive rebase, cherry-pick, bisect, worktrees and reflog recovery. Use for messy histories, feature-branch collaboration and repo repair."
+    },
+    {
+      "name": "git-guardrails-claude-code",
+      "description": "Set up Claude Code hooks to block dangerous git commands (push, reset --hard, clean, branch -D, etc.) before they execute. Use when user wants to prevent destructive git operations, add git safety hooks, or block git push/reset in Claude Code."
+    },
+    {
+      "name": "git-workflow",
+      "description": "Fixed Git routine for agents: work on main by default; use a worktree for risky rewrites, then commit, merge, push, and clean up. Use before any edit in a Git repo, when finishing work, or when branches or worktrees pile up."
+    },
+    {
+      "name": "github-issues",
+      "description": "Create, update and manage GitHub issues: bugs, features, labels, assignees, milestones, issue types, fields, dependencies and sub-issues. Use when asked to file or update an issue."
+    },
+    {
+      "name": "graphify",
+      "description": "Convert codebases into queryable AST graphs with dependency mapping, god-node detection, and clustering."
+    },
+    {
+      "name": "grill-me",
+      "description": "Interview the user relentlessly to sharpen a plan or design. Use when the user says grill me or asks to stress-test a plan."
+    },
+    {
+      "name": "grill-with-docs",
+      "description": "A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go."
+    },
+    {
+      "name": "grilling",
+      "description": "Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases."
+    },
+    {
+      "name": "humanizer",
+      "description": "Rewrite AI-sounding text to read with authentic human voice and cadence based on Wikipedia signs of AI writing. Eliminates AI tells."
+    },
+    {
+      "name": "i-have-adhd",
+      "description": "Enforce ADHD response format: action-first, strict 3-step limits, zero tangents, and visible wins."
+    },
+    {
+      "name": "idea-to-ship",
+      "description": "Run a build task from idea to ship: define, spec, plan, build, test, review, ship, with two approval stops. Use when asked to build, add, change or fix a feature, or to run the full workflow."
+    },
+    {
+      "name": "image-prompt-craft",
+      "description": "Write, test and grade image prompts for local ComfyUI models, and set up 4-variation batches. Use when asked for an image prompt, game or app art, an icon, a thumbnail, or variations of one image."
+    },
+    {
+      "name": "impeccable",
+      "description": "Design, critique, audit and polish frontend UI: layouts, typography, color, spacing, motion, micro-interactions. Use for any request to design, restyle, review or improve how an interface looks or feels."
+    },
+    {
+      "name": "implement",
+      "description": "Execute plans and specifications through disciplined test-first slices with mutation gates, AST checks, and atomic commits. Use when a plan or spec is approved and ready to build."
+    },
+    {
+      "name": "improve-codebase-architecture",
+      "description": "Analyze module boundaries, coupling and circular imports, then propose a refactor plan. Use when code feels tangled, hard to change, or before a large restructure."
+    },
+    {
+      "name": "invoice-chase",
+      "description": "Monitor unpaid SimplyGersi invoices, audit accounts receivable aging, and stage polite escalating follow-up email drafts via Gmail MCP."
+    },
+    {
+      "name": "invoice-generator",
+      "description": "Generate on-brand SimplyGersi client invoices, compile print-ready PDFs via headless browser, and append records to client contact dossiers."
+    },
+    {
+      "name": "knowledge-graph-3d",
+      "description": "Generate 3D interactive force-directed knowledge graphs visualizing repository concepts and relationships."
+    },
+    {
+      "name": "leonidas-canvas",
+      "description": "Build and publish offline interactive canvases in Leonidas Code. Use when a reply needs a spec, architecture, research, roadmap or audit view, or when the body is over 400 words."
+    },
+    {
+      "name": "leonidas-os-audit",
+      "description": "Comprehensive AIOS audit: Substrate Health Gate, Four Cs Index, subagent topology, and auto-repairs."
+    },
+    {
+      "name": "leonidas-release",
+      "description": "Write plain-language patch notes, illustrated update stories, and release trailers for user-visible Leonidas changes; choose versions and verify publication when preparing or shipping Code or Scribe updates."
+    },
+    {
+      "name": "litellm-bridge-ops",
+      "description": "Operate LiteLLM Claude Code bridge: health checks, watchdog restarts, alias retiering, and routing verification."
+    },
+    {
+      "name": "llm-wiki-research",
+      "description": "Run a multi-lens research investigation (balanced, academic, current reality) and write a staged, cited report. Use for broad topic reports that need several perspectives."
+    },
+    {
+      "name": "manual-setup-walkthrough",
+      "description": "Generate interactive CLI walkthroughs and verification scripts for complex manual operator setups."
+    },
+    {
+      "name": "marketing-council",
+      "description": "Simulate a marketing advisory board (Godin, Ogilvy, Schwartz, Hormozi, Dunford) to review offers, debate strategies, and guide direction."
+    },
+    {
+      "name": "marketing-plan",
+      "description": "Build full go-to-market strategies, AARRR acquisition funnels, budget allocations, and 12-month growth roadmaps for products or agencies."
+    },
+    {
+      "name": "marketing-psychology",
+      "description": "Apply behavioral economics and mental models (anchoring, loss aversion, social proof, scarcity) to improve marketing conversion."
+    },
+    {
+      "name": "memory-leak-debugging",
+      "description": "Find and fix memory leaks in JavaScript and Node.js with heap snapshots. Use when memory grows, a process is killed for memory, or a UI gets slower over time."
+    },
+    {
+      "name": "mode-persona-builder",
+      "description": "Author, promote, or refine AIOS Modes and personas adhering to canonical 5-section architecture and mode-specific output contracts."
+    },
+    {
+      "name": "money-move",
+      "description": "Pick the single closest-to-cash SimplyGersi action for today (collect, close, follow up, or prospect) and stage one draft for review. Never sends."
+    },
+    {
+      "name": "n8n-workflow-patterns",
+      "description": "Architectural patterns for n8n workflows: webhooks, APIs, AI agents, batch loops, and error handling."
+    },
+    {
+      "name": "next-action",
+      "description": "Grill the user on time, energy and goal, rank the top 5 tasks from the project's task cards, then work the pick in chat, as a fresh-chat prompt, or by delegation. Use when asked what to work on or what is next."
+    },
+    {
+      "name": "node",
+      "description": "Domain-specific best practices for Node.js development with TypeScript, covering type stripping, async patterns, error handling, streams, modules, testing, performance, caching, and logging."
+    },
+    {
+      "name": "obsidian-markdown",
+      "description": "Write Obsidian-flavored Markdown: wikilinks, embeds, callouts, properties and tags. Use when creating or editing notes in an Obsidian vault."
+    },
+    {
+      "name": "openrouter-model-audit",
+      "description": "Pick or audit OpenRouter models against benchmarks cache for efficiency, accuracy, and context ceilings."
+    },
+    {
+      "name": "operator-scorecard",
+      "description": "Read the weekly AI-native operator scorecard and frontier watch, explain the lowest pillar in plain English, and turn it into one experiment for the coming week."
+    },
+    {
+      "name": "output-style-builder",
+      "description": "Author, audit, and calibrate Claude Code output styles for tone, density, and formatting rules."
+    },
+    {
+      "name": "pc-incident-forensics",
+      "description": "Investigate PC crashes, BSODs, freezes, and app faults via Event Viewer, minidumps, and system logs."
+    },
+    {
+      "name": "pc-systems-engineer",
+      "description": "Diagnose and fix Windows system performance, drivers, networking, services, and hardware baselines."
+    },
+    {
+      "name": "performance-gate",
+      "description": "Mandatory pre-ship gate for every code change: audit memory, speed, component efficiency, bloat and quality with measured evidence. Use before any commit, PR or done on code in any project."
+    },
+    {
+      "name": "performance-optimization",
+      "description": "Optimize speed across frontend, backend and queries with profiling first. Use when load time, latency or memory is a problem, or a regression is suspected."
+    },
+    {
+      "name": "peripherals-display-tuner",
+      "description": "Tune keyboard actuation, Wooting rapid trigger, mouse polling, monitor refresh, and audio routing."
+    },
+    {
+      "name": "plan-slices",
+      "description": "Step 3 of Idea to Ship: break an approved spec into small, ordered vertical slices with acceptance checks. Use after a spec is approved, or when asked for /plan-slices."
+    },
+    {
+      "name": "powershell-master",
+      "description": "Expert PowerShell 7+ automation: robust cmdlets, pipeline tuning, -LiteralPath safety, and AST parsing."
+    },
+    {
+      "name": "pr",
+      "description": "Write a pull request body: summary, why, test evidence, risks. Use when opening, drafting or updating a PR description."
+    },
+    {
+      "name": "pricing",
+      "description": "Structure pricing tiers, packaging, value metrics, freemium boundaries, and price increase strategies using willingness-to-pay frameworks."
+    },
+    {
+      "name": "primary-research",
+      "description": "Investigate a question against primary sources (docs, specs, APIs, papers) and save the findings as a Markdown file in the repo. Use when facts must be gathered and kept."
+    },
+    {
+      "name": "product-marketing",
+      "description": "Define Ideal Customer Profiles (ICP), product positioning frameworks, messaging hierarchies, and competitive differentiation matrices."
+    },
+    {
+      "name": "prompt-composer",
+      "description": "Write, audit and grade prompts and agent instructions with model-calibrated structure. Use when writing or improving a prompt, system prompt, brief or agent instruction."
+    },
+    {
+      "name": "prompt-improver",
+      "description": "Enrich underspecified prompts with targeted research, grounded constraints, and unambiguous intent."
+    },
+    {
+      "name": "prototype",
+      "description": "Build a throwaway prototype to answer a design question. Use to try a state model or logic before committing, or to explore what a UI could look like."
+    },
+    {
+      "name": "quick-question",
+      "description": "Answer a quick factual or lookup question fast from local memory or one web search, with no extra ceremony. Use for single-fact questions, definitions and short checks."
+    },
+    {
+      "name": "react-native-best-practices",
+      "description": "React Native performance guidelines for FPS, TTI, bundle size, memory leaks, re-renders, and animations. Covers Hermes, JS thread, bridge overhead, and FlashList."
+    },
+    {
+      "name": "recap",
+      "description": "Instant scannable summary of session changes, diff stats, commands executed, and pending tasks."
+    },
+    {
+      "name": "remote-streaming-sync",
+      "description": "Diagnose Sunshine/Moonlight streaming latency, Tailscale mesh connections, and cross-PC sync drift."
+    },
+    {
+      "name": "research",
+      "description": "Investigate an external topic, library or claim with web evidence through sub-agents or deep-research prompts. Use for open questions that need several sources and a synthesized answer."
+    },
+    {
+      "name": "resolving-merge-conflicts",
+      "description": "Use when you need to resolve an in-progress git merge/rebase conflict."
+    },
+    {
+      "name": "retro",
+      "description": "Run a retrospective on a work session: what worked, what failed, what to change. Use when a session ends, a milestone closes, or the user asks for a retro."
+    },
+    {
+      "name": "review-diff",
+      "description": "Step 6 of Idea to Ship: review the diff against the spec and on five quality axes, with severity labels. Use after verify passes, before ship, or when asked for /review-diff."
+    },
+    {
+      "name": "review-two-axis",
+      "description": "Review a diff on two axes with parallel sub-agents: standards and spec match. Use when asked to review code, a branch, a PR or finished work against a spec or task card."
+    },
+    {
+      "name": "roast",
+      "description": "Convene a 3-persona subagent council to stress-test ideas and plans with isolated critical reviews."
+    },
+    {
+      "name": "safe-parallel-commit",
+      "description": "Commit safely during concurrent sessions: explicit path staging only, pre-commit recovery, and scope checks. Use when committing while other sessions edit the same repo."
+    },
+    {
+      "name": "seo-audit",
+      "description": "Audit technical search visibility, diagnose ranking drops, inspect crawl errors, optimize meta tags, and evaluate search intent."
+    },
+    {
+      "name": "session-handoff",
+      "description": "Compact conversation and working tree state into handoff-docs/ with a fresh-session resumption prompt."
+    },
+    {
+      "name": "ship",
+      "description": "Step 7 of Idea to Ship: run a final security and test check, write a GO or NO-GO decision with a rollback plan, then ship after approval. Use when work passed review, or when asked for /ship."
+    },
+    {
+      "name": "skill-creator",
+      "description": "Create, scaffold or refactor a skill to AIOS standards with a sharp trigger description. Use when the user wants a new skill, or a repeated task should become one."
+    },
+    {
+      "name": "skill-learn",
+      "description": "Turn a doc, past chat or notes into a proposed skill, or use /skill-learn tune to propose fixes from repeated corrections. Apply only accepted changes; select the drafting model per batch."
+    },
+    {
+      "name": "spec",
+      "description": "Step 2 of Idea to Ship: turn settled decisions into a testable spec and get it approved. Use after /grill-me, when a feature has no written spec, or when asked for /spec."
+    },
+    {
+      "name": "subagent-builder",
+      "description": "Write, edit or audit an AIOS or project subagent spec in .agents/subagents/ that runs through Leonidas Code app delegate. Use when asked to create, change, extend or review a subagent."
+    },
+    {
+      "name": "system-prompt-authoring",
+      "description": "Guide for authoring agent-facing root instructions, modes, standards, and core prompts for high precision and low tokens."
+    },
+    {
+      "name": "task-management",
+      "description": "Capture work as a gated task card in tasks/ and query, audit, archive or rebuild the task list. Use when work is deferred, a to-do appears, or the user asks about task status."
+    },
+    {
+      "name": "task-scoping",
+      "description": "Break a spec, brief or multi-part goal into gated vertical-slice task cards. Use when work is large, vague or needs a build plan."
+    },
+    {
+      "name": "tdd",
+      "description": "Test-driven development: red, green, refactor. Use when building a feature or fixing a bug test-first, writing integration tests, or when tests should lead the change."
+    },
+    {
+      "name": "teach",
+      "description": "Teach a new concept, tool or skill step by step with Socratic questions. Use when the user wants to learn something, asks to be taught, or says explain how this works."
+    },
+    {
+      "name": "technical-writing",
+      "description": "Draft and revise clear docs, procedures and UI text for the reader. Use when writing or editing documentation, READMEs, guides, specs or error messages."
+    },
+    {
+      "name": "telemetry-analyst",
+      "description": "Synthesize cross-engine telemetry across skills, task velocity, and ActivityWatch into Decision Inbox cards."
+    },
+    {
+      "name": "test",
+      "description": "Step 5 of Idea to Ship: verify the built work against every success criterion with real checks and the performance gate. Use after a build, before review, or when asked for /test."
+    },
+    {
+      "name": "to-questionnaire",
+      "description": "Convert open decisions into asynchronous, standalone Markdown questionnaires for collaborators."
+    },
+    {
+      "name": "to-spec",
+      "description": "Turn the current conversation into a spec and publish it to the tracker (a tasks/ card): no interview, just synthesis. Use when the discussion already settled the decisions."
+    },
+    {
+      "name": "to-tickets",
+      "description": "Break a plan, spec or conversation into tracer-bullet tickets with declared blocking edges, published to the configured tracker. Use when a plan must become a set of tickets."
+    },
+    {
+      "name": "token-optimizer",
+      "description": "Audit dual-harness token spend, identify context leaks, and optimize project repository file bloat."
+    },
+    {
+      "name": "ui-taste",
+      "description": "Build, redesign or critique web and iOS interfaces with anti-slop playbooks and real-product references. Use for dashboards, landing pages, app screens, or when a UI looks generic or AI-made."
+    },
+    {
+      "name": "upstream-review",
+      "description": "Review new upstream T3 Code commits and releases, then recommend what to port into Leonidas Code. Use when asked to check upstream, T3 updates or a T3 change, or run /upstream-review."
+    },
+    {
+      "name": "using-git-worktrees",
+      "description": "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback"
+    },
+    {
+      "name": "ux-copy",
+      "description": "Write or review UX copy: microcopy, error messages, empty states, CTAs. Use when naming a button, wording a dialog, filling an empty state, or writing onboarding text."
+    },
+    {
+      "name": "ux-heuristics",
+      "description": "Evaluate interface usability with Nielsen's 10 heuristics, Krug's laws and severity ratings. Use for usability audits, confusing flows, forms and navigation reviews."
+    },
+    {
+      "name": "vercel-react-best-practices",
+      "description": "React and Next.js performance optimization guidelines from Vercel Engineering for components, data fetching, bundle optimization, and rendering efficiency."
+    },
+    {
+      "name": "vercel-react-native-skills",
+      "description": "React Native and Expo best practices for building performant mobile apps, animations, UI patterns, and platform-specific optimizations."
+    },
+    {
+      "name": "wait-what",
+      "description": "Stop. That last message did not land: re-pitch it. Use when the user says wait, what, or signals confusion."
+    },
+    {
+      "name": "wayfinder",
+      "description": "Plan work too big for one agent session as a map of decision tickets (tasks/ cards), then resolve them one at a time. Use when a goal spans many sessions."
+    },
+    {
+      "name": "web-design-guidelines",
+      "description": "Review UI code for Web Interface Guidelines compliance. Use when asked to review my UI, check accessibility, audit design, or check a site against best practices."
+    },
+    {
+      "name": "wiki-context-pack",
+      "description": "Produce token-bounded, citation-ready markdown context slices from the Obsidian vault for agents."
+    },
+    {
+      "name": "wiki-dedup",
+      "description": "Scan Obsidian wiki for concept identity collisions and merge duplicate pages safely with confirmation."
+    },
+    {
+      "name": "windows-debloat",
+      "description": "Inventory, audit, and clean Windows packages, background services, startup bloat, and telemetry."
+    },
+    {
+      "name": "windows-toast",
+      "description": "Send native, interactive Windows Action Center toast notifications with audio presets, action buttons and text input routing. Use when a task needs a desktop alert or a reply prompt."
+    },
+    {
+      "name": "wizard",
+      "description": "Generate an interactive script that walks the user through steps only they can do, such as credentials, secrets or dashboards. Use when a task needs manual human steps."
+    },
+    {
+      "name": "workflow-spec-builder",
+      "description": "Interactive workflow spec builder authoring and refining lifecycle loops in workflows/*.md."
+    },
+    {
+      "name": "writing-for-agents",
+      "description": "Write documents that agents read: skills, AGENTS.md, CLAUDE.md and instruction files. Use when creating or editing any skill or agent instruction file."
+    },
+    {
+      "name": "youtube-analyzer",
+      "description": "Analyze a YouTube video or channel: transcript, creator formula and timestamped notes. Use when the user shares a YouTube link or asks what a video or creator does."
+    },
+    {
+      "name": "youtube-search",
+      "description": "Find, score and curate good YouTube tutorials and creators for a topic. Use when asked what to watch, which creators teach a subject, or to find videos on a topic."
+    },
+    {
+      "name": "zotero-research",
+      "description": "Inspect local Zotero reference libraries read-only via local HTTP connector (127.0.0.1:23119) or local SQLite database to ground research in the user's collected academic papers."
+    }
+  ],
+  "cases": [
+    {
+      "prompt": "The login page throws a 500 only when the email has a plus sign, find out why",
+      "expected": ["diagnosing-bugs"]
+    },
+    {
+      "prompt": "Write a PR description for the branch that adds the composer wand button",
+      "expected": ["pr"]
+    },
+    {
+      "prompt": "Make this landing page hero feel less generic and more premium",
+      "expected": ["copywriting", "design-build", "impeccable", "ui-taste"]
+    },
+    {
+      "prompt": "The node server memory grows 50MB an hour, help me find the leak",
+      "expected": ["diagnosing-bugs", "memory-leak-debugging", "performance-optimization"]
+    },
+    {
+      "prompt": "Add a settings toggle and write the failing test first",
+      "expected": ["build", "implement", "tdd"]
+    },
+    {
+      "prompt": "What does this YouTube video https://youtu.be/abc123 teach about hooks?",
+      "expected": ["youtube-analyzer"]
+    },
+    {
+      "prompt": "Grill me on my idea for a habit tracker app",
+      "expected": ["grilling"]
+    },
+    {
+      "prompt": "Break this big refactor into tickets with blocking dependencies",
+      "expected": ["plan", "task-scoping", "to-tickets", "wayfinder"]
+    },
+    {
+      "prompt": "Review my diff before I push it",
+      "expected": ["review", "review-diff", "review-two-axis"]
+    },
+    {
+      "prompt": "Explain how closures work, I am new to JavaScript",
+      "expected": ["teach"]
+    },
+    {
+      "prompt": "Rewrite the error messages in the checkout form so they sound human",
+      "expected": ["ux-copy"]
+    },
+    {
+      "prompt": "Does the dashboard pass WCAG contrast and keyboard checks?",
+      "expected": ["accessibility", "design-audit"]
+    },
+    {
+      "prompt": "Research the latest papers on speculative decoding and cite them",
+      "expected": ["deep-research", "llm-wiki-research", "research"]
+    },
+    {
+      "prompt": "Commit my changes and merge to main, other sessions are editing too",
+      "expected": ["git-workflow", "safe-parallel-commit"]
+    },
+    {
+      "prompt": "Draw an architecture diagram of the provider adapter flow",
+      "expected": ["archify"]
+    },
+    {
+      "prompt": "Find me a skill for Playwright browser testing",
+      "expected": ["find-skills"]
+    },
+    {
+      "prompt": "Write the system prompt for my customer support agent",
+      "expected": ["prompt-composer", "writing-for-agents"]
+    },
+    {
+      "prompt": "Send me a desktop toast when the build finishes",
+      "expected": ["windows-toast"]
+    },
+    {
+      "prompt": "Make this function easier to read without changing behavior",
+      "expected": ["code-simplification", "code-simplify"]
+    },
+    {
+      "prompt": "Check my UI with a very long name, an empty list and emoji",
+      "expected": ["break-ui"]
+    },
+    {
+      "prompt": "Turn the settled discussion into a spec card",
+      "expected": ["spec", "to-spec"]
+    },
+    {
+      "prompt": "Tune the SQL query that takes 12 seconds",
+      "expected": ["performance-optimization"]
+    },
+    {
+      "prompt": "thanks, looks good",
+      "expected": []
+    },
+    {
+      "prompt": "what time is it in Tucson right now",
+      "expected": []
+    },
+    {
+      "prompt": "rename variable foo to bar in utils.ts",
+      "expected": []
+    }
+  ]
+}
