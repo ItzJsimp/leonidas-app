@@ -13,6 +13,11 @@ export function prefixPromptWithSkill(prompt: string, skillName: string): string
   return `${marker} ${prompt}`;
 }
 
+/** Leads the prompt with every skill in rank order, as if each `$name` was typed. */
+export function prefixPromptWithSkills(prompt: string, skillNames: ReadonlyArray<string>): string {
+  return skillNames.reduceRight((text, name) => prefixPromptWithSkill(text, name), prompt);
+}
+
 /** Skills in one message past this count get a context-cost hint. */
 export const SKILL_CONTEXT_WARNING_THRESHOLD = 5;
 

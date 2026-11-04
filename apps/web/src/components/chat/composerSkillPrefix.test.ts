@@ -4,7 +4,24 @@ import {
   countMentionedSkills,
   hoistCommandToPromptStart,
   prefixPromptWithSkill,
+  prefixPromptWithSkills,
 } from "./composerSkillPrefix";
+
+describe("prefixPromptWithSkills", () => {
+  it("leads the prompt with the skills in rank order", () => {
+    expect(prefixPromptWithSkills("fix the bug", ["tdd", "review"])).toBe(
+      "$tdd $review fix the bug",
+    );
+  });
+
+  it("leaves the prompt unchanged for an empty list", () => {
+    expect(prefixPromptWithSkills("fix the bug", [])).toBe("fix the bug");
+  });
+
+  it("does not repeat a skill that already leads", () => {
+    expect(prefixPromptWithSkills("$tdd fix the bug", ["tdd"])).toBe("$tdd fix the bug");
+  });
+});
 
 describe("prefixPromptWithSkill", () => {
   it("leads an empty prompt with the skill", () => {
