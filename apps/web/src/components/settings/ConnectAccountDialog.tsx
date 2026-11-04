@@ -26,6 +26,7 @@ import { WizardHeader, WizardPanel, WizardPopup } from "../ui/wizard";
 import {
   CONNECT_CHOICES,
   planQuickConnect,
+  sharesLoginWithOtherAccount,
   type ConnectChoice,
 } from "./ConnectAccountDialog.logic";
 import { AddManagedCodexAccountDialog } from "./CodexSetupSection";
@@ -104,7 +105,18 @@ export function ConnectAccountDialog({
     instanceId === null
       ? undefined
       : providers.find((provider) => provider.instanceId === instanceId);
-  const signedIn = connectedProvider?.auth.status === "authenticated";
+  const [signedInHere, setSignedInHere] = useState(false);
+  // A new Claude account that already shows another account's email has no login of its own.
+  const sharesLogin =
+    connectedProvider?.driver === "claudeAgent" &&
+    sharesLoginWithOtherAccount(
+      { instanceId: connectedProvider.instanceId, email: connectedProvider.auth.email },
+      providers
+        .filter((provider) => provider.driver === "claudeAgent")
+        .map((provider) => ({ instanceId: provider.instanceId, email: provider.auth.email })),
+    );
+  const signedIn =
+    connectedProvider?.auth.status === "authenticated" && (!sharesLogin || signedInHere);
   const step = instanceId === null ? 0 : signedIn ? 2 : 1;
 
   const connect = async (choice: ConnectChoice) => {
@@ -214,6 +226,8 @@ export function ConnectAccountDialog({
               provider={connectedProvider}
               displayName={connectedProvider.displayName || "Claude"}
               autoStart
+              forceSignIn
+              onSignedIn={() => setSignedInHere(true)}
               onAutoStartConsumed={noop}
               terminalOpen={false}
               terminalAvailable={false}

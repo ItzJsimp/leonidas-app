@@ -39,6 +39,8 @@ export function ClaudeSignInCard({
   terminalOpen,
   terminalAvailable,
   onOpenTerminal,
+  forceSignIn = false,
+  onSignedIn,
 }: {
   readonly environmentId: EnvironmentId;
   readonly provider: ServerProvider;
@@ -49,6 +51,10 @@ export function ClaudeSignInCard({
   readonly terminalOpen: boolean;
   readonly terminalAvailable: boolean;
   readonly onOpenTerminal: () => void;
+  /** Always open the browser, even when the server already sees a login for this instance. */
+  readonly forceSignIn?: boolean;
+  /** Called once when the server reports that this sign-in worked. */
+  readonly onSignedIn?: () => void;
 }) {
   const instanceId = provider.instanceId;
   const authQuery = useEnvironmentQuery(
@@ -105,9 +111,15 @@ export function ClaudeSignInCard({
 
   const signIn = useCallback(async () => {
     setRequested(true);
-    const started = await run(() => startAuth({ environmentId, input: { instanceId } }));
+    const started = await run(() =>
+      startAuth({
+        environmentId,
+        // "force" is the server method that skips the "already logged in" shortcut.
+        input: { instanceId, ...(forceSignIn ? { methodId: "force" } : {}) },
+      }),
+    );
     if (!started) setRequested(false);
-  }, [run, startAuth, environmentId, instanceId]);
+  }, [run, startAuth, environmentId, instanceId, forceSignIn]);
 
   const cancel = useCallback(async () => {
     const flowId = auth?.flowId;
@@ -168,9 +180,10 @@ export function ClaudeSignInCard({
     }
     refreshedFlow.current = auth.flowId;
     void refreshProviders({ environmentId, input: {} });
+    onSignedIn?.();
     // Sign-in ends in the browser: bring the app back in front when this click started it.
     if (requested) void window.desktopBridge?.revealMainWindow?.().catch(() => undefined);
-  }, [auth?.phase, auth?.flowId, refreshProviders, environmentId, requested]);
+  }, [auth?.phase, auth?.flowId, refreshProviders, environmentId, requested, onSignedIn]);
 
   const needsInstall = !provider.installed;
   const installedElsewhere = needsInstall && installView.kind === "installed" && installProbed;

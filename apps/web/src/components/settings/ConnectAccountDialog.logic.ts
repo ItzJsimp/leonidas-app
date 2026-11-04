@@ -16,6 +16,24 @@ export const CONNECT_CHOICES: ReadonlyArray<ConnectChoiceInfo> = [
 ];
 
 /**
+ * True when a new account shows the same email as another account of the same
+ * service. A new account has its own config folder, so it cannot have the same
+ * login unless the login lives outside that folder (an env token, or an old
+ * Claude CLI that shares one keychain entry). That is not a real sign-in.
+ */
+export function sharesLoginWithOtherAccount(
+  account: { readonly instanceId: string; readonly email?: string | undefined },
+  others: ReadonlyArray<{ readonly instanceId: string; readonly email?: string | undefined }>,
+): boolean {
+  const email = account.email?.trim().toLowerCase();
+  if (!email) return false;
+  return others.some(
+    (other) =>
+      other.instanceId !== account.instanceId && other.email?.trim().toLowerCase() === email,
+  );
+}
+
+/**
  * Plan for a one-click account. The first Claude or Google account reuses the
  * machine's default sign-in. Later accounts get their own config folder so two
  * accounts never share one login.
