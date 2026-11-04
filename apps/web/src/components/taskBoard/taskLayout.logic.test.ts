@@ -11,6 +11,7 @@ import {
   rerank,
   resizeColumn,
   setColumnHidden,
+  setFreezeName,
   setRowHeight,
   toggleWrap,
 } from "./taskLayout.logic";
@@ -61,6 +62,12 @@ describe("column edits", () => {
     expect(keys(moveColumn(DEFAULT_LAYOUT, "due", 0))[0]).toBe("title");
     const unfrozen = { ...DEFAULT_LAYOUT, table: { ...DEFAULT_LAYOUT.table, freezeName: false } };
     expect(keys(moveColumn(unfrozen, "due", 0))[0]).toBe("due");
+  });
+
+  it("puts Name first when it is frozen again", () => {
+    const unfrozen = moveColumn(setFreezeName(DEFAULT_LAYOUT, false), "due", 0);
+    expect(keys(unfrozen)[0]).toBe("due");
+    expect(keys(setFreezeName(unfrozen, true))[0]).toBe("title");
   });
 
   it("hides and shows columns but never Name, toggles wrap, and clamps row height", () => {

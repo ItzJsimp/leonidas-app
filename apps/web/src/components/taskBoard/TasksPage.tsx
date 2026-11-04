@@ -70,6 +70,9 @@ import { useTaskActions } from "./useTaskActions";
 import { useTaskUndo } from "./useTaskUndo";
 import { useTasksLayout } from "./useTasksLayout";
 import { TaskTableView } from "./TaskTable";
+import { TaskPropertiesMenu } from "./TaskPropertiesMenu";
+import type { LayoutChange } from "./TaskTableHeader";
+import type { TableLayout } from "./taskLayout.logic";
 import type { PendingEdit } from "./taskUndo.logic";
 
 const NO_PENDING: ReadonlyMap<string, PendingEdit> = new Map();
@@ -169,6 +172,31 @@ export function TasksPage() {
   });
   const undo = useTaskUndo();
   const tasksLayout = useTasksLayout();
+  const { update: updateLayout } = tasksLayout;
+  // Every column change is one undo step that puts back the table part of the layout.
+  const changeTable = useCallback<LayoutChange>(
+    (label, change, options) => {
+      let before: TableLayout | null = null;
+      let after: TableLayout | null = null;
+      updateLayout((current) => {
+        const next = change(current);
+        before = current.table;
+        after = next.table;
+        return next;
+      });
+      const [from, to] = [before as TableLayout | null, after as TableLayout | null];
+      if (!from || !to || from === to) return;
+      undo.record(
+        label,
+        {
+          undo: async () => (updateLayout((current) => ({ ...current, table: from })), true),
+          redo: async () => (updateLayout((current) => ({ ...current, table: to })), true),
+        },
+        options,
+      );
+    },
+    [undo, updateLayout],
+  );
   const listLike = prefs.view === "table" || prefs.view === "list";
   const canCreate = useAtomValue(taskBoardCardCreate.permissionAtom(board.environmentId));
   const {
@@ -434,6 +462,7 @@ export function TasksPage() {
         sections={board.sections}
         groupBy={prefs.groupBy === "state" && query.trim() ? "none" : prefs.groupBy}
         layout={tasksLayout.layout}
+        onLayoutChange={changeTable}
         context={context}
         actions={actions}
         selectedId={selectedId}
@@ -556,6 +585,9 @@ export function TasksPage() {
                   />
                 ) : null}
                 {picker}
+                {prefs.view === "table" ? (
+                  <TaskPropertiesMenu layout={tasksLayout.layout} onLayoutChange={changeTable} />
+                ) : null}
                 {listLike || prefs.view === "board" ? (
                   <TaskFilterBar
                     prefs={prefs}

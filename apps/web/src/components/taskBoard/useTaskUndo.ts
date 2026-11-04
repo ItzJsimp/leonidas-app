@@ -18,8 +18,8 @@ export type UndoAction = {
 };
 
 export type TaskUndo = {
-  /** Adds a step and shows one toast with Undo. Returns the id that `drop` takes. */
-  readonly record: (label: string, action: UndoAction) => number;
+  /** Adds a step and shows one toast with Undo (`toast: false` skips it). Returns the id for `drop`. */
+  readonly record: (label: string, action: UndoAction, options?: { toast?: boolean }) => number;
   /** Removes a step whose save failed. */
   readonly drop: (id: number) => void;
   readonly undo: () => void;
@@ -88,10 +88,10 @@ export function useTaskUndo(): TaskUndo {
   );
 
   const record = useCallback(
-    (label: string, action: UndoAction) => {
+    (label: string, action: UndoAction, options?: { toast?: boolean }) => {
       const id = nextId.current++;
       history.current = pushStep(history.current, { id, label, data: action });
-      showToast(label, () => void run("undo", id));
+      if (options?.toast !== false) showToast(label, () => void run("undo", id));
       return id;
     },
     [run, showToast],

@@ -65,7 +65,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const clampWidth = (key: string, width: number) =>
+/** A column width within the limits. Name keeps room to read. */
+export const clampWidth = (key: string, width: number) =>
   Math.round(clamp(width, key === "title" ? TITLE_MIN : COLUMN_MIN, COLUMN_MAX));
 
 /** A valid layout from saved JSON: bad parts fall back to the default, new columns are added. */
@@ -195,4 +196,15 @@ export function byManualRank<T extends { readonly id: string }>(
     const right = ranks[b.id] ?? Number.POSITIVE_INFINITY;
     return left === right ? fallback(a, b) : left < right ? -1 : 1;
   };
+}
+
+/** Freezes or unfreezes the Name column. A frozen Name moves to the first place. */
+export function setFreezeName(layout: TasksLayout, freezeName: boolean): TasksLayout {
+  const { columns } = layout.table;
+  return withTable(layout, {
+    freezeName,
+    columns: freezeName
+      ? [...columns.filter((c) => c.key === "title"), ...columns.filter((c) => c.key !== "title")]
+      : columns,
+  });
 }

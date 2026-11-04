@@ -9,6 +9,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
 import { cn } from "~/lib/utils";
@@ -16,7 +17,6 @@ import { cn } from "~/lib/utils";
 import { TasksEmpty, type TasksEmptyContext } from "./TaskEmptyStates";
 import { useLatest } from "./TaskRowParts";
 import {
-  COLUMN_META,
   DueText,
   GatesBar,
   OwnerName,
@@ -24,7 +24,14 @@ import {
   StatusPill,
   UpdatedText,
 } from "./TaskTableCells";
-import type { ColumnLayout, Density, TasksLayout } from "./taskLayout.logic";
+import { TaskTableHeader, type LayoutChange } from "./TaskTableHeader";
+import {
+  clampWidth,
+  resizeColumn,
+  type ColumnLayout,
+  type Density,
+  type TasksLayout,
+} from "./taskLayout.logic";
 import { isOpen, type TaskSectionGroup, type TaskView } from "./taskBoard.logic";
 import type { TaskActions, TaskContext } from "./taskBoard.types";
 import {
@@ -151,6 +158,7 @@ const TableRow = memo(function TableRow(props: RowProps) {
           <div
             key="title"
             role="gridcell"
+            data-col="title"
             className={cn(
               "flex min-w-0 items-center gap-2 border-r border-border/40 px-2",
               freezeName && ["sticky z-[1]", STICKY_SURFACE],
@@ -184,6 +192,7 @@ const TableRow = memo(function TableRow(props: RowProps) {
           <div
             key={column.key}
             role="gridcell"
+            data-col={column.key}
             className={cn(
               "flex min-w-0 items-center px-2",
               wrap.has(column.key) ? "whitespace-normal" : "overflow-hidden whitespace-nowrap",
@@ -238,47 +247,6 @@ function GroupRow({
   );
 }
 
-function HeaderRow({
-  columns,
-  freezeName,
-}: {
-  readonly columns: ReadonlyArray<ColumnLayout>;
-  readonly freezeName: boolean;
-}) {
-  return (
-    <div
-      role="row"
-      aria-rowindex={1}
-      className="grid h-9 w-[var(--task-width)] min-w-full border-b border-border bg-background [grid-template-columns:var(--task-cols)]"
-    >
-      <div
-        role="columnheader"
-        aria-label="Done"
-        className={cn(freezeName && "sticky left-0 z-[2] bg-background")}
-      />
-      {columns.map((column) => {
-        const meta = COLUMN_META[column.key];
-        return (
-          <div
-            key={column.key}
-            role="columnheader"
-            className={cn(
-              "flex min-w-0 items-center gap-1.5 px-2 font-medium text-muted-foreground text-xs [&_svg]:size-3.5 [&_svg]:shrink-0",
-              column.key === "title" && "border-r border-border/40",
-              column.key === "title" && freezeName && "sticky z-[2] bg-background",
-            )}
-            style={column.key === "title" && freezeName ? { left: GUTTER } : undefined}
-          >
-            {meta?.icon}
-            <span className="truncate">{meta?.label ?? column.key}</span>
-          </div>
-        );
-      })}
-      <div role="presentation" />
-    </div>
-  );
-}
-
 /**
  * The Tasks database table: property columns from the saved layout, a frozen Name column, group
  * rows and virtual rows (only rows near the view are mounted, so 450 cards scroll at 60 fps).
@@ -293,6 +261,7 @@ export function TaskTableView(props: {
   readonly selectedId: string | null;
   readonly onSelect: (task: TaskView) => void;
   readonly empty: TasksEmptyContext;
+  readonly onLayoutChange: LayoutChange;
 }) {
   const { tasks, sections, groupBy, layout, context, actions, selectedId } = props;
   const { table } = layout;
@@ -323,6 +292,66 @@ export function TaskTableView(props: {
     (task: TaskView) => actionsRef.current.setStatus(task, isOpen(task) ? "done" : "todo"),
     [actionsRef],
   );
+  const guideRef = useRef<HTMLDivElement>(null);
+  // Resize: a guide line follows the pointer (one style write per frame, no React render).
+  const startResize = (key: string, event: ReactPointerEvent<HTMLElement>) => {
+    const grid = gridRef.current;
+    const guide = guideRef.current;
+    const column = table.columns.find((item) => item.key === key);
+    if (!grid || !guide || !column || event.button !== 0) return;
+    event.preventDefault();
+    const handle = event.currentTarget;
+    // Window listeners keep the drag alive when the pointer leaves the thin handle.
+    const startX = event.clientX;
+    const edge =
+      handle.getBoundingClientRect().left +
+      handle.offsetWidth / 2 -
+      grid.getBoundingClientRect().left;
+    let width = column.width;
+    let frame = 0;
+    // Only the guide line moves while dragging; the columns change once, on release.
+    const paint = () => {
+      frame = 0;
+      guide.style.left = `${edge + width - column.width}px`;
+    };
+    guide.hidden = false;
+    paint();
+    const onMove = (move: PointerEvent) => {
+      width = clampWidth(key, column.width + move.clientX - startX);
+      if (!frame) frame = requestAnimationFrame(paint);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (frame) cancelAnimationFrame(frame);
+      guide.hidden = true;
+      if (width !== column.width) {
+        props.onLayoutChange("Resized column", (layout) => resizeColumn(layout, key, width), {
+          toast: false,
+        });
+      }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
+  // Fit reads the widest mounted cell once; rows outside the view are not measured.
+  const fitColumn = (key: string) => {
+    const cells = gridRef.current?.querySelectorAll<HTMLElement>(`[data-col="${CSS.escape(key)}"]`);
+    let widest = 0;
+    for (const cell of cells ?? []) {
+      const parts = [...cell.children] as HTMLElement[];
+      const content =
+        parts.reduce((sum, part) => sum + part.scrollWidth, 0) + 6 * Math.max(0, parts.length - 1);
+      widest = Math.max(widest, content + 20);
+    }
+    if (widest > 0) {
+      props.onLayoutChange("Fit column width", (layout) => resizeColumn(layout, key, widest), {
+        toast: false,
+      });
+    }
+  };
   const toggleGroup = useCallback(
     (key: string) => {
       const group = groups.find((candidate) => candidate.key === key);
@@ -395,7 +424,7 @@ export function TaskTableView(props: {
       aria-label="Tasks"
       aria-rowcount={visibleIds.length + 1}
       onKeyDown={onKeyDown}
-      className="h-full min-h-0"
+      className="relative h-full min-h-0"
       style={{ "--task-cols": template, "--task-width": `${width}px` } as CSSProperties}
     >
       <LegendList<ListItem>
@@ -409,8 +438,25 @@ export function TaskTableView(props: {
         getItemType={(item) => item.kind}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
-        ListHeaderComponent={<HeaderRow columns={columns} freezeName={table.freezeName} />}
+        ListHeaderComponent={
+          <TaskTableHeader
+            columns={columns}
+            allColumns={table.columns}
+            freezeName={table.freezeName}
+            wrap={wrap}
+            gutter={GUTTER}
+            onLayoutChange={props.onLayoutChange}
+            onResizeStart={startResize}
+            onFit={fitColumn}
+          />
+        }
         ListHeaderComponentStyle={{ position: "sticky", top: 0, zIndex: 3 }}
+      />
+      <div
+        ref={guideRef}
+        hidden
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-0.5 -translate-x-1/2 bg-primary"
       />
     </div>
   );
