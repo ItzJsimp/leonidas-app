@@ -403,6 +403,19 @@ export default defineConfig(() => {
       emptyOutDir: true,
       manifest: true,
       sourcemap: buildSourcemap,
+      rolldownOptions: {
+        output: {
+          // The phone cold load fetched ~200 one-icon files (under 1 KB each); on slow 4G the request count, not the bytes, set the load time.
+          codeSplitting: {
+            groups: [
+              {
+                name: "lucide-icons",
+                test: /node_modules[\/]lucide-react[\/]dist[\/]esm[\/]icons[\/]/,
+              },
+            ],
+          },
+        },
+      },
     },
     worker: { format: "es" },
     test: {
