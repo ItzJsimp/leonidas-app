@@ -4558,15 +4558,22 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       shouldBlurMobileComposerOnSubmit,
     ],
   );
+  const sendScheduledRef = useRef(false);
   const handleSubmitMessage = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
-      submitComposer(
-        event,
-        resolveComposerDispatchMode({
-          running: phase === "running",
-          alternateModifier: event.metaKey || event.ctrlKey,
-          activeTurnDefault: followUpBehavior,
+      if (sendScheduledRef.current) return;
+      sendScheduledRef.current = true;
+      const dispatchMode = resolveComposerDispatchMode({
+        running: phase === "running",
+        alternateModifier: event.metaKey || event.ctrlKey,
+        activeTurnDefault: followUpBehavior,
+      });
+      // The send re-renders the whole chat, so the tap paints first and the send runs right after (INP).
+      requestAnimationFrame(() =>
+        setTimeout(() => {
+          sendScheduledRef.current = false;
+          submitComposer(event, dispatchMode);
         }),
       );
     },
