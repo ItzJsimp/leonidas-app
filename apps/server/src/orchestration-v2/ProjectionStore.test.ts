@@ -2343,9 +2343,39 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         maxTokens: 1_000_000,
         totalProcessedTokens: 4_100_000,
       });
-      // A handoff moves the conversation; the previous provider's totals stay behind.
+      // The snapshot lags: a newer turn report wins, as in the chat's meter, and
+      // an older report must not undo it.
+      const reportUsage = (id: string, ordinal: number, usedTokens: number, updatedAt: string) =>
+        projectionStore.apply({
+          id: EventId.make(`event:provider-usage:${id}`),
+          type: "provider-turn.updated",
+          threadId,
+          nodeId: NodeId.make(`node:provider-usage:${id}`),
+          driver,
+          occurredAt: now,
+          payload: {
+            id: ProviderTurnId.make(`provider-turn:provider-usage:${id}`),
+            providerThreadId: ProviderThreadId.make("provider-thread:provider-usage:first"),
+            nodeId: NodeId.make(`node:provider-usage:${id}`),
+            runAttemptId: null,
+            nativeTurnRef: null,
+            ordinal,
+            status: "completed",
+            startedAt: now,
+            completedAt: now,
+            tokenUsage: { usedTokens, updatedAt },
+          },
+        });
+      yield* reportUsage("new", 1, 185_000, "2026-08-29T12:00:09.000Z");
+      yield* reportUsage("old", 2, 109_000, "2026-08-29T12:00:01.000Z");
+      assert.deepEqual(yield* shellUsage, {
+        usedTokens: 185_000,
+        maxTokens: 1_000_000,
+        totalProcessedTokens: 4_100_000,
+      });
+      // A handoff moves the conversation: the snapshot's extras stay behind.
       yield* applyProviderThread("second", null, 1);
-      assert.isNull(yield* shellUsage);
+      assert.deepEqual(yield* shellUsage, { usedTokens: 185_000 });
     }),
   );
 

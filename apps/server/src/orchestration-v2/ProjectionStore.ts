@@ -1594,6 +1594,7 @@ export function threadShellFromProjection(
     contextUsage: activeProviderContextUsageForShell(
       projection.providerThreads,
       projection.thread.activeProviderThreadId,
+      newestTurnTokenUsageForShell(projection.providerTurns),
     ),
     itemCount: activeLocalTurnItems(projection).length,
     visibleItemCount: projection.visibleTurnItems.length,
@@ -1654,21 +1655,46 @@ function activeProviderGoalForShell(
   return providerThreads.find((thread) => thread.id === activeProviderThreadId)?.goal ?? null;
 }
 
-/** Only the totals the sidebar hover card shows; the full snapshot stays on the provider thread. */
+/** Newest provider-turn usage report: the figure the chat's context meter shows. */
+type ShellLiveTokenUsage = { readonly usedTokens: number; readonly maxTokens: number | null };
+
+function newestTurnTokenUsageForShell(
+  turns: OrchestrationV2ThreadProjection["providerTurns"],
+): ShellLiveTokenUsage | null {
+  let newest: (typeof turns)[number]["tokenUsage"] = undefined;
+  for (const { tokenUsage } of turns) {
+    if (tokenUsage === undefined) continue;
+    // Ties go to the later entry, as in the meter.
+    if (newest === undefined || Date.parse(tokenUsage.updatedAt) >= Date.parse(newest.updatedAt)) {
+      newest = tokenUsage;
+    }
+  }
+  return newest === undefined
+    ? null
+    : { usedTokens: newest.usedTokens, maxTokens: newest.maxTokens ?? null };
+}
+
+/**
+ * Only the totals the sidebar hover card shows. The newest turn report wins,
+ * like the chat's meter; the provider thread snapshot lags behind it and
+ * fills the gaps (cumulative total, window size) or stands in without a report.
+ */
 function activeProviderContextUsageForShell(
   providerThreads: ReadonlyArray<OrchestrationV2ThreadProjection["providerThreads"][number]>,
   activeProviderThreadId: OrchestrationV2ThreadProjection["thread"]["activeProviderThreadId"],
+  live: ShellLiveTokenUsage | null,
 ): OrchestrationV2ThreadShell["contextUsage"] {
   const usage = providerThreads.find(
     (thread) => thread.id === activeProviderThreadId,
   )?.contextUsage;
-  if (usage == null) return null;
+  if (usage == null && live === null) return null;
+  const maxTokens = live?.maxTokens ? live.maxTokens : usage?.maxTokens;
   return {
-    usedTokens: usage.usedTokens,
-    ...(usage.totalProcessedTokens === undefined
+    usedTokens: live?.usedTokens ?? usage!.usedTokens,
+    ...(usage?.totalProcessedTokens === undefined
       ? {}
       : { totalProcessedTokens: usage.totalProcessedTokens }),
-    ...(usage.maxTokens === undefined ? {} : { maxTokens: usage.maxTokens }),
+    ...(maxTokens === undefined ? {} : { maxTokens }),
   };
 }
 
@@ -5557,6 +5583,45 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             WHERE thread_id IN (SELECT value FROM json_each(${encodeIdList(threadIds)}))
           `;
 
+    // Newest usage report per thread, picked in SQL so the shell never decodes every turn.
+    const selectShellLiveTokenUsageRows = (threadIds: ReadonlyArray<ThreadId>) =>
+      sql<{
+        readonly thread_id: string;
+        readonly used_tokens: number;
+        readonly max_tokens: number | null;
+      }>`
+        SELECT thread_id, used_tokens, max_tokens FROM (
+          SELECT
+            thread_id,
+            json_extract(payload_json, '$.tokenUsage.usedTokens') AS used_tokens,
+            json_extract(payload_json, '$.tokenUsage.maxTokens') AS max_tokens,
+            ROW_NUMBER() OVER (
+              PARTITION BY thread_id
+              ORDER BY json_extract(payload_json, '$.tokenUsage.updatedAt') DESC
+            ) AS newest
+          FROM orchestration_v2_projection_provider_turns
+          WHERE thread_id IN (SELECT value FROM json_each(${encodeIdList(threadIds)}))
+            AND json_extract(payload_json, '$.tokenUsage.usedTokens') IS NOT NULL
+        ) WHERE newest = 1
+      `;
+
+    const liveTokenUsageMap = (
+      rows: ReadonlyArray<{
+        readonly thread_id: string;
+        readonly used_tokens: number;
+        readonly max_tokens: number | null;
+      }>,
+    ) =>
+      new Map(
+        rows.map(
+          (row) =>
+            [
+              ThreadId.make(row.thread_id),
+              { usedTokens: row.used_tokens, maxTokens: row.max_tokens },
+            ] as const,
+        ),
+      );
+
     const selectShellPendingTurnItemRows = (threadIds?: ReadonlyArray<ThreadId>) =>
       threadIds === undefined
         ? sql<PayloadRow & { readonly thread_id: string }>`
@@ -5791,6 +5856,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         ThreadId,
         ReadonlyArray<OrchestrationV2TurnItem>
       >;
+      readonly liveTokenUsageByThreadId: ReadonlyMap<ThreadId, ShellLiveTokenUsage>;
     }) =>
       Effect.gen(function* () {
         const {
@@ -5799,6 +5865,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           itemCountsByThreadId,
           providerThreadsByThreadId,
           pendingTurnItemsByThreadId,
+          liveTokenUsageByThreadId,
         } = input;
         const thread = yield* decodeThreadPayload(row.payload_json);
         const decodedActivity =
@@ -5925,6 +5992,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           contextUsage: activeProviderContextUsageForShell(
             providerThreadsByThreadId.get(thread.id) ?? [],
             thread.activeProviderThreadId,
+            liveTokenUsageByThreadId.get(thread.id) ?? null,
           ),
           itemCount: row.item_count,
           runlessItemCount: row.runless_item_count,
@@ -5968,19 +6036,26 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           read: (ids: ReadonlyArray<ThreadId>) => Effect.Effect<ReadonlyArray<A>, unknown>,
           ids: ReadonlyArray<ThreadId> = threadIds,
         ) => (ids.length === 0 ? Effect.succeed([] as ReadonlyArray<A>) : read(ids));
-        const [runRows, itemCountRows, sequenceRows, providerThreadRows, pendingTurnItemRows] =
-          yield* Effect.all([
-            readForThreadIds(selectShellRunRows, forkSourceIds),
-            readForThreadIds(selectShellRunItemCounts, forkSourceIds),
-            sql<{ readonly snapshot_sequence: number | null }>`
+        const [
+          runRows,
+          itemCountRows,
+          sequenceRows,
+          providerThreadRows,
+          pendingTurnItemRows,
+          liveTokenUsageRows,
+        ] = yield* Effect.all([
+          readForThreadIds(selectShellRunRows, forkSourceIds),
+          readForThreadIds(selectShellRunItemCounts, forkSourceIds),
+          sql<{ readonly snapshot_sequence: number | null }>`
         SELECT MAX(sequence) AS snapshot_sequence
         FROM orchestration_events
         WHERE application_event_version = 2
           AND aggregate_kind = 'thread'
       `,
-            readForThreadIds(selectShellProviderThreadRows),
-            readForThreadIds(selectShellPendingTurnItemRows),
-          ]);
+          readForThreadIds(selectShellProviderThreadRows),
+          readForThreadIds(selectShellPendingTurnItemRows),
+          readForThreadIds(selectShellLiveTokenUsageRows),
+        ]);
         return {
           targetThreadIds,
           threadRows,
@@ -5989,6 +6064,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           sequenceRows,
           providerThreadRows,
           pendingTurnItemRows,
+          liveTokenUsageRows,
         };
       });
 
@@ -6000,6 +6076,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       sequenceRows,
       providerThreadRows,
       pendingTurnItemRows,
+      liveTokenUsageRows,
     }: Effect.Success<ReturnType<typeof readShellSnapshotRows>>) =>
       Effect.gen(function* () {
         const { runOrdinalsByThreadId, itemCountsByThreadId } = runMapsByThreadId({
@@ -6008,6 +6085,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         });
         const { providerThreadsByThreadId, pendingTurnItemsByThreadId } =
           yield* pendingBackgroundDataByThreadId({ providerThreadRows, pendingTurnItemRows });
+        const liveTokenUsageByThreadId = liveTokenUsageMap(liveTokenUsageRows);
         const states = yield* Effect.forEach(threadRows, (row) =>
           shellThreadStateFromRow({
             row,
@@ -6015,6 +6093,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             itemCountsByThreadId,
             providerThreadsByThreadId,
             pendingTurnItemsByThreadId,
+            liveTokenUsageByThreadId,
           }),
         );
         const statesByThreadId = new Map(states.map((state) => [state.thread.id, state]));
@@ -6080,17 +6159,23 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
 
             const threadIds = [...rowsByThreadId.keys()];
             const forkSourceIds = shellForkSourceIds([...rowsByThreadId.values()]);
-            const [runRows, itemCountRows, providerThreadRows, pendingTurnItemRows] =
-              yield* Effect.all([
-                forkSourceIds.length === 0
-                  ? Effect.succeed([] as ReadonlyArray<ShellRunRow>)
-                  : selectShellRunRows(forkSourceIds),
-                forkSourceIds.length === 0
-                  ? Effect.succeed([] as ReadonlyArray<ShellRunItemCountRow>)
-                  : selectShellRunItemCounts(forkSourceIds),
-                selectShellProviderThreadRows(threadIds),
-                selectShellPendingTurnItemRows(threadIds),
-              ]);
+            const [
+              runRows,
+              itemCountRows,
+              providerThreadRows,
+              pendingTurnItemRows,
+              liveTokenUsageRows,
+            ] = yield* Effect.all([
+              forkSourceIds.length === 0
+                ? Effect.succeed([] as ReadonlyArray<ShellRunRow>)
+                : selectShellRunRows(forkSourceIds),
+              forkSourceIds.length === 0
+                ? Effect.succeed([] as ReadonlyArray<ShellRunItemCountRow>)
+                : selectShellRunItemCounts(forkSourceIds),
+              selectShellProviderThreadRows(threadIds),
+              selectShellPendingTurnItemRows(threadIds),
+              selectShellLiveTokenUsageRows(threadIds),
+            ]);
             const { runOrdinalsByThreadId, itemCountsByThreadId } = runMapsByThreadId({
               runRows,
               itemCountRows,
@@ -6098,6 +6183,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             const { providerThreadsByThreadId, pendingTurnItemsByThreadId } =
               yield* pendingBackgroundDataByThreadId({ providerThreadRows, pendingTurnItemRows });
 
+            const liveTokenUsageByThreadId = liveTokenUsageMap(liveTokenUsageRows);
             const states = yield* Effect.forEach([...rowsByThreadId.values()], (row) =>
               shellThreadStateFromRow({
                 row,
@@ -6105,6 +6191,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                 itemCountsByThreadId,
                 providerThreadsByThreadId,
                 pendingTurnItemsByThreadId,
+                liveTokenUsageByThreadId,
               }),
             );
             const statesByThreadId = new Map(states.map((state) => [state.thread.id, state]));
