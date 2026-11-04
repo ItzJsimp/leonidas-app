@@ -19,6 +19,8 @@ export interface SkillPick {
 const MIN_SCORE_PER_LOG_POOL = 0.2;
 const RELATIVE_CUT = 0.7;
 const MIN_MATCHES = 2;
+/** A skill kept in the project's own folder was written for this project, so it wins ties. */
+const PROJECT_SKILL_BOOST = 1.2;
 /** Project words only break ties: a project name matches many skills. */
 const PROJECT_WEIGHT = 0.25;
 
@@ -85,9 +87,11 @@ export function rankSkills(input: {
     let matches = 0;
     for (const word of queryWords) if (counts.has(word)) matches += 1;
     if (matches < MIN_MATCHES) continue;
+    const boost = skill.scope?.toLowerCase() === "project" ? PROJECT_SKILL_BOOST : 1;
     const score =
-      (weigh(queryWords, counts) + PROJECT_WEIGHT * weigh(projectWords, counts)) /
-      Math.sqrt(length);
+      ((weigh(queryWords, counts) + PROJECT_WEIGHT * weigh(projectWords, counts)) /
+        Math.sqrt(length)) *
+      boost;
     scored.push({ name: skill.name, score });
   }
   scored.sort((a, b) => b.score - a.score);

@@ -82,6 +82,24 @@ describe("rankSkills rules", () => {
     expect(picks.map((p) => p.name)).toEqual(["relnotes"]);
   });
 
+  it("ranks a project skill above an equal global skill", () => {
+    const text = "deploy release pipeline";
+    const global = { ...skills[0]!, name: "alpha-ship", description: text, scope: "user" };
+    const project = { ...skills[0]!, name: "beta-ship", description: text, scope: "project" };
+    const picks = rankSkills({
+      prompt: "deploy the release pipeline",
+      projectText: "",
+      skills: [global, project],
+      cap: 3,
+    });
+    expect(picks.map((p) => p.name)).toEqual(["beta-ship", "alpha-ship"]);
+  });
+
+  it("does not pick a project skill that shares only one word", () => {
+    const project = { ...skills[0]!, name: "deploy-only", description: "deploy", scope: "project" };
+    expect(rank("deploy the release pipeline", { skills: [project] })).toEqual([]);
+  });
+
   it("drops a pick that is much weaker than the best one", () => {
     const strong = { ...skills[0]!, name: "strong", description: "review diff" };
     const weak = {
