@@ -49,12 +49,53 @@ describe("rankSkills rules", () => {
   });
 
   it("honors the cap", () => {
-    const prompt = "review the diff, write a failing test first, and tune the slow SQL query";
-    const five = rank(prompt, { cap: 5 });
-    expect(five.length).toBeGreaterThan(2);
-    expect(five.length).toBeLessThanOrEqual(5);
-    expect(rank(prompt, { cap: 1 })).toEqual(five.slice(0, 1));
-    expect(rank(prompt, { cap: 2 })).toEqual(five.slice(0, 2));
+    // Six skills with the same text score the same, so only the cap limits the picks.
+    const twins = [1, 2, 3, 4, 5, 6].map((id) => ({
+      ...skills[0]!,
+      name: `twin-x${id}`,
+      description: "deploy release pipeline",
+    }));
+    const pick = (cap: number) =>
+      rankSkills({ prompt: "deploy the release pipeline", projectText: "", skills: twins, cap });
+    expect(pick(1)).toHaveLength(1);
+    expect(pick(3)).toHaveLength(3);
+    expect(pick(5)).toHaveLength(5);
+  });
+
+  it("still picks from a project that has only a few skills", () => {
+    const few = [
+      {
+        ...skills[0]!,
+        name: "relnotes",
+        description:
+          "Write release notes for a version with sections highlights details and credits",
+      },
+      { ...skills[0]!, name: "db-migrate", description: "Run database migrations safely" },
+      { ...skills[0]!, name: "lint-fix", description: "Fix lint errors across the repository" },
+    ];
+    const picks = rankSkills({
+      prompt: "release notes please",
+      projectText: "",
+      skills: few,
+      cap: 3,
+    });
+    expect(picks.map((p) => p.name)).toEqual(["relnotes"]);
+  });
+
+  it("drops a pick that is much weaker than the best one", () => {
+    const strong = { ...skills[0]!, name: "strong", description: "review diff" };
+    const weak = {
+      ...skills[0]!,
+      name: "weak",
+      description: "review diff cooking gardening travel music sports",
+    };
+    const picks = rankSkills({
+      prompt: "review diff",
+      projectText: "",
+      skills: [strong, weak],
+      cap: 3,
+    });
+    expect(picks.map((p) => p.name)).toEqual(["strong"]);
   });
 
   it("skips skills the prompt already names", () => {

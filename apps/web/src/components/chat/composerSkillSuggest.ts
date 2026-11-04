@@ -10,12 +10,14 @@ export interface SkillPick {
 }
 
 /**
- * A pick needs at least this score, at least half the best score, and at least
- * MIN_MATCHES prompt words in the skill text. One shared word is a coincidence.
- * Tuned on the spike fixture.
+ * A pick needs a score of at least MIN_SCORE_PER_LOG_POOL * ln(1 + pool size), at least
+ * RELATIVE_CUT of the best score, and at least MIN_MATCHES prompt words in the skill text.
+ * One shared word is a coincidence. The floor grows with the pool because rare-word
+ * weights grow with it (a pool of 5 skills would otherwise never reach a fixed floor).
+ * Tuned on the spike fixture: a cut of 0.7 keeps hit@3 at 18 of 22 and drops the weak extra pick.
  */
-const MIN_SCORE = 1;
-const RELATIVE_CUT = 0.5;
+const MIN_SCORE_PER_LOG_POOL = 0.2;
+const RELATIVE_CUT = 0.7;
 const MIN_MATCHES = 2;
 /** Project words only break ties: a project name matches many skills. */
 const PROJECT_WEIGHT = 0.25;
@@ -91,6 +93,6 @@ export function rankSkills(input: {
   scored.sort((a, b) => b.score - a.score);
 
   const best = scored[0]?.score ?? 0;
-  const bar = Math.max(MIN_SCORE, best * RELATIVE_CUT);
+  const bar = Math.max(MIN_SCORE_PER_LOG_POOL * Math.log(1 + docs.length), best * RELATIVE_CUT);
   return scored.filter((pick) => pick.score >= bar).slice(0, input.cap);
 }
