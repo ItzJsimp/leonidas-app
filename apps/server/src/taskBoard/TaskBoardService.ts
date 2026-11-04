@@ -42,6 +42,7 @@ import {
   type Project,
   type AiosWorkspaceInitInput,
   type AiosWorkspaceHiddenProjectsInput,
+  type AiosWorkspaceTasksLayoutInput,
   type AiosWorkspaceSummary,
   type AiosWorkspacesListResult,
   type WorkspaceOrgActionResult,
@@ -116,6 +117,7 @@ import {
   resolveWorkspaceRoot,
   workspaceForPath,
   writeHiddenProjects,
+  writeTasksLayout,
   writeWorkspaceFile,
 } from "./aiosWorkspaces.ts";
 import { planSharedSync, publicCopy } from "./sharedSync.ts";
@@ -648,6 +650,11 @@ export class TaskBoardService extends Context.Service<
     readonly hiddenProjectsSet: (
       projects: ReadonlyArray<Project>,
       input: AiosWorkspaceHiddenProjectsInput,
+    ) => Effect.Effect<void, TaskBoardOperationError>;
+    /** Saves the Tasks layout (views, columns, row order) in the workspace's workspace.json. */
+    readonly tasksLayoutSet: (
+      projects: ReadonlyArray<Project>,
+      input: AiosWorkspaceTasksLayoutInput,
     ) => Effect.Effect<void, TaskBoardOperationError>;
     /** Folders that look like the user's AIOS, plus the one already confirmed. */
     readonly aiosDetect: (
@@ -2194,6 +2201,9 @@ const make = Effect.gen(function* () {
       .filter((project) => workspaceForPath([state], project.workspaceRoot) !== undefined)
       .map((project) => project.id),
     hiddenProjects: state.status === "ready" ? (state.file.hiddenProjects ?? []) : [],
+    ...(state.status === "ready" && state.file.tasksLayout
+      ? { tasksLayout: state.file.tasksLayout }
+      : {}),
   });
 
   const workspaces = (projects: ReadonlyArray<Project>) =>
@@ -2211,6 +2221,17 @@ const make = Effect.gen(function* () {
       if (root === null) return yield* storageError("No AIOS workspace is open.");
       yield* Effect.try({
         try: () => writeHiddenProjects(root, input.hiddenProjects),
+        catch: (cause) =>
+          storageError(cause instanceof Error ? cause.message : "Could not write workspace.json."),
+      });
+    });
+
+  const tasksLayoutSet = (projects: ReadonlyArray<Project>, input: AiosWorkspaceTasksLayoutInput) =>
+    Effect.gen(function* () {
+      const { root } = scopeFor(projects, { workspaceId: input.workspaceId });
+      if (root === null) return yield* storageError("No AIOS workspace is open.");
+      yield* Effect.try({
+        try: () => writeTasksLayout(root, input.tasksLayout),
         catch: (cause) =>
           storageError(cause instanceof Error ? cause.message : "Could not write workspace.json."),
       });
@@ -2333,6 +2354,7 @@ const make = Effect.gen(function* () {
     workspaceRoot,
     workspaceInit,
     hiddenProjectsSet,
+    tasksLayoutSet,
     aiosDetect,
     aiosConfirm,
     create,

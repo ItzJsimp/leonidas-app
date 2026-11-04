@@ -39,3 +39,9 @@ export const aiosWorkspaceHiddenProjectsSet = createEnvironmentRpcCommand(connec
   label: "environment-data:aios-workspaces:hidden-projects",
   tag: WS_METHODS.aiosWorkspaceHiddenProjectsSet,
 });
+
+/** Saves the Tasks layout (views, columns, row order) in the workspace's workspace.json. */
+export const aiosWorkspaceTasksLayoutSet = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:aios-workspaces:tasks-layout",
+  tag: WS_METHODS.aiosWorkspaceTasksLayoutSet,
+});

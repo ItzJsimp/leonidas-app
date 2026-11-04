@@ -405,6 +405,9 @@ export type AiosWorkspaceType = typeof AiosWorkspaceType.Type;
 
 // One AIOS folder the app found. Only a `ready` workspace (valid workspace.json) can be opened;
 // `missing` and `invalid` show the setup prompt. `projectIds` are the app projects inside it.
+// The Tasks tab's saved views, columns and row order. The web client owns its shape.
+const TasksLayoutRecord = Schema.Record(Schema.String, Schema.Unknown);
+
 export const AiosWorkspaceSummary = Schema.Struct({
   root: Schema.String,
   status: Schema.Literals(["ready", "missing", "invalid"]),
@@ -416,6 +419,8 @@ export const AiosWorkspaceSummary = Schema.Struct({
   projectIds: Schema.Array(ProjectId),
   // Projects the Tasks rail folds into "More". Optional, so an older server still parses.
   hiddenProjects: Schema.optional(Schema.Array(Schema.String)),
+  // The Tasks layout from workspace.json. Optional, so an older server still parses.
+  tasksLayout: Schema.optional(TasksLayoutRecord),
 });
 export type AiosWorkspaceSummary = typeof AiosWorkspaceSummary.Type;
 
@@ -433,6 +438,14 @@ export const AiosWorkspaceHiddenProjectsInput = Schema.Struct({
   ),
 });
 export type AiosWorkspaceHiddenProjectsInput = typeof AiosWorkspaceHiddenProjectsInput.Type;
+
+// Saves the Tasks layout in workspace.json, or removes it on null. The server refuses a layout
+// over 100,000 characters.
+export const AiosWorkspaceTasksLayoutInput = Schema.Struct({
+  ...workspaceScope,
+  tasksLayout: Schema.NullOr(TasksLayoutRecord),
+});
+export type AiosWorkspaceTasksLayoutInput = typeof AiosWorkspaceTasksLayoutInput.Type;
 
 // The setup prompt: writes workspace.json into a folder the app already lists.
 export const AiosWorkspaceInitInput = Schema.Struct({

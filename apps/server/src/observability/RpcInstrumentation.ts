@@ -216,6 +216,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.aiosWorkspacePicturesList]: "workspace",
   [WS_METHODS.aiosWorkspacePictureSet]: "workspace",
   [WS_METHODS.aiosWorkspaceHiddenProjectsSet]: "workspace",
+  [WS_METHODS.aiosWorkspaceTasksLayoutSet]: "workspace",
   [WS_METHODS.aiosWorkspacePictureRemove]: "workspace",
   [WS_METHODS.areaSyncJoin]: "workspace",
   [WS_METHODS.areaSyncSync]: "workspace",

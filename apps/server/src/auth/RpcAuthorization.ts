@@ -210,6 +210,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.aiosWorkspacePicturesList]: AuthOrchestrationReadScope,
   [WS_METHODS.aiosWorkspacePictureSet]: AuthOrchestrationOperateScope,
   [WS_METHODS.aiosWorkspaceHiddenProjectsSet]: AuthOrchestrationOperateScope,
+  [WS_METHODS.aiosWorkspaceTasksLayoutSet]: AuthOrchestrationOperateScope,
   [WS_METHODS.aiosWorkspacePictureRemove]: AuthOrchestrationOperateScope,
   [WS_METHODS.areaSyncJoin]: AuthOrchestrationOperateScope,
   [WS_METHODS.areaSyncSync]: AuthOrchestrationOperateScope,
