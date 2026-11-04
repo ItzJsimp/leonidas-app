@@ -674,10 +674,7 @@
       "prompt": "What does this YouTube video https://youtu.be/abc123 teach about hooks?",
       "expected": ["youtube-analyzer"]
     },
-    {
-      "prompt": "Grill me on my idea for a habit tracker app",
-      "expected": ["grilling"]
-    },
+    { "prompt": "Grill me on my idea for a habit tracker app", "expected": ["grilling"] },
     {
       "prompt": "Break this big refactor into tickets with blocking dependencies",
       "expected": ["plan", "task-scoping", "to-tickets", "wayfinder"]
@@ -686,10 +683,7 @@
       "prompt": "Review my diff before I push it",
       "expected": ["review", "review-diff", "review-two-axis"]
     },
-    {
-      "prompt": "Explain how closures work, I am new to JavaScript",
-      "expected": ["teach"]
-    },
+    { "prompt": "Explain how closures work, I am new to JavaScript", "expected": ["teach"] },
     {
       "prompt": "Rewrite the error messages in the checkout form so they sound human",
       "expected": ["ux-copy"]
@@ -710,18 +704,12 @@
       "prompt": "Draw an architecture diagram of the provider adapter flow",
       "expected": ["archify"]
     },
-    {
-      "prompt": "Find me a skill for Playwright browser testing",
-      "expected": ["find-skills"]
-    },
+    { "prompt": "Find me a skill for Playwright browser testing", "expected": ["find-skills"] },
     {
       "prompt": "Write the system prompt for my customer support agent",
       "expected": ["prompt-composer", "writing-for-agents"]
     },
-    {
-      "prompt": "Send me a desktop toast when the build finishes",
-      "expected": ["windows-toast"]
-    },
+    { "prompt": "Send me a desktop toast when the build finishes", "expected": ["windows-toast"] },
     {
       "prompt": "Make this function easier to read without changing behavior",
       "expected": ["code-simplification", "code-simplify"]
@@ -730,25 +718,13 @@
       "prompt": "Check my UI with a very long name, an empty list and emoji",
       "expected": ["break-ui"]
     },
-    {
-      "prompt": "Turn the settled discussion into a spec card",
-      "expected": ["spec", "to-spec"]
-    },
+    { "prompt": "Turn the settled discussion into a spec card", "expected": ["spec", "to-spec"] },
     {
       "prompt": "Tune the SQL query that takes 12 seconds",
       "expected": ["performance-optimization"]
     },
-    {
-      "prompt": "thanks, looks good",
-      "expected": []
-    },
-    {
-      "prompt": "what time is it in Tucson right now",
-      "expected": []
-    },
-    {
-      "prompt": "rename variable foo to bar in utils.ts",
-      "expected": []
-    }
+    { "prompt": "thanks, looks good", "expected": [] },
+    { "prompt": "what time is it in Tucson right now", "expected": [] },
+    { "prompt": "rename variable foo to bar in utils.ts", "expected": [] }
   ]
 }
