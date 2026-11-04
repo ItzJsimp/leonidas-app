@@ -19,13 +19,7 @@ import type { ReactNode } from "react";
 import { cn } from "~/lib/utils";
 
 import { ownerOf } from "./owner.logic";
-import {
-  priorityLabel,
-  priorityRank,
-  relativeTime,
-  statusLabel,
-  type TaskView,
-} from "./taskBoard.logic";
+import { priorityLabel, relativeTime, statusLabel, type TaskView } from "./taskBoard.logic";
 
 /** Header label and icon for each built-in column. Added properties bring their own. */
 export const COLUMN_META: Record<string, { readonly label: string; readonly icon: ReactNode }> = {
@@ -64,29 +58,22 @@ export function StatusPill({ status }: { readonly status: TaskBoardTaskStatus })
   );
 }
 
-/** Four signal bars: low fills 1, critical fills 4. No color, so priority never turns a page red. */
+// Jake (2026-11-04): priority shows as a color, red for the top levels. Amber stays for "In review".
+const PRIORITY_CLASS: Record<TaskBoardTaskPriority, string> = {
+  critical: "bg-destructive/20 font-semibold text-destructive-foreground dark:bg-destructive/30",
+  high: "bg-destructive/8 text-destructive-foreground dark:bg-destructive/14",
+  medium: "bg-info/10 text-info-foreground dark:bg-info/18",
+  low: "bg-muted text-muted-foreground",
+};
+
 export function PriorityMark({ priority }: { readonly priority: TaskBoardTaskPriority }) {
-  const filled = 4 - priorityRank(priority);
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs",
-        priority === "critical" ? "font-medium text-foreground" : "text-muted-foreground",
+        "inline-flex h-[22px] items-center rounded-md px-2 font-medium text-xs leading-none",
+        PRIORITY_CLASS[priority],
       )}
     >
-      <svg aria-hidden viewBox="0 0 14 12" className="size-3.5 shrink-0">
-        {[0, 1, 2, 3].map((bar) => (
-          <rect
-            key={bar}
-            x={bar * 3.6}
-            y={9 - bar * 3}
-            width="2.4"
-            height={3 + bar * 3}
-            rx="0.6"
-            className={bar < filled ? "fill-current" : "fill-current opacity-25"}
-          />
-        ))}
-      </svg>
       {priorityLabel(priority)}
     </span>
   );
