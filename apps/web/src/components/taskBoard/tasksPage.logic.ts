@@ -19,7 +19,7 @@ import {
   type TaskView,
 } from "./taskBoard.logic";
 
-export type TasksView = "dashboard" | "board" | "list" | "roadmap";
+export type TasksView = "dashboard" | "board" | "table" | "list" | "roadmap";
 export type TaskFocus = "all" | "inbox" | "today" | "upcoming";
 export type TaskListGroupBy = "state" | "owner" | "project" | "status" | "none";
 
@@ -58,7 +58,7 @@ export function taskProjectSlug(name: string): string {
 }
 
 export const DEFAULT_TASKS_PREFS: TasksPrefs = {
-  view: "list",
+  view: "table",
   section: null,
   focus: "inbox",
   statuses: null,
@@ -71,7 +71,7 @@ export const DEFAULT_TASKS_PREFS: TasksPrefs = {
   flag: null,
 };
 
-const VIEWS: ReadonlyArray<TasksView> = ["dashboard", "board", "list", "roadmap"];
+const VIEWS: ReadonlyArray<TasksView> = ["dashboard", "board", "table", "list", "roadmap"];
 const GROUP_BYS: ReadonlyArray<TaskListGroupBy> = ["state", "owner", "project", "status", "none"];
 const SORTS: ReadonlyArray<TaskSort> = ["priority", "updated", "due", "title"];
 const STATUSES: ReadonlyArray<TaskBoardTaskStatus> = [
@@ -148,7 +148,7 @@ export function toTaskFilters(prefs: TasksPrefs, query: string, now: number): Ta
 
 /** The page opens on every open task in the Table view; saved sort, grouping and filters stay. */
 export function landingPrefs(saved: TasksPrefs): TasksPrefs {
-  return { ...saved, view: "list", focus: "all", section: null };
+  return { ...saved, view: "table", focus: "all", section: null };
 }
 
 /** A search looks through every card, not only the selected lens or project. */
@@ -171,7 +171,7 @@ export type FocusList = "now" | "waiting" | TaskFlag;
 /** A count tile opens the Table, grouped by state, with only that list's filter set. */
 export function prefsForList(list: FocusList): Partial<TasksPrefs> {
   return {
-    view: "list",
+    view: "table",
     groupBy: "state",
     statuses: list === "waiting" ? ["review", "blocked"] : null,
     priorities: null,

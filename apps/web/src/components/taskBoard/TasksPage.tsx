@@ -5,6 +5,7 @@ import {
   LayoutDashboardIcon,
   ListChecksIcon,
   ListIcon,
+  TableIcon,
   PlusIcon,
   RefreshCwIcon,
   RouteIcon,
@@ -67,6 +68,8 @@ import { PRACTICE_NAME, PRACTICE_SLUG } from "./practice.logic";
 import { usePracticeActions } from "./usePracticeActions";
 import { useTaskActions } from "./useTaskActions";
 import { useTaskUndo } from "./useTaskUndo";
+import { useTasksLayout } from "./useTasksLayout";
+import { TaskTableView } from "./TaskTable";
 import type { PendingEdit } from "./taskUndo.logic";
 
 const NO_PENDING: ReadonlyMap<string, PendingEdit> = new Map();
@@ -77,8 +80,9 @@ const VIEW_OPTIONS: ReadonlyArray<{
   readonly label: string;
   readonly icon: typeof ListIcon;
 }> = [
-  { view: "list", label: "Table", icon: ListIcon },
+  { view: "table", label: "Table", icon: TableIcon },
   { view: "board", label: "Board", icon: ColumnsIcon },
+  { view: "list", label: "List", icon: ListIcon },
   { view: "dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
   { view: "roadmap", label: "Roadmap", icon: RouteIcon },
 ];
@@ -164,6 +168,8 @@ export function TasksPage() {
     pending,
   });
   const undo = useTaskUndo();
+  const tasksLayout = useTasksLayout();
+  const listLike = prefs.view === "table" || prefs.view === "list";
   const canCreate = useAtomValue(taskBoardCardCreate.permissionAtom(board.environmentId));
   const {
     actions: realActions,
@@ -198,9 +204,9 @@ export function TasksPage() {
   const showListView = useCallback(
     () =>
       setPrefs((current) =>
-        current.view === "list" || current.view === "board"
+        current.view === "table" || current.view === "list" || current.view === "board"
           ? current
-          : { ...current, view: "list" },
+          : { ...current, view: "table" },
       ),
     [],
   );
@@ -299,7 +305,7 @@ export function TasksPage() {
     }),
     [board.backlogTasks, board.now],
   );
-  const searching = query.trim().length > 0 && (prefs.view === "list" || prefs.view === "board");
+  const searching = query.trim().length > 0 && (listLike || prefs.view === "board");
   const heading =
     prefs.view === "roadmap"
       ? `${roadmap?.name ?? railEntry?.name ?? "Project"} roadmap`
@@ -407,13 +413,27 @@ export function TasksPage() {
         empty={empty}
       />
     );
-  } else {
+  } else if (prefs.view === "list") {
     body = (
       <TaskListView
         tasks={board.visibleTasks}
         sections={board.sections}
         // Search hits show as one flat list so none hide inside a folded group.
         groupBy={prefs.groupBy === "state" && query.trim() ? "none" : prefs.groupBy}
+        context={context}
+        actions={actions}
+        selectedId={selectedId}
+        onSelect={selectTask}
+        empty={empty}
+      />
+    );
+  } else {
+    body = (
+      <TaskTableView
+        tasks={board.visibleTasks}
+        sections={board.sections}
+        groupBy={prefs.groupBy === "state" && query.trim() ? "none" : prefs.groupBy}
+        layout={tasksLayout.layout}
         context={context}
         actions={actions}
         selectedId={selectedId}
@@ -536,14 +556,14 @@ export function TasksPage() {
                   />
                 ) : null}
                 {picker}
-                {prefs.view === "list" || prefs.view === "board" ? (
+                {listLike || prefs.view === "board" ? (
                   <TaskFilterBar
                     prefs={prefs}
                     query={query}
                     onQueryChange={setQuery}
                     onPrefsChange={patchPrefs}
-                    showGroupBy={prefs.view === "list"}
-                    showClosedToggle={prefs.view === "list"}
+                    showGroupBy={listLike}
+                    showClosedToggle={listLike}
                   />
                 ) : null}
                 <SyncStatus
@@ -570,7 +590,7 @@ export function TasksPage() {
                 </Button>
               </div>
             ) : null}
-            {(prefs.view === "list" || prefs.view === "board") && !inPractice ? (
+            {(listLike || prefs.view === "board") && !inPractice ? (
               <TaskQuickAdd
                 key={`${prefs.section}:${prefs.focus}`}
                 environmentId={board.environmentId}

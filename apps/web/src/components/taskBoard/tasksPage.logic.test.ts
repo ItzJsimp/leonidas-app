@@ -243,7 +243,7 @@ describe("landing and search", () => {
       sort: "due",
     } as const;
     expect(landingPrefs(saved)).toMatchObject({
-      view: "list",
+      view: "table",
       focus: "all",
       section: null,
       sort: "due",
@@ -263,7 +263,7 @@ describe("landing and search", () => {
 describe("prefsForList", () => {
   it("opens the grouped Table with only the tile's own filter", () => {
     expect(prefsForList("waiting")).toMatchObject({
-      view: "list",
+      view: "table",
       groupBy: "state",
       statuses: ["review", "blocked"],
       flag: null,
