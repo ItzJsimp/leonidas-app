@@ -139,7 +139,7 @@ export function AppRail({ expanded = false }: { readonly expanded?: boolean }) {
             "min-w-0 rounded-md text-muted-foreground tabular-nums outline-hidden ring-ring hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset [-webkit-app-region:no-drag]",
             expanded
               ? "me-10 min-h-11 shrink-0 px-2.5 text-left text-sm"
-              : "max-w-full truncate px-0.5 text-3xs",
+              : "max-w-full truncate px-0.5 text-3xs leading-11",
           )}
         >
           {expanded ? `v${APP_VERSION_LABEL} · what changed` : `v${APP_VERSION_LABEL}`}

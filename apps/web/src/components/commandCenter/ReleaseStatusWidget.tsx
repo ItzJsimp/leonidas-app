@@ -31,7 +31,7 @@ function RunRow({ run }: { readonly run: ReleaseRun }) {
     <li className="grid gap-1 py-2">
       <div className="flex min-w-0 items-center gap-2">
         <StateIcon state={run.state} />
-        <span className="min-w-0 truncate text-sm font-medium">{run.title}</span>
+        <span className="min-w-0 text-sm font-medium wrap-anywhere">{run.title}</span>
         <span
           className={cn(
             "ml-auto shrink-0 text-xs font-medium",
@@ -42,7 +42,7 @@ function RunRow({ run }: { readonly run: ReleaseRun }) {
         </span>
       </div>
       {run.lastStep !== null ? (
-        <p className="truncate pl-6 text-xs text-muted-foreground">
+        <p className="pl-6 text-xs wrap-anywhere text-muted-foreground">
           {run.state === "failed" ? "Failed at" : run.state === "running" ? "Now" : "Last step"}:{" "}
           {run.lastStep}
         </p>

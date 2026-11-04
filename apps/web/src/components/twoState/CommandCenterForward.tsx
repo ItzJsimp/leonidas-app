@@ -142,7 +142,7 @@ function AskComposer() {
             : "Ask Leonidas anything..."
         }
         disabled={sending}
-        className="h-11 bg-transparent text-sm outline-none placeholder:text-muted-foreground sm:h-8"
+        className="h-11 bg-transparent text-sm outline-none placeholder:text-muted-foreground sm:h-8 sm:pointer-coarse:h-11"
       />
       <div className="flex items-center gap-1.5">
         {root !== null ? (
