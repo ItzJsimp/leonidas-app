@@ -1,11 +1,11 @@
 ---
 name: grill-me
-description: "A relentless interview to sharpen a plan or design."
-disable-model-invocation: true
+description: "Interview the user relentlessly to sharpen a plan or design. Use when the user says grill me or asks to stress-test a plan."
 category: planning
 scope: structural
 source: "https://github.com/mattpocock/skills (skills/productivity/grill-me, MIT)"
 distribution: core
+disable-model-invocation: true
 ---
 
 Call the Skill tool with "grilling".

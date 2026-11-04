@@ -17,8 +17,8 @@ Work the tree in **rounds**. The **frontier** is every decision whose prerequisi
 Ask every round with your structured question tool (Claude: `AskUserQuestion`; Codex: `request_user_input`; other engines: their user-input tool). The tool shows the user a popup of selectable options and pauses the turn until they answer. One frontier question is one tool question:
 
 - **Header:** a title of a few words. **Question:** the question and its context, in plain text.
-- **Options:** 2 to 4, only as many genuine paths as exist. Each one is a path a strong engineer would defend under real conditions: no strawmen, no "do nothing", no near-duplicates. The label is a short title; the description is the mechanism, then `Wins when: <condition>.`
-- **Recommendation:** your recommended answer is the first option, its label ends with ` (Recommended)`, and its description adds `Why: <deciding factor>. Flips if: <condition>.`
+- **Options:** 2 to 4, only as many genuine paths as exist. Each one is a path a strong engineer would defend under real conditions: no strawmen, no "do nothing", no near-duplicates. The label is a short title (5 words at most). The description is one sentence of at most 20 words: what happens, then `Wins when: <condition>.` Detail goes in your reply, not on the card.
+- **Recommendation:** your recommended answer is the first option, its label ends with ` (Recommended)`, and its description puts `Why: <deciding factor>. Flips if: <condition>.` in place of `Wins when`. It also stays at most 20 words.
 - **Overflow:** the tool takes at most 4 questions per call. When the frontier holds more, ask the 4 that unblock the most branches, then the rest in a second call of the same round.
 
 When no structured question tool exists, write the round in chat instead: number each question, list its lettered options, and end it with `➡️ <your recommended answer>`. Word each question so "yes" accepts your recommended answer.

@@ -4,6 +4,7 @@ description: "Simplify recently changed code without changing behavior, with a t
 category: idea-to-ship
 scope: structural
 distribution: core
+disable-model-invocation: true
 portable: true
 type: skill
 id: skill-code-simplify
