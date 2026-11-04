@@ -7,6 +7,7 @@ import type {
 
 import { groupByState, type StateGroups } from "./doNext.logic";
 import { ownerOf } from "./owner.logic";
+import { byManualRank } from "./taskLayout.logic";
 import {
   groupByStatus,
   isOpen,
@@ -268,6 +269,88 @@ export function visibleTaskIds(
   return groups.flatMap((group) =>
     isGroupExpanded(group, overrides) ? group.tasks.map((task) => task.id) : [],
   );
+}
+
+/** Each group's ranked rows first, by rank. Other rows keep their order. */
+export function withManualOrder(
+  groups: ReadonlyArray<ListGroup>,
+  ranks: Readonly<Record<string, number>>,
+): ReadonlyArray<ListGroup> {
+  if (Object.keys(ranks).length === 0) return groups;
+  const order = byManualRank<TaskView>(ranks, () => 0);
+  return groups.map((group) => ({ ...group, tasks: group.tasks.toSorted(order) }));
+}
+
+/** Where a dragged row lands: next to a row, or `group:<key>` for the top of a group. */
+export type RowDrop = { readonly overId: string; readonly edge: "before" | "after" };
+
+/** The card change that a drop in another group makes. */
+export type RowMovePatch =
+  | { readonly status: TaskBoardTaskStatus }
+  | { readonly projectSlug: string | null };
+
+export type RowMovePlan = {
+  readonly groupKey: string;
+  /** The target group's ids in shown order, before the move. */
+  readonly orderedIds: ReadonlyArray<string>;
+  readonly index: number;
+  readonly patch: RowMovePatch | null;
+};
+
+export const GROUP_DROP_PREFIX = "group:";
+
+// Only status and project groups map to one card field, so only they accept rows from others.
+function crossGroupPatch(groupBy: string, key: string): RowMovePatch | null {
+  if (groupBy === "status" && key.startsWith("status:")) {
+    return { status: key.slice("status:".length) as TaskBoardTaskStatus };
+  }
+  if (groupBy === "project" && key.startsWith("section:")) {
+    const slug = key.slice("section:".length);
+    return { projectSlug: slug === "general" ? null : slug };
+  }
+  return null;
+}
+
+/** What a drop does, or null when it changes nothing or the grouping cannot save it. */
+export function planRowMove(
+  groups: ReadonlyArray<ListGroup>,
+  groupBy: string,
+  activeId: string,
+  drop: RowDrop,
+): RowMovePlan | null {
+  if (drop.overId === activeId) return null;
+  const has = (id: string) => (group: ListGroup) => group.tasks.some((task) => task.id === id);
+  const header = drop.overId.startsWith(GROUP_DROP_PREFIX)
+    ? drop.overId.slice(GROUP_DROP_PREFIX.length)
+    : null;
+  const source = groups.find(has(activeId));
+  const target =
+    header === null ? groups.find(has(drop.overId)) : groups.find((group) => group.key === header);
+  if (!source || !target) return null;
+  const orderedIds = target.tasks.map((task) => task.id);
+  const rest = orderedIds.filter((id) => id !== activeId);
+  const index = header === null ? rest.indexOf(drop.overId) + (drop.edge === "after" ? 1 : 0) : 0;
+  if (source === target) {
+    if (orderedIds.indexOf(activeId) === index) return null;
+    return { groupKey: target.key, orderedIds, index, patch: null };
+  }
+  const patch = crossGroupPatch(groupBy, target.key);
+  return patch ? { groupKey: target.key, orderedIds, index, patch } : null;
+}
+
+/** The drop that Alt+Up or Alt+Down makes: one place inside the group, none at its edge. */
+export function stepDrop(
+  groups: ReadonlyArray<ListGroup>,
+  id: string,
+  direction: "up" | "down",
+): RowDrop | null {
+  for (const group of groups) {
+    const index = group.tasks.findIndex((task) => task.id === id);
+    if (index < 0) continue;
+    const neighbor = group.tasks[direction === "up" ? index - 1 : index + 1];
+    return neighbor ? { overId: neighbor.id, edge: direction === "up" ? "before" : "after" } : null;
+  }
+  return null;
 }
 
 export type ListNavigationKey = "ArrowDown" | "ArrowUp" | "Home" | "End";

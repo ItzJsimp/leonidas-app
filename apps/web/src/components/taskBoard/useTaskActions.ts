@@ -41,10 +41,16 @@ import {
   type CardPatch,
   type PendingEdit,
 } from "./taskUndo.logic";
-import { claimPatch, failureText, pickLaunchProject, planSend } from "./useTaskActions.logic";
+import {
+  claimPatch,
+  failureText,
+  pickLaunchProject,
+  planSend,
+  queueFor,
+} from "./useTaskActions.logic";
 import type { TaskUndo } from "./useTaskUndo";
 
-const shortTitle = (task: TaskView) =>
+export const shortTitle = (task: TaskView) =>
   task.title.length > 48 ? `${task.title.slice(0, 47).trimEnd()}...` : task.title;
 
 export type UseTaskActionsInput = {
@@ -161,25 +167,29 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
   // The newest version this page saved per task, so a second quick edit is not refused as stale.
   const versions = useRef(new Map<string, number>());
 
+  // Saves of one task wait for each other, so a fast undo carries the version its edit saved.
+  const queues = useRef(new Map<string, Promise<unknown>>());
+
   // Edits carry the version the user saw, so one made from an old view is refused rather than
   // overwriting a newer change. Notes only append, so they never conflict.
   const save = useCallback(
     async (fallback: TaskView, patch: CardPatch, failureTitle: string): Promise<boolean> => {
-      const { tasks, setPending } = latest.current.input;
-      const task = tasks.find((item) => item.id === fallback.id) ?? fallback;
-      const version = Math.max(task.updatedAt, versions.current.get(task.id) ?? 0);
-      const versioned =
-        patch.note !== undefined && patch.expectedUpdatedAt === undefined
-          ? patch
-          : { ...patch, expectedUpdatedAt: version };
-      setPending((current) => startEdit(current, task.id, patch));
-      let saved: TaskBoardTask | null = null;
-      await track(task.id, async () => {
-        saved = await updateCard(task, versioned, failureTitle);
-      });
-      const savedAt = (saved as TaskBoardTask | null)?.updatedAt ?? null;
-      if (savedAt !== null) versions.current.set(task.id, savedAt);
-      setPending((current) => finishEdit(current, task.id, savedAt));
+      const id = fallback.id;
+      latest.current.input.setPending((current) => startEdit(current, id, patch));
+      let savedAt: number | null = null;
+      await queueFor(queues.current, id, () =>
+        track(id, async () => {
+          const task = latest.current.input.tasks.find((item) => item.id === id) ?? fallback;
+          const version = Math.max(task.updatedAt, versions.current.get(id) ?? 0);
+          const versioned =
+            patch.note !== undefined && patch.expectedUpdatedAt === undefined
+              ? patch
+              : { ...patch, expectedUpdatedAt: version };
+          savedAt = (await updateCard(task, versioned, failureTitle))?.updatedAt ?? null;
+          if (savedAt !== null) versions.current.set(id, savedAt);
+        }),
+      );
+      latest.current.input.setPending((current) => finishEdit(current, id, savedAt));
       return savedAt !== null;
     },
     [track, updateCard],

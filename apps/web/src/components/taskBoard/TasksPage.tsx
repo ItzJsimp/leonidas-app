@@ -45,7 +45,7 @@ import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWork
 import { TaskQuickAdd } from "./TaskQuickAdd";
 import { TaskRoadmapView } from "./TaskRoadmap";
 import { OwnerLensPicker } from "./OwnerLensPicker";
-import { isOpen } from "./taskBoard.logic";
+import { isOpen, statusLabel } from "./taskBoard.logic";
 import leonidasRoadmap from "../../../../../project-roadmap.json";
 import type { TaskContext } from "./taskBoard.types";
 import type { TaskView } from "./taskBoard.logic";
@@ -66,13 +66,14 @@ import {
 import { PracticeDryRunDialog } from "./PracticeDryRunDialog";
 import { PRACTICE_NAME, PRACTICE_SLUG } from "./practice.logic";
 import { usePracticeActions } from "./usePracticeActions";
-import { useTaskActions } from "./useTaskActions";
+import { shortTitle, useTaskActions } from "./useTaskActions";
 import { useTaskUndo } from "./useTaskUndo";
 import { useTasksLayout } from "./useTasksLayout";
 import { TaskTableView } from "./TaskTable";
 import { TaskPropertiesMenu } from "./TaskPropertiesMenu";
 import type { LayoutChange } from "./TaskTableHeader";
-import type { TableLayout } from "./taskLayout.logic";
+import { moveRank, pruneRanks, type TasksLayout } from "./taskLayout.logic";
+import type { RowMovePlan } from "./taskRows";
 import type { PendingEdit } from "./taskUndo.logic";
 
 const NO_PENDING: ReadonlyMap<string, PendingEdit> = new Map();
@@ -173,24 +174,31 @@ export function TasksPage() {
   const undo = useTaskUndo();
   const tasksLayout = useTasksLayout();
   const { update: updateLayout } = tasksLayout;
-  // Every column change is one undo step that puts back the table part of the layout.
-  const changeTable = useCallback<LayoutChange>(
+  // Every layout change is one undo step that puts back only the parts it changed (the columns,
+  // the row order, or both), so undoing a row move keeps a later column change.
+  const changeLayout = useCallback<LayoutChange>(
     (label, change, options) => {
-      let before: TableLayout | null = null;
-      let after: TableLayout | null = null;
+      let before: TasksLayout | null = null;
+      let after: TasksLayout | null = null;
       updateLayout((current) => {
         const next = change(current);
-        before = current.table;
-        after = next.table;
+        before = current;
+        after = next;
         return next;
       });
-      const [from, to] = [before as TableLayout | null, after as TableLayout | null];
-      if (!from || !to || from === to) return;
+      const [from, to] = [before as TasksLayout | null, after as TasksLayout | null];
+      if (!from || !to) return;
+      const changed = (layout: TasksLayout): Partial<TasksLayout> => ({
+        ...(from.table !== to.table ? { table: layout.table } : {}),
+        ...(from.ranks !== to.ranks ? { ranks: layout.ranks } : {}),
+      });
+      const [old, next] = [changed(from), changed(to)];
+      if (Object.keys(old).length === 0) return;
       undo.record(
         label,
         {
-          undo: async () => (updateLayout((current) => ({ ...current, table: from })), true),
-          redo: async () => (updateLayout((current) => ({ ...current, table: to })), true),
+          undo: async () => (updateLayout((current) => ({ ...current, ...old })), true),
+          redo: async () => (updateLayout((current) => ({ ...current, ...next })), true),
         },
         options,
       );
@@ -216,6 +224,31 @@ export function TasksPage() {
   });
 
   const actions = inPractice ? practice.actions : realActions;
+  const live = useMemo(() => new Set(board.allTasks.map((task) => task.id)), [board.allTasks]);
+  // A move is one undo step: the new row order and, for a drop in another group, the card change.
+  const moveRow = useCallback(
+    (task: TaskView, plan: RowMovePlan) => {
+      const { patch } = plan;
+      const place =
+        patch === null
+          ? null
+          : "status" in patch
+            ? statusLabel(patch.status)
+            : (board.projects.find((project) => project.slug === patch.projectSlug)?.name ??
+              patch.projectSlug ??
+              "No project");
+      const label = `${place ? `Moved to ${place}` : "Moved"}: ${shortTitle(task)}`;
+      undo.group(label, () => {
+        if (patch && "status" in patch) realActions.setStatus(task, patch.status);
+        else if (patch) realActions.linkProject(task, patch.projectSlug);
+        changeLayout(label, (layout) => ({
+          ...layout,
+          ranks: pruneRanks(moveRank(layout.ranks, plan.orderedIds, task.id, plan.index), live),
+        }));
+      });
+    },
+    [board.projects, changeLayout, live, realActions, undo],
+  );
 
   useEffect(() => {
     try {
@@ -462,7 +495,8 @@ export function TasksPage() {
         sections={board.sections}
         groupBy={prefs.groupBy === "state" && query.trim() ? "none" : prefs.groupBy}
         layout={tasksLayout.layout}
-        onLayoutChange={changeTable}
+        onLayoutChange={changeLayout}
+        onMoveRow={inPractice ? undefined : moveRow}
         context={context}
         actions={actions}
         selectedId={selectedId}
@@ -586,7 +620,7 @@ export function TasksPage() {
                 ) : null}
                 {picker}
                 {prefs.view === "table" ? (
-                  <TaskPropertiesMenu layout={tasksLayout.layout} onLayoutChange={changeTable} />
+                  <TaskPropertiesMenu layout={tasksLayout.layout} onLayoutChange={changeLayout} />
                 ) : null}
                 {listLike || prefs.view === "board" ? (
                   <TaskFilterBar

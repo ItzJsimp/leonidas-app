@@ -7,6 +7,9 @@ import {
   capByRecency,
   COLUMN_PAGE,
   pageColumn,
+  planRowMove,
+  stepDrop,
+  withManualOrder,
   flattenGroups,
   moveTargets,
   nextTaskId,
@@ -202,5 +205,60 @@ describe("nextTaskId", () => {
     expect(nextTaskId(ids, null, "ArrowDown")).toBe("a");
     expect(nextTaskId(ids, "gone", "ArrowUp")).toBe("c");
     expect(nextTaskId([], null, "ArrowDown")).toBeNull();
+  });
+});
+
+describe("row moves", () => {
+  const tasks = [
+    view("a"),
+    view("b"),
+    view("c", { status: "in_progress" }),
+    view("d", { section: "home", projectSlug: "home" }),
+  ];
+  const sections = groupBySection(tasks, [], { hideEmpty: true });
+  const byStatus = buildListGroups({ tasks, sections, groupBy: "status" });
+  const byProject = buildListGroups({ tasks, sections, groupBy: "project" });
+  const byState = buildListGroups({ tasks, sections, groupBy: "state", now: 0 });
+
+  it("moves a row inside its group with no card change", () => {
+    expect(planRowMove(byStatus, "status", "a", { overId: "d", edge: "after" })).toEqual({
+      groupKey: "status:todo",
+      orderedIds: ["a", "b", "d"],
+      index: 2,
+      patch: null,
+    });
+  });
+
+  it("changes status or project when a row drops in another group", () => {
+    expect(planRowMove(byStatus, "status", "a", { overId: "c", edge: "before" })).toMatchObject({
+      orderedIds: ["c"],
+      index: 0,
+      patch: { status: "in_progress" },
+    });
+    const header = { overId: "group:section:leonidas-code", edge: "after" } as const;
+    expect(planRowMove(byProject, "project", "d", header)).toMatchObject({
+      index: 0,
+      patch: { projectSlug: "leonidas-code" },
+    });
+  });
+
+  it("refuses a drop that changes nothing or that the grouping cannot save", () => {
+    expect(planRowMove(byStatus, "status", "a", { overId: "b", edge: "before" })).toBeNull();
+    expect(planRowMove(byStatus, "status", "a", { overId: "a", edge: "after" })).toBeNull();
+    expect(byState.map((group) => group.key)).toEqual(["state:now", "state:next"]);
+    expect(planRowMove(byState, "state", "c", { overId: "a", edge: "before" })).toBeNull();
+  });
+
+  it("steps a row up or down inside its group and stops at the group edge", () => {
+    expect(stepDrop(byStatus, "b", "up")).toEqual({ overId: "a", edge: "before" });
+    expect(stepDrop(byStatus, "b", "down")).toEqual({ overId: "d", edge: "after" });
+    expect(stepDrop(byStatus, "a", "up")).toBeNull();
+    expect(stepDrop(byStatus, "c", "down")).toBeNull();
+  });
+
+  it("puts ranked rows first in each group and keeps the rest in order", () => {
+    const [todo] = withManualOrder(byStatus, { d: 1, b: 2 });
+    expect(todo!.tasks.map((task) => task.id)).toEqual(["d", "b", "a"]);
+    expect(withManualOrder(byStatus, {})).toBe(byStatus);
   });
 });

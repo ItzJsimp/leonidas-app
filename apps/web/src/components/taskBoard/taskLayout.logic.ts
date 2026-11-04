@@ -178,6 +178,27 @@ export function rerank(
   return next;
 }
 
+/**
+ * Ranks after `id` moves to `index` in a group's shown order (`orderedIds`, with or without
+ * `id`). Rows above the new place get a rank. Rows below get one only when a lower row already
+ * has a rank, so the saved layout stays small and old ranks do not collide.
+ */
+export function moveRank(
+  ranks: Readonly<Record<string, number>>,
+  orderedIds: ReadonlyArray<string>,
+  id: string,
+  index: number,
+): Record<string, number> {
+  const order = orderedIds.filter((item) => item !== id);
+  const at = clamp(index, 0, order.length);
+  order.splice(at, 0, id);
+  let last = at;
+  order.forEach((item, position) => {
+    if (ranks[item] !== undefined) last = Math.max(last, position);
+  });
+  return rerank(ranks, order.slice(0, last + 1));
+}
+
 /** Ranks of tasks that still exist, so the saved layout does not grow forever. */
 export function pruneRanks(
   ranks: Readonly<Record<string, number>>,

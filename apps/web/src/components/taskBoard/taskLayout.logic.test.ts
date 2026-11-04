@@ -6,6 +6,7 @@ import {
   DEFAULT_LAYOUT,
   byManualRank,
   moveColumn,
+  moveRank,
   parseLayout,
   pruneRanks,
   rerank,
@@ -96,5 +97,32 @@ describe("manual row order", () => {
     const ranks = rerank({ z: 5 }, ["a", "b"]);
     expect(ranks.z).toBe(5);
     expect(pruneRanks(ranks, new Set(["a", "z"]))).toEqual({ a: ranks.a, z: 5 });
+  });
+
+  const shown = (ranks: Record<string, number>, ids: string[]) =>
+    ids
+      .map((id) => ({ id }))
+      .sort(byManualRank(ranks, () => 0))
+      .map((row) => row.id);
+
+  it("ranks only the rows above a moved row when no row below has a rank", () => {
+    const ranks = moveRank({}, ["a", "b", "c", "d"], "d", 1);
+    expect(Object.keys(ranks).toSorted()).toEqual(["a", "d"]);
+    expect(shown(ranks, ["a", "b", "c", "d"])).toEqual(["a", "d", "b", "c"]);
+  });
+
+  it("re-ranks down to the last ranked row so old ranks do not collide", () => {
+    const first = moveRank({}, ["a", "b", "c", "d"], "c", 0);
+    const order = shown(first, ["a", "b", "c", "d"]);
+    expect(order).toEqual(["c", "a", "b", "d"]);
+    const second = moveRank(first, order, "d", 1);
+    expect(shown(second, ["a", "b", "c", "d"])).toEqual(["c", "d", "a", "b"]);
+    const third = moveRank(second, ["c", "d", "a", "b"], "c", 3);
+    expect(shown(third, ["a", "b", "c", "d"])).toEqual(["d", "a", "b", "c"]);
+  });
+
+  it("adds a row from another group at the drop place and clamps the place", () => {
+    const ranks = moveRank({ x: 1 }, ["a", "b"], "x", 9);
+    expect(shown(ranks, ["x", "a", "b"])).toEqual(["a", "b", "x"]);
   });
 });

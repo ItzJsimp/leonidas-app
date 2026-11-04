@@ -37,12 +37,24 @@ export function takeRedo<T>(history: UndoHistory<T>) {
   return { history: { past: [...history.past, step], future: history.future.slice(0, -1) }, step };
 }
 
-/** Removes a step whose save failed, so Undo never reverts a change that did not happen. */
-export function dropStep<T>(history: UndoHistory<T>, id: number): UndoHistory<T> {
-  return {
-    past: history.past.filter((step) => step.id !== id),
-    future: history.future.filter((step) => step.id !== id),
-  };
+/** The edits of one step. A single edit has one part; a move or a bulk edit has several. */
+export type UndoParts<T> = ReadonlyArray<{ readonly id: number; readonly action: T }>;
+
+/**
+ * Removes one part whose save failed, so Undo never reverts a change that did not happen. A
+ * step with no part left is removed.
+ */
+export function dropPart<T>(
+  history: UndoHistory<UndoParts<T>>,
+  partId: number,
+): UndoHistory<UndoParts<T>> {
+  const keep = (steps: ReadonlyArray<UndoStep<UndoParts<T>>>) =>
+    steps.flatMap((step) => {
+      const data = step.data.filter((part) => part.id !== partId);
+      if (data.length === step.data.length) return [step];
+      return data.length > 0 ? [{ ...step, data }] : [];
+    });
+  return { past: keep(history.past), future: keep(history.future) };
 }
 
 // Card fields a patch and a task share by name. Notes and versions are not undoable values.

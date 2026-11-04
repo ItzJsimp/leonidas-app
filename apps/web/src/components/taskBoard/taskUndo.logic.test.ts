@@ -5,7 +5,7 @@ import {
   EMPTY_HISTORY,
   MAX_UNDO_STEPS,
   applyOverlay,
-  dropStep,
+  dropPart,
   finishEdit,
   inversePatch,
   pushStep,
@@ -13,6 +13,7 @@ import {
   takeRedo,
   takeUndo,
   type UndoHistory,
+  type UndoParts,
 } from "./taskUndo.logic";
 
 const task = (id: string, extra: Partial<TaskView> = {}) =>
@@ -62,9 +63,20 @@ describe("undo history", () => {
     expect(takeUndo(history, 99).step).toBeNull();
   });
 
-  it("drops a step that failed to save from both stacks", () => {
-    const history = takeUndo(pushStep(pushStep(EMPTY_HISTORY, step(1)), step(2))).history;
-    expect(dropStep(dropStep(history, 2), 1)).toEqual(EMPTY_HISTORY);
+  it("drops one part of a grouped step and the step when no part is left", () => {
+    const parts = (...ids: number[]) => ids.map((id) => ({ id, action: `edit ${id}` }));
+    let history: UndoHistory<UndoParts<string>> = pushStep(
+      pushStep(EMPTY_HISTORY, { id: 1, label: "one", data: parts(1) }),
+      {
+        id: 9,
+        label: "move",
+        data: parts(7, 8),
+      },
+    );
+    history = dropPart(history, 7);
+    expect(history.past.map((s) => s.data.map((part) => part.id))).toEqual([[1], [8]]);
+    history = dropPart(takeUndo(history).history, 8);
+    expect(history).toEqual({ past: [{ id: 1, label: "one", data: parts(1) }], future: [] });
   });
 });
 

@@ -7,6 +7,7 @@ import {
   linkPatch,
   pickLaunchProject,
   planSend,
+  queueFor,
   unlinkPatch,
 } from "./useTaskActions.logic";
 
@@ -111,5 +112,38 @@ describe("linkPatch and unlinkPatch", () => {
   it("keeps an existing claim by the same member", () => {
     const patch = unlinkPatch({ status: "in_progress", claimedBy: "Mob" }, "Mob", "boom");
     expect(patch).not.toHaveProperty("claimedBy");
+  });
+});
+
+describe("queueFor", () => {
+  it("runs work for one key in order and work for other keys at once", async () => {
+    const queues = new Map<string, Promise<unknown>>();
+    const log: string[] = [];
+    let release = () => {};
+    const first = queueFor(queues, "a", async () => {
+      log.push("a1 start");
+      await new Promise<void>((resolve) => (release = resolve));
+      log.push("a1 end");
+      return 1;
+    });
+    const second = queueFor(queues, "a", async () => (log.push("a2"), 2));
+    const other = queueFor(queues, "b", async () => (log.push("b"), 3));
+    await other;
+    expect(log).toEqual(["a1 start", "b"]);
+    release();
+    expect(await Promise.all([first, second])).toEqual([1, 2]);
+    expect(log).toEqual(["a1 start", "b", "a1 end", "a2"]);
+    await Promise.resolve();
+    expect(queues.size).toBe(0);
+  });
+
+  it("still runs the next work when the one before it fails", async () => {
+    const queues = new Map<string, Promise<unknown>>();
+    const failed = queueFor(queues, "a", async () => {
+      throw new Error("save failed");
+    });
+    const next = queueFor(queues, "a", async () => "ran");
+    await expect(failed).rejects.toThrow("save failed");
+    expect(await next).toBe("ran");
   });
 });

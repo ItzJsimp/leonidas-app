@@ -94,3 +94,21 @@ export function unlinkPatch(
     note: `The AI did not start: ${reason}`,
   };
 }
+
+/**
+ * Runs `work` after the work queued before it for `key` settles, so the saves of one task go to
+ * the server in order. An undo then waits for the edit it reverts and carries its new version.
+ */
+export function queueFor<T>(
+  queues: Map<string, Promise<unknown>>,
+  key: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const run = (queues.get(key) ?? Promise.resolve()).then(work);
+  const settle = () => {
+    if (queues.get(key) === tail) queues.delete(key);
+  };
+  const tail: Promise<void> = run.then(settle, settle);
+  queues.set(key, tail);
+  return run;
+}

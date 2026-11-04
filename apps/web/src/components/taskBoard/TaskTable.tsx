@@ -1,6 +1,12 @@
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import type { TaskBoardTeamMember } from "@t3tools/contracts";
-import { CheckIcon, ChevronRightIcon, PanelRightOpenIcon, TableIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  GripVerticalIcon,
+  PanelRightOpenIcon,
+  TableIcon,
+} from "lucide-react";
 import {
   memo,
   useCallback,
@@ -39,18 +45,26 @@ import {
   flattenGroups,
   isGroupExpanded,
   nextTaskId,
+  planRowMove,
   projectNameFor,
   projectNameIndex,
+  stepDrop,
+  GROUP_DROP_PREFIX,
   visibleTaskIds,
+  withManualOrder,
   type ListGroup,
   type ListItem,
   type ListNavigationKey,
+  type RowDrop,
+  type RowMovePlan,
 } from "./taskRows";
+import { useRowDrag } from "./useRowDrag";
 
 const ROW_HEIGHT: Record<Density, number> = { compact: 32, default: 40, comfortable: 52 };
 const GROUP_HEIGHT = 44;
-// The gutter holds the done box (and the drag grip in a later slice).
-const GUTTER = 40;
+// The gutter holds the drag grip and the done box.
+const GUTTER = 48;
+const GRIP_SIZE = 20;
 const NAV_KEYS: ReadonlySet<string> = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
 
 // The row tints on hover and when selected. Sticky cells are opaque, so they repeat the tint on
@@ -83,7 +97,21 @@ type RowProps = {
   readonly team: ReadonlyArray<TaskBoardTeamMember>;
   readonly onSelect: (task: TaskView) => void;
   readonly onToggleDone: (task: TaskView) => void;
+  readonly dragging: boolean;
+  readonly dropEdge: RowDrop["edge"] | null;
 };
+
+function DropLine({ edge }: { readonly edge: RowDrop["edge"] }) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "pointer-events-none absolute inset-x-0 z-[3] h-0.5 rounded-full bg-primary",
+        edge === "before" ? "-top-px" : "-bottom-px",
+      )}
+    />
+  );
+}
 
 function Cell({ task, column, props }: { task: TaskView; column: ColumnLayout; props: RowProps }) {
   switch (column.key) {
@@ -123,14 +151,17 @@ const TableRow = memo(function TableRow(props: RowProps) {
       style={{ height: props.height }}
       onClick={() => props.onSelect(task)}
       className={cn(
-        "group/row grid w-[var(--task-width)] min-w-full cursor-default border-b border-border/60 outline-none [grid-template-columns:var(--task-cols)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        "group/row relative grid w-[var(--task-width)] min-w-full cursor-default border-b border-border/60 outline-none transition-opacity duration-150 [grid-template-columns:var(--task-cols)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         ROW_TINT,
+        props.dragging && "opacity-40",
       )}
     >
+      {props.dropEdge ? <DropLine edge={props.dropEdge} /> : null}
       <div
         role="gridcell"
         className={cn(
-          "flex items-center justify-center",
+          // The left of the gutter holds the table's one drag grip, shown on the hovered row.
+          "flex items-center pl-7",
           freezeName && ["sticky left-0 z-[1]", STICKY_SURFACE],
         )}
       >
@@ -211,17 +242,24 @@ function GroupRow({
   group,
   expanded,
   onToggle,
+  dropTarget,
 }: {
   readonly group: ListGroup;
   readonly expanded: boolean;
   readonly onToggle: (key: string) => void;
+  readonly dropTarget: boolean;
 }) {
   return (
     <div
       role="row"
+      data-group-key={group.key}
       style={{ height: GROUP_HEIGHT }}
-      className="flex w-[var(--task-width)] min-w-full items-end"
+      className={cn(
+        "relative flex w-[var(--task-width)] min-w-full items-end",
+        dropTarget && "bg-accent/50",
+      )}
     >
+      {dropTarget ? <DropLine edge="after" /> : null}
       <div role="gridcell" className="sticky left-0 flex items-center gap-2 pb-1.5 pl-2">
         <button
           type="button"
@@ -262,6 +300,8 @@ export function TaskTableView(props: {
   readonly onSelect: (task: TaskView) => void;
   readonly empty: TasksEmptyContext;
   readonly onLayoutChange: LayoutChange;
+  /** Saves a row move (and the status or project change of a drop in another group). */
+  readonly onMoveRow: ((task: TaskView, plan: RowMovePlan) => void) | undefined;
 }) {
   const { tasks, sections, groupBy, layout, context, actions, selectedId } = props;
   const { table } = layout;
@@ -276,9 +316,13 @@ export function TaskTableView(props: {
   const wrap = useMemo(() => new Set(table.wrap), [table.wrap]);
   const rowHeight = table.rowHeight ?? ROW_HEIGHT[table.density];
 
-  const groups = useMemo(
+  const builtGroups = useMemo(
     () => buildListGroups({ tasks, sections, groupBy, team: context.team, now: context.now }),
     [tasks, sections, groupBy, context.team, context.now],
+  );
+  const groups = useMemo(
+    () => withManualOrder(builtGroups, layout.ranks),
+    [builtGroups, layout.ranks],
   );
   const projectNames = useMemo(() => projectNameIndex(context.projects), [context.projects]);
   const items = useMemo(() => flattenGroups(groups, overrides), [groups, overrides]);
@@ -293,6 +337,40 @@ export function TaskTableView(props: {
     [actionsRef],
   );
   const guideRef = useRef<HTMLDivElement>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const { onMoveRow } = props;
+  const moveRow = (id: string, drop: RowDrop) => {
+    const plan = planRowMove(groups, groupBy, id, drop);
+    const task = tasksById.get(id);
+    if (plan && task && onMoveRow) onMoveRow(task, plan);
+    return plan !== null;
+  };
+  const rowDrag = useRowDrag({
+    gridRef,
+    ghostRef,
+    scroller: () => virtualRef.current?.getScrollableNode() ?? null,
+    canDrop: (id, drop) => planRowMove(groups, groupBy, id, drop) !== null,
+    onDrop: moveRow,
+  });
+  const { drag } = rowDrag;
+  // One grip for the whole table moves to the hovered row, so a row mounts no extra button.
+  // (A grip in every row dropped about 20 of 100 scroll frames.)
+  const gripRef = useRef<HTMLButtonElement>(null);
+  const hideGrip = () => gripRef.current?.removeAttribute("data-row");
+  const showGrip = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const grip = gripRef.current;
+    const grid = gridRef.current;
+    if (!grip || !grid || drag || !(event.target instanceof Element)) return;
+    if (grip.contains(event.target)) return;
+    const row = event.target.closest<HTMLElement>("[data-row-id]");
+    const id = row?.dataset.rowId;
+    if (!row || !id) return void hideGrip();
+    if (grip.dataset.row === id) return;
+    const top = row.getBoundingClientRect().top - grid.getBoundingClientRect().top;
+    grip.style.transform = `translateY(${top + (row.offsetHeight - GRIP_SIZE) / 2}px)`;
+    grip.dataset.row = id;
+    grip.setAttribute("aria-label", `Drag to move ${tasksById.get(id)?.title ?? "the task"}`);
+  };
   // Resize: a guide line follows the pointer (one style write per frame, no React render).
   const startResize = (key: string, event: ReactPointerEvent<HTMLElement>) => {
     const grid = gridRef.current;
@@ -365,6 +443,17 @@ export function TaskTableView(props: {
     if (!(event.target instanceof HTMLElement)) return;
     const currentId = event.target.closest("[data-row-id]")?.getAttribute("data-row-id");
     if (currentId === undefined || currentId === null) return;
+    const focusRow = (id: string) =>
+      gridRef.current
+        ?.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(id)}"]`)
+        ?.focus({ preventScroll: false });
+    if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+      event.preventDefault();
+      const drop = stepDrop(groups, currentId, event.key === "ArrowUp" ? "up" : "down");
+      // The row renders in its new place first, then it gets the focus back.
+      if (drop && moveRow(currentId, drop)) requestAnimationFrame(() => focusRow(currentId));
+      return;
+    }
     if (event.key === "Enter") {
       const task = tasksById.get(currentId);
       if (task) select(task);
@@ -374,16 +463,12 @@ export function TaskTableView(props: {
     event.preventDefault();
     const nextId = nextTaskId(visibleIds, currentId, event.key as ListNavigationKey);
     if (nextId === null || nextId === currentId) return;
-    const focusRow = () =>
-      gridRef.current
-        ?.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(nextId)}"]`)
-        ?.focus({ preventScroll: false });
     const index = items.findIndex((item) => item.kind === "task" && item.key === nextId);
     void Promise.resolve(
       index < 0
         ? undefined
         : virtualRef.current?.scrollToIndex({ index, animated: false, viewPosition: 0.5 }),
-    ).then(() => requestAnimationFrame(focusRow));
+    ).then(() => requestAnimationFrame(() => focusRow(nextId)));
   };
 
   if (groups.length === 0) return <TasksEmpty icon={<TableIcon />} {...props.empty} />;
@@ -398,6 +483,7 @@ export function TaskTableView(props: {
         expanded={isGroupExpanded(item.group, overrides)}
         group={item.group}
         onToggle={toggleGroup}
+        dropTarget={drag?.drop?.overId === `${GROUP_DROP_PREFIX}${item.group.key}`}
       />
     ) : (
       <TableRow
@@ -414,6 +500,8 @@ export function TaskTableView(props: {
         team={context.team}
         onSelect={select}
         onToggleDone={toggleDone}
+        dragging={drag?.id === item.task.id}
+        dropEdge={drag?.drop?.overId === item.task.id ? drag.drop.edge : null}
       />
     );
 
@@ -424,7 +512,10 @@ export function TaskTableView(props: {
       aria-label="Tasks"
       aria-rowcount={visibleIds.length + 1}
       onKeyDown={onKeyDown}
-      className="relative h-full min-h-0"
+      onPointerMove={onMoveRow ? showGrip : undefined}
+      onPointerLeave={hideGrip}
+      onScrollCapture={hideGrip}
+      className={cn("relative h-full min-h-0", drag && "select-none [&_*]:cursor-grabbing!")}
       style={{ "--task-cols": template, "--task-width": `${width}px` } as CSSProperties}
     >
       <LegendList<ListItem>
@@ -452,6 +543,35 @@ export function TaskTableView(props: {
         }
         ListHeaderComponentStyle={{ position: "sticky", top: 0, zIndex: 3 }}
       />
+      <div
+        ref={ghostRef}
+        hidden={!drag}
+        aria-hidden
+        style={{ height: rowHeight, left: GUTTER / 2 }}
+        className="pointer-events-none absolute top-0 z-20 flex w-[min(32rem,calc(100%-2rem))] items-center gap-2 rounded-md border border-border bg-popover px-2 text-popover-foreground text-sm shadow-lg ring-1 ring-primary/20"
+      >
+        <GripVerticalIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="truncate font-medium">
+          {drag ? (tasksById.get(drag.id)?.title ?? "") : ""}
+        </span>
+      </div>
+      {onMoveRow ? (
+        <button
+          ref={gripRef}
+          type="button"
+          tabIndex={-1}
+          aria-label="Drag to move the task"
+          onPointerDown={(event) => {
+            const id = event.currentTarget.dataset.row;
+            hideGrip();
+            if (id) rowDrag.start(id, event);
+          }}
+          style={{ width: GRIP_SIZE, height: GRIP_SIZE }}
+          className="absolute top-0 left-1 z-[4] hidden cursor-grab touch-none place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground data-[row]:grid"
+        >
+          <GripVerticalIcon aria-hidden className="size-3.5" />
+        </button>
+      ) : null}
       <div
         ref={guideRef}
         hidden
