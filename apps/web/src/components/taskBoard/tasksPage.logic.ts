@@ -20,7 +20,7 @@ import {
   type TaskView,
 } from "./taskBoard.logic";
 
-export type TasksView = "dashboard" | "board" | "table" | "list" | "roadmap";
+export type TasksView = "dashboard" | "board" | "table" | "list" | "calendar" | "roadmap";
 export type TaskFocus = "all" | "inbox" | "today" | "upcoming";
 export type TaskListGroupBy =
   | "state"
@@ -79,7 +79,14 @@ export const DEFAULT_TASKS_PREFS: TasksPrefs = {
   flag: null,
 };
 
-const VIEWS: ReadonlyArray<TasksView> = ["dashboard", "board", "table", "list", "roadmap"];
+const VIEWS: ReadonlyArray<TasksView> = [
+  "dashboard",
+  "board",
+  "table",
+  "list",
+  "calendar",
+  "roadmap",
+];
 const GROUP_BYS: ReadonlyArray<TaskListGroupBy> = [
   "state",
   "owner",
@@ -119,12 +126,15 @@ function pickList<T extends string>(options: ReadonlyArray<T>, value: unknown): 
 /** Reads saved preferences, ignoring anything missing, malformed or from an older shape. */
 export function parseTasksPrefs(raw: string | null): TasksPrefs {
   if (!raw) return DEFAULT_TASKS_PREFS;
-  let value: unknown;
   try {
-    value = JSON.parse(raw);
+    return prefsFromValue(JSON.parse(raw));
   } catch {
     return DEFAULT_TASKS_PREFS;
   }
+}
+
+/** Preferences from an already parsed value, such as a saved view in workspace.json. */
+export function prefsFromValue(value: unknown): TasksPrefs {
   if (typeof value !== "object" || value === null) return DEFAULT_TASKS_PREFS;
   const record = value as Record<string, unknown>;
   return {

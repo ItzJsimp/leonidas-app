@@ -4,6 +4,16 @@ import {
   COLUMN_MAX,
   COLUMN_MIN,
   DEFAULT_LAYOUT,
+  MAX_PINNED_VIEWS,
+  activeView,
+  commitView,
+  deleteView,
+  openView,
+  resetLayout,
+  saveView,
+  setViewPinned,
+  showView,
+  updateViewPrefs,
   byManualRank,
   moveColumn,
   moveRank,
@@ -16,6 +26,7 @@ import {
   setRowHeight,
   toggleWrap,
 } from "./taskLayout.logic";
+import { DEFAULT_TASKS_PREFS } from "./tasksPage.logic";
 
 const keys = (layout: typeof DEFAULT_LAYOUT) => layout.table.columns.map((column) => column.key);
 
@@ -124,5 +135,73 @@ describe("manual row order", () => {
   it("adds a row from another group at the drop place and clamps the place", () => {
     const ranks = moveRank({ x: 1 }, ["a", "b"], "x", 9);
     expect(shown(ranks, ["x", "a", "b"])).toEqual(["a", "b", "x"]);
+  });
+});
+
+describe("saved views", () => {
+  const prefs = { ...DEFAULT_TASKS_PREFS, sort: "due" as const, groupBy: "project" as const };
+  const wide = resizeColumn(DEFAULT_LAYOUT, "status", 300);
+
+  it("saves the shown filters and columns, opens the view, and survives a parse", () => {
+    const saved = saveView(wide, "v1", "  My   week ", prefs);
+    expect(saved.activeViewId).toBe("v1");
+    expect(saved.views[0]).toMatchObject({ name: "My week", pinned: true, prefs });
+    const parsed = parseLayout(JSON.parse(JSON.stringify(saved)));
+    expect(parsed.views[0]?.table.columns[1]?.width).toBe(300);
+    expect(parsed.views[0]?.prefs.groupBy).toBe("project");
+    expect(parsed.activeViewId).toBe("v1");
+  });
+
+  it("pins at most 5 views and drops bad views on parse", () => {
+    let layout = DEFAULT_LAYOUT;
+    for (let i = 0; i < 6; i++) layout = saveView(layout, `v${i}`, `View ${i}`, prefs);
+    expect(layout.views.map((view) => view.pinned)).toEqual([true, true, true, true, true, false]);
+    expect(setViewPinned(layout, "v5", true)).toBe(layout);
+    expect(setViewPinned(setViewPinned(layout, "v0", false), "v5", true).views[5]?.pinned).toBe(
+      true,
+    );
+    const parsed = parseLayout({
+      views: [
+        ...Array.from({ length: 6 }, (_, i) => ({ id: `p${i}`, name: "x", pinned: true })),
+        { id: "p0", name: "dupe" },
+        { id: "bad id!", name: "x" },
+        { id: "blank", name: "  " },
+      ],
+      activeViewId: "missing",
+    });
+    expect(parsed.views.map((view) => view.id)).toEqual(["p0", "p1", "p2", "p3", "p4", "p5"]);
+    expect(parsed.views.filter((view) => view.pinned)).toHaveLength(MAX_PINNED_VIEWS);
+    expect(parsed.activeViewId).toBeNull();
+  });
+
+  it("sends a column change into the open view and keeps the default view's columns", () => {
+    const raw = saveView(wide, "v1", "Mine", prefs);
+    const shown = showView(raw);
+    const next = commitView(raw, shown, resizeColumn(shown, "status", 200));
+    expect(next.table).toBe(raw.table);
+    expect(activeView(next)?.table.columns[1]?.width).toBe(200);
+    // Closing the view moves no columns, and the default view shows its own again.
+    const closed = commitView(next, showView(next), openView(showView(next), null));
+    expect(closed.activeViewId).toBeNull();
+    expect(showView(closed).table).toBe(raw.table);
+  });
+
+  it("updates only the open view's prefs, deletes, and resets to the default", () => {
+    const raw = saveView(wide, "v1", "Mine", prefs);
+    const sorted = updateViewPrefs(raw, (current) => ({ ...current, sort: "title" }));
+    expect(activeView(sorted)?.prefs.sort).toBe("title");
+    expect(
+      updateViewPrefs(openView(raw, null), (current) => ({ ...current, sort: "title" })).views[0]
+        ?.prefs.sort,
+    ).toBe("due");
+    expect(deleteView(raw, "v1")).toMatchObject({ views: [], activeViewId: null });
+    const ranked = { ...raw, ranks: { a: 1 } };
+    const reset = resetLayout(ranked);
+    expect(reset).toMatchObject({
+      table: DEFAULT_LAYOUT.table,
+      activeViewId: null,
+      ranks: { a: 1 },
+    });
+    expect(reset.views).toHaveLength(1);
   });
 });
