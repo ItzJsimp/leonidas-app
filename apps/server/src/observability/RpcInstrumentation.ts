@@ -274,6 +274,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.subagentRunsList]: "workspace",
   [WS_METHODS.projectsPromptCandidates]: "workspace",
   [WS_METHODS.projectsPredictPrompt]: "workspace",
+  [WS_METHODS.projectsPickSkills]: "workspace",
   [WS_METHODS.projectsCancelPromptPrediction]: "workspace",
   [WS_METHODS.projectsReadFile]: "workspace",
   [WS_METHODS.projectsSearchContents]: "workspace",

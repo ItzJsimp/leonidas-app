@@ -766,6 +766,7 @@ export const WS_METHODS = {
   subagentRunsList: "subagentRuns.list",
   projectsPromptCandidates: "projects.promptCandidates",
   projectsPredictPrompt: "projects.predictPrompt",
+  projectsPickSkills: "projects.pickSkills",
   projectsCancelPromptPrediction: "projects.cancelPromptPrediction",
   projectsSearchContents: "projects.searchContents",
   projectsSearchEntries: "projects.searchEntries",
@@ -2328,6 +2329,30 @@ const WsProjectsPredictPromptRpc = Rpc.make(WS_METHODS.projectsPredictPrompt, {
   error: EnvironmentAuthorizationError,
 });
 
+const WsProjectsPickSkillsRpc = Rpc.make(WS_METHODS.projectsPickSkills, {
+  payload: Schema.Struct({
+    cwd: Schema.String,
+    request: Schema.String.check(Schema.isMaxLength(2000)),
+    project: Schema.String.check(Schema.isMaxLength(200)),
+    alreadyAdded: Schema.Array(Schema.String.check(Schema.isMaxLength(100))).check(
+      Schema.isMaxLength(10),
+    ),
+    candidates: Schema.Array(
+      Schema.Struct({
+        name: Schema.String.check(Schema.isMaxLength(100)),
+        description: Schema.String.check(Schema.isMaxLength(300)),
+        scope: Schema.optionalKey(Schema.String.check(Schema.isMaxLength(20))),
+      }),
+    ).check(Schema.isMaxLength(60)),
+    max: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 5 })),
+  }),
+  success: Schema.Struct({
+    picks: Schema.Array(Schema.Struct({ name: Schema.String, reason: Schema.String })),
+    modelUsed: Schema.Boolean,
+  }),
+  error: EnvironmentAuthorizationError,
+});
+
 const WsProjectsCancelPromptPredictionRpc = Rpc.make(WS_METHODS.projectsCancelPromptPrediction, {
   payload: Schema.Struct({
     sessionId: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(128)),
@@ -3493,6 +3518,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsSubagentRunsListRpc,
   WsProjectsPromptCandidatesRpc,
   WsProjectsPredictPromptRpc,
+  WsProjectsPickSkillsRpc,
   WsProjectsCancelPromptPredictionRpc,
   WsProjectsSearchContentsRpc,
   WsProjectsSearchEntriesRpc,

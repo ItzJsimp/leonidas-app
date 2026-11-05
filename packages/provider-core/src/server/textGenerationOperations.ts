@@ -18,6 +18,7 @@ import {
 import { formatGeneratedBranchName, sanitizeFeatureBranchName } from "@t3tools/shared/git";
 import { extractJsonObject } from "@t3tools/shared/schemaJson";
 
+import { buildSkillPickPrompt, sanitizeSkillPicks } from "./skillPick.ts";
 import type { ProviderTextGeneration } from "./textGeneration.ts";
 import { buildVoiceLogPrompt } from "./voiceLogPrompt.ts";
 import {
@@ -189,6 +190,15 @@ export function fromRunner(name: string, run: Runner): ProviderTextGeneration {
         ...buildVoiceLogPrompt(input.texts),
       }),
     generatePromptSuggestion,
+    pickSkills: Effect.fn(`${name}.pickSkills`)(function* (input) {
+      const generated = yield* run({
+        operation: "pickSkills",
+        cwd: input.cwd,
+        modelSelection: input.modelSelection,
+        ...buildSkillPickPrompt(input),
+      });
+      return { picks: sanitizeSkillPicks(generated.picks, input) };
+    }),
     assessThread: (input) =>
       run({
         operation: "assessThread",

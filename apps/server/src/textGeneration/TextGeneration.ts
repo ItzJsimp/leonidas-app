@@ -38,6 +38,7 @@ type TextGenerationOp =
   | "evaluateGoal"
   | "assessThread"
   | "generatePromptSuggestion"
+  | "pickSkills"
   | "generateVoiceLogDraft";
 
 const resolveInstance = (
@@ -85,6 +86,19 @@ export const make = Effect.gen(function* () {
                 new TextGenerationError({
                   operation: "generatePromptSuggestion",
                   detail: "This provider does not support prompt prediction.",
+                }),
+              ),
+        ),
+      ),
+    pickSkills: (input) =>
+      resolveInstance(registry, "pickSkills", input.modelSelection.instanceId).pipe(
+        Effect.flatMap((generation) =>
+          generation.pickSkills
+            ? generation.pickSkills(input)
+            : Effect.fail(
+                new TextGenerationError({
+                  operation: "pickSkills",
+                  detail: "This provider cannot pick skills.",
                 }),
               ),
         ),

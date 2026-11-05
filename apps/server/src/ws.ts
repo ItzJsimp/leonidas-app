@@ -43,6 +43,7 @@ import {
 import { readReleaseStatus } from "./releaseStatus/releaseStatus.ts";
 import { homeNews, homeWeather } from "./taskBoard/homeFeeds.ts";
 import * as PromptSuggestion from "./workspace/PromptSuggestion.ts";
+import * as SkillPick from "./workspace/SkillPick.ts";
 import * as TextGeneration from "./textGeneration/TextGeneration.ts";
 import * as Crypto from "effect/Crypto";
 import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
@@ -1519,6 +1520,7 @@ const layerWsRpc = (
         yield* TextGeneration.TextGeneration,
         serverSettings,
       );
+      const skillPick = SkillPick.make(yield* TextGeneration.TextGeneration, serverSettings);
       const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
       const backgroundPolicy = yield* BackgroundPolicy.BackgroundPolicy;
       const rpcClientIds = yield* Ref.make(new Set<RpcClientId>());
@@ -3266,6 +3268,7 @@ const layerWsRpc = (
         [WS_METHODS.hardwareGetStatus]: (_input) => systemCare.status,
         [WS_METHODS.projectsPromptCandidates]: (input) => promptPrediction.candidates(input.cwd),
         [WS_METHODS.projectsPredictPrompt]: (input) => promptSuggestion.predict(input),
+        [WS_METHODS.projectsPickSkills]: (input) => skillPick.pick(input),
         [WS_METHODS.projectsCancelPromptPrediction]: (input) =>
           promptSuggestion.cancel(input.sessionId),
         [WS_METHODS.projectsReadFile]: (input) =>

@@ -271,6 +271,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.threadSweepHandoff]: AuthOrchestrationOperateScope,
   [WS_METHODS.projectsPromptCandidates]: AuthFilesystemReadScope,
   [WS_METHODS.projectsPredictPrompt]: AuthFilesystemReadScope,
+  [WS_METHODS.projectsPickSkills]: AuthFilesystemReadScope,
   [WS_METHODS.projectsCancelPromptPrediction]: AuthFilesystemReadScope,
   [WS_METHODS.projectsReadFile]: AuthFilesystemReadScope,
   [WS_METHODS.projectsSearchContents]: AuthFilesystemReadScope,

@@ -7,7 +7,10 @@ import type {
 } from "@t3tools/contracts";
 import type * as Effect from "effect/Effect";
 
+import type { SkillPickInput, SkillPickResult } from "./skillPick.ts";
 import type { TextGenerationPolicy } from "./textGenerationPolicy.ts";
+
+export type { SkillPickCandidate, SkillPickInput, SkillPickResult } from "./skillPick.ts";
 
 export interface CommitMessageGenerationInput {
   cwd: string;
@@ -127,6 +130,11 @@ export interface ProviderTextGeneration {
   readonly generatePromptSuggestion?: (
     input: PromptSuggestionInput,
   ) => Effect.Effect<PromptSuggestionResult, TextGenerationError>;
+
+  /** Choose which of a shortlist of skills the agent should load for a request. */
+  readonly pickSkills?: (
+    input: SkillPickInput,
+  ) => Effect.Effect<SkillPickResult, TextGenerationError>;
 
   /** Judge whether a chat is finished, or write the prompt that continues it. */
   readonly assessThread?: (
