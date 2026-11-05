@@ -176,15 +176,25 @@ const openThread = async (id) =>
   );
 const sw = Object.fromEntries(threads.map(([k]) => [k, []]));
 const heap = [];
+// Longest task inside each timed switch (0 when none). Its p90 is steadier than one max over all switches.
+const perSwitch = [];
+const cold = []; // first open of each thread in this page (cycle 0)
+const switchLong = [];
 for (let c = 0; c <= cycles; c++) {
   for (const [k, id] of threads) {
+    await takeLongTasks();
     const ms = await openThread(id);
-    if (c > 0) sw[k].push(ms);
     await sleep(300);
+    const lt = await takeLongTasks();
+    if (c === 0) cold.push({ k, ms: Math.round(ms), lt: Math.max(0, ...lt) });
+    if (c > 0) {
+      sw[k].push(ms);
+      perSwitch.push(Math.max(0, ...lt));
+      switchLong.push(...lt);
+    }
   }
   heap.push(await metrics());
 }
-const switchLong = await takeLongTasks();
 
 // 3. Long-thread scroll: largest thread, scroll the timeline top to bottom; long tasks during the scroll.
 await openThread(meta.threadIds.largest);
@@ -224,6 +234,12 @@ const result = {
   appStart: stat(start),
   threadSwitch: Object.fromEntries(Object.entries(sw).map(([k, v]) => [k, stat(v)])),
   scroll: { ...stat(scroll), worstLongTaskPerRun: stat(scrollLong) },
+  coldOpen: cold,
+  perSwitchLongTask: {
+    ...stat(perSwitch),
+    p90: +pct(perSwitch, 0.9).toFixed(0),
+    sum: Math.round(perSwitch.reduce((a, b) => a + b, 0)),
+  },
   longTasks: {
     switchCount: switchLong.length,
     switchMax: +Math.max(0, ...switchLong).toFixed(0),

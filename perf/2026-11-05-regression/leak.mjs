@@ -114,6 +114,30 @@ const snap = async (name) => {
   const { usedSize } = await cdp.send("Runtime.getHeapUsage");
   console.log(name, (usedSize / 2 ** 20).toFixed(1), "MB");
 };
+if (argv.includes("--gccheck")) {
+  for (let c = 0; c < 3; c++)
+    for (const k of pick) {
+      await open(url(k));
+      await sleep(300);
+    }
+  await page.evaluate(() => {
+    window.__lt = [];
+    new PerformanceObserver((l) =>
+      l.getEntries().forEach((e) => window.__lt.push(Math.round(e.duration))),
+    ).observe({ type: "longtask" });
+  });
+  await sleep(1500);
+  const quiet = await page.evaluate(() => window.__lt.splice(0));
+  const gc = [];
+  for (let i = 0; i < 5; i++) {
+    await cdp.send("HeapProfiler.collectGarbage");
+    await sleep(400);
+    gc.push(await page.evaluate(() => window.__lt.splice(0)));
+  }
+  console.log(JSON.stringify({ quietLongTasks: quiet, perForcedGc: gc }));
+  cleanup();
+  process.exit(0);
+}
 if (profileOut) {
   await cdp.send("Profiler.enable");
   await cdp.send("Profiler.setSamplingInterval", { interval: 200 });
