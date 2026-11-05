@@ -2,14 +2,10 @@ import type { TaskSchemaProperty } from "@t3tools/contracts";
 import {
   CircleCheckIcon,
   CloudUploadIcon,
-  ColumnsIcon,
-  LayoutDashboardIcon,
+  CalendarIcon,
   ListChecksIcon,
-  ListIcon,
-  TableIcon,
   PlusIcon,
   RefreshCwIcon,
-  RouteIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAtomValue } from "@effect/atom-react";
@@ -18,7 +14,13 @@ import { defaultDueForFocus } from "@t3tools/client-runtime/task-board/daily-pla
 import { WorkspacePageContainer } from "~/components/WorkspacePageContainer";
 import { WorkspacePageHeader } from "~/components/WorkspacePageHeader";
 import { Button } from "~/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "~/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "~/components/ui/empty";
 import { SidebarInset } from "~/components/ui/sidebar";
 import { Spinner } from "~/components/ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
@@ -74,6 +76,7 @@ import { useTaskSchemaEdit } from "./useTaskSchemaEdit";
 import { TaskPropertyDialog, type PropertyDialogTarget } from "./TaskPropertyDialog";
 import { withSchemaColumns } from "./taskProps.logic";
 import { TaskTableView } from "./TaskTable";
+import { TaskViewTabs } from "./TaskViewTabs";
 import { TaskPropertiesMenu } from "./TaskPropertiesMenu";
 import type { LayoutChange } from "./TaskTableHeader";
 import { moveRank, pruneRanks, setColumnHidden, type TasksLayout } from "./taskLayout.logic";
@@ -83,18 +86,6 @@ import type { PendingEdit } from "./taskUndo.logic";
 const NO_PENDING: ReadonlyMap<string, PendingEdit> = new Map();
 const NO_SCHEMA: ReadonlyArray<TaskSchemaProperty> = [];
 import { useTaskBoard } from "./useTaskBoard";
-
-const VIEW_OPTIONS: ReadonlyArray<{
-  readonly view: TasksView;
-  readonly label: string;
-  readonly icon: typeof ListIcon;
-}> = [
-  { view: "table", label: "Table", icon: TableIcon },
-  { view: "board", label: "Board", icon: ColumnsIcon },
-  { view: "list", label: "List", icon: ListIcon },
-  { view: "dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
-  { view: "roadmap", label: "Roadmap", icon: RouteIcon },
-];
 
 function readSavedPrefs(): TasksPrefs {
   try {
@@ -509,6 +500,21 @@ export function TasksPage() {
         empty={empty}
       />
     );
+  } else if (prefs.view === "calendar") {
+    // shortcut: a placeholder until slice e3 builds the month grid.
+    body = (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <CalendarIcon />
+          </EmptyMedia>
+          <EmptyTitle>Calendar is coming next</EmptyTitle>
+          <EmptyDescription>
+            A month grid of your tasks by due date. Use Table or Board for now.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   } else if (prefs.view === "list") {
     body = (
       <TaskListView
@@ -627,26 +633,7 @@ export function TasksPage() {
                 aria-label="View"
                 className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5"
               >
-                {VIEW_OPTIONS.map(({ view, label, icon: Icon }) => (
-                  <button
-                    key={view}
-                    type="button"
-                    role="tab"
-                    aria-selected={prefs.view === view}
-                    aria-label={label}
-                    data-tour={view === "roadmap" ? "tasks-roadmap-tab" : undefined}
-                    onClick={() => changeView(view)}
-                    className={cn(
-                      "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-inset",
-                      prefs.view === view
-                        ? "bg-background font-medium text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Icon aria-hidden className="size-4" />
-                    <span className="hidden sm:inline">{label}</span>
-                  </button>
-                ))}
+                <TaskViewTabs selected={prefs.view} onSelect={changeView} />
               </div>
               {/* Narrow panes: the two scope selects share a row, and search gets the next one. */}
               <div className="ml-auto flex min-w-0 flex-1 basis-64 flex-wrap items-center justify-start gap-1 @4xl/tasks:min-w-max @4xl/tasks:flex-nowrap @4xl/tasks:justify-end">

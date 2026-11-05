@@ -41,7 +41,7 @@ export const TOUR_TARGETS = {
     steps: [
       {
         title: "Plan the path to a release",
-        body: "Open Roadmap to see each version milestone, its task briefs and release gate. Open a task to assign its version or send it to an AI on purpose.",
+        body: "Open More, then Roadmap, to see each version milestone, its task briefs and release gate. Open a task to assign its version or send it to an AI on purpose.",
         route: "/tasks",
         anchor: "tasks-roadmap-tab",
       },
