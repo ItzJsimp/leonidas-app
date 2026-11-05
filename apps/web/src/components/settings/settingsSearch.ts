@@ -620,10 +620,10 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "suggest-skill-cap",
-    title: "Skills added by Suggest",
+    title: "Skill limit for Auto-pick",
     to: "/settings/chat",
     targetId: "composer",
-    searchTerms: ["suggest button wand skills how many limit"],
+    searchTerms: ["auto-pick auto pick suggest button wand skills how many limit maximum"],
   },
   {
     id: "skill-folders",

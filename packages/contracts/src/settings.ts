@@ -588,7 +588,7 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   proactivePanelsEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   showSkillsInSlashMenu: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
-  // How many skills one click on the composer Suggest button may add.
+  // The most skills a draft may carry after the composer Auto-pick skills button. Skills the draft already names count.
   composerSuggestSkillCap: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 5 })).pipe(
     Schema.withDecodingDefault(Effect.succeed(3)),
   ),

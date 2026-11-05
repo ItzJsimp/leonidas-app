@@ -726,7 +726,7 @@ export function useSettingsRestore(onRestored?: () => void) {
         ? ["Show skills in slash menu"]
         : []),
       ...(settings.composerSuggestSkillCap !== DEFAULT_UNIFIED_SETTINGS.composerSuggestSkillCap
-        ? ["Skills added by Suggest"]
+        ? ["Skill limit for Auto-pick"]
         : []),
       ...(settings.composerCollapseOnScroll !== DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll
         ? ["Shrink the message box when you scroll"]
@@ -2934,12 +2934,12 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
             />
             <SettingsRow
               {...searchableSetting("suggest-skill-cap")}
-              description="The Suggest button above the message box adds up to this many skills to the start of your message. It may add fewer, or none."
+              description="The Auto-pick skills button above the message box keeps your message to this many skills in total. It may add fewer, or none."
               resetAction={
                 settings.composerSuggestSkillCap !==
                 DEFAULT_UNIFIED_SETTINGS.composerSuggestSkillCap ? (
                   <SettingResetButton
-                    label="skills added by Suggest"
+                    label="skill limit for Auto-pick"
                     onClick={() =>
                       updateSettings({
                         composerSuggestSkillCap: DEFAULT_UNIFIED_SETTINGS.composerSuggestSkillCap,
@@ -2961,7 +2961,7 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
                   <SelectTrigger
                     size="sm"
                     className="w-auto min-w-0"
-                    aria-label="Skills added by Suggest"
+                    aria-label="Skill limit for Auto-pick"
                   >
                     <SelectValue>{settings.composerSuggestSkillCap}</SelectValue>
                   </SelectTrigger>

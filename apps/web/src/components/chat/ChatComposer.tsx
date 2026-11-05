@@ -141,7 +141,7 @@ import {
 } from "../../promptStashStore";
 import { ComposerNotepadButton } from "./ComposerNotepadButton";
 import { ComposerSkillsButton } from "./ComposerSkillsButton";
-import { ComposerSkillSuggestButton } from "./ComposerSkillSuggestButton";
+import { ComposerAutoPickSkillsButton } from "./ComposerAutoPickSkillsButton";
 import { ComposerSubagentsButton } from "../subagents/ComposerSubagentsButton";
 import { useComposerSubagents } from "../subagents/useComposerSubagents";
 import { searchSubagentOptions } from "../subagents/subagentThread.logic";
@@ -7115,7 +7115,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 skills:
                   selectedProviderSkills.length > 0 ? (
                     <>
-                      <ComposerSkillSuggestButton
+                      <ComposerAutoPickSkillsButton
+                        environmentId={environmentId}
+                        cwd={gitCwd ?? null}
                         prompt={prompt}
                         projectText={gitCwd?.split(/[\\/]/).findLast(Boolean) ?? ""}
                         skills={selectedProviderSkills}
