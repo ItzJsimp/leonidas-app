@@ -163,6 +163,10 @@
       "types": "./src/server/subagentProjection.ts",
       "import": "./src/server/subagentProjection.ts"
     },
+    "./server/skillPick": {
+      "types": "./src/server/skillPick.ts",
+      "import": "./src/server/skillPick.ts"
+    },
     "./server/textGeneration": {
       "types": "./src/server/textGeneration.ts",
       "import": "./src/server/textGeneration.ts"

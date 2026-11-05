@@ -528,6 +528,8 @@ import {
   ModelRunStats,
 } from "./modelBenchmarks.ts";
 import {
+  AutoPickEngine,
+  AutoPickModelSlug,
   StorageCleanupReport,
   ServerSettings,
   ServerSettingsError,
@@ -2345,10 +2347,16 @@ const WsProjectsPickSkillsRpc = Rpc.make(WS_METHODS.projectsPickSkills, {
       }),
     ).check(Schema.isMaxLength(60)),
     max: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 5 })),
+    engine: AutoPickEngine,
+    openRouterModel: AutoPickModelSlug,
+    groqModel: AutoPickModelSlug,
+    localModel: AutoPickModelSlug,
   }),
   success: Schema.Struct({
     picks: Schema.Array(Schema.Struct({ name: Schema.String, reason: Schema.String })),
     modelUsed: Schema.Boolean,
+    engine: Schema.optionalKey(Schema.Literals(["openrouter", "groq", "local", "chat"])),
+    model: Schema.optionalKey(Schema.String),
   }),
   error: EnvironmentAuthorizationError,
 });

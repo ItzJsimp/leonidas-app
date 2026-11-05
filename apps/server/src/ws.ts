@@ -1520,7 +1520,9 @@ const layerWsRpc = (
         yield* TextGeneration.TextGeneration,
         serverSettings,
       );
-      const skillPick = SkillPick.make(yield* TextGeneration.TextGeneration, serverSettings);
+      const skillPick = SkillPick.make(yield* TextGeneration.TextGeneration, serverSettings, {
+        groqKey: voiceKeys.get,
+      });
       const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
       const backgroundPolicy = yield* BackgroundPolicy.BackgroundPolicy;
       const rpcClientIds = yield* Ref.make(new Set<RpcClientId>());

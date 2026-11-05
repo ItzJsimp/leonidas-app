@@ -51,6 +51,26 @@ import { PullRequestMergeMethod } from "./pullRequest.ts";
 
 // ── Client Settings (local-only) ───────────────────────────────
 
+/**
+ * Which engine the composer Auto-pick skills button asks. "auto" tries free ones in order
+ * (OpenRouter free model, the Groq key Scribe uses, a local model) and never the paid chat
+ * model; "chat" is the only choice that uses the chat model's plan.
+ */
+export const AutoPickEngine = Schema.Literals([
+  "auto",
+  "openrouter",
+  "groq",
+  "local",
+  "chat",
+  "keyword",
+]);
+export type AutoPickEngine = typeof AutoPickEngine.Type;
+/** A model id typed by the user, such as `openrouter/free` or `qwen/qwen3.8-27b`. Empty means unset. */
+export const AutoPickModelSlug = Schema.String.check(
+  Schema.isMaxLength(100),
+  Schema.isPattern(/^[A-Za-z0-9._:/-]*$/),
+);
+
 export const TimestampFormat = Schema.Literals(["locale", "12-hour", "24-hour"]);
 export type TimestampFormat = typeof TimestampFormat.Type;
 const DEFAULT_TIMESTAMP_FORMAT: TimestampFormat = "locale";
@@ -591,6 +611,17 @@ export const ClientSettingsSchema = Schema.Struct({
   // The most skills a draft may carry after the composer Auto-pick skills button. Skills the draft already names count.
   composerSuggestSkillCap: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 5 })).pipe(
     Schema.withDecodingDefault(Effect.succeed(3)),
+  ),
+  composerAutoPickEngine: AutoPickEngine.pipe(Schema.withDecodingDefault(Effect.succeed("auto"))),
+  composerAutoPickOpenRouterModel: AutoPickModelSlug.pipe(
+    Schema.withDecodingDefault(Effect.succeed("openrouter/free")),
+  ),
+  composerAutoPickGroqModel: AutoPickModelSlug.pipe(
+    Schema.withDecodingDefault(Effect.succeed("qwen/qwen3.8-27b")),
+  ),
+  // Empty keeps a local model out of "auto": the user opts in by naming one.
+  composerAutoPickLocalModel: AutoPickModelSlug.pipe(
+    Schema.withDecodingDefault(Effect.succeed("")),
   ),
   // The user's own skill folders. Automatic folders (by category and source) are derived, not stored.
   skillFolders: SkillFolderPrefs.pipe(Schema.withDecodingDefault(Effect.succeed({ folders: [] }))),
@@ -2039,6 +2070,10 @@ export const ClientSettingsPatch = Schema.Struct({
   composerSuggestSkillCap: Schema.optionalKey(
     Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 5 })),
   ),
+  composerAutoPickEngine: Schema.optionalKey(AutoPickEngine),
+  composerAutoPickOpenRouterModel: Schema.optionalKey(AutoPickModelSlug),
+  composerAutoPickGroqModel: Schema.optionalKey(AutoPickModelSlug),
+  composerAutoPickLocalModel: Schema.optionalKey(AutoPickModelSlug),
   skillFolders: Schema.optionalKey(SkillFolderPrefs),
   composerToolbarCollapsed: Schema.optionalKey(Schema.Boolean),
   composerToolbar: Schema.optionalKey(ComposerToolbarPrefs),
