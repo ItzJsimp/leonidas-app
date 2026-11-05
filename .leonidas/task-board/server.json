@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "github-4",
+      "project": "server",
+      "title": "Release delivery needs attention",
+      "description": "## Release delivery 0.68.0\n\nNo release published (see job results; superseded runs are expected).\n\n- Windows x64 installer: 109s (failure)\n  - Run actions/checkout@v6: 18s\n  - Run voidzero-dev/setup-vp@v1: 27s\n  - Plan version and patch notes: 21s\n  - Restore desktop dependencies: 21s\n  - Install desktop build dependencies: 16s\n- Publish complete release: 0s (skipped)\n\n\nWindows x64 installer: failure\n\n[Workflow](https://github.com/ItzJsimp/leonidas-code/actions/runs/38736996243)\n",
+      "status": "retired",
+      "priority": "medium",
+      "claimedBy": null,
+      "claimedAt": null,
+      "claimedAgent": null,
+      "completedBy": null,
+      "completedAt": null,
+      "completionSummary": null,
+      "createdAt": 1792068482000,
+      "updatedAt": 1793872053643,
+      "labels": [],
+      "source": "github_issue",
+      "sourceId": "4",
+      "sourceFile": null,
+      "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/4",
+      "history": [
+        {
+          "id": "github-4-created",
+          "taskId": "github-4",
+          "action": "imported",
+          "actor": "GitHub issue",
+          "timestamp": 1792068482000,
+          "note": "Imported from the project's issue tracker"
+        },
+        {
+          "id": "e7a584db-faec-4501-ae1e-8830bc0f99a4",
+          "taskId": "github-4",
+          "action": "updated",
+          "actor": "ItzJsimp",
+          "timestamp": 1793872053643,
+          "note": null
+        }
+      ],
+      "shared": true,
+      "assignee": null
+    },
+    {
+      "id": "github-28",
+      "project": "server",
+      "title": "Health 02: 64 lint errors in apps/web and apps/server",
+      "description": "Weekly health run 02 (typecheck and lint drift), 2026-10-26.\n\n- Typecheck: `apps/server` and `apps/web` pass with 0 errors.\n- Lint: scoped `vp lint --report-unused-disable-directives` on files changed in the last 7 days reports 68 errors and 389 warnings. 64 errors are in `apps/web` and `apps/server`.\n- Top rules: 36 `no-native-title-tooltip`, 10 `no-arbitrary-values`, 8 `namespace-node-imports`, 7 `no-restyle`.\n- Worst file: `apps/web/src/components/usage/UsagePage.tsx` (15 errors).\n\nWork card: `tasks/clear-the-vp-lint-errors-in-leonidas-code-scripts-outside-the-diagnostics-fix.md` (AIOS task view; it now covers apps/web and apps/server too).\n\nDone when scoped lint reports 0 errors on these files, scoped tests pass and typecheck still passes.\r\n",
+      "status": "todo",
+      "priority": "medium",
+      "claimedBy": null,
+      "claimedAt": null,
+      "claimedAgent": null,
+      "completedBy": null,
+      "completedAt": null,
+      "completionSummary": null,
+      "createdAt": 1793070327000,
+      "updatedAt": 1793675191000,
+      "labels": [
+        "health"
+      ],
+      "source": "github_issue",
+      "sourceId": "28",
+      "sourceFile": null,
+      "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/28",
+      "history": [
+        {
+          "id": "github-28-created",
+          "taskId": "github-28",
+          "action": "imported",
+          "actor": "GitHub issue",
+          "timestamp": 1793070327000,
+          "note": "Imported from the project's issue tracker"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "id": "github-32",
+      "project": "server",
+      "title": "Health 02: 40 unused react-effect-budget lint directives in apps/web",
+      "description": "Weekly health run 02 (typecheck and lint drift), 2026-11-02, commit a935b89a72.\n\n- Typecheck: `apps/server` and `apps/web` pass with 0 errors.\n- Lint: scoped `vp lint --report-unused-disable-directives` on files changed in the last 7 days reports 40 \"Unused oxlint-disable directive\" errors.\n- Cause: all 40 comments name `t3code/react-effect-budget`. That rule does not exist in `oxlint-plugin-t3code`. The comments came from upstream ports `d6030c087b` and `1e448e49d7` (2026-10-28).\n- Files: 16 files in `apps/web/src/components` (`files/VirtualTablePreview.tsx` 9, `files/PdfViewer.tsx` 7, `files/office/OfficePages.tsx` 6, 13 more).\n\nFix choice: delete the 40 comments, or port the upstream rule into the plugin.\n\nDone when scoped lint reports 0 unused directives on these files and `apps/web` typecheck still passes.\n\nWork card: `tasks/clear-40-unused-react-effect-budget-lint-directives-in-appsweb-file-previews.md` (AIOS task view).\r\n",
+      "status": "todo",
+      "priority": "medium",
+      "claimedBy": null,
+      "claimedAt": null,
+      "claimedAgent": null,
+      "completedBy": null,
+      "completedAt": null,
+      "completionSummary": null,
+      "createdAt": 1793675190000,
+      "updatedAt": 1793675190000,
+      "labels": [
+        "health"
+      ],
+      "source": "github_issue",
+      "sourceId": "32",
+      "sourceFile": null,
+      "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/32",
+      "history": [
+        {
+          "id": "github-32-created",
+          "taskId": "github-32",
+          "action": "imported",
+          "actor": "GitHub issue",
+          "timestamp": 1793675190000,
+          "note": "Imported from the project's issue tracker"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "id": "github-2",
+      "project": "server",
+      "title": "[Scribe Feed] Shared collaborative dictation stream",
+      "description": "Shared collaborative Scribe dictation feed for Jake and Mob. Transcripts broadcasted by collaborators are synchronized here for attribution and team visibility.",
+      "status": "todo",
+      "priority": "medium",
+      "claimedBy": null,
+      "claimedAt": null,
+      "claimedAgent": null,
+      "completedBy": null,
+      "completedAt": null,
+      "completionSummary": null,
+      "createdAt": 1791790712000,
+      "updatedAt": 1791910475000,
+      "labels": [],
+      "source": "github_issue",
+      "sourceId": "2",
+      "sourceFile": null,
+      "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/2",
+      "history": [
+        {
+          "id": "github-2-created",
+          "taskId": "github-2",
+          "action": "imported",
+          "actor": "GitHub issue",
+          "timestamp": 1791790712000,
+          "note": "Imported from the project's issue tracker"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "id": "github-3",
+      "project": "server",
+      "title": "Web typecheck fails: settings UI uses fields missing from ScopedSettingsPatch",
+      "description": "`vp run typecheck` fails on `main` with 8 errors. They come from 46d050df14 (settings: login item, reasoning effort, settings backup and reset sections): the UI writes settings fields that the contracts do not define.\n\n- `apps/web/src/components/settings/NotificationSettings.tsx`: `notificationQuietHoursStart`, `notificationQuietHoursEnd`, `notificationQuietHoursEnabled`, `usageWarningPercent`, `notificationVolume`\n- `apps/web/src/components/settings/ReasoningEffortSettings.tsx`: `defaultReasoningEffort`\n\nAll are reported as unknown properties on `ScopedSettingsPatch` (`ServerSettingsPatch & ClientSettingsPatch`). The release build does not typecheck, so releases still ship, but these settings probably don't persist.\n\nFix: add the fields to the matching settings schemas and patches in `packages/contracts/src/settings.ts`, or remove the controls.\n\nFound while pushing efb4a66cda; that push did not introduce them.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+      "status": "done",
+      "priority": "medium",
+      "claimedBy": null,
+      "claimedAt": null,
+      "claimedAgent": null,
+      "completedBy": null,
+      "completedAt": 1791843587000,
+      "completionSummary": null,
+      "createdAt": 1791842618000,
+      "updatedAt": 1791843587000,
+      "labels": [],
+      "source": "github_issue",
+      "sourceId": "3",
+      "sourceFile": null,
+      "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/3",
+      "history": [
+        {
+          "id": "github-3-created",
+          "taskId": "github-3",
+          "action": "imported",
+          "actor": "GitHub issue",
+          "timestamp": 1791842618000,
+          "note": "Imported from the project's issue tracker"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "id": "github-1",
+      "project": "server",
+      "title": "Finish shared GitHub Issues task board acceptance",
+      "description": "The read-only Tasks panel is verified on [mob/task-board](https://github.com/ItzJsimp/leonidas-code/tree/mob/task-board), combined head 35bbd99e7e. It includes current main at 87411cae52 and preserves both machines' acceptance records and Jake's context-reporting repair.\n\nVerified:\n- Real issue #1 loads in the isolated production client with canonical links and assignee.\n- Filtering, no-match state, manual refresh and real GitHub automatic refresh pass. A title edit appeared automatically after 8848 ms on Mob's client and was restored.\n- Jake's committed acceptance record confirms the same issue on his machine, filtering, refresh and narrow layout.\n- All 61 combined focused tests pass. Contracts, client-runtime, server and web typechecks exit 0. Scoped context formatting/lint and AIOS audit pass. The previously verified production web build is unchanged by the server/test repair.\n- The context-reporting blocker is cleared: the unsupported Effect.catchAll call and driver branding were fixed; query tests now use typed fixtures and assert the deleted-thread error reason.\n- After the repair, manual refresh again updated the real board with no alerts.\n\nRemaining:\n- Obtain release authorization, publish the verified branch to main, and verify published release assets.\n- No PR, main push or release was performed for the task board.\n\nKeep this issue open until publication is verified.",
+      "status": "done",
+      "priority": "medium",
+      "claimedBy": null,
+      "claimedAt": null,
+      "claimedAgent": null,
+      "completedBy": null,
+      "completedAt": 1791696149000,
+      "completionSummary": null,
+      "createdAt": 1791693238000,
+      "updatedAt": 1791696149000,
+      "labels": [],
+      "source": "github_issue",
+      "sourceId": "1",
+      "sourceFile": null,
+      "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/1",
+      "history": [
+        {
+          "id": "github-1-created",
+          "taskId": "github-1",
+          "action": "imported",
+          "actor": "GitHub issue",
+          "timestamp": 1791693238000,
+          "note": "Imported from the project's issue tracker"
+        }
+      ],
+      "shared": true
+    }
+  ]
+}
