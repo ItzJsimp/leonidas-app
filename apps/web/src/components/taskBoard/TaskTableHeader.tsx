@@ -23,6 +23,7 @@ import {
   MoveHorizontalIcon,
   WrapTextIcon,
 } from "lucide-react";
+import type { TaskSchemaProperty } from "@t3tools/contracts";
 import type { KeyboardEvent, PointerEvent } from "react";
 
 import {
@@ -36,6 +37,7 @@ import {
 import { cn } from "~/lib/utils";
 
 import { COLUMN_META } from "./TaskTableCells";
+import { columnProperty } from "./taskCells.logic";
 import {
   COLUMN_MAX,
   COLUMN_MIN,
@@ -54,7 +56,9 @@ export type LayoutChange = (
   options?: { readonly toast?: boolean },
 ) => void;
 
-export const columnLabel = (key: string) => COLUMN_META[key]?.label ?? key.replace(/^prop:/, "");
+/** A built-in column name, a property label, or the property key. */
+export const columnLabel = (key: string, schema: ReadonlyArray<TaskSchemaProperty> = []) =>
+  COLUMN_META[key]?.label ?? columnProperty(key, schema)?.label ?? key.replace(/^prop:/, "");
 
 // Arrow keys on a focused resize handle step the width by this much.
 const KEY_STEP = 16;
@@ -65,6 +69,7 @@ type HeaderProps = {
   readonly freezeName: boolean;
   readonly wrap: ReadonlySet<string>;
   readonly gutter: number;
+  readonly schema: ReadonlyArray<TaskSchemaProperty>;
   readonly onLayoutChange: LayoutChange;
   readonly onResizeStart: (key: string, event: PointerEvent<HTMLElement>) => void;
   readonly onFit: (key: string) => void;
@@ -86,7 +91,7 @@ function HeaderCell(
 ) {
   const { column, freezeName, gutter, onLayoutChange, prevKey, nextKey } = props;
   const frozen = freezeName && column.key === "title";
-  const label = columnLabel(column.key);
+  const label = columnLabel(column.key, props.schema);
   const sortable = useSortable({ id: column.key, disabled: frozen });
   const move = (overKey: string) =>
     onLayoutChange(`Moved column: ${label}`, (layout) =>
@@ -221,7 +226,7 @@ export function TaskTableHeader(props: HeaderProps) {
     if (!over || active.id === over.id) return;
     const key = String(active.id);
     const overKey = String(over.id);
-    onLayoutChange(`Moved column: ${columnLabel(key)}`, (layout) =>
+    onLayoutChange(`Moved column: ${columnLabel(key, props.schema)}`, (layout) =>
       moveColumn(layout, key, targetIndex(layout.table.columns, key, overKey)),
     );
   };

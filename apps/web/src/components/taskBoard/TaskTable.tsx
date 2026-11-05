@@ -1,5 +1,5 @@
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
-import type { TaskBoardTeamMember } from "@t3tools/contracts";
+import type { TaskBoardTeamMember, TaskSchemaProperty } from "@t3tools/contracts";
 import {
   CheckIcon,
   ChevronRightIcon,
@@ -20,6 +20,7 @@ import {
 
 import { cn } from "~/lib/utils";
 
+import { TaskCellEditor, type OpenCellEditor } from "./TaskCellEditor";
 import { TasksEmpty, type TasksEmptyContext } from "./TaskEmptyStates";
 import { useLatest } from "./TaskRowParts";
 import {
@@ -27,10 +28,18 @@ import {
   GatesBar,
   OwnerName,
   PriorityMark,
+  PropValue,
   StatusPill,
   UpdatedText,
 } from "./TaskTableCells";
-import { TaskTableHeader, type LayoutChange } from "./TaskTableHeader";
+import { columnLabel, TaskTableHeader, type LayoutChange } from "./TaskTableHeader";
+import {
+  cellChange,
+  cellEdit,
+  columnProperty,
+  type CellAction,
+  type CellValue,
+} from "./taskCells.logic";
 import {
   clampWidth,
   resizeColumn,
@@ -66,6 +75,9 @@ const GROUP_HEIGHT = 44;
 const GUTTER = 48;
 const GRIP_SIZE = 20;
 const NAV_KEYS: ReadonlySet<string> = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
+// The cell cursor: a ring on the active cell, shown only while its row has the focus.
+const CURSOR_RING =
+  "group-focus/row:data-[cursor=true]:ring-2 group-focus/row:data-[cursor=true]:ring-primary group-focus/row:data-[cursor=true]:ring-inset";
 
 // The row tints on hover and when selected. Sticky cells are opaque, so they repeat the tint on
 // a layer behind their content.
@@ -99,6 +111,9 @@ type RowProps = {
   readonly onToggleDone: (task: TaskView) => void;
   readonly dragging: boolean;
   readonly dropEdge: RowDrop["edge"] | null;
+  /** The cursor column, set only on the row that holds the cursor. */
+  readonly cursorCol: string | null;
+  readonly properties: ReadonlyMap<string, TaskSchemaProperty>;
 };
 
 function DropLine({ edge }: { readonly edge: RowDrop["edge"] }) {
@@ -131,8 +146,10 @@ function Cell({ task, column, props }: { task: TaskView; column: ColumnLayout; p
       return <OwnerName task={task} team={props.team} />;
     case "updated":
       return <UpdatedText at={task.updatedAt} now={props.now} />;
-    default:
-      return null;
+    default: {
+      const property = props.properties.get(column.key);
+      return property ? <PropValue property={property} value={task.props?.[property.key]} /> : null;
+    }
   }
 }
 
@@ -190,8 +207,10 @@ const TableRow = memo(function TableRow(props: RowProps) {
             key="title"
             role="gridcell"
             data-col="title"
+            data-cursor={props.cursorCol === "title" || undefined}
             className={cn(
               "flex min-w-0 items-center gap-2 border-r border-border/40 px-2",
+              CURSOR_RING,
               freezeName && ["sticky z-[1]", STICKY_SURFACE],
             )}
             style={freezeName ? { left: GUTTER } : undefined}
@@ -224,8 +243,10 @@ const TableRow = memo(function TableRow(props: RowProps) {
             key={column.key}
             role="gridcell"
             data-col={column.key}
+            data-cursor={props.cursorCol === column.key || undefined}
             className={cn(
               "flex min-w-0 items-center px-2",
+              CURSOR_RING,
               wrap.has(column.key) ? "whitespace-normal" : "overflow-hidden whitespace-nowrap",
             )}
           >
@@ -302,6 +323,8 @@ export function TaskTableView(props: {
   readonly onLayoutChange: LayoutChange;
   /** Saves a row move (and the status or project change of a drop in another group). */
   readonly onMoveRow: ((task: TaskView, plan: RowMovePlan) => void) | undefined;
+  /** The AIOS task-schema.json properties, for `prop:<key>` columns. */
+  readonly schema: ReadonlyArray<TaskSchemaProperty>;
 }) {
   const { tasks, sections, groupBy, layout, context, actions, selectedId } = props;
   const { table } = layout;
@@ -330,6 +353,20 @@ export function TaskTableView(props: {
   const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
   const tabbableId =
     selectedId !== null && visibleIds.includes(selectedId) ? selectedId : (visibleIds[0] ?? null);
+  const { schema } = props;
+  const properties = useMemo(() => {
+    const map = new Map<string, TaskSchemaProperty>();
+    for (const column of table.columns) {
+      const property = columnProperty(column.key, schema);
+      if (property) map.set(column.key, property);
+    }
+    return map;
+  }, [table.columns, schema]);
+  const [cursor, setCursor] = useState<{ readonly rowId: string; readonly col: string } | null>(
+    null,
+  );
+  const [editing, setEditing] = useState<OpenCellEditor | null>(null);
+  const tasksRef = useLatest(tasksById);
 
   const select = useCallback((task: TaskView) => onSelectRef.current(task), [onSelectRef]);
   const toggleDone = useCallback(
@@ -439,14 +476,121 @@ export function TaskTableView(props: {
     [groups],
   );
 
+  const focusRow = (id: string) =>
+    gridRef.current
+      ?.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(id)}"]`)
+      ?.focus({ preventScroll: false });
+
+  const runCell = (task: TaskView, action: CellAction) => {
+    const run = actionsRef.current;
+    switch (action.type) {
+      case "rename":
+        return run.rename(task, action.title);
+      case "setStatus":
+        return run.setStatus(task, action.status);
+      case "setPriority":
+        return run.setPriority(task, action.priority);
+      case "linkProject":
+        return run.linkProject(task, action.slug);
+      case "setDue":
+        return run.setDue(task, action.due);
+      case "setAssignee":
+        return run.setAssignee(task, action.assignee);
+      case "setProp":
+        return run.setProp(
+          task,
+          action.key,
+          action.value,
+          columnLabel(`prop:${action.key}`, schema),
+        );
+    }
+  };
+
+  /** Opens the editor on one cell; a checkbox toggles at once. */
+  const startEdit = (rowId: string, col: string) => {
+    const task = tasksById.get(rowId);
+    const grid = gridRef.current;
+    if (!task || !grid || !actions.canEdit) return;
+    const editor = cellEdit(col, task, context, schema);
+    if (!editor) return;
+    setCursor({ rowId, col });
+    if (editor.kind === "toggle") {
+      const change = cellChange(col, task, editor, !editor.value);
+      if (change && !("error" in change)) runCell(task, change);
+      return;
+    }
+    const cell = grid.querySelector<HTMLElement>(
+      `[data-row-id="${CSS.escape(rowId)}"] [data-col="${CSS.escape(col)}"]`,
+    );
+    if (!cell) return;
+    const cellRect = cell.getBoundingClientRect();
+    const gridRect = grid.getBoundingClientRect();
+    const top = cellRect.top - gridRect.top;
+    setEditing({
+      rowId,
+      column: col,
+      label: columnLabel(col, schema),
+      editor,
+      box: {
+        top,
+        left: cellRect.left - gridRect.left,
+        width: cellRect.width,
+        height: cellRect.height,
+      },
+      roomBelow: gridRect.height - top - cellRect.height,
+    });
+  };
+
+  const closeEditor = () => {
+    const id = editing?.rowId;
+    setEditing(null);
+    // Enter and Esc give the row its focus back; a click elsewhere keeps its own focus.
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (id && (!active || active === document.body)) focusRow(id);
+    });
+  };
+
+  // Compares with the newest task (a list edit can save several times before it closes).
+  const commitCell = (value: CellValue, close: boolean): string | null => {
+    if (!editing) return null;
+    const task = tasksRef.current.get(editing.rowId);
+    const editor = task ? cellEdit(editing.column, task, context, schema) : null;
+    if (!task || !editor) {
+      closeEditor();
+      return null;
+    }
+    const change = cellChange(editing.column, task, editor, value);
+    if (change && "error" in change) return change.error;
+    if (change) runCell(task, change);
+    if (close) closeEditor();
+    return null;
+  };
+
+  const cellAt = (target: EventTarget) => {
+    if (!(target instanceof Element)) return null;
+    const rowId = target.closest("[data-row-id]")?.getAttribute("data-row-id");
+    const col = target.closest("[data-col]")?.getAttribute("data-col");
+    return rowId && col ? { rowId, col } : null;
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!(event.target instanceof HTMLElement)) return;
     const currentId = event.target.closest("[data-row-id]")?.getAttribute("data-row-id");
     if (currentId === undefined || currentId === null) return;
-    const focusRow = (id: string) =>
-      gridRef.current
-        ?.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(id)}"]`)
-        ?.focus({ preventScroll: false });
+    const col = cursor?.col ?? "title";
+    if (!event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+      event.preventDefault();
+      const keys = columns.map((column) => column.key);
+      const next = keys[keys.indexOf(col) + (event.key === "ArrowLeft" ? -1 : 1)];
+      if (next) setCursor({ rowId: currentId, col: next });
+      return;
+    }
+    if (event.key === "F2") {
+      event.preventDefault();
+      startEdit(currentId, "title");
+      return;
+    }
     if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
       event.preventDefault();
       const drop = stepDrop(groups, currentId, event.key === "ArrowUp" ? "up" : "down");
@@ -455,8 +599,15 @@ export function TaskTableView(props: {
       return;
     }
     if (event.key === "Enter") {
+      // Enter on the Name cell still opens the task; F2 renames it.
       const task = tasksById.get(currentId);
-      if (task) select(task);
+      if (!task) return;
+      if (col !== "title" && actions.canEdit && cellEdit(col, task, context, schema)) {
+        event.preventDefault();
+        startEdit(currentId, col);
+        return;
+      }
+      select(task);
       return;
     }
     if (!NAV_KEYS.has(event.key)) return;
@@ -502,6 +653,8 @@ export function TaskTableView(props: {
         onToggleDone={toggleDone}
         dragging={drag?.id === item.task.id}
         dropEdge={drag?.drop?.overId === item.task.id ? drag.drop.edge : null}
+        cursorCol={cursor?.rowId === item.task.id ? cursor.col : null}
+        properties={properties}
       />
     );
 
@@ -512,6 +665,21 @@ export function TaskTableView(props: {
       aria-label="Tasks"
       aria-rowcount={visibleIds.length + 1}
       onKeyDown={onKeyDown}
+      onFocus={(event) => {
+        const id = event.target.getAttribute("data-row-id");
+        if (id)
+          setCursor((current) =>
+            current?.rowId === id ? current : { rowId: id, col: current?.col ?? "title" },
+          );
+      }}
+      onPointerDown={(event) => {
+        const cell = cellAt(event.target);
+        if (cell) setCursor(cell);
+      }}
+      onDoubleClick={(event) => {
+        const cell = cellAt(event.target);
+        if (cell) startEdit(cell.rowId, cell.col);
+      }}
       onPointerMove={onMoveRow ? showGrip : undefined}
       onPointerLeave={hideGrip}
       onScrollCapture={hideGrip}
@@ -536,6 +704,7 @@ export function TaskTableView(props: {
             freezeName={table.freezeName}
             wrap={wrap}
             gutter={GUTTER}
+            schema={schema}
             onLayoutChange={props.onLayoutChange}
             onResizeStart={startResize}
             onFit={fitColumn}
@@ -571,6 +740,14 @@ export function TaskTableView(props: {
         >
           <GripVerticalIcon aria-hidden className="size-3.5" />
         </button>
+      ) : null}
+      {editing ? (
+        <TaskCellEditor
+          key={`${editing.rowId}:${editing.column}`}
+          open={editing}
+          onCommit={commitCell}
+          onClose={closeEditor}
+        />
       ) : null}
       <div
         ref={guideRef}

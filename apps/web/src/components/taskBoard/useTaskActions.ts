@@ -394,6 +394,20 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
           "Could not change milestone",
           `Milestone changed: ${shortTitle(task)}`,
         ),
+      rename: (task, title) =>
+        void patchAction(
+          task,
+          { title },
+          "Could not rename the task",
+          `Renamed: ${shortTitle(task)}`,
+        ),
+      setProp: (task, key, value, label) =>
+        void patchAction(
+          task,
+          { props: { [key]: value } },
+          `Could not change ${label}`,
+          `${label} changed: ${shortTitle(task)}`,
+        ),
       setPriority: (task, priority) =>
         void patchAction(
           task,

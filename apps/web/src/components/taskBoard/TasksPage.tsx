@@ -1,3 +1,4 @@
+import type { TaskSchemaProperty } from "@t3tools/contracts";
 import {
   CircleCheckIcon,
   CloudUploadIcon,
@@ -25,7 +26,7 @@ import { isElectron } from "~/env";
 import { cn } from "~/lib/utils";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useEnvironmentQuery } from "~/state/query";
-import { taskBoardCardCreate, workspaceOrgQuery } from "~/state/taskBoard";
+import { taskBoardCardCreate, taskSchemaQuery, workspaceOrgQuery } from "~/state/taskBoard";
 import { privateAreaOptions } from "./privateArea.logic";
 
 import { TaskCreateDialog } from "./TaskCreateDialog";
@@ -77,6 +78,7 @@ import type { RowMovePlan } from "./taskRows";
 import type { PendingEdit } from "./taskUndo.logic";
 
 const NO_PENDING: ReadonlyMap<string, PendingEdit> = new Map();
+const NO_SCHEMA: ReadonlyArray<TaskSchemaProperty> = [];
 import { useTaskBoard } from "./useTaskBoard";
 
 const VIEW_OPTIONS: ReadonlyArray<{
@@ -171,6 +173,12 @@ export function TasksPage() {
     practiceTasks: practice.tasks,
     pending,
   });
+  const schema =
+    useEnvironmentQuery(
+      board.environmentId && scopeReady
+        ? taskSchemaQuery({ environmentId: board.environmentId, input: scope })
+        : null,
+    ).data?.properties ?? NO_SCHEMA;
   const undo = useTaskUndo();
   const tasksLayout = useTasksLayout();
   const { update: updateLayout } = tasksLayout;
@@ -497,6 +505,7 @@ export function TasksPage() {
         layout={tasksLayout.layout}
         onLayoutChange={changeLayout}
         onMoveRow={inPractice ? undefined : moveRow}
+        schema={schema}
         context={context}
         actions={actions}
         selectedId={selectedId}

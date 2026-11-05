@@ -82,6 +82,9 @@ export function usePracticeActions(): PracticeState {
       setDue: (task, due) =>
         patch([task.id], { due, note: due ? `Due ${due}` : "Due date removed" }),
       setMilestone: (task, milestone) => patch([task.id], { milestone }),
+      rename: (task, title) => patch([task.id], { title, note: "Renamed" }),
+      setProp: (task, key, value, label) =>
+        patch([task.id], { props: { [key]: value }, note: `${label} changed` }),
       claim: (task) => patch([task.id], { claimedBy: ACTOR, status: "in_progress", note: "Taken" }),
       release: (task) => patch([task.id], { claimedBy: null, note: "Given back" }),
       setAssignee: (task, assignee) =>

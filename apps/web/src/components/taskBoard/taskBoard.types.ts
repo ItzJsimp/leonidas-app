@@ -29,6 +29,14 @@ export type TaskActions = {
   readonly setPriority: (task: TaskView, priority: TaskBoardTaskPriority) => void;
   readonly setDue: (task: TaskView, due: string | null) => void;
   readonly setMilestone: (task: TaskView, milestone: string | null) => void;
+  readonly rename: (task: TaskView, title: string) => void;
+  /** Sets one task-schema.json property value on the card; `null` clears it. */
+  readonly setProp: (
+    task: TaskView,
+    key: string,
+    value: string | ReadonlyArray<string> | null,
+    label: string,
+  ) => void;
   /** Claims the task for the current member and moves it to in progress. */
   readonly claim: (task: TaskView) => void;
   readonly release: (task: TaskView) => void;

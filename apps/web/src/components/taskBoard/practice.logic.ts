@@ -134,6 +134,8 @@ export type PracticePatch = {
   readonly assignee?: string | null;
   readonly effort?: string | null;
   readonly labels?: ReadonlyArray<string>;
+  readonly title?: string;
+  readonly props?: Readonly<Record<string, string | ReadonlyArray<string> | null>>;
   readonly note?: string;
 };
 
@@ -157,6 +159,16 @@ export function applyPracticePatch(
     ...(fields.assignee !== undefined ? { assignee: fields.assignee } : {}),
     ...(fields.effort !== undefined ? { effort: fields.effort } : {}),
     ...(fields.labels !== undefined ? { labels: fields.labels } : {}),
+    ...(fields.title !== undefined ? { title: fields.title } : {}),
+    ...(fields.props !== undefined
+      ? {
+          props: Object.fromEntries(
+            Object.entries({ ...task.props, ...fields.props }).filter(
+              (entry): entry is [string, string | ReadonlyArray<string>] => entry[1] !== null,
+            ),
+          ),
+        }
+      : {}),
     updatedAt: now,
   };
   const done = next.status === "done";

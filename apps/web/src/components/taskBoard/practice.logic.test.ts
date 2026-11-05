@@ -20,6 +20,16 @@ describe("practice project", () => {
     expect(batches[0]!.tasks.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("renames and sets or clears property values", () => {
+    const [task] = practiceSeed(NOW);
+    const set = applyPracticePatch(task!, { title: "New", props: { lane: "draft" } }, "You", NOW);
+    expect(set.title).toBe("New");
+    expect(set.props).toEqual({ ...task!.props, lane: "draft" });
+    expect(applyPracticePatch(set, { props: { lane: null } }, "You", NOW).props).not.toHaveProperty(
+      "lane",
+    );
+  });
+
   it("records edits in a task's history and stamps completion", () => {
     const [task] = practiceSeed(NOW);
     const claimed = applyPracticePatch(

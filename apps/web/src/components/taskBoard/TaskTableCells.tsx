@@ -3,9 +3,11 @@ import type {
   TaskBoardTaskPriority,
   TaskBoardTaskStatus,
   TaskBoardTeamMember,
+  TaskSchemaProperty,
 } from "@t3tools/contracts";
 import {
   CalendarIcon,
+  CheckIcon,
   CircleDotIcon,
   ClockIcon,
   FlagIcon,
@@ -19,7 +21,14 @@ import type { ReactNode } from "react";
 import { cn } from "~/lib/utils";
 
 import { ownerOf } from "./owner.logic";
-import { priorityLabel, relativeTime, statusLabel, type TaskView } from "./taskBoard.logic";
+import {
+  priorityLabel,
+  relativeTime,
+  statusLabel,
+  type TaskTone,
+  type TaskView,
+} from "./taskBoard.logic";
+import { optionTone } from "./taskCells.logic";
 
 /** Header label and icon for each built-in column. Added properties bring their own. */
 export const COLUMN_META: Record<string, { readonly label: string; readonly icon: ReactNode }> = {
@@ -165,4 +174,88 @@ export function OwnerName({
 
 export function UpdatedText({ at, now }: { readonly at: number; readonly now: number }) {
   return <span className="text-xs text-muted-foreground">{relativeTime(at, now)}</span>;
+}
+
+const TONE_CLASS: Record<TaskTone, string> = {
+  neutral: "bg-muted text-foreground",
+  muted: "bg-muted text-muted-foreground",
+  info: "bg-info/10 text-info-foreground dark:bg-info/18",
+  warning: "bg-warning/10 text-warning-foreground dark:bg-warning/18",
+  danger: "bg-destructive/10 text-destructive-foreground dark:bg-destructive/18",
+  success: "bg-success/10 text-success-foreground dark:bg-success/18",
+};
+
+export function OptionChip({ label, tone }: { readonly label: string; readonly tone: TaskTone }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-[22px] max-w-full shrink-0 items-center rounded-md px-2 font-medium text-xs leading-none",
+        TONE_CLASS[tone],
+      )}
+    >
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
+/** A task-schema.json property value, shown the way its type reads best. */
+export function PropValue({
+  property,
+  value,
+}: {
+  readonly property: TaskSchemaProperty;
+  readonly value: string | ReadonlyArray<string> | undefined;
+}) {
+  if (value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) {
+    return null;
+  }
+  const items = typeof value === "string" ? [value] : value;
+  switch (property.type) {
+    case "select":
+    case "status":
+    case "person":
+    case "multi_select":
+      return (
+        <span className="flex min-w-0 gap-1 overflow-hidden">
+          {items.map((item) => (
+            <OptionChip key={item} label={item} tone={optionTone(property.colors?.[item])} />
+          ))}
+        </span>
+      );
+    case "checkbox": {
+      const checked = value === "true";
+      return (
+        <span
+          role="img"
+          aria-label={checked ? "Yes" : "No"}
+          className={cn(
+            "grid size-4 place-items-center rounded-sm border",
+            checked ? "border-success bg-success text-white" : "border-muted-foreground/45",
+          )}
+        >
+          {checked ? <CheckIcon aria-hidden className="size-3" strokeWidth={3} /> : null}
+        </span>
+      );
+    }
+    case "date": {
+      const [year, month, day] = items[0]!.split("-").map(Number);
+      return (
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {SHORT_DATE.format(new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1))}
+        </span>
+      );
+    }
+    default:
+      return (
+        <span
+          className={cn(
+            "truncate text-xs",
+            property.type === "url" && "text-muted-foreground underline underline-offset-2",
+            property.type === "number" && "tabular-nums",
+          )}
+        >
+          {items.join(", ")}
+        </span>
+      );
+  }
 }
