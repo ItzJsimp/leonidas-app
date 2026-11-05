@@ -67,6 +67,7 @@ import {
   type RowDrop,
   type RowMovePlan,
 } from "./taskRows";
+import type { TaskListGroupBy } from "./tasksPage.logic";
 import { useRowDrag } from "./useRowDrag";
 import type { SchemaChange } from "./useTaskSchemaEdit";
 
@@ -327,7 +328,7 @@ function GroupRow({
 export function TaskTableView(props: {
   readonly tasks: ReadonlyArray<TaskView>;
   readonly sections: ReadonlyArray<TaskSectionGroup>;
-  readonly groupBy: "state" | "owner" | "project" | "status" | "none";
+  readonly groupBy: TaskListGroupBy;
   readonly layout: TasksLayout;
   readonly context: TaskContext;
   readonly actions: TaskActions;

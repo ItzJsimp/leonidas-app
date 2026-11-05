@@ -65,6 +65,7 @@ import {
   type ListItem,
   type ListNavigationKey,
 } from "./taskRows";
+import type { TaskListGroupBy } from "./tasksPage.logic";
 
 /** A status names the status to set: "done" completes, "todo" reopens. */
 type RowAction = "send" | "claim" | "release" | TaskBoardTaskStatus;
@@ -317,7 +318,7 @@ function GroupHeader({
 export function TaskListView(props: {
   tasks: ReadonlyArray<TaskView>;
   sections: ReadonlyArray<TaskSectionGroup>;
-  groupBy: "state" | "owner" | "project" | "status" | "none";
+  groupBy: TaskListGroupBy;
   context: TaskContext;
   actions: TaskActions;
   selectedId: string | null;

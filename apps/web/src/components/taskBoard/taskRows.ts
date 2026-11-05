@@ -5,16 +5,20 @@ import type {
   TaskBoardWorkspaceProject,
 } from "@t3tools/contracts";
 
+import { daysUntilDue } from "@t3tools/client-runtime/task-board/daily-planning";
+
 import { groupByState, type StateGroups } from "./doNext.logic";
 import { ownerOf } from "./owner.logic";
 import { byManualRank } from "./taskLayout.logic";
 import {
   groupByStatus,
   isOpen,
+  priorityLabel,
   statusLabel,
   type TaskSectionGroup,
   type TaskView,
 } from "./taskBoard.logic";
+import type { TaskListGroupBy } from "./tasksPage.logic";
 
 /** The Done column renders this many cards until the user asks for more. */
 export const DONE_COLUMN_PAGE = 10;
@@ -150,14 +154,38 @@ const STATE_GROUPS: ReadonlyArray<{
   { key: "closed", label: "Closed", hint: "Done, parked or retired", defaultOpen: true },
 ];
 
+const PRIORITY_GROUPS = (["critical", "high", "medium", "low"] as const).map(
+  (priority) => [priority, priorityLabel(priority)] as const,
+);
+
+const DUE_WEEK_GROUPS = [
+  ["late", "Past due"],
+  ["this", "This week"],
+  ["next", "Next week"],
+  ["later", "Later"],
+  ["none", "No due date"],
+] as const;
+
+/** A card's due-week bucket. Weeks run Monday to Sunday in local time. */
+function dueWeekOf(now = Date.now()) {
+  const toSunday = (7 - new Date(now).getDay()) % 7;
+  return (task: TaskView) => {
+    const days = daysUntilDue(task.due, now);
+    if (days === null) return "none";
+    if (days < 0) return "late";
+    if (days <= toSunday) return "this";
+    return days <= toSunday + 7 ? "next" : "later";
+  };
+}
+
 /** Turns the page's tasks and sections into the groups the list renders, empty groups dropped. */
 export function buildListGroups(input: {
   tasks: ReadonlyArray<TaskView>;
   sections: ReadonlyArray<TaskSectionGroup>;
-  groupBy: "state" | "owner" | "project" | "status" | "none";
+  groupBy: TaskListGroupBy;
   /** Needed to group by owner: maps logins to team names. */
   team?: ReadonlyArray<TaskBoardTeamMember>;
-  /** Needed to group by state: due dates compare against this time. */
+  /** Needed to group by state or due week: due dates compare against this time. */
   now?: number;
 }): ListGroup[] {
   const { tasks, sections, groupBy } = input;
@@ -207,6 +235,21 @@ export function buildListGroups(input: {
             defaultOpen: true,
           },
         ];
+  }
+  if (groupBy === "priority" || groupBy === "due") {
+    const keyOf = groupBy === "priority" ? (task: TaskView) => task.priority : dueWeekOf(input.now);
+    const buckets = groupBy === "priority" ? PRIORITY_GROUPS : DUE_WEEK_GROUPS;
+    return buckets
+      .map(([key, label]) => ({ key, label, tasks: tasks.filter((task) => keyOf(task) === key) }))
+      .filter((group) => group.tasks.length > 0)
+      .map((group) => ({
+        key: `${groupBy}:${group.key}`,
+        label: group.label,
+        count: group.tasks.length,
+        openCount: null,
+        tasks: group.tasks,
+        defaultOpen: true,
+      }));
   }
   if (groupBy === "project") {
     return sections

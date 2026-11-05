@@ -43,6 +43,8 @@ const GROUP_LABELS: Record<TaskListGroupBy, string> = {
   owner: "Owner",
   project: "Project",
   status: "Status",
+  priority: "Priority",
+  due: "Due week",
   none: "None",
 };
 

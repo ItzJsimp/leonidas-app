@@ -188,6 +188,46 @@ describe("buildListGroups", () => {
       "c",
     ]);
   });
+
+  it("groups by priority, most urgent first, empty groups dropped", () => {
+    const tasks = [
+      view("a", { priority: "low" }),
+      view("b", { priority: "critical" }),
+      view("c", { priority: "low" }),
+    ];
+    const groups = buildListGroups({ tasks, sections: [], groupBy: "priority" });
+    expect(groups.map((group) => [group.key, group.label, group.count])).toEqual([
+      ["priority:critical", "Critical", 1],
+      ["priority:low", "Low", 2],
+    ]);
+  });
+
+  it("groups by due week: past due, this week to Sunday, next week, later, no date", () => {
+    const thursday = new Date(2026, 10, 5, 12).getTime();
+    const tasks = [
+      view("none"),
+      view("later", { due: "2026-11-16" }),
+      view("next", { due: "2026-11-09" }),
+      view("sunday", { due: "2026-11-08" }),
+      view("today", { due: "2026-11-05" }),
+      view("late", { due: "2026-11-01" }),
+    ];
+    const groups = buildListGroups({ tasks, sections: [], groupBy: "due", now: thursday });
+    expect(groups.map((group) => [group.label, group.tasks.map((task) => task.id)])).toEqual([
+      ["Past due", ["late"]],
+      ["This week", ["sunday", "today"]],
+      ["Next week", ["next"]],
+      ["Later", ["later"]],
+      ["No due date", ["none"]],
+    ]);
+  });
+
+  it("starts a new week on Monday when today is Sunday", () => {
+    const sunday = new Date(2026, 10, 8, 12).getTime();
+    const tasks = [view("sunday", { due: "2026-11-08" }), view("monday", { due: "2026-11-09" })];
+    const groups = buildListGroups({ tasks, sections: [], groupBy: "due", now: sunday });
+    expect(groups.map((group) => group.label)).toEqual(["This week", "Next week"]);
+  });
 });
 
 describe("nextTaskId", () => {

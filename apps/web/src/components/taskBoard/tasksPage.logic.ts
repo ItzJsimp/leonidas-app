@@ -21,7 +21,14 @@ import {
 
 export type TasksView = "dashboard" | "board" | "table" | "list" | "roadmap";
 export type TaskFocus = "all" | "inbox" | "today" | "upcoming";
-export type TaskListGroupBy = "state" | "owner" | "project" | "status" | "none";
+export type TaskListGroupBy =
+  | "state"
+  | "owner"
+  | "project"
+  | "status"
+  | "priority"
+  | "due"
+  | "none";
 
 /** What the Tasks page remembers between visits. The search text is deliberately not kept. */
 export type TasksPrefs = {
@@ -72,7 +79,15 @@ export const DEFAULT_TASKS_PREFS: TasksPrefs = {
 };
 
 const VIEWS: ReadonlyArray<TasksView> = ["dashboard", "board", "table", "list", "roadmap"];
-const GROUP_BYS: ReadonlyArray<TaskListGroupBy> = ["state", "owner", "project", "status", "none"];
+const GROUP_BYS: ReadonlyArray<TaskListGroupBy> = [
+  "state",
+  "owner",
+  "project",
+  "status",
+  "priority",
+  "due",
+  "none",
+];
 const SORTS: ReadonlyArray<TaskSort> = ["priority", "updated", "due", "title"];
 const STATUSES: ReadonlyArray<TaskBoardTaskStatus> = [
   "todo",
