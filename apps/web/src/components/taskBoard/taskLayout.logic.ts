@@ -139,10 +139,15 @@ export function moveColumn(layout: TasksLayout, key: string, index: number): Tas
 /** Shows or hides a column. Name always shows. */
 export function setColumnHidden(layout: TasksLayout, key: string, hidden: boolean): TasksLayout {
   if (key === "title") return layout;
+  const { columns } = layout.table;
+  // A property column is listed before it is saved, so showing it may add it here.
+  if (!columns.some((column) => column.key === key)) {
+    return hidden || !PROP_KEY.test(key)
+      ? layout
+      : withTable(layout, { columns: [...columns, { key, width: 160, hidden: false }] });
+  }
   return withTable(layout, {
-    columns: layout.table.columns.map((column) =>
-      column.key === key ? { ...column, hidden } : column,
-    ),
+    columns: columns.map((column) => (column.key === key ? { ...column, hidden } : column)),
   });
 }
 

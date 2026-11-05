@@ -24,6 +24,8 @@ export type OpenCellEditor = {
   readonly box: CellBox;
   /** Room under the cell before the table ends; a list opens upward when it does not fit. */
   readonly roomBelow: number;
+  /** The table width; the editor stays inside it. */
+  readonly tableWidth: number;
 };
 
 const LIST_HEIGHT = 288;
@@ -54,6 +56,9 @@ export function TaskCellEditor({
 }) {
   const { editor, box, column } = open;
   const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // No scroll on focus: a scroll closes the editor.
+  useEffect(() => inputRef.current?.focus({ preventScroll: true }), []);
   const [text, setText] = useState(
     editor.kind === "text" || editor.kind === "date" ? editor.value : "",
   );
@@ -133,6 +138,7 @@ export function TaskCellEditor({
     }
   };
 
+  const width = Math.max(box.width, isList ? 224 : 240);
   const listUp = isList && open.roomBelow < LIST_HEIGHT && box.top > open.roomBelow;
   const selected = (option: CellOption) =>
     editor.kind === "multi"
@@ -150,13 +156,13 @@ export function TaskCellEditor({
         listUp && "flex-col-reverse",
       )}
       style={{
-        left: box.left,
-        width: Math.max(box.width, isList ? 224 : 240),
+        left: Math.max(0, Math.min(box.left, open.tableWidth - width)),
+        width,
         ...(listUp ? { bottom: `calc(100% - ${box.top + box.height}px)` } : { top: box.top }),
       }}
     >
       <input
-        autoFocus
+        ref={inputRef}
         type={editor.kind === "date" ? "date" : "text"}
         inputMode={editor.kind === "text" && editor.input === "number" ? "decimal" : undefined}
         value={text}

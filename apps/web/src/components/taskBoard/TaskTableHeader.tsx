@@ -18,26 +18,44 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  CalendarIcon,
+  CheckSquareIcon,
+  HashIcon,
+  LinkIcon,
+  ListIcon,
+  PaletteIcon,
+  PencilIcon,
+  ShapesIcon,
+  Trash2Icon,
+  TypeIcon,
+  UserIcon,
   ChevronDownIcon,
   EyeOffIcon,
   MoveHorizontalIcon,
   WrapTextIcon,
 } from "lucide-react";
-import type { TaskSchemaProperty } from "@t3tools/contracts";
-import type { KeyboardEvent, PointerEvent } from "react";
+import type { TaskSchemaProperty, TaskSchemaPropertyType } from "@t3tools/contracts";
+import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 
 import {
   Menu,
   MenuCheckboxItem,
   MenuItem,
   MenuPopup,
+  MenuRadioGroup,
+  MenuRadioItem,
   MenuSeparator,
+  MenuSub,
+  MenuSubPopup,
+  MenuSubTrigger,
   MenuTrigger,
 } from "~/components/ui/menu";
 import { cn } from "~/lib/utils";
 
-import { COLUMN_META } from "./TaskTableCells";
-import { columnProperty } from "./taskCells.logic";
+import { COLUMN_META, OptionChip } from "./TaskTableCells";
+import { columnProperty, optionTone } from "./taskCells.logic";
+import { COLOR_CHOICES, OPTION_TYPES, PROPERTY_TYPES, recolor, retype } from "./taskProps.logic";
+import type { SchemaChange } from "./useTaskSchemaEdit";
 import {
   COLUMN_MAX,
   COLUMN_MIN,
@@ -73,6 +91,9 @@ type HeaderProps = {
   readonly onLayoutChange: LayoutChange;
   readonly onResizeStart: (key: string, event: PointerEvent<HTMLElement>) => void;
   readonly onFit: (key: string) => void;
+  /** Changes the task schema; undefined where properties cannot change (practice). */
+  readonly onSchemaChange: SchemaChange | undefined;
+  readonly onEditProperty: (property: TaskSchemaProperty) => void;
 };
 
 /** Where `key` lands in the full column list when it takes the place of `overKey`. */
@@ -80,6 +101,114 @@ function targetIndex(all: ReadonlyArray<ColumnLayout>, key: string, overKey: str
   const keys = all.map((column) => column.key);
   const rest = keys.filter((item) => item !== key);
   return rest.indexOf(overKey) + (keys.indexOf(key) < keys.indexOf(overKey) ? 1 : 0);
+}
+
+const TYPE_ICON: Record<TaskSchemaPropertyType, ReactNode> = {
+  text: <TypeIcon aria-hidden />,
+  number: <HashIcon aria-hidden />,
+  select: <ListIcon aria-hidden />,
+  multi_select: <ListIcon aria-hidden />,
+  status: <ListIcon aria-hidden />,
+  date: <CalendarIcon aria-hidden />,
+  person: <UserIcon aria-hidden />,
+  checkbox: <CheckSquareIcon aria-hidden />,
+  url: <LinkIcon aria-hidden />,
+};
+
+/**
+ * Property items of a column menu. Type and option colors each take 2 clicks. A built-in
+ * property changes only its colors (scripts read the rest).
+ */
+function PropertyMenuItems(props: {
+  readonly property: TaskSchemaProperty;
+  readonly label: string;
+  readonly onSchemaChange: SchemaChange;
+  readonly onEditProperty: (property: TaskSchemaProperty) => void;
+}) {
+  const { property, label, onSchemaChange } = props;
+  const options = OPTION_TYPES.has(property.type) ? (property.options ?? []) : [];
+  return (
+    <>
+      {property.builtIn ? null : (
+        <>
+          <MenuItem onClick={() => props.onEditProperty(property)}>
+            <PencilIcon aria-hidden />
+            Rename and options
+          </MenuItem>
+          <MenuSub>
+            <MenuSubTrigger>
+              <ShapesIcon aria-hidden />
+              Type
+            </MenuSubTrigger>
+            <MenuSubPopup>
+              <MenuRadioGroup
+                value={property.type}
+                onValueChange={(type) =>
+                  void onSchemaChange(
+                    `Type changed: ${label}`,
+                    property.key,
+                    retype(property, type as TaskSchemaPropertyType),
+                  )
+                }
+              >
+                {PROPERTY_TYPES.map(([type, text]) => (
+                  <MenuRadioItem key={type} value={type} closeOnClick>
+                    {TYPE_ICON[type]}
+                    {text}
+                  </MenuRadioItem>
+                ))}
+              </MenuRadioGroup>
+            </MenuSubPopup>
+          </MenuSub>
+        </>
+      )}
+      {options.length > 0 ? (
+        <MenuSub>
+          <MenuSubTrigger>
+            <PaletteIcon aria-hidden />
+            Option colors
+          </MenuSubTrigger>
+          <MenuSubPopup className="max-h-80 overflow-y-auto">
+            {options.map((option) => (
+              <MenuSub key={option}>
+                <MenuSubTrigger>
+                  <OptionChip label={option} tone={optionTone(property.colors?.[option])} />
+                </MenuSubTrigger>
+                <MenuSubPopup>
+                  <MenuRadioGroup
+                    value={property.colors?.[option] ?? "gray"}
+                    onValueChange={(color) =>
+                      void onSchemaChange(
+                        `Color changed: ${option}`,
+                        property.key,
+                        recolor(property, option, String(color)),
+                      )
+                    }
+                  >
+                    {COLOR_CHOICES.map(([color, text]) => (
+                      <MenuRadioItem key={color} value={color} closeOnClick>
+                        <OptionChip label={text} tone={optionTone(color)} />
+                      </MenuRadioItem>
+                    ))}
+                  </MenuRadioGroup>
+                </MenuSubPopup>
+              </MenuSub>
+            ))}
+          </MenuSubPopup>
+        </MenuSub>
+      ) : null}
+      {property.builtIn ? null : (
+        <MenuItem
+          variant="destructive"
+          onClick={() => void onSchemaChange(`Deleted property: ${label}`, property.key, null)}
+        >
+          <Trash2Icon aria-hidden />
+          Delete property
+        </MenuItem>
+      )}
+      <MenuSeparator />
+    </>
+  );
 }
 
 function HeaderCell(
@@ -92,6 +221,7 @@ function HeaderCell(
   const { column, freezeName, gutter, onLayoutChange, prevKey, nextKey } = props;
   const frozen = freezeName && column.key === "title";
   const label = columnLabel(column.key, props.schema);
+  const property = columnProperty(column.key, props.schema);
   const sortable = useSortable({ id: column.key, disabled: frozen });
   const move = (overKey: string) =>
     onLayoutChange(`Moved column: ${label}`, (layout) =>
@@ -135,7 +265,7 @@ function HeaderCell(
           !frozen && "cursor-grab active:cursor-grabbing",
         )}
       >
-        {COLUMN_META[column.key]?.icon}
+        {COLUMN_META[column.key]?.icon ?? (property ? TYPE_ICON[property.type] : null)}
         <span className="truncate">{label}</span>
       </div>
       <Menu>
@@ -151,6 +281,14 @@ function HeaderCell(
           <ChevronDownIcon aria-hidden className="size-3.5" />
         </MenuTrigger>
         <MenuPopup align="start" className="min-w-48">
+          {property && props.onSchemaChange ? (
+            <PropertyMenuItems
+              property={property}
+              label={label}
+              onSchemaChange={props.onSchemaChange}
+              onEditProperty={props.onEditProperty}
+            />
+          ) : null}
           <MenuItem onClick={() => props.onFit(column.key)}>
             <MoveHorizontalIcon aria-hidden />
             Fit width to content

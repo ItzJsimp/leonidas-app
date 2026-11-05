@@ -68,6 +68,7 @@ import {
   type RowMovePlan,
 } from "./taskRows";
 import { useRowDrag } from "./useRowDrag";
+import type { SchemaChange } from "./useTaskSchemaEdit";
 
 const ROW_HEIGHT: Record<Density, number> = { compact: 32, default: 40, comfortable: 52 };
 const GROUP_HEIGHT = 44;
@@ -166,7 +167,11 @@ const TableRow = memo(function TableRow(props: RowProps) {
       data-selected={selected}
       tabIndex={tabbable ? 0 : -1}
       style={{ height: props.height }}
-      onClick={() => props.onSelect(task)}
+      onClick={(event) => {
+        // A click on a property cell only moves the cell cursor, so a double-click can edit it.
+        const col = (event.target as Element).closest("[data-col]")?.getAttribute("data-col");
+        if (!col || col === "title") props.onSelect(task);
+      }}
       className={cn(
         "group/row relative grid w-[var(--task-width)] min-w-full cursor-default border-b border-border/60 outline-none transition-opacity duration-150 [grid-template-columns:var(--task-cols)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         ROW_TINT,
@@ -325,6 +330,8 @@ export function TaskTableView(props: {
   readonly onMoveRow: ((task: TaskView, plan: RowMovePlan) => void) | undefined;
   /** The AIOS task-schema.json properties, for `prop:<key>` columns. */
   readonly schema: ReadonlyArray<TaskSchemaProperty>;
+  readonly onSchemaChange: SchemaChange | undefined;
+  readonly onEditProperty: (property: TaskSchemaProperty) => void;
 }) {
   const { tasks, sections, groupBy, layout, context, actions, selectedId } = props;
   const { table } = layout;
@@ -538,6 +545,7 @@ export function TaskTableView(props: {
         height: cellRect.height,
       },
       roomBelow: gridRect.height - top - cellRect.height,
+      tableWidth: gridRect.width,
     });
   };
 
@@ -688,7 +696,9 @@ export function TaskTableView(props: {
     >
       <LegendList<ListItem>
         ref={virtualRef}
-        className="h-full overflow-auto"
+        // LegendList paint-contains each row box at the list width, which clipped cells past it
+        // when the table scrolls sideways. Layout and style containment stay.
+        className="h-full overflow-auto [&_.legend-list-content-container>div>div]:[contain:layout_style]!"
         data={items}
         drawDistance={600}
         estimatedItemSize={rowHeight}
@@ -705,6 +715,8 @@ export function TaskTableView(props: {
             wrap={wrap}
             gutter={GUTTER}
             schema={schema}
+            onSchemaChange={props.onSchemaChange}
+            onEditProperty={props.onEditProperty}
             onLayoutChange={props.onLayoutChange}
             onResizeStart={startResize}
             onFit={fitColumn}

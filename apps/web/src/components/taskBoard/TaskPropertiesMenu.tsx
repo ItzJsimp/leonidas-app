@@ -1,4 +1,5 @@
-import { RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
+import type { TaskSchemaProperty } from "@t3tools/contracts";
+import { PlusIcon, RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -30,12 +31,15 @@ const DENSITY_LABELS: ReadonlyArray<readonly [Density, string]> = [
   ["comfortable", "Comfortable"],
 ];
 
-/** The table's Properties menu: show or hide columns, row height, freeze Name, reset. */
+/** The table's Properties menu: add a property, show or hide columns, row height, freeze Name, reset. */
 export function TaskPropertiesMenu(props: {
   readonly layout: TasksLayout;
   readonly onLayoutChange: LayoutChange;
+  readonly schema: ReadonlyArray<TaskSchemaProperty>;
+  /** Opens the new property dialog; undefined where properties cannot change. */
+  readonly onNewProperty: (() => void) | undefined;
 }) {
-  const { layout, onLayoutChange } = props;
+  const { layout, onLayoutChange, schema } = props;
   const { table } = layout;
   const hiddenCount = table.columns.filter((column) => column.hidden).length;
   return (
@@ -52,7 +56,16 @@ export function TaskPropertiesMenu(props: {
         <SlidersHorizontalIcon />
         <span className="hidden sm:inline">Properties</span>
       </MenuTrigger>
-      <MenuPopup align="end" className="min-w-56">
+      <MenuPopup align="end" className="max-h-[min(36rem,80vh)] min-w-56 overflow-y-auto">
+        {props.onNewProperty ? (
+          <>
+            <MenuItem onClick={props.onNewProperty}>
+              <PlusIcon aria-hidden />
+              New property
+            </MenuItem>
+            <MenuSeparator />
+          </>
+        ) : null}
         <MenuGroup>
           <MenuGroupLabel>Shown columns</MenuGroupLabel>
           {table.columns.map((column) => (
@@ -62,12 +75,12 @@ export function TaskPropertiesMenu(props: {
               disabled={column.key === "title"}
               onCheckedChange={(shown) =>
                 onLayoutChange(
-                  `${shown ? "Shown" : "Hidden"} column: ${columnLabel(column.key)}`,
+                  `${shown ? "Shown" : "Hidden"} column: ${columnLabel(column.key, schema)}`,
                   (current) => setColumnHidden(current, column.key, !shown),
                 )
               }
             >
-              {columnLabel(column.key)}
+              {columnLabel(column.key, schema)}
             </MenuCheckboxItem>
           ))}
         </MenuGroup>

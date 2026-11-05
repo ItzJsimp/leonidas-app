@@ -70,10 +70,13 @@ import { usePracticeActions } from "./usePracticeActions";
 import { shortTitle, useTaskActions } from "./useTaskActions";
 import { useTaskUndo } from "./useTaskUndo";
 import { useTasksLayout } from "./useTasksLayout";
+import { useTaskSchemaEdit } from "./useTaskSchemaEdit";
+import { TaskPropertyDialog, type PropertyDialogTarget } from "./TaskPropertyDialog";
+import { withSchemaColumns } from "./taskProps.logic";
 import { TaskTableView } from "./TaskTable";
 import { TaskPropertiesMenu } from "./TaskPropertiesMenu";
 import type { LayoutChange } from "./TaskTableHeader";
-import { moveRank, pruneRanks, type TasksLayout } from "./taskLayout.logic";
+import { moveRank, pruneRanks, setColumnHidden, type TasksLayout } from "./taskLayout.logic";
 import type { RowMovePlan } from "./taskRows";
 import type { PendingEdit } from "./taskUndo.logic";
 
@@ -173,15 +176,32 @@ export function TasksPage() {
     practiceTasks: practice.tasks,
     pending,
   });
-  const schema =
-    useEnvironmentQuery(
-      board.environmentId && scopeReady
-        ? taskSchemaQuery({ environmentId: board.environmentId, input: scope })
-        : null,
-    ).data?.properties ?? NO_SCHEMA;
+  const schemaQuery = useEnvironmentQuery(
+    board.environmentId && scopeReady
+      ? taskSchemaQuery({ environmentId: board.environmentId, input: scope })
+      : null,
+  );
+  const schema = schemaQuery.data?.properties ?? NO_SCHEMA;
   const undo = useTaskUndo();
   const tasksLayout = useTasksLayout();
   const { update: updateLayout } = tasksLayout;
+  // Schema properties show as hidden columns until one is shown.
+  const shownLayout = useMemo(
+    () => withSchemaColumns(tasksLayout.layout, schema),
+    [tasksLayout.layout, schema],
+  );
+  const changeSchema = useTaskSchemaEdit({
+    environmentId: board.environmentId,
+    scope,
+    schema,
+    undo,
+    refresh: schemaQuery.refresh,
+  });
+  const [propertyTarget, setPropertyTarget] = useState<PropertyDialogTarget | null>(null);
+  const editProperty = useCallback(
+    (property: TaskSchemaProperty) => setPropertyTarget({ property }),
+    [],
+  );
   // Every layout change is one undo step that puts back only the parts it changed (the columns,
   // the row order, or both), so undoing a row move keeps a later column change.
   const changeLayout = useCallback<LayoutChange>(
@@ -502,10 +522,12 @@ export function TasksPage() {
         tasks={board.visibleTasks}
         sections={board.sections}
         groupBy={prefs.groupBy === "state" && query.trim() ? "none" : prefs.groupBy}
-        layout={tasksLayout.layout}
+        layout={shownLayout}
         onLayoutChange={changeLayout}
         onMoveRow={inPractice ? undefined : moveRow}
         schema={schema}
+        onSchemaChange={inPractice ? undefined : changeSchema}
+        onEditProperty={editProperty}
         context={context}
         actions={actions}
         selectedId={selectedId}
@@ -629,7 +651,16 @@ export function TasksPage() {
                 ) : null}
                 {picker}
                 {prefs.view === "table" ? (
-                  <TaskPropertiesMenu layout={tasksLayout.layout} onLayoutChange={changeLayout} />
+                  <TaskPropertiesMenu
+                    layout={shownLayout}
+                    schema={schema}
+                    onLayoutChange={changeLayout}
+                    onNewProperty={
+                      inPractice || !board.environmentId
+                        ? undefined
+                        : () => setPropertyTarget({ property: null })
+                    }
+                  />
                 ) : null}
                 {listLike || prefs.view === "board" ? (
                   <TaskFilterBar
@@ -713,6 +744,15 @@ export function TasksPage() {
           dryRun={practice.dryRun}
           onClose={practice.closeDryRun}
           onFinish={practice.finishDryRun}
+        />
+        <TaskPropertyDialog
+          target={propertyTarget}
+          schema={schema}
+          onSchemaChange={changeSchema}
+          onCreated={(key) =>
+            updateLayout((layout) => setColumnHidden(layout, `prop:${key}`, false))
+          }
+          onClose={() => setPropertyTarget(null)}
         />
         <TaskCreateDialog
           open={createOpen}
