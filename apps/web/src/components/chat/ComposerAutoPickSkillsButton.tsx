@@ -1,4 +1,9 @@
-import { WS_METHODS, type EnvironmentId, type ServerProviderSkill } from "@t3tools/contracts";
+import {
+  WS_METHODS,
+  type AutoPickEngine,
+  type EnvironmentId,
+  type ServerProviderSkill,
+} from "@t3tools/contracts";
 import { createEnvironmentRpcQueryAtomFamily } from "@t3tools/client-runtime/state/runtime";
 import * as Schema from "effect/Schema";
 import { WandSparklesIcon } from "lucide-react";
@@ -14,9 +19,12 @@ import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
   autoPickSkills,
+  describeEngine,
+  describeNone,
   describePicks,
   type AskModel,
   type ModelAnswer,
+  type ModelEngine,
   type ModelRequest,
 } from "./composerAutoPick";
 import { ComposerBanner } from "./ComposerBanner";
@@ -40,6 +48,25 @@ const pickQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
   idleTtlMs: 60_000,
 });
 
+/** The toast detail: the picks, then who made them, so nobody has to wonder which model ran. */
+function describeSource(
+  outcome: {
+    by: "model" | "keyword";
+    engine?: ModelEngine | undefined;
+    model?: string | undefined;
+  },
+  summary: string,
+  setting: AutoPickEngine,
+): string {
+  if (outcome.by === "model") {
+    const via = describeEngine(outcome.engine, outcome.model);
+    return via ? `${summary}. Picked by ${via}.` : summary;
+  }
+  return setting === "keyword"
+    ? summary
+    : `${summary}. Matched by keywords because no model answered. Set up a free model in Settings.`;
+}
+
 function countWords(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
@@ -58,10 +85,28 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
   projectText: string;
   skills: ReadonlyArray<ServerProviderSkill>;
   cap: number;
+  /** Which engine to ask, and the model to run on each. Set in Settings. */
+  engine: AutoPickEngine;
+  openRouterModel: string;
+  groqModel: string;
+  localModel: string;
   getPrompt: () => string;
   setPrompt: (next: string) => void;
 }) {
-  const { environmentId, cwd, prompt, projectText, skills, cap, getPrompt, setPrompt } = props;
+  const {
+    environmentId,
+    cwd,
+    prompt,
+    projectText,
+    skills,
+    cap,
+    engine,
+    openRouterModel,
+    groqModel,
+    localModel,
+    getPrompt,
+    setPrompt,
+  } = props;
   const [busy, setBusy] = useState(false);
   /** The draft text the nudge was judged for; any edit makes it stale and hides the nudge. */
   const [nudgedFor, setNudgedFor] = useState<string | null>(null);
@@ -93,15 +138,17 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
 
   const askModel = useCallback<AskModel>(
     async (request: ModelRequest) => {
-      if (!cwd) return null;
-      const key = JSON.stringify(request);
+      // "Keywords only" never asks a model. Changing an engine setting changes the cache key.
+      if (!cwd || engine === "keyword") return null;
+      const full = { ...request, engine, openRouterModel, groqModel, localModel };
+      const key = JSON.stringify(full);
       if (cacheRef.current?.key === key) return cacheRef.current.answer;
-      const result = await runPick({ environmentId, input: { cwd, ...request } });
+      const result = await runPick({ environmentId, input: { cwd, ...full } });
       if (result._tag !== "Success") return null;
       if (result.value.modelUsed) cacheRef.current = { key, answer: result.value };
       return result.value;
     },
-    [cwd, environmentId, runPick],
+    [cwd, engine, environmentId, groqModel, localModel, openRouterModel, runPick],
   );
 
   const pick = useCallback(async () => {
@@ -149,11 +196,7 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
       return;
     }
     if (outcome.kind === "none") {
-      toastManager.add({
-        type: "info",
-        title: outcome.by === "model" ? "No skill needed" : "No skill matched",
-        description: "Nothing fits this message well. Use Skills to add one by hand.",
-      });
+      toastManager.add({ type: "info", ...describeNone(outcome) });
       return;
     }
 
@@ -170,10 +213,7 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
     toastManager.add({
       type: "info",
       title: `Added ${names.length} ${names.length === 1 ? "skill" : "skills"}`,
-      description:
-        outcome.by === "keyword"
-          ? `${summary}. Matched by keywords because the model did not answer.`
-          : summary,
+      description: describeSource(outcome, summary, engine),
       actionProps: {
         children: "Undo",
         onClick: () => {
@@ -188,7 +228,7 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
         },
       },
     });
-  }, [askModel, cap, getPrompt, projectText, setIntroSeen, setPrompt, skills]);
+  }, [askModel, cap, engine, getPrompt, projectText, setIntroSeen, setPrompt, skills]);
 
   return (
     <>

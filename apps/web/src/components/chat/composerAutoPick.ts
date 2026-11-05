@@ -20,10 +20,15 @@ export interface ModelRequest {
   readonly max: number;
 }
 
+export type ModelEngine = "openrouter" | "groq" | "local" | "chat";
+
 export interface ModelAnswer {
   readonly picks: ReadonlyArray<PickedSkill>;
-  /** False when the model could not answer. */
+  /** False when no model could answer. */
   readonly modelUsed: boolean;
+  /** Which engine answered and the model it ran. Set only when `modelUsed` is true. */
+  readonly engine?: ModelEngine | undefined;
+  readonly model?: string | undefined;
 }
 
 export type AskModel = (request: ModelRequest) => Promise<ModelAnswer | null>;
@@ -33,8 +38,15 @@ export type AutoPickOutcome =
       readonly kind: "picked";
       readonly picks: ReadonlyArray<PickedSkill>;
       readonly by: "model" | "keyword";
+      readonly engine?: ModelEngine | undefined;
+      readonly model?: string | undefined;
     }
-  | { readonly kind: "none"; readonly by: "model" | "keyword" }
+  | {
+      readonly kind: "none";
+      readonly by: "model" | "keyword";
+      /** How many skills were looked at, so the user sees the check happened. */
+      readonly checked: number;
+    }
   | { readonly kind: "full"; readonly cap: number };
 
 const MAX_DESCRIPTION_CHARS = 240;
@@ -55,7 +67,7 @@ export async function autoPickSkills(input: {
   if (draft.room < 1) return { kind: "full", cap: input.cap };
 
   const shortlist = shortlistSkills(input);
-  if (shortlist.length === 0) return { kind: "none", by: "keyword" };
+  if (shortlist.length === 0) return { kind: "none", by: "keyword", checked: 0 };
 
   const answer = await input
     .askModel?.({
@@ -75,14 +87,20 @@ export async function autoPickSkills(input: {
     .catch(() => null);
   if (answer?.modelUsed) {
     return answer.picks.length > 0
-      ? { kind: "picked", picks: answer.picks, by: "model" }
-      : { kind: "none", by: "model" };
+      ? {
+          kind: "picked",
+          picks: answer.picks,
+          by: "model",
+          engine: answer.engine,
+          model: answer.model,
+        }
+      : { kind: "none", by: "model", checked: shortlist.length };
   }
 
   const picks = rankSkills(input).map((pick) => ({ name: pick.name, reason: "" }));
   return picks.length > 0
     ? { kind: "picked", picks, by: "keyword" }
-    : { kind: "none", by: "keyword" };
+    : { kind: "none", by: "keyword", checked: shortlist.length };
 }
 
 /** The toast line for a pick: `$name (reason)`, or just `$name` when there is no reason. */
@@ -90,4 +108,44 @@ export function describePicks(picks: ReadonlyArray<PickedSkill>): string {
   return picks
     .map((pick) => (pick.reason ? `$${pick.name} (${pick.reason})` : `$${pick.name}`))
     .join(", ");
+}
+
+/** Who made the pick, in words a user knows. Says so when it used the chat model's plan. */
+export function describeEngine(
+  engine: ModelEngine | undefined,
+  model: string | undefined,
+): string | null {
+  switch (engine) {
+    case "openrouter":
+      return model === "openrouter/free" || model?.endsWith(":free")
+        ? "OpenRouter free model"
+        : "OpenRouter";
+    case "groq":
+      return "Groq";
+    case "local":
+      return "your local model";
+    case "chat":
+      return "your chat model, which uses your plan";
+    default:
+      return null;
+  }
+}
+
+/** The text of the "no skills" pop-up: it says the check ran and what the user can do next. */
+export function describeNone(outcome: { by: "model" | "keyword"; checked: number }): {
+  title: string;
+  description: string;
+} {
+  const next = "Use Skills to add one yourself.";
+  if (outcome.checked === 0) {
+    return {
+      title: "No skills added",
+      description: `No skill shares words with this message. ${next}`,
+    };
+  }
+  const looked = `Checked ${outcome.checked} ${outcome.checked === 1 ? "skill" : "skills"}${outcome.by === "keyword" ? " by keyword" : ""}`;
+  return {
+    title: "No skills added",
+    description: `${looked}. None fits this message well. ${next}`,
+  };
 }

@@ -7122,6 +7122,10 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                         projectText={gitCwd?.split(/[\\/]/).findLast(Boolean) ?? ""}
                         skills={selectedProviderSkills}
                         cap={settings.composerSuggestSkillCap}
+                        engine={settings.composerAutoPickEngine}
+                        openRouterModel={settings.composerAutoPickOpenRouterModel}
+                        groqModel={settings.composerAutoPickGroqModel}
+                        localModel={settings.composerAutoPickLocalModel}
                         getPrompt={() => promptRef.current}
                         setPrompt={setPrompt}
                       />

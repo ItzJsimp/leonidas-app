@@ -1,7 +1,12 @@
 import type { ServerProviderSkill } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { autoPickSkills, describePicks, type ModelRequest } from "./composerAutoPick";
+import {
+  autoPickSkills,
+  describeEngine,
+  describePicks,
+  type ModelRequest,
+} from "./composerAutoPick";
 import fixture from "./composerSkillSuggest.fixture.json";
 import { SHORTLIST_SIZE } from "./composerSkillSuggest";
 
@@ -51,10 +56,21 @@ describe("autoPickSkills", () => {
   });
 
   it("says none when the model says none", async () => {
-    expect(await run(async () => ({ picks: [], modelUsed: true }))).toEqual({
-      kind: "none",
-      by: "model",
-    });
+    const outcome = await run(async () => ({ picks: [], modelUsed: true }));
+    expect(outcome).toMatchObject({ kind: "none", by: "model" });
+    expect(outcome.kind === "none" && outcome.checked).toBeGreaterThan(0);
+  });
+
+  it("describes who picked, in words a user knows", () => {
+    expect(describeEngine("openrouter", "openrouter/free")).toBe("OpenRouter free model");
+    expect(describeEngine("openrouter", "google/gemma-4-31b-it:free")).toBe(
+      "OpenRouter free model",
+    );
+    expect(describeEngine("openrouter", "anthropic/claude-haiku")).toBe("OpenRouter");
+    expect(describeEngine("groq", "qwen/qwen3.8-27b")).toBe("Groq");
+    expect(describeEngine("local", "gemma")).toBe("your local model");
+    expect(describeEngine("chat", "gpt-6-luna")).toContain("uses your plan");
+    expect(describeEngine(undefined, undefined)).toBeNull();
   });
 
   it("does not call the model when the draft is full", async () => {
@@ -98,7 +114,7 @@ describe("autoPickSkills", () => {
       },
       { prompt: "zzzz qqqq" },
     );
-    expect(outcome).toEqual({ kind: "none", by: "keyword" });
+    expect(outcome).toEqual({ kind: "none", by: "keyword", checked: 0 });
     expect(calls).toBe(0);
   });
 });

@@ -158,6 +158,7 @@ import {
 import { DraftInput } from "../ui/draft-input";
 import { SubagentModelPicker } from "./SubagentModelPicker";
 import { Input } from "../ui/input";
+import { AutoPickModelFields } from "./AutoPickModelFields";
 import {
   DEFAULT_CODE_FONT_STACK,
   DEFAULT_SANS_FONT_STACK,
@@ -235,6 +236,15 @@ const SIDEBAR_PROJECT_SORT_ORDER_LABELS: Record<SidebarProjectSortOrder, string>
   manual: "Manual",
 };
 const isSidebarProjectSortOrder = Schema.is(SidebarProjectSortOrder);
+
+const AUTO_PICK_ENGINE_LABELS = [
+  { value: "auto", label: "Automatic (free first)" },
+  { value: "openrouter", label: "OpenRouter" },
+  { value: "groq", label: "Groq" },
+  { value: "local", label: "Local model" },
+  { value: "chat", label: "My chat model (uses my plan)" },
+  { value: "keyword", label: "Keywords only" },
+] as const;
 
 const TIMESTAMP_FORMAT_LABELS = {
   locale: "System default",
@@ -728,6 +738,13 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.composerSuggestSkillCap !== DEFAULT_UNIFIED_SETTINGS.composerSuggestSkillCap
         ? ["Skill limit for Auto-pick"]
         : []),
+      ...(settings.composerAutoPickEngine !== DEFAULT_UNIFIED_SETTINGS.composerAutoPickEngine ||
+      settings.composerAutoPickOpenRouterModel !==
+        DEFAULT_UNIFIED_SETTINGS.composerAutoPickOpenRouterModel ||
+      settings.composerAutoPickGroqModel !== DEFAULT_UNIFIED_SETTINGS.composerAutoPickGroqModel ||
+      settings.composerAutoPickLocalModel !== DEFAULT_UNIFIED_SETTINGS.composerAutoPickLocalModel
+        ? ["Auto-pick model"]
+        : []),
       ...(settings.composerCollapseOnScroll !== DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll
         ? ["Shrink the message box when you scroll"]
         : []),
@@ -847,6 +864,10 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.sidebarThreadPreviewCount,
       settings.showSkillsInSlashMenu,
       settings.composerSuggestSkillCap,
+      settings.composerAutoPickEngine,
+      settings.composerAutoPickOpenRouterModel,
+      settings.composerAutoPickGroqModel,
+      settings.composerAutoPickLocalModel,
       settings.timestampFormat,
       settings.cacheMutedWarnings,
       settings.cacheNoticesSnoozedUntil,
@@ -938,6 +959,10 @@ export function useSettingsRestore(onRestored?: () => void) {
       proactivePanelsEnabled: DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled,
       showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
       composerSuggestSkillCap: DEFAULT_UNIFIED_SETTINGS.composerSuggestSkillCap,
+      composerAutoPickEngine: DEFAULT_UNIFIED_SETTINGS.composerAutoPickEngine,
+      composerAutoPickOpenRouterModel: DEFAULT_UNIFIED_SETTINGS.composerAutoPickOpenRouterModel,
+      composerAutoPickGroqModel: DEFAULT_UNIFIED_SETTINGS.composerAutoPickGroqModel,
+      composerAutoPickLocalModel: DEFAULT_UNIFIED_SETTINGS.composerAutoPickLocalModel,
       composerCollapseOnScroll: DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll,
       composerPromptPredictionEnabled: DEFAULT_UNIFIED_SETTINGS.composerPromptPredictionEnabled,
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
@@ -2898,6 +2923,10 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
                 keys={[
                   "showSkillsInSlashMenu",
                   "composerSuggestSkillCap",
+                  "composerAutoPickEngine",
+                  "composerAutoPickOpenRouterModel",
+                  "composerAutoPickGroqModel",
+                  "composerAutoPickLocalModel",
                   "skillFolders",
                   "composerPromptPredictionEnabled",
                   "composerRichTextEnabled",
@@ -2975,6 +3004,85 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
                 </Select>
               }
             />
+            <SettingsRow
+              {...searchableSetting("auto-pick-engine")}
+              description="Which model chooses skills for Auto-pick. Automatic tries a free OpenRouter model, then the Groq key Scribe uses, then a local model if you name one. It never uses your chat plan. Keywords only calls no model."
+              resetAction={
+                settings.composerAutoPickEngine !==
+                  DEFAULT_UNIFIED_SETTINGS.composerAutoPickEngine ||
+                settings.composerAutoPickOpenRouterModel !==
+                  DEFAULT_UNIFIED_SETTINGS.composerAutoPickOpenRouterModel ||
+                settings.composerAutoPickGroqModel !==
+                  DEFAULT_UNIFIED_SETTINGS.composerAutoPickGroqModel ||
+                settings.composerAutoPickLocalModel !==
+                  DEFAULT_UNIFIED_SETTINGS.composerAutoPickLocalModel ? (
+                  <SettingResetButton
+                    label="the Auto-pick model"
+                    onClick={() =>
+                      updateSettings({
+                        composerAutoPickEngine: DEFAULT_UNIFIED_SETTINGS.composerAutoPickEngine,
+                        composerAutoPickOpenRouterModel:
+                          DEFAULT_UNIFIED_SETTINGS.composerAutoPickOpenRouterModel,
+                        composerAutoPickGroqModel:
+                          DEFAULT_UNIFIED_SETTINGS.composerAutoPickGroqModel,
+                        composerAutoPickLocalModel:
+                          DEFAULT_UNIFIED_SETTINGS.composerAutoPickLocalModel,
+                      })
+                    }
+                  />
+                ) : null
+              }
+              control={
+                <Select
+                  value={settings.composerAutoPickEngine}
+                  onValueChange={(value) => {
+                    const engine = AUTO_PICK_ENGINE_LABELS.find((item) => item.value === value);
+                    if (engine) updateSettings({ composerAutoPickEngine: engine.value });
+                  }}
+                >
+                  <SelectTrigger size="sm" className="w-auto min-w-0" aria-label="Auto-pick model">
+                    <SelectValue>
+                      {AUTO_PICK_ENGINE_LABELS.find(
+                        (item) => item.value === settings.composerAutoPickEngine,
+                      )?.label ?? settings.composerAutoPickEngine}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectPopup align="end" alignItemWithTrigger={false}>
+                    {AUTO_PICK_ENGINE_LABELS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              }
+            />
+            {settings.composerAutoPickEngine !== "keyword" &&
+            settings.composerAutoPickEngine !== "chat" ? (
+              <SettingsRow
+                {...searchableSetting("auto-pick-models")}
+                description="The model id each engine runs. Free OpenRouter models allow about 50 requests a day. Groq uses the key you saved for Scribe, and its Qwen model may bill your Groq account. Leave an id empty to skip that engine."
+              >
+                <AutoPickModelFields
+                  openRouterModel={settings.composerAutoPickOpenRouterModel}
+                  groqModel={settings.composerAutoPickGroqModel}
+                  localModel={settings.composerAutoPickLocalModel}
+                  onChange={(patch) =>
+                    updateSettings({
+                      ...(patch.openRouterModel !== undefined
+                        ? { composerAutoPickOpenRouterModel: patch.openRouterModel }
+                        : {}),
+                      ...(patch.groqModel !== undefined
+                        ? { composerAutoPickGroqModel: patch.groqModel }
+                        : {}),
+                      ...(patch.localModel !== undefined
+                        ? { composerAutoPickLocalModel: patch.localModel }
+                        : {}),
+                    })
+                  }
+                />
+              </SettingsRow>
+            ) : null}
             <SettingsRow
               {...searchableSetting("skill-folders")}
               description="Put skills in your own folders. The / menu shows each folder as one row. Skills with a category or a source also group themselves."

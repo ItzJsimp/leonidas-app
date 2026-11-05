@@ -626,6 +626,20 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["auto-pick auto pick suggest button wand skills how many limit maximum"],
   },
   {
+    id: "auto-pick-engine",
+    title: "Auto-pick model",
+    to: "/settings/chat",
+    targetId: "composer",
+    searchTerms: ["auto-pick skills model openrouter groq local ollama qwen free keyword engine"],
+  },
+  {
+    id: "auto-pick-models",
+    title: "Auto-pick model ids",
+    to: "/settings/chat",
+    targetId: "composer",
+    searchTerms: ["auto-pick openrouter groq ollama model id slug"],
+  },
+  {
     id: "skill-folders",
     title: "Skill folders",
     to: "/settings/chat",

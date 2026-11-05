@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { EnvironmentId, ServerProviderSkill } from "@t3tools/contracts";
+import type { AutoPickEngine, EnvironmentId, ServerProviderSkill } from "@t3tools/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -39,7 +39,11 @@ const setPrompt = vi.fn((next: string) => {
   draft = next;
 });
 
-async function mount(prompt: string, cwd: string | null = "/project") {
+async function mount(
+  prompt: string,
+  cwd: string | null = "/project",
+  engine: AutoPickEngine = "auto",
+) {
   draft = prompt;
   await act(async () => {
     root.render(
@@ -50,6 +54,10 @@ async function mount(prompt: string, cwd: string | null = "/project") {
         projectText=""
         skills={skills}
         cap={3}
+        engine={engine}
+        openRouterModel="openrouter/free"
+        groqModel="qwen/qwen3.8-27b"
+        localModel=""
         getPrompt={() => draft}
         setPrompt={setPrompt}
       />,
@@ -150,7 +158,8 @@ describe("ComposerAutoPickSkillsButton", () => {
   it("leaves the draft alone when no skill fits", async () => {
     await click(await mount("thanks, looks good"));
     expect(setPrompt).not.toHaveBeenCalled();
-    expect(lastToast().title).toBe("No skill matched");
+    expect(lastToast().title).toBe("No skills added");
+    expect(lastToast().description).toContain("Use Skills to add one yourself");
   });
 
   it("does not overwrite text typed while the model was thinking", async () => {
@@ -162,6 +171,54 @@ describe("ComposerAutoPickSkillsButton", () => {
     await act(async () => finish(answer("windows-toast")));
     expect(setPrompt).not.toHaveBeenCalled();
     expect(lastToast().title).toBe("Your message changed");
+  });
+});
+
+describe("which model picked, and no-skill pop-up", () => {
+  it("names the engine that picked, and says a free model is free", async () => {
+    rpc.run.mockResolvedValue({
+      _tag: "Success",
+      value: {
+        picks: [{ name: "windows-toast", reason: "fits" }],
+        modelUsed: true,
+        engine: "openrouter",
+        model: "openrouter/free",
+      },
+    });
+    await click(await mount(TOAST_PROMPT));
+    expect(lastToast().description).toBe("$windows-toast (fits). Picked by OpenRouter free model.");
+  });
+
+  it("says the check ran, and how many skills it looked at, when the model picks none", async () => {
+    rpc.run.mockResolvedValue({ _tag: "Success", value: { picks: [], modelUsed: true } });
+    await click(await mount(TOAST_PROMPT));
+    expect(setPrompt).not.toHaveBeenCalled();
+    expect(lastToast().title).toBe("No skills added");
+    expect(lastToast().description).toMatch(/^Checked \d+ skills?\. None fits this message well\./);
+  });
+
+  it("sends the engine and model ids with the request", async () => {
+    rpc.run.mockResolvedValue(answer("windows-toast"));
+    await click(await mount(TOAST_PROMPT, "/project", "groq"));
+    expect(rpc.run.mock.calls[0]![0].input).toMatchObject({
+      engine: "groq",
+      openRouterModel: "openrouter/free",
+      groqModel: "qwen/qwen3.8-27b",
+      localModel: "",
+    });
+  });
+
+  it("keywords only calls no model and does not blame a missing model", async () => {
+    await click(await mount(TOAST_PROMPT, "/project", "keyword"));
+    expect(rpc.run).not.toHaveBeenCalled();
+    expect(draft).toBe(`$windows-toast ${TOAST_PROMPT}`);
+    expect(lastToast().description).toBe("$windows-toast");
+  });
+
+  it("points to Settings when no model answered in automatic mode", async () => {
+    rpc.run.mockResolvedValue({ _tag: "Success", value: { picks: [], modelUsed: false } });
+    await click(await mount(TOAST_PROMPT));
+    expect(lastToast().description).toContain("Set up a free model in Settings");
   });
 });
 
