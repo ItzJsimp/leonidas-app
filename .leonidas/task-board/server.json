@@ -6,7 +6,7 @@
       "project": "server",
       "title": "Release delivery needs attention",
       "description": "## Release delivery 0.68.0\n\nNo release published (see job results; superseded runs are expected).\n\n- Windows x64 installer: 109s (failure)\n  - Run actions/checkout@v6: 18s\n  - Run voidzero-dev/setup-vp@v1: 27s\n  - Plan version and patch notes: 21s\n  - Restore desktop dependencies: 21s\n  - Install desktop build dependencies: 16s\n- Publish complete release: 0s (skipped)\n\n\nWindows x64 installer: failure\n\n[Workflow](https://github.com/ItzJsimp/leonidas-code/actions/runs/38736996243)\n",
-      "status": "retired",
+      "status": "todo",
       "priority": "medium",
       "claimedBy": null,
       "claimedAt": null,
@@ -15,9 +15,11 @@
       "completedAt": null,
       "completionSummary": null,
       "createdAt": 1792068482000,
-      "updatedAt": 1793872053643,
+      "updatedAt": 1793872058212,
       "labels": [],
       "source": "github_issue",
+      "shared": true,
+      "assignee": null,
       "sourceId": "4",
       "sourceFile": null,
       "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/4",
@@ -37,10 +39,16 @@
           "actor": "ItzJsimp",
           "timestamp": 1793872053643,
           "note": null
+        },
+        {
+          "id": "82e7abc1-62d3-4bc6-9fd3-f35eb5135a10",
+          "taskId": "github-4",
+          "action": "updated",
+          "actor": "ItzJsimp",
+          "timestamp": 1793872058212,
+          "note": null
         }
-      ],
-      "shared": true,
-      "assignee": null
+      ]
     },
     {
       "id": "github-28",
@@ -61,6 +69,7 @@
         "health"
       ],
       "source": "github_issue",
+      "shared": true,
       "sourceId": "28",
       "sourceFile": null,
       "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/28",
@@ -73,8 +82,7 @@
           "timestamp": 1793070327000,
           "note": "Imported from the project's issue tracker"
         }
-      ],
-      "shared": true
+      ]
     },
     {
       "id": "github-32",
@@ -95,6 +103,7 @@
         "health"
       ],
       "source": "github_issue",
+      "shared": true,
       "sourceId": "32",
       "sourceFile": null,
       "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/32",
@@ -107,8 +116,7 @@
           "timestamp": 1793675190000,
           "note": "Imported from the project's issue tracker"
         }
-      ],
-      "shared": true
+      ]
     },
     {
       "id": "github-2",
@@ -127,6 +135,7 @@
       "updatedAt": 1791910475000,
       "labels": [],
       "source": "github_issue",
+      "shared": true,
       "sourceId": "2",
       "sourceFile": null,
       "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/2",
@@ -139,8 +148,7 @@
           "timestamp": 1791790712000,
           "note": "Imported from the project's issue tracker"
         }
-      ],
-      "shared": true
+      ]
     },
     {
       "id": "github-3",
@@ -159,6 +167,7 @@
       "updatedAt": 1791843587000,
       "labels": [],
       "source": "github_issue",
+      "shared": true,
       "sourceId": "3",
       "sourceFile": null,
       "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/3",
@@ -171,8 +180,7 @@
           "timestamp": 1791842618000,
           "note": "Imported from the project's issue tracker"
         }
-      ],
-      "shared": true
+      ]
     },
     {
       "id": "github-1",
@@ -191,6 +199,7 @@
       "updatedAt": 1791696149000,
       "labels": [],
       "source": "github_issue",
+      "shared": true,
       "sourceId": "1",
       "sourceFile": null,
       "issueUrl": "https://github.com/ItzJsimp/leonidas-code/issues/1",
@@ -203,8 +212,7 @@
           "timestamp": 1791693238000,
           "note": "Imported from the project's issue tracker"
         }
-      ],
-      "shared": true
+      ]
     }
   ]
 }
