@@ -18,6 +18,24 @@ export function prefixPromptWithSkills(prompt: string, skillNames: ReadonlyArray
   return skillNames.reduceRight((text, name) => prefixPromptWithSkill(text, name), prompt);
 }
 
+/** Names the prompt mentions with `$name`, in order. Includes names that are not skills. */
+export function mentionedSkillNames(prompt: string): string[] {
+  return [...prompt.matchAll(SKILL_MENTION_PATTERN)].map((match) => match[2] ?? "");
+}
+
+/**
+ * The prompt without its `$name` mentions, which is what the user is asking for.
+ * With `known` (lowercase names), only those mentions go; other `$words` stay prose.
+ */
+export function withoutSkillMentions(prompt: string, known?: ReadonlySet<string>): string {
+  return prompt
+    .replace(SKILL_MENTION_PATTERN, (all, lead: string, name: string) =>
+      known && !known.has(name.toLowerCase()) ? all : lead,
+    )
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 /** Skills in one message past this count get a context-cost hint. */
 export const SKILL_CONTEXT_WARNING_THRESHOLD = 5;
 
