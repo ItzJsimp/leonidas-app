@@ -1,8 +1,13 @@
 import type {
+  ModelSelection,
+  OrchestrationV2ModelSwitch,
   OrchestrationV2Run,
   OrchestrationV2TurnItem,
   ProviderInstanceId,
+  ServerProvider,
+  ServerProviderModel,
 } from "@t3tools/contracts";
+import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
 
 /**
  * The subset of a projection run that handoff rows read. Kept minimal so the
@@ -61,4 +66,48 @@ function latestRunModelBefore(
     if (latest === undefined || run.ordinal > latest.ordinal) latest = run;
   }
   return latest?.modelSelection.model;
+}
+
+export interface ModelSwitchChange {
+  readonly modelChanged: boolean;
+  /** Effort labels, set only when the effort changed. */
+  readonly effort: { readonly from: string; readonly to: string } | null;
+}
+
+// The option ids that carry a model's effort or thinking level.
+const EFFORT_OPTION_IDS = ["reasoningEffort", "reasoning", "effort", "variant", "thinking"];
+
+/**
+ * What a recorded model switch visibly changed, or null when it changed neither the model nor the
+ * effort. The composer omits an untouched effort, so an unset effort is not counted as a change.
+ */
+export function resolveModelSwitchChange(
+  { from, to }: OrchestrationV2ModelSwitch,
+  providers: ReadonlyArray<ServerProvider>,
+): ModelSwitchChange | null {
+  const modelsOf = (selection: ModelSelection) =>
+    providers.find((provider) => provider.instanceId === selection.instanceId)?.models;
+  const fromEffort = resolveEffort(from, modelsOf(from));
+  const toEffort = resolveEffort(to, modelsOf(to));
+  const modelChanged = from.model !== to.model;
+  const effort =
+    fromEffort && toEffort && fromEffort.value !== toEffort.value
+      ? { from: fromEffort.label, to: toEffort.label }
+      : null;
+  return modelChanged || effort ? { modelChanged, effort } : null;
+}
+
+function resolveEffort(
+  selection: ModelSelection,
+  models: ReadonlyArray<ServerProviderModel> | undefined,
+): { readonly value: string; readonly label: string } | undefined {
+  const value = EFFORT_OPTION_IDS.map((id) =>
+    getModelSelectionStringOptionValue(selection, id),
+  ).find((candidate) => candidate !== undefined);
+  if (value === undefined) return undefined;
+  const model = models?.find((candidate) => candidate.slug === selection.model);
+  const label = model?.capabilities?.optionDescriptors
+    ?.flatMap((descriptor) => (descriptor.type === "select" ? descriptor.options : []))
+    .find((option) => option.id === value)?.label;
+  return { value, label: label ?? value };
 }

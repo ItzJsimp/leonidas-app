@@ -1,6 +1,10 @@
-import { ProviderInstanceId, RunId } from "@t3tools/contracts";
+import { ProviderInstanceId, RunId, type ServerProvider } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
-import { resolveHandoffEndpoints, type HandoffTimelineRun } from "./handoff.ts";
+import {
+  resolveHandoffEndpoints,
+  resolveModelSwitchChange,
+  type HandoffTimelineRun,
+} from "./handoff.ts";
 
 const from = ProviderInstanceId.make("codex_personal");
 const to = ProviderInstanceId.make("claudeAgent");
@@ -61,5 +65,61 @@ describe("handoff endpoints shared by web and mobile", () => {
     expect(
       resolveHandoffEndpoints(item, [run("target", 2, from, "wrong-model")]).to.model,
     ).toBeUndefined();
+  });
+});
+
+describe("model switch labels", () => {
+  const instanceId = ProviderInstanceId.make("claudeAgent");
+  const selection = (model: string, effort?: string) => ({
+    instanceId,
+    model,
+    ...(effort === undefined ? {} : { options: [{ id: "effort", value: effort }] }),
+  });
+  const providers = [
+    {
+      instanceId,
+      models: [
+        {
+          slug: "opus",
+          capabilities: {
+            optionDescriptors: [
+              {
+                id: "effort",
+                label: "Reasoning",
+                type: "select",
+                options: [
+                  { id: "high", label: "High" },
+                  { id: "max", label: "Max" },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    },
+  ] as unknown as ReadonlyArray<ServerProvider>;
+
+  it("reports a model change without an effort", () => {
+    expect(
+      resolveModelSwitchChange({ from: selection("opus"), to: selection("sonnet") }, providers),
+    ).toEqual({ modelChanged: true, effort: null });
+  });
+
+  it("reports an effort change with catalog labels", () => {
+    expect(
+      resolveModelSwitchChange(
+        { from: selection("opus", "high"), to: selection("opus", "max") },
+        providers,
+      ),
+    ).toEqual({ modelChanged: false, effort: { from: "High", to: "Max" } });
+  });
+
+  it("reports nothing when only an unset effort differs", () => {
+    expect(
+      resolveModelSwitchChange(
+        { from: selection("opus", "high"), to: selection("opus") },
+        providers,
+      ),
+    ).toBeNull();
   });
 });

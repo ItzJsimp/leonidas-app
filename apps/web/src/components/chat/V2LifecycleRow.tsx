@@ -1,4 +1,5 @@
 import { ThreadHoverCardPopup } from "../ThreadHoverCard";
+import { resolveModelSwitchChange } from "@t3tools/client-runtime/handoff";
 import { AgentElapsed } from "./AgentElapsed";
 import { projectedSubagentsToRuntime } from "@t3tools/client-runtime/state/subagentRuntime";
 import type { ReactNode } from "react";
@@ -18,6 +19,8 @@ import {
 } from "@t3tools/client-runtime/state/subagent-display";
 import {
   ProviderDriverKind,
+  type ModelSelection,
+  type OrchestrationV2ModelSwitch,
   type OrchestrationV2Notification,
   type OrchestrationV2TurnItem,
   type OrchestrationV2Subagent,
@@ -747,5 +750,27 @@ function HandoffEndpoint(props: {
         {entry?.displayName ?? props.instanceId} · {label}
       </TooltipPopup>
     </Tooltip>
+  );
+}
+
+/** A same-harness model or effort change. Shows only what changed. */
+export function ModelSwitchRow(props: {
+  readonly providers: ReadonlyArray<ServerProvider> | undefined;
+  readonly modelSwitch: OrchestrationV2ModelSwitch;
+}) {
+  const providers = props.providers ?? [];
+  const change = resolveModelSwitchChange(props.modelSwitch, providers);
+  if (change === null) return null;
+  const describe = (selection: ModelSelection, effort: string | undefined) => {
+    const provider = providers.find((candidate) => candidate.instanceId === selection.instanceId);
+    const model = provider?.models.find((candidate) => candidate.slug === selection.model);
+    const modelName = model ? getTriggerDisplayModelName(model) : selection.model;
+    return [change.modelChanged ? modelName : null, effort].filter(Boolean).join(" ");
+  };
+  const { from, to } = props.modelSwitch;
+  return (
+    <TimelineSystemDivider
+      label={`${describe(from, change.effort?.from)} → ${describe(to, change.effort?.to)}`}
+    />
   );
 }

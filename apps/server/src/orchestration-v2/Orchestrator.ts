@@ -63,6 +63,7 @@ import {
   type TurnItemId,
 } from "@t3tools/contracts";
 import { modelSelectionsEqual } from "@t3tools/shared/model";
+import { modelSwitchSince } from "./modelSwitch.ts";
 import {
   derivePendingBackgroundWork,
   pendingBackgroundTurnItems,
@@ -1660,6 +1661,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           text: queuedMessage.text,
           attachments: queuedMessage.attachments,
           ...(queuedMessage.context ? { context: queuedMessage.context } : {}),
+          ...(activeHandoff === null ? modelSwitchSince(projection, queuedRun.modelSelection) : {}),
           createdBy: queuedMessage.createdBy,
           creationSource: queuedMessage.creationSource,
           ...(queuedMessage.scheduledTaskId === undefined
@@ -6366,6 +6368,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         text: dispatchText,
         ...(command.context ? { context: command.context } : {}),
         attachments: command.attachments,
+        ...((portableForkHandoff ?? mergeBackHandoff ?? providerSwitchHandoff) === null
+          ? modelSwitchSince(projection, modelSelection, sourceRun?.modelSelection)
+          : {}),
       };
       const activeHandoff = portableForkHandoff ?? mergeBackHandoff ?? providerSwitchHandoff;
       const handoffSourceRuns =

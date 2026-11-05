@@ -308,6 +308,7 @@ import {
   SubagentNotificationLink,
   V2LifecycleRow,
   type HandoffTimelineRun,
+  ModelSwitchRow,
 } from "./V2LifecycleRow";
 import { SecretRequestCard } from "./SecretRequestCard";
 import { TimelineSystemDivider } from "./TimelineSystemDivider";
@@ -2375,6 +2376,20 @@ function MessageAuthorHeading({ children }: { children: string }) {
 }
 
 function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
+  const ctx = use(TimelineRowCtx);
+  const item = row.projectedItem?.item;
+  const modelSwitch = item?.type === "user_message" ? item.modelSwitch : undefined;
+  return (
+    <>
+      {modelSwitch ? (
+        <ModelSwitchRow providers={ctx.providerStatuses} modelSwitch={modelSwitch} />
+      ) : null}
+      <UserTimelineRowContent row={row} />
+    </>
+  );
+}
+
+function UserTimelineRowContent({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
   const ctx = use(TimelineRowCtx);
   const { onImageExpand, onFileOpen } = ctx;
   const senderThreadId = row.message.senderThreadId;
