@@ -61,7 +61,9 @@ export function browseInputEndPaddingClass(input: {
 export type SearchOverlayMode = "command" | "files" | "content";
 
 export type CommandPaletteOpenIntent =
-  | { readonly kind: "add-project" | "new-thread-in" | "change-theme" }
+  | { readonly kind: "new-thread-in" | "change-theme" }
+  /** pickFolder: open the system folder picker as soon as the add flow shows. */
+  | { readonly kind: "add-project"; readonly pickFolder?: boolean }
   | {
       readonly kind: "search";
       readonly query: string;
@@ -82,7 +84,7 @@ export type CommandPaletteUiAction =
       readonly query: string;
       readonly linkedThreads?: CommandPaletteLinkedThreads;
     }
-  | { readonly _tag: "OpenAddProject" }
+  | { readonly _tag: "OpenAddProject"; readonly pickFolder?: boolean }
   | { readonly _tag: "OpenNewThreadIn" }
   | { readonly _tag: "OpenChangeTheme" }
   | { readonly _tag: "ClearOpenIntent" };
@@ -111,7 +113,13 @@ export function reduceCommandPaletteUiState(
         },
       };
     case "OpenAddProject":
-      return { open: true, mode: "command", openIntent: { kind: "add-project" } };
+      return {
+        open: true,
+        mode: "command",
+        openIntent: action.pickFolder
+          ? { kind: "add-project", pickFolder: true }
+          : { kind: "add-project" },
+      };
     case "OpenNewThreadIn":
       return { open: true, mode: "command", openIntent: { kind: "new-thread-in" } };
     case "OpenChangeTheme":

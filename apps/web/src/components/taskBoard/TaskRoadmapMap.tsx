@@ -206,7 +206,7 @@ export function TaskRoadmapMap(props: {
                       data-roadmap-node={`task:${task.id}`}
                       type="button"
                       onClick={() => props.onSelect(task)}
-                      className="flex min-h-9 w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left outline-hidden hover:border-primary/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      className="flex min-h-9 w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left outline-hidden hover:border-primary/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30"
                     >
                       {task.status === "done" ? (
                         <CheckIcon aria-hidden className="size-4 shrink-0 text-primary" />
@@ -224,7 +224,7 @@ export function TaskRoadmapMap(props: {
                       data-roadmap-node={`brief:${task.key}`}
                       className="min-h-9 rounded-md border border-dashed border-border bg-background px-2 py-1.5"
                     >
-                      <summary className="cursor-pointer text-xs outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+                      <summary className="cursor-pointer text-xs outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30">
                         {task.title}
                         <span className="ml-2 text-xs text-muted-foreground">Planned</span>
                       </summary>

@@ -59,7 +59,7 @@ export function AiosHomeCard({ bare = false }: { bare?: boolean }) {
         </p>
         <Link
           to="/tasks"
-          className="mt-2 inline-block rounded-sm text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
+          className="mt-2 inline-block rounded-sm text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-foreground/30"
         >
           Open Tasks
         </Link>

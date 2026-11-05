@@ -249,6 +249,13 @@ describe("reduceCommandPaletteUiState", () => {
       mode: "command",
       openIntent: { kind: "add-project" },
     });
+    expect(
+      reduceCommandPaletteUiState(filesOpen, { _tag: "OpenAddProject", pickFolder: true }),
+    ).toEqual({
+      open: true,
+      mode: "command",
+      openIntent: { kind: "add-project", pickFolder: true },
+    });
     expect(reduceCommandPaletteUiState(filesOpen, { _tag: "OpenNewThreadIn" })).toEqual({
       open: true,
       mode: "command",

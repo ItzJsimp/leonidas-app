@@ -78,7 +78,7 @@ const GRIP_SIZE = 20;
 const NAV_KEYS: ReadonlySet<string> = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
 // The cell cursor: a ring on the active cell, shown only while its row has the focus.
 const CURSOR_RING =
-  "group-focus/row:data-[cursor=true]:ring-2 group-focus/row:data-[cursor=true]:ring-primary group-focus/row:data-[cursor=true]:ring-inset";
+  "group-focus/row:data-[cursor=true]:ring-2 group-focus/row:data-[cursor=true]:ring-foreground/30 group-focus/row:data-[cursor=true]:ring-inset";
 
 // The row tints on hover and when selected. Sticky cells are opaque, so they repeat the tint on
 // a layer behind their content.
@@ -182,7 +182,7 @@ const TableRow = memo(function TableRow(props: RowProps) {
         if (!col || col === "title") props.onSelect(task);
       }}
       className={cn(
-        "group/row relative grid w-[var(--task-width)] min-w-full cursor-default border-b border-border/60 outline-none transition-opacity duration-150 [grid-template-columns:var(--task-cols)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        "group/row relative grid w-[var(--task-width)] min-w-full cursor-default border-b border-border/60 outline-none transition-opacity duration-150 [grid-template-columns:var(--task-cols)] focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-inset",
         ROW_TINT,
         props.dragging && "opacity-40",
       )}
@@ -206,7 +206,7 @@ const TableRow = memo(function TableRow(props: RowProps) {
             props.onToggleDone(task);
           }}
           className={cn(
-            "grid size-4 cursor-pointer place-items-center rounded-sm border outline-none transition-[background-color,border-color,transform] duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:scale-90",
+            "grid size-4 cursor-pointer place-items-center rounded-sm border outline-none transition-[background-color,border-color,transform] duration-150 ease-out focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-inset active:scale-90",
             done
               ? "border-success bg-success text-white"
               : "border-muted-foreground/45 hover:border-foreground",
@@ -300,7 +300,7 @@ function GroupRow({
           type="button"
           aria-expanded={expanded}
           onClick={() => onToggle(group.key)}
-          className="inline-flex h-7 cursor-pointer items-center gap-2 rounded-md px-1.5 font-medium text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          className="inline-flex h-7 cursor-pointer items-center gap-2 rounded-md px-1.5 font-medium text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-inset"
         >
           <ChevronRightIcon
             aria-hidden
@@ -744,7 +744,7 @@ export function TaskTableView(props: {
         hidden={!drag}
         aria-hidden
         style={{ height: rowHeight, left: GUTTER / 2 }}
-        className="pointer-events-none absolute top-0 z-20 flex w-[min(32rem,calc(100%-2rem))] items-center gap-2 rounded-md border border-border bg-popover px-2 text-popover-foreground text-sm shadow-lg ring-1 ring-primary/20"
+        className="pointer-events-none absolute top-0 z-20 flex w-[min(32rem,calc(100%-2rem))] items-center gap-2 rounded-md border border-border bg-popover px-2 text-popover-foreground text-sm shadow-lg ring-1 ring-foreground/15"
       >
         <GripVerticalIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate font-medium">

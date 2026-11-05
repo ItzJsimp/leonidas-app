@@ -10,7 +10,8 @@ export interface CommandPaletteLinkedThreads {
 const COMMAND_PALETTE_OPEN_EVENT = "t3code:open-command-palette";
 
 export interface CommandPaletteOpenDetail {
-  readonly open?: "add-project" | "new-thread-in";
+  /** "add-project-folder" opens Add project and then the system folder picker. */
+  readonly open?: "add-project" | "add-project-folder" | "new-thread-in";
   readonly query?: string;
   readonly linkedThreads?: CommandPaletteLinkedThreads;
 }

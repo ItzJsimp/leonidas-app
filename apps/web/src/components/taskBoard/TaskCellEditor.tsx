@@ -144,7 +144,7 @@ export function TaskCellEditor({
       role="dialog"
       aria-label={`Edit ${open.label}`}
       className={cn(
-        "absolute z-30 flex flex-col rounded-md border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-primary/20",
+        "absolute z-30 flex flex-col rounded-md border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/15",
         listUp && "flex-col-reverse",
       )}
       style={{

@@ -23,8 +23,10 @@ import { cn } from "~/lib/utils";
 import { ownerOf } from "./owner.logic";
 import {
   priorityLabel,
+  priorityTone,
   relativeTime,
   statusLabel,
+  statusTone,
   type TaskTone,
   type TaskView,
 } from "./taskBoard.logic";
@@ -42,45 +44,26 @@ export const COLUMN_META: Record<string, { readonly label: string; readonly icon
   updated: { label: "Updated", icon: <ClockIcon aria-hidden /> },
 };
 
-// Color only on status (meaning) and on a passed date. Everything else stays gray.
-const STATUS_CLASS: Record<TaskBoardTaskStatus, string> = {
-  todo: "bg-muted text-muted-foreground",
-  in_progress: "bg-info/10 text-info-foreground dark:bg-info/18",
-  review: "bg-warning/10 text-warning-foreground dark:bg-warning/18",
-  blocked: "bg-destructive/10 text-destructive-foreground dark:bg-destructive/18",
-  done: "bg-success/10 text-success-foreground dark:bg-success/18",
-  parked: "bg-muted text-muted-foreground",
-  retired: "bg-muted text-muted-foreground line-through",
-};
-
 export function StatusPill({ status }: { readonly status: TaskBoardTaskStatus }) {
   return (
     <span
       className={cn(
         "inline-flex h-[22px] max-w-full items-center gap-1.5 rounded-md px-2 font-medium text-xs leading-none",
-        STATUS_CLASS[status],
+        TONE_CLASS[statusTone(status)],
+        status === "retired" && "line-through",
       )}
     >
-      <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current" />
       <span className="truncate">{statusLabel(status)}</span>
     </span>
   );
 }
-
-// Jake (2026-11-04): priority shows as a color, red for the top levels. Amber stays for "In review".
-const PRIORITY_CLASS: Record<TaskBoardTaskPriority, string> = {
-  critical: "bg-destructive/20 font-semibold text-destructive-foreground dark:bg-destructive/30",
-  high: "bg-destructive/8 text-destructive-foreground dark:bg-destructive/14",
-  medium: "bg-info/10 text-info-foreground dark:bg-info/18",
-  low: "bg-muted text-muted-foreground",
-};
 
 export function PriorityMark({ priority }: { readonly priority: TaskBoardTaskPriority }) {
   return (
     <span
       className={cn(
         "inline-flex h-[22px] items-center rounded-md px-2 font-medium text-xs leading-none",
-        PRIORITY_CLASS[priority],
+        TONE_CLASS[priorityTone(priority)],
       )}
     >
       {priorityLabel(priority)}
@@ -176,13 +159,14 @@ export function UpdatedText({ at, now }: { readonly at: number; readonly now: nu
   return <span className="text-xs text-muted-foreground">{relativeTime(at, now)}</span>;
 }
 
-const TONE_CLASS: Record<TaskTone, string> = {
-  neutral: "bg-muted text-foreground",
-  muted: "bg-muted text-muted-foreground",
-  info: "bg-info/10 text-info-foreground dark:bg-info/18",
-  warning: "bg-warning/10 text-warning-foreground dark:bg-warning/18",
-  danger: "bg-destructive/10 text-destructive-foreground dark:bg-destructive/18",
-  success: "bg-success/10 text-success-foreground dark:bg-success/18",
+// Jake (2026-11-04): every chip is a solid color with white text. Never colored text on a tint.
+export const TONE_CLASS: Record<TaskTone, string> = {
+  neutral: "bg-zinc-500 text-white",
+  muted: "bg-zinc-500 text-white",
+  info: "bg-blue-600 text-white",
+  warning: "bg-amber-500 text-white",
+  danger: "bg-red-600 text-white",
+  success: "bg-emerald-600 text-white",
 };
 
 export function OptionChip({ label, tone }: { readonly label: string; readonly tone: TaskTone }) {

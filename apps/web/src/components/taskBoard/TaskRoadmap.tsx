@@ -113,7 +113,7 @@ export function TaskRoadmapView(props: {
         </p>
         <h3 className="text-2xl font-semibold tracking-tight">The path to V{plan.targetVersion}</h3>
         <details className="max-w-2xl text-sm text-muted-foreground">
-          <summary className="cursor-pointer rounded outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+          <summary className="cursor-pointer rounded outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30">
             What V{plan.targetVersion} includes
           </summary>
           <p className="mt-2 leading-relaxed">{plan.releaseDefinition}</p>
@@ -267,7 +267,7 @@ export function TaskRoadmapView(props: {
                       <button
                         type="button"
                         onClick={() => props.onSelect(task)}
-                        className="min-w-0 flex-1 rounded py-2 text-left text-sm outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                        className="min-w-0 flex-1 rounded py-2 text-left text-sm outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30"
                       >
                         {task.title}
                       </button>
@@ -279,7 +279,7 @@ export function TaskRoadmapView(props: {
                   {stage.missing.map((task) => (
                     <li key={task.key} className="px-3 py-3">
                       <details>
-                        <summary className="cursor-pointer text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+                        <summary className="cursor-pointer text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30">
                           {task.title}
                           <span className="ml-2 text-xs text-muted-foreground">Planned brief</span>
                         </summary>
@@ -318,7 +318,7 @@ export function TaskRoadmapView(props: {
                 <button
                   type="button"
                   onClick={() => props.onSelect(task)}
-                  className="rounded py-2 text-left text-sm outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  className="rounded py-2 text-left text-sm outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30"
                 >
                   {task.title}
                 </button>

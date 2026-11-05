@@ -1,6 +1,14 @@
-import { ChevronRightIcon, EyeIcon, EyeOffIcon, LayersIcon, UsersIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  EyeIcon,
+  EyeOffIcon,
+  LayersIcon,
+  PlusIcon,
+  UsersIcon,
+} from "lucide-react";
 import { memo, useMemo } from "react";
 
+import { openCommandPalette } from "~/commandPaletteBus";
 import { Button } from "~/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import {
@@ -113,14 +121,25 @@ export const TaskProjectRail = memo(function TaskProjectRail(props: {
         selected={props.focus === "all" && props.selectedSlug === null}
         onSelect={() => onSelect(null)}
       />
-      <h2 className="px-2 pt-4 pb-1 text-xs font-medium text-muted-foreground">Projects</h2>
+      <div className="flex items-center justify-between pt-4 pb-1 pl-2">
+        <h2 className="text-xs font-medium text-muted-foreground">Projects</h2>
+        <button
+          type="button"
+          aria-label="Add a project folder"
+          title="Add a project folder"
+          onClick={() => openCommandPalette({ open: "add-project-folder" })}
+          className="grid size-6 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground/30"
+        >
+          <PlusIcon aria-hidden className="size-3.5" />
+        </button>
+      </div>
       {split.shown.map((entry) => row(entry, true))}
       {split.hidden.length > 0 ? (
         <details
           className="group/more"
           open={split.hidden.some((entry) => entry.slug === props.selectedSlug)}
         >
-          <summary className="flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1.5 text-muted-foreground text-xs outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1.5 text-muted-foreground text-xs outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30 [&::-webkit-details-marker]:hidden">
             <ChevronRightIcon aria-hidden className="size-3.5 group-open/more:rotate-90" />
             More ({split.hidden.length})
           </summary>

@@ -74,7 +74,7 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
     Number(prefs.flag !== null) +
     Number(props.showClosedToggle && prefs.includeClosed);
   return (
-    <div className="flex min-w-0 flex-1 basis-56 flex-wrap items-center justify-end gap-1">
+    <div className="flex flex-1 items-center justify-end gap-1">
       <InputGroup className="min-w-24 flex-1 sm:w-36 sm:flex-none">
         <InputGroupAddon>
           <SearchIcon aria-hidden className="size-3.5 text-muted-foreground" />

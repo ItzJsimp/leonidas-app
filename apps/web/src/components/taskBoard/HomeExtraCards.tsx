@@ -239,7 +239,7 @@ function NewsCard(props: {
                 href={item.link}
                 target="_blank"
                 rel="noreferrer"
-                className="group flex items-start gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+                className="group flex items-start gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-foreground/30"
               >
                 <NewspaperIcon
                   aria-hidden

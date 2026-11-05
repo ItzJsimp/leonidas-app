@@ -12,7 +12,7 @@ export function Fold(props: {
       className="group/fold rounded-lg border border-border"
       onToggle={(event) => props.onToggle?.(event.currentTarget.open)}
     >
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-medium text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-medium text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30 [&::-webkit-details-marker]:hidden">
         <ChevronRightIcon
           aria-hidden
           className="size-3.5 text-muted-foreground group-open/fold:rotate-90"

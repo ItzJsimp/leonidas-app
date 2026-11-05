@@ -404,7 +404,10 @@ export function CommandPalette({ children }: { children: ReactNode }) {
     (mode: SearchOverlayMode) => dispatch({ _tag: "ToggleMode", mode }),
     [],
   );
-  const openAddProject = useCallback(() => dispatch({ _tag: "OpenAddProject" }), []);
+  const openAddProject = useCallback(
+    (pickFolder = false) => dispatch({ _tag: "OpenAddProject", pickFolder }),
+    [],
+  );
   const openNewThreadIn = useCallback(() => dispatch({ _tag: "OpenNewThreadIn" }), []);
   const clearOpenIntent = useCallback(() => dispatch({ _tag: "ClearOpenIntent" }), []);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
@@ -544,8 +547,8 @@ export function CommandPalette({ children }: { children: ReactNode }) {
       onOpenCommandPalette((detail) => {
         if (detail.open === "new-thread-in") {
           openNewThreadIn();
-        } else if (detail.open === "add-project") {
-          openAddProject();
+        } else if (detail.open === "add-project" || detail.open === "add-project-folder") {
+          openAddProject(detail.open === "add-project-folder");
         } else if (detail.query !== undefined) {
           dispatch({
             _tag: "OpenSearch",
@@ -645,6 +648,8 @@ function OpenCommandPaletteDialog(props: {
   const pathname = useLocation({ select: (location) => location.pathname });
   const { clearOpenIntent, openIntent, openOverlayMode, setOpen } = props;
   const [query, setQuery] = useState(openIntent?.kind === "search" ? openIntent.query : "");
+  // Set by the "add-project-folder" intent. The picker can only open after browse mode renders.
+  const pendingFolderPickRef = useRef(false);
   const [linkedThreadSearch, setLinkedThreadSearch] = useState(
     openIntent?.kind === "search" ? openIntent : null,
   );
@@ -1853,9 +1858,26 @@ function OpenCommandPaletteDialog(props: {
     if (openIntent?.kind !== "add-project") {
       return;
     }
+    pendingFolderPickRef.current = openIntent.pickFolder === true;
     clearOpenIntent();
+    // One computer: skip the source list and go straight to the folder browser.
+    if (
+      openIntent.pickFolder &&
+      addProjectEnvironmentOptions.length === 1 &&
+      defaultAddProjectEnvironmentId !== null
+    ) {
+      void startAddProjectBrowse(defaultAddProjectEnvironmentId);
+      return;
+    }
     openAddProjectFlow();
-  }, [clearOpenIntent, openAddProjectFlow, openIntent]);
+  }, [
+    addProjectEnvironmentOptions.length,
+    clearOpenIntent,
+    defaultAddProjectEnvironmentId,
+    openAddProjectFlow,
+    openIntent,
+    startAddProjectBrowse,
+  ]);
 
   useLayoutEffect(() => {
     if (openIntent?.kind !== "new-thread-in" || projectThreadItems.length === 0) {
@@ -3677,6 +3699,12 @@ function OpenCommandPaletteDialog(props: {
         : !canSubmitBrowsePath || hasHighlightedBrowseItem
           ? "Select"
           : undefined;
+
+  useEffect(() => {
+    if (!pendingFolderPickRef.current || !canOpenProjectFromFileManager) return;
+    pendingFolderPickRef.current = false;
+    void handleOpenProjectFromFileManager();
+  }, [canOpenProjectFromFileManager, handleOpenProjectFromFileManager]);
 
   const footerTrailing = canOpenProjectFromFileManager ? (
     <CommandFooterAction

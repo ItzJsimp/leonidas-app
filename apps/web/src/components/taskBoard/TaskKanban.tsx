@@ -69,7 +69,7 @@ const KanbanCard = memo(function KanbanCard({
       aria-current={selected ? "true" : undefined}
       className={cn(
         "group/card flex cursor-grab flex-col gap-1.5 rounded-lg border bg-card p-2 text-card-foreground shadow-xs/5 active:cursor-grabbing",
-        selected && "ring-2 ring-ring",
+        selected && "ring-2 ring-foreground/30",
         (dragging || busy) && "opacity-50",
       )}
       data-task-id={task.id}
@@ -80,7 +80,7 @@ const KanbanCard = memo(function KanbanCard({
     >
       <div className="flex items-start gap-1.5">
         <button
-          className="min-w-0 flex-1 cursor-pointer text-left font-medium text-sm leading-snug outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          className="min-w-0 flex-1 cursor-pointer text-left font-medium text-sm leading-snug outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30"
           onClick={(event) => {
             event.stopPropagation();
             onSelect(task);
@@ -209,7 +209,7 @@ function KanbanColumn({
         status === "done" || tasks.length + hidden === 0
           ? "@4xl/board:flex-[0_0_11rem]"
           : "@4xl/board:min-w-0 @4xl/board:flex-[1_1_0%]",
-        isOver && "bg-accent/60 ring-2 ring-primary/50",
+        isOver && "bg-accent/60 ring-2 ring-foreground/15",
       )}
       onDragLeave={(event) => onColumnDragLeave(event, status)}
       onDragOver={(event) => onColumnDragOver(event, status)}

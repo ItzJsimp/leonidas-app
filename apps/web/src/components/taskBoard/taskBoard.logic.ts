@@ -46,8 +46,8 @@ const STATUS_LABELS: Record<TaskBoardTaskStatus, string> = {
 const STATUS_TONES: Record<TaskBoardTaskStatus, TaskTone> = {
   todo: "neutral",
   in_progress: "info",
-  review: "info",
-  blocked: "warning",
+  review: "warning",
+  blocked: "danger",
   done: "success",
   parked: "muted",
   retired: "muted",
@@ -61,9 +61,9 @@ const PRIORITY_LABELS: Record<TaskBoardTaskPriority, string> = {
 };
 
 const PRIORITY_TONES: Record<TaskBoardTaskPriority, TaskTone> = {
-  critical: "neutral",
-  high: "neutral",
-  medium: "neutral",
+  critical: "danger",
+  high: "warning",
+  medium: "info",
   low: "muted",
 };
 

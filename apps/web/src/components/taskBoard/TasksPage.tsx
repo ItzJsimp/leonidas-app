@@ -626,7 +626,7 @@ export function TasksPage() {
                     data-tour={view === "roadmap" ? "tasks-roadmap-tab" : undefined}
                     onClick={() => changeView(view)}
                     className={cn(
-                      "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                      "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-inset",
                       prefs.view === view
                         ? "bg-background font-medium text-foreground shadow-xs"
                         : "text-muted-foreground hover:text-foreground",
@@ -638,7 +638,7 @@ export function TasksPage() {
                 ))}
               </div>
               {/* Narrow panes: the two scope selects share a row, and search gets the next one. */}
-              <div className="ml-auto flex min-w-0 flex-1 basis-64 flex-wrap items-center justify-start gap-1 @4xl/tasks:justify-end">
+              <div className="ml-auto flex min-w-0 flex-1 basis-64 flex-wrap items-center justify-start gap-1 @4xl/tasks:min-w-max @4xl/tasks:flex-nowrap @4xl/tasks:justify-end">
                 {prefs.view !== "roadmap" ? (
                   <OwnerLensPicker
                     options={board.ownerOptions}

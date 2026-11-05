@@ -91,7 +91,7 @@ function HorizonRow({ horizon }: { horizon: AiosDirectionHorizon }) {
   const open = horizon.key === "week";
   return (
     <details open={open} className="group rounded-md border border-border">
-      <summary className="flex cursor-pointer list-none items-start gap-2 px-3 py-2 focus-visible:outline-2 focus-visible:outline-ring">
+      <summary className="flex cursor-pointer list-none items-start gap-2 px-3 py-2 focus-visible:outline-2 focus-visible:outline-foreground/30">
         <ChevronRightIcon
           aria-hidden
           className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"

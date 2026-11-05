@@ -139,7 +139,7 @@ describe("labels and ordering", () => {
   it("labels and ranks statuses and priorities", () => {
     expect(statusLabel("in_progress")).toBe("In progress");
     expect(statusLabel("review")).toBe("In review");
-    expect(statusTone("blocked")).toBe("warning");
+    expect(statusTone("blocked")).toBe("danger");
     expect(statusTone("parked")).toBe("muted");
     expect(isOpen({ status: "review" })).toBe(true);
     expect(isOpen({ status: "done" })).toBe(false);

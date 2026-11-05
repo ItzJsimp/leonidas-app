@@ -409,7 +409,7 @@ const ProjectsPanel = memo(function ProjectsPanel(props: {
                 <button
                   type="button"
                   onClick={() => props.onOpenSection(section.slug)}
-                  className="flex w-full flex-col gap-2 px-4 py-3 text-left outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  className="flex w-full flex-col gap-2 px-4 py-3 text-left outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30"
                 >
                   <span className="flex items-baseline gap-3">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -513,7 +513,7 @@ const AttentionPanel = memo(function AttentionPanel(props: {
                 <button
                   type="button"
                   onClick={() => props.onSelect(task)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{task.title}</span>
@@ -569,7 +569,7 @@ const ActivityPanel = memo(function ActivityPanel(props: {
               <button
                 type="button"
                 onClick={() => props.onSelect(entry.task)}
-                className="block w-full min-w-0 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                className="block w-full min-w-0 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30"
               >
                 <span className="block text-sm">
                   <span className="font-medium">{entry.actor}</span>{" "}

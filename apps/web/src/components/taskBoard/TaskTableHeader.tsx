@@ -261,7 +261,7 @@ function HeaderCell(
         aria-roledescription={frozen ? undefined : "movable column"}
         aria-label={frozen ? label : `${label}. Press Space to move the column.`}
         className={cn(
-          "flex h-full min-w-0 flex-1 items-center gap-1.5 pl-2 font-medium text-muted-foreground text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset [&_svg]:size-3.5 [&_svg]:shrink-0",
+          "flex h-full min-w-0 flex-1 items-center gap-1.5 pl-2 font-medium text-muted-foreground text-xs outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-inset [&_svg]:size-3.5 [&_svg]:shrink-0",
           !frozen && "cursor-grab active:cursor-grabbing",
         )}
       >
@@ -274,7 +274,7 @@ function HeaderCell(
             <button
               type="button"
               aria-label={`${label} column options`}
-              className="mr-1 grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity duration-150 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset group-hover/head:opacity-100 data-[popup-open]:opacity-100"
+              className="mr-1 grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity duration-150 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-inset group-hover/head:opacity-100 data-[popup-open]:opacity-100"
             />
           }
         >

@@ -153,7 +153,7 @@ const TaskRow = memo(function TaskRow({
       </Button>
       <button
         aria-current={selected ? "true" : undefined}
-        className="flex min-h-9 min-w-0 flex-1 cursor-pointer items-center gap-3 py-1.5 text-left outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="flex min-h-9 min-w-0 flex-1 cursor-pointer items-center gap-3 py-1.5 text-left outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-inset"
         data-row-id={task.id}
         onClick={() => onSelect(task)}
         tabIndex={tabbable ? 0 : -1}
@@ -291,7 +291,7 @@ function GroupHeader({
     <div role="listitem">
       <button
         aria-expanded={expanded}
-        className="sticky top-0 z-10 flex h-8 w-full cursor-pointer items-center gap-2 border-b bg-background px-3 text-left font-medium text-muted-foreground text-xs outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="sticky top-0 z-10 flex h-8 w-full cursor-pointer items-center gap-2 border-b bg-background px-3 text-left font-medium text-muted-foreground text-xs outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-inset"
         onClick={() => onToggle(group.key)}
         type="button"
       >

@@ -31,7 +31,7 @@ function Tile(props: {
     <button
       type="button"
       onClick={props.onClick}
-      className="flex min-w-0 items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 text-left outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="flex min-w-0 items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 text-left outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30"
     >
       <span className="w-10 shrink-0 text-2xl font-semibold tabular-nums">{props.count}</span>
       <span className="min-w-0 flex-1">
@@ -146,7 +146,7 @@ export const FocusSection = memo(function FocusSection(props: {
                     <button
                       type="button"
                       onClick={() => onSelect(task)}
-                      className="grid w-full grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 px-2 py-2.5 text-left text-sm outline-none hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      className="grid w-full grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 px-2 py-2.5 text-left text-sm outline-none hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/30"
                     >
                       <span className="text-xs text-muted-foreground tabular-nums">
                         {index + 2}

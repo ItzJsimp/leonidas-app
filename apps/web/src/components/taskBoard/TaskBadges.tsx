@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 
 import { Badge } from "~/components/ui/badge";
+
+import { TONE_CLASS } from "./TaskTableCells";
 import {
   formatDue,
   priorityLabel,
@@ -18,34 +20,20 @@ import {
   statusLabel,
   statusTone,
   taskFlags,
-  type TaskTone,
 } from "./taskBoard.logic";
-
-const BADGE_VARIANT = {
-  neutral: "outline",
-  info: "info",
-  warning: "warning",
-  danger: "error",
-  success: "success",
-  muted: "secondary",
-} as const satisfies Record<
-  TaskTone,
-  "outline" | "info" | "warning" | "error" | "success" | "secondary"
->;
 
 export function StatusBadge({ status }: { readonly status: TaskBoardTaskStatus }) {
   return (
-    <Badge variant={BADGE_VARIANT[statusTone(status)]}>
+    <Badge className={TONE_CLASS[statusTone(status)]}>
       {status === "blocked" ? <BanIcon /> : null}
       {statusLabel(status)}
     </Badge>
   );
 }
 
-// Red stays for overdue and the main button, so urgency shows as an arrow, not a color.
 export function PriorityBadge({ priority }: { readonly priority: TaskBoardTaskPriority }) {
   return (
-    <Badge variant={BADGE_VARIANT[priorityTone(priority)]}>
+    <Badge className={TONE_CLASS[priorityTone(priority)]}>
       {priority === "critical" ? (
         <ChevronsUpIcon />
       ) : priority === "high" ? (
@@ -68,7 +56,7 @@ export function DueChip({
   if (!text) return null;
   const overdue = text.startsWith("Overdue");
   return (
-    <Badge variant={overdue ? "error" : "outline"}>
+    <Badge className={overdue ? TONE_CLASS.danger : TONE_CLASS.neutral}>
       {overdue ? <CircleAlertIcon /> : <CalendarClockIcon />}
       {text}
     </Badge>
@@ -83,7 +71,7 @@ export function SharedBadge({
 }) {
   if (!task.shared) return null;
   return (
-    <Badge variant="info">
+    <Badge className={TONE_CLASS.info}>
       <UsersIcon />
       {task.sharedBy ? `Shared by ${task.sharedBy}` : "Shared"}
     </Badge>
@@ -125,13 +113,13 @@ export function TaskFlagChips({
   return (
     <>
       {flags.stale ? (
-        <Badge variant="warning">
+        <Badge className={TONE_CLASS.warning}>
           <ClockAlertIcon />
           Stale
         </Badge>
       ) : null}
       {flags.noGates ? (
-        <Badge variant="outline">
+        <Badge className={TONE_CLASS.muted}>
           <CircleDashedIcon />
           No gates
         </Badge>
