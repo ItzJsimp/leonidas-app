@@ -706,12 +706,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["enter return command ctrl multiline prompt new line composer"],
   },
   {
-    id: "efficiency-profile",
-    title: "Efficiency profile",
-    to: "/settings/threads",
-    searchTerms: ["economy balanced max tokens cost cheap routing model saving efficient"],
-  },
-  {
     id: "follow-up-behavior",
     title: "Sending a message during a reply",
     to: "/settings/chat",

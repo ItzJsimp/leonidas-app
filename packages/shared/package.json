@@ -303,10 +303,6 @@
       "types": "./src/composerInlineTokens.ts",
       "import": "./src/composerInlineTokens.ts"
     },
-    "./efficiencyProfile": {
-      "types": "./src/efficiencyProfile.ts",
-      "import": "./src/efficiencyProfile.ts"
-    },
     "./turnLedger": {
       "types": "./src/turnLedger.ts",
       "import": "./src/turnLedger.ts"

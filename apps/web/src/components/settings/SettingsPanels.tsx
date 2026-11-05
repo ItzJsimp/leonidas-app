@@ -68,7 +68,6 @@ import {
   SidebarProjectSortOrder,
 } from "@t3tools/contracts/settings";
 import { resolveServerBackgroundActivitySettings } from "@t3tools/shared/backgroundActivitySettings";
-import { EFFICIENCY_PROFILES } from "@t3tools/shared/efficiencyProfile";
 import { createModelSelection } from "@t3tools/shared/model";
 import { EFFECTIVE_SERVER_SETTINGS_DEFAULTS } from "@t3tools/shared/serverSettings";
 import * as Duration from "effect/Duration";
@@ -756,9 +755,6 @@ export function useSettingsRestore(onRestored?: () => void) {
         ? ["Rich text message box"]
         : []),
       ...(settings.sendShortcut !== DEFAULT_UNIFIED_SETTINGS.sendShortcut ? ["Send shortcut"] : []),
-      ...(settings.efficiencyProfile !== DEFAULT_UNIFIED_SETTINGS.efficiencyProfile
-        ? ["Efficiency profile"]
-        : []),
       ...(settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior
         ? ["Sending a message during a reply"]
         : []),
@@ -829,7 +825,6 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.composerRichTextEnabled,
       settings.sendShortcut,
       settings.followUpBehavior,
-      settings.efficiencyProfile,
       settings.addProjectBaseDirectory,
       settings.defaultThreadEnvMode,
       settings.newWorktreesStartFromOrigin,
@@ -968,8 +963,6 @@ export function useSettingsRestore(onRestored?: () => void) {
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
       sendShortcut: DEFAULT_UNIFIED_SETTINGS.sendShortcut,
       followUpBehavior: DEFAULT_UNIFIED_SETTINGS.followUpBehavior,
-      efficiencyProfile: DEFAULT_UNIFIED_SETTINGS.efficiencyProfile,
-      composerAutoRoutePreference: DEFAULT_UNIFIED_SETTINGS.composerAutoRoutePreference,
       environmentIdentificationMode: DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode,
       glassOpacity: DEFAULT_UNIFIED_SETTINGS.glassOpacity,
       panelAnimationDurationMs: DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs,
@@ -3470,55 +3463,6 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
           </SettingsSection>
           <SettingsSection id="behavior" title="AI">
             <ReasoningEffortSettings />
-            <SettingsRow
-              {...searchableSetting("efficiency-profile")}
-              description={EFFICIENCY_PROFILES[settings.efficiencyProfile].description}
-              resetAction={
-                settings.efficiencyProfile !== DEFAULT_UNIFIED_SETTINGS.efficiencyProfile ? (
-                  <SettingResetButton
-                    label="efficiency profile"
-                    onClick={() =>
-                      updateSettings({
-                        efficiencyProfile: DEFAULT_UNIFIED_SETTINGS.efficiencyProfile,
-                        composerAutoRoutePreference:
-                          EFFICIENCY_PROFILES[DEFAULT_UNIFIED_SETTINGS.efficiencyProfile]
-                            .routePreference,
-                      })
-                    }
-                  />
-                ) : null
-              }
-              control={
-                <Select
-                  value={settings.efficiencyProfile}
-                  onValueChange={(value) => {
-                    if (value === "economy" || value === "balanced" || value === "max") {
-                      updateSettings({
-                        efficiencyProfile: value,
-                        composerAutoRoutePreference: EFFICIENCY_PROFILES[value].routePreference,
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="w-auto min-w-0"
-                    aria-label="Efficiency profile"
-                  >
-                    <SelectValue>
-                      {EFFICIENCY_PROFILES[settings.efficiencyProfile].label}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectPopup align="end" alignItemWithTrigger={false}>
-                    {(["economy", "balanced", "max"] as const).map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {EFFICIENCY_PROFILES[value].label}
-                      </SelectItem>
-                    ))}
-                  </SelectPopup>
-                </Select>
-              }
-            />
             <SettingsRow
               serverScoped
               settingKeys={["textGenerationModelSelection"]}

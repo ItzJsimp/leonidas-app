@@ -88,7 +88,7 @@ access, and no Claude subscription is required.
 Leonidas Code discovers OpenRouter's tool-capable text models and current token prices
 automatically. **OpenRouter Free Model Router** is the default and routes to an available
 free model; paid models are billed per token by OpenRouter. You can select any discovered
-model in the chat model picker or choose Leonidas Autorouter with the **Lowest cost** goal.
+model in the chat model picker.
 
 The model list refreshes periodically. Use **Add custom model** for a model that is not
 listed, and check OpenRouter's activity page to see the model and cost for each request.
