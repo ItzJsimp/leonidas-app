@@ -164,7 +164,7 @@ export const TONE_CLASS: Record<TaskTone, string> = {
   neutral: "bg-zinc-500 text-white",
   muted: "bg-zinc-500 text-white",
   info: "bg-blue-600 text-white",
-  warning: "bg-amber-500 text-white",
+  warning: "bg-amber-600 text-white",
   danger: "bg-red-600 text-white",
   success: "bg-emerald-600 text-white",
 };
