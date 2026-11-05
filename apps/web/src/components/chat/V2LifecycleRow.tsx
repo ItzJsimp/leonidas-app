@@ -768,9 +768,12 @@ export function ModelSwitchRow(props: {
     return [change.modelChanged ? modelName : null, effort].filter(Boolean).join(" ");
   };
   const { from, to } = props.modelSwitch;
+  // One quiet line, no rules, so a switch takes the space of a caption.
   return (
-    <TimelineSystemDivider
-      label={`${describe(from, change.effort?.from)} → ${describe(to, change.effort?.to)}`}
-    />
+    <div className="flex min-w-0 justify-center py-0.5 text-2xs text-muted-foreground/60">
+      <span className="truncate">
+        {describe(from, change.effort?.from)} → {describe(to, change.effort?.to)}
+      </span>
+    </div>
   );
 }
