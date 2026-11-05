@@ -108,6 +108,9 @@ export const ModelListRow = memo(function ModelListRow(props: {
                   props.preferShortName ? { preferShortName: true } : undefined,
                 )}
           </div>
+          {props.showSelection && props.isSelected ? (
+            <CheckIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          ) : null}
           {props.showNewBadge ? (
             <span
               className="shrink-0 rounded border border-update/35 bg-update/15 px-0.5 py-px text-3xs font-bold uppercase leading-none tracking-wide text-update-foreground"
@@ -173,13 +176,6 @@ export const ModelListRow = memo(function ModelListRow(props: {
             {props.isFavorite ? "Remove from favorites" : "Add to favorites"}
           </TooltipPopup>
         </Tooltip>
-        {/* Last, and always reserved, so stars and the check keep fixed columns. */}
-        {props.showSelection ? (
-          <CheckIcon
-            className={cn("size-3.5", !props.isSelected && "invisible")}
-            aria-hidden="true"
-          />
-        ) : null}
       </div>
     </ComboboxItem>
   );

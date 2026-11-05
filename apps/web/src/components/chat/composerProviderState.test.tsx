@@ -490,6 +490,34 @@ describe("provider traits render guards", () => {
     expect(renderProviderReasoningColumn(args)).toBeNull();
   });
 
+  it("does not list Ultrathink as a level in the picker column", () => {
+    const models = modelWith([
+      selectDescriptor(
+        "effort",
+        [
+          { id: "low", label: "Low" },
+          { id: "high", label: "High", isDefault: true },
+          { id: "ultrathink", label: "Ultrathink" },
+        ],
+        ["ultrathink"],
+      ),
+    ]);
+    const markup = renderToStaticMarkup(
+      renderProviderReasoningColumn({
+        provider: PROVIDER,
+        model: MODEL,
+        models,
+        modelOptions: undefined,
+        prompt: "",
+        onPromptChange: () => {},
+        planModeEnabled: true,
+        draftId: DraftId.make("reasoning-ultrathink"),
+      }),
+    );
+    expect(markup).toContain("High");
+    expect(markup).not.toContain("Ultrathink");
+  });
+
   it("lists the effort levels of the model in the picker column", () => {
     const models = modelWith([
       selectDescriptor("effort", [

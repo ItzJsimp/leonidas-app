@@ -92,7 +92,10 @@ export const PickerReasoningColumn = memo(function PickerReasoningColumn(
   if (!hasAnyControls || modelIsUnavailable) return null;
 
   const modelName = models.find((entry) => entry.slug === model)?.name ?? model;
-  const selects = selectDescriptors.filter((descriptor) => descriptor.options.length > 1);
+  // Ultrathink is typed in the prompt, so the column does not list it as a level.
+  const pickable = (descriptor: (typeof selectDescriptors)[number]) =>
+    descriptor.options.filter((option) => !descriptor.promptInjectedValues?.includes(option.id));
+  const selects = selectDescriptors.filter((descriptor) => pickable(descriptor).length > 1);
   if (selects.length === 0 && booleanDescriptors.length === 0) return null;
 
   return (
@@ -112,7 +115,7 @@ export const PickerReasoningColumn = memo(function PickerReasoningColumn(
             label={descriptor.label}
             hint={isPrimary ? modelName : undefined}
             disabled={isPrimary && ultrathinkInBodyText}
-            choices={descriptor.options.map((option) => ({
+            choices={pickable(descriptor).map((option) => ({
               id: option.id,
               label: option.label,
               selected: option.id === current,
