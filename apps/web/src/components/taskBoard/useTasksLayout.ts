@@ -4,7 +4,7 @@ import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWork
 import { aiosWorkspaceTasksLayoutSet } from "~/state/aiosWorkspaces";
 import { useAtomCommand } from "~/state/use-atom-command";
 
-import { parseLayout, type TasksLayout } from "./taskLayout.logic";
+import { commitView, parseLayout, showView, type TasksLayout } from "./taskLayout.logic";
 
 // Quick changes (several column moves) save once, after this pause.
 const SAVE_DELAY_MS = 400;
@@ -62,7 +62,12 @@ export function useTasksLayout(): TasksLayoutState {
 
   const update = useCallback(
     (change: (layout: TasksLayout) => TasksLayout) => {
-      const next = change(latest.current.local ?? latest.current.saved);
+      // `change` sees the shown layout: an open saved view's columns, not the default view's.
+      const raw = latest.current.local ?? latest.current.saved;
+      const shown = showView(raw);
+      const changed = change(shown);
+      if (changed === shown) return;
+      const next = commitView(raw, shown, changed);
       latest.current.local = next;
       setLocal(next);
       if (timer.current) clearTimeout(timer.current);
@@ -82,5 +87,6 @@ export function useTasksLayout(): TasksLayoutState {
     [flush],
   );
 
-  return { layout: local ?? saved, update, canSave };
+  const layout = useMemo(() => showView(local ?? saved), [local, saved]);
+  return { layout, update, canSave };
 }

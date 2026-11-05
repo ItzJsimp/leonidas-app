@@ -25,7 +25,7 @@ import { SidebarInset } from "~/components/ui/sidebar";
 import { Spinner } from "~/components/ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { isElectron } from "~/env";
-import { cn } from "~/lib/utils";
+import { cn, randomUUID } from "~/lib/utils";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useEnvironmentQuery } from "~/state/query";
 import { taskBoardCardCreate, taskSchemaQuery, workspaceOrgQuery } from "~/state/taskBoard";
@@ -56,6 +56,8 @@ import {
   DEFAULT_TASKS_PREFS,
   TASKS_PREFS_KEY,
   activeFilterCount,
+  isResetPrefs,
+  resetPrefs,
   landingPrefs,
   parseTasksPrefs,
   prefsForList,
@@ -79,12 +81,27 @@ import { TaskTableView } from "./TaskTable";
 import { TaskViewTabs } from "./TaskViewTabs";
 import { TaskPropertiesMenu } from "./TaskPropertiesMenu";
 import type { LayoutChange } from "./TaskTableHeader";
-import { moveRank, pruneRanks, setColumnHidden, type TasksLayout } from "./taskLayout.logic";
+import {
+  DEFAULT_LAYOUT,
+  activeView,
+  deleteView,
+  moveRank,
+  openView,
+  pruneRanks,
+  resetLayout,
+  saveView,
+  setColumnHidden,
+  setViewPinned,
+  updateViewPrefs,
+  type TasksLayout,
+} from "./taskLayout.logic";
+import { SavedViewTabs, SavedViewsMenu } from "./TaskSavedViews";
 import { ALL_GROUPS, type GroupOverrides, type RowMovePlan } from "./taskRows";
 import type { PendingEdit } from "./taskUndo.logic";
 
 const NO_PENDING: ReadonlyMap<string, PendingEdit> = new Map();
 const NO_SCHEMA: ReadonlyArray<TaskSchemaProperty> = [];
+const DEFAULT_TABLE_JSON = JSON.stringify(DEFAULT_LAYOUT.table);
 import { useTaskBoard } from "./useTaskBoard";
 
 function readSavedPrefs(): TasksPrefs {
@@ -142,7 +159,20 @@ function SyncStatus(props: {
 }
 
 export function TasksPage() {
-  const [prefs, setPrefs] = useState<TasksPrefs>(readSavedPrefs);
+  const [basePrefs, setBasePrefs] = useState<TasksPrefs>(readSavedPrefs);
+  const tasksLayout = useTasksLayout();
+  const { update: updateLayout } = tasksLayout;
+  const openSaved = activeView(tasksLayout.layout);
+  const viewIsOpen = openSaved !== null;
+  // An open saved view shows its own filters, sort and grouping, and changes save into it.
+  const prefs = openSaved?.prefs ?? basePrefs;
+  const setPrefs = useCallback(
+    (change: (current: TasksPrefs) => TasksPrefs) => {
+      if (viewIsOpen) updateLayout((layout) => updateViewPrefs(layout, change));
+      else setBasePrefs(change);
+    },
+    [updateLayout, viewIsOpen],
+  );
   const { width: railWidth, handle: railHandle } = useRailWidth();
   const [query, setQuery] = useState("");
   const [groupFold, setGroupFold] = useState<GroupOverrides>({});
@@ -181,8 +211,6 @@ export function TasksPage() {
   );
   const schema = schemaQuery.data?.properties ?? NO_SCHEMA;
   const undo = useTaskUndo();
-  const tasksLayout = useTasksLayout();
-  const { update: updateLayout } = tasksLayout;
   // Schema properties show as hidden columns until one is shown.
   const shownLayout = useMemo(
     () => withSchemaColumns(tasksLayout.layout, schema),
@@ -200,8 +228,8 @@ export function TasksPage() {
     (property: TaskSchemaProperty) => setPropertyTarget({ property }),
     [],
   );
-  // Every layout change is one undo step that puts back only the parts it changed (the columns,
-  // the row order, or both), so undoing a row move keeps a later column change.
+  // Every layout change is one undo step that puts back only the parts it changed (columns, row
+  // order, saved views), so undoing a row move keeps a later column change.
   const changeLayout = useCallback<LayoutChange>(
     (label, change, options) => {
       let before: TasksLayout | null = null;
@@ -217,6 +245,8 @@ export function TasksPage() {
       const changed = (layout: TasksLayout): Partial<TasksLayout> => ({
         ...(from.table !== to.table ? { table: layout.table } : {}),
         ...(from.ranks !== to.ranks ? { ranks: layout.ranks } : {}),
+        ...(from.views !== to.views ? { views: layout.views } : {}),
+        ...(from.activeViewId !== to.activeViewId ? { activeViewId: layout.activeViewId } : {}),
       });
       const [old, next] = [changed(from), changed(to)];
       if (Object.keys(old).length === 0) return;
@@ -278,15 +308,16 @@ export function TasksPage() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(TASKS_PREFS_KEY, JSON.stringify(prefs));
+      window.localStorage.setItem(TASKS_PREFS_KEY, JSON.stringify(basePrefs));
     } catch {
       // Preferences are a convenience; a full or blocked store must not break the page.
     }
-  }, [prefs]);
+  }, [basePrefs]);
 
-  const patchPrefs = useCallback((patch: Partial<TasksPrefs>) => {
-    setPrefs((current) => ({ ...current, ...patch }));
-  }, []);
+  const patchPrefs = useCallback(
+    (patch: Partial<TasksPrefs>) => setPrefs((current) => ({ ...current, ...patch })),
+    [setPrefs],
+  );
   // Search and quick add live in the Table and Board views.
   const showListView = useCallback(
     () =>
@@ -295,7 +326,7 @@ export function TasksPage() {
           ? current
           : { ...current, view: "table" },
       ),
-    [],
+    [setPrefs],
   );
   useFocusShortcut("/", "[data-tasks-search]", showListView);
   useFocusShortcut("n", "[data-tasks-quick-add]", showListView);
@@ -407,12 +438,42 @@ export function TasksPage() {
               : (railEntry?.name ?? "All tasks");
   const openInLens = board.scopedTasks.filter(isOpen).length;
   const changeView = (view: TasksView) => {
-    patchPrefs(
+    const patch: Partial<TasksPrefs> =
       view === "roadmap"
         ? { view, focus: "all", section: prefs.section ?? "leonidas-code" }
-        : { view },
-    );
+        : { view };
+    // A kind tab leaves the open saved view for the default view in that kind.
+    if (viewIsOpen) {
+      updateLayout((layout) => openView(layout, null));
+      setBasePrefs((current) => ({ ...current, ...patch }));
+    } else patchPrefs(patch);
     setSelectedId(null);
+  };
+  const openSavedView = useCallback(
+    (id: string | null) => {
+      updateLayout((layout) => openView(layout, id));
+      setSelectedId(null);
+    },
+    [updateLayout],
+  );
+  const viewName = (id: string) =>
+    tasksLayout.layout.views.find((view) => view.id === id)?.name ?? "view";
+  const atDefault =
+    !viewIsOpen &&
+    !query.trim() &&
+    isResetPrefs(basePrefs) &&
+    JSON.stringify(tasksLayout.layout.table) === DEFAULT_TABLE_JSON;
+  const resetToDefault = () => {
+    const [before, after] = [basePrefs, resetPrefs(basePrefs)];
+    undo.group("Reset to default", () => {
+      setBasePrefs(after);
+      undo.record("Reset to default", {
+        undo: async () => (setBasePrefs(before), true),
+        redo: async () => (setBasePrefs(after), true),
+      });
+      changeLayout("Reset to default", resetLayout);
+    });
+    setQuery("");
   };
   const defaultDue =
     prefs.focus === "all" ? "" : (defaultDueForFocus(prefs.focus, board.now) ?? "");
@@ -631,10 +692,34 @@ export function TasksPage() {
               <div
                 role="tablist"
                 aria-label="View"
-                className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5"
+                className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg bg-muted p-0.5"
               >
-                <TaskViewTabs selected={prefs.view} onSelect={changeView} />
+                <TaskViewTabs selected={viewIsOpen ? null : prefs.view} onSelect={changeView} />
+                <SavedViewTabs
+                  views={tasksLayout.layout.views}
+                  activeId={tasksLayout.layout.activeViewId}
+                  onOpen={openSavedView}
+                />
               </div>
+              <SavedViewsMenu
+                views={tasksLayout.layout.views}
+                activeId={tasksLayout.layout.activeViewId}
+                onOpen={openSavedView}
+                onSave={(name) =>
+                  changeLayout(`Saved view: ${name}`, (layout) =>
+                    saveView(layout, randomUUID(), name, prefs),
+                  )
+                }
+                onPin={(id, pinned) =>
+                  changeLayout(`${pinned ? "Pinned" : "Unpinned"}: ${viewName(id)}`, (layout) =>
+                    setViewPinned(layout, id, pinned),
+                  )
+                }
+                onDelete={(id) =>
+                  changeLayout(`Deleted view: ${viewName(id)}`, (layout) => deleteView(layout, id))
+                }
+                onReset={atDefault ? null : resetToDefault}
+              />
               {/* Narrow panes: the two scope selects share a row, and search gets the next one. */}
               <div className="ml-auto flex min-w-0 flex-1 basis-64 flex-wrap items-center justify-start gap-1 @4xl/tasks:min-w-max @4xl/tasks:flex-nowrap @4xl/tasks:justify-end">
                 {prefs.view !== "roadmap" ? (

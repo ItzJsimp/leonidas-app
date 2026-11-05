@@ -8,6 +8,9 @@ import {
   activeQuickFilter,
   buildRailEntries,
   DEFAULT_TASKS_PREFS,
+  isResetPrefs,
+  resetPrefs,
+  type TasksPrefs,
   landingPrefs,
   openFirst,
   nextHidden,
@@ -357,5 +360,25 @@ describe("quick filters", () => {
     buildListGroups({ tasks: hits, sections: [], groupBy: "state", now });
     expect(hits.length).toBeGreaterThan(0);
     expect(performance.now() - start).toBeLessThan(100);
+  });
+});
+
+describe("resetPrefs", () => {
+  it("clears filters, sort and grouping but keeps the view kind and rail selection", () => {
+    const prefs: TasksPrefs = {
+      ...DEFAULT_TASKS_PREFS,
+      view: "board",
+      section: "leonidas-code",
+      focus: "all",
+      statuses: ["done"],
+      flag: "late",
+      sort: "title",
+      groupBy: "none",
+    };
+    expect(isResetPrefs(prefs)).toBe(false);
+    const reset = resetPrefs(prefs);
+    expect(reset).toMatchObject({ view: "board", section: "leonidas-code", focus: "all" });
+    expect(reset).toMatchObject({ statuses: null, flag: null, sort: "priority", groupBy: "state" });
+    expect(isResetPrefs(reset)).toBe(true);
   });
 });

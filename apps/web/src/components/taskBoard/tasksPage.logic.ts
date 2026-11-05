@@ -379,3 +379,12 @@ export function tasksInFocus(
 export function placeSharedOnlyIn(tasks: ReadonlyArray<TaskView>, slug: string): TaskView[] {
   return tasks.map((task) => (task.origin === "shared" ? { ...task, section: slug } : task));
 }
+
+/** Reset clears filters, sort and grouping. It keeps the view kind and the rail selection. */
+export function resetPrefs(prefs: TasksPrefs): TasksPrefs {
+  const { view, section, focus } = prefs;
+  return { ...DEFAULT_TASKS_PREFS, view, section, focus };
+}
+
+export const isResetPrefs = (prefs: TasksPrefs) =>
+  JSON.stringify(prefs) === JSON.stringify(resetPrefs(prefs));
