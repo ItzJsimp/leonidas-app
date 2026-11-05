@@ -1,0 +1,26 @@
+total self size MB: 132.7 -> 151.9
+    +bytes   +count  type/name
+   3442620    97063  object Object
+   2690368     1640  code system / InstructionStream
+   1101320    44210  native system / PropertyArray
+    833704     3677  code system / TrustedByteArray
+    399396     5994  array (object elements)
+    298172      608  array 
+    288640      896  code system / ProtectedFixedArray
+    265584     2012  string provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3A61b542d4-b
+    243200      100  object system / Context / scope @200289
+    240028     2609  string node:run:run%3Athread%3A61b542d4-b87f-46c3-a1cf-374fdf4eed5d%3Aordinal%3A3:root
+    186912     1062  string node:provider:codex:native-item:%5B%2201a12a57-696d-7fb2-bfc0-412494e944d6%22%2C
+    157716     2036  native system / WeakArrayList
+
+new ('object', 'Object') retained by: [('Array.[element]', 79966), ('Object.next', 48789), ('Object.entry', 25290), ('Object.memoizedState', 17483), ('system / PropertyArray.[hidden]', 14695), ('(object elements).0', 8691)]
+
+new ('code', 'system / InstructionStream') retained by: [('system / Code.instruction_stream', 1765), ('system / InstructionStream.[hidden]', 63)]
+
+new ('native', 'system / PropertyArray') retained by: [('Object.properties', 47998), ('SVGPathElement.properties', 191), ('SVGSVGElement.properties', 116), ('fn.properties', 114), ('Text.properties', 101), ('get.properties', 94)]
+
+new ('code', 'system / TrustedByteArray') retained by: [('system / InstructionStream.relocation_info', 1768), ('system / ProtectedFixedArray.[hidden]', 1490), ('system / Code.bytecode_offset_table', 718), ('system / Code.source_position_table', 11), ('system / BytecodeArray.[hidden]', 2)]
+
+new ('array', '(object elements)') retained by: [('Array.elements', 26693), ('Arguments.elements', 10), ('Object.elements', 2)]
+
+new ('array', '') retained by: [('Set.table', 1025), ('Map.table', 472), ('WeakMap.table', 214), ('system / InstructionStream.[hidden]', 41), ('system / ErrorStackData.[hidden]', 15), ('system / StackTraceInfo.[hidden]', 15)]
