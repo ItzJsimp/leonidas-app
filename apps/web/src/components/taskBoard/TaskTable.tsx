@@ -86,13 +86,22 @@ const ROW_TINT = "hover:bg-muted/45 data-[selected=true]:bg-accent/70";
 const STICKY_SURFACE =
   "bg-background before:absolute before:inset-0 before:-z-10 group-hover/row:before:bg-muted/45 group-data-[selected=true]/row:before:bg-accent/70";
 
-/** The grid template and total width of the shown columns, set once on the table as variables. */
-export function columnTemplate(columns: ReadonlyArray<ColumnLayout>) {
+// Jake (2026-11-04): a frozen Name takes at most this share of the table view, so the other
+// columns stay reachable on narrow windows. `cqi` is the table width (the grid is a container).
+const FROZEN_NAME_SHARE = 40;
+
+/** The grid template and total width (CSS lengths) of the shown columns, set on the table. */
+export function columnTemplate(columns: ReadonlyArray<ColumnLayout>, freezeName: boolean) {
   const shown = columns.filter((column) => !column.hidden);
-  const width = GUTTER + shown.reduce((sum, column) => sum + column.width, 0);
+  const capped = (column: ColumnLayout) => freezeName && column.key === "title";
+  const track = (column: ColumnLayout) =>
+    capped(column) ? `min(${column.width}px, ${FROZEN_NAME_SHARE}cqi)` : `${column.width}px`;
+  const fixed =
+    GUTTER + shown.reduce((sum, column) => sum + (capped(column) ? 0 : column.width), 0);
+  const name = shown.find(capped);
   return {
-    template: `${GUTTER}px ${shown.map((column) => `${column.width}px`).join(" ")} minmax(0, 1fr)`,
-    width,
+    template: `${GUTTER}px ${shown.map(track).join(" ")} minmax(0, 1fr)`,
+    width: name ? `calc(${fixed}px + ${track(name)})` : `${fixed}px`,
   };
 }
 
@@ -342,7 +351,10 @@ export function TaskTableView(props: {
   const [overrides, setOverrides] = useState<Readonly<Record<string, boolean>>>({});
 
   const columns = useMemo(() => table.columns.filter((column) => !column.hidden), [table.columns]);
-  const { template, width } = useMemo(() => columnTemplate(table.columns), [table.columns]);
+  const { template, width } = useMemo(
+    () => columnTemplate(table.columns, table.freezeName),
+    [table.columns, table.freezeName],
+  );
   const wrap = useMemo(() => new Set(table.wrap), [table.wrap]);
   const rowHeight = table.rowHeight ?? ROW_HEIGHT[table.density];
 
@@ -691,8 +703,11 @@ export function TaskTableView(props: {
       onPointerMove={onMoveRow ? showGrip : undefined}
       onPointerLeave={hideGrip}
       onScrollCapture={hideGrip}
-      className={cn("relative h-full min-h-0", drag && "select-none [&_*]:cursor-grabbing!")}
-      style={{ "--task-cols": template, "--task-width": `${width}px` } as CSSProperties}
+      className={cn(
+        "relative h-full min-h-0 [container-type:inline-size]",
+        drag && "select-none [&_*]:cursor-grabbing!",
+      )}
+      style={{ "--task-cols": template, "--task-width": width } as CSSProperties}
     >
       <LegendList<ListItem>
         ref={virtualRef}
