@@ -1,5 +1,5 @@
 // @effect-diagnostics preferSchemaOverJson:off
-import { OPENROUTER_DRIVER_KIND } from "@t3tools/contracts";
+import { OPENROUTER_DRIVER_KIND, type VoiceError } from "@t3tools/contracts";
 import {
   buildSkillPickPrompt,
   sanitizeSkillPicks,
@@ -7,10 +7,15 @@ import {
   type SkillPickCandidate,
 } from "@t3tools/provider-core/server/skillPick";
 import { extractJsonObject } from "@t3tools/shared/schemaJson";
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import type * as ServerSettings from "../serverSettings.ts";
 import type { TextGeneration } from "../textGeneration/TextGeneration.ts";
+
+class SkillPickRequestError extends Data.TaggedError("SkillPickRequestError")<{
+  readonly cause: unknown;
+}> {}
 
 /** The whole pick must not keep a click waiting longer than this. */
 export const SKILL_PICK_TOTAL_MS = 12_000;
@@ -110,7 +115,7 @@ export function make(
   serverSettings: ServerSettings.ServerSettingsService["Service"],
   deps: {
     /** The Groq key Scribe saved in the OS vault. */
-    readonly groqKey: Effect.Effect<Option.Option<string>, unknown>;
+    readonly groqKey: Effect.Effect<Option.Option<string>, VoiceError>;
     readonly fetch?: typeof fetch;
     readonly now?: () => number;
   },
@@ -145,7 +150,7 @@ export function make(
         const picks = readPicks(await response.text());
         return picks ? { ok: true, picks } : { ok: false, status: null };
       },
-      catch: (cause) => cause,
+      catch: (cause) => new SkillPickRequestError({ cause }),
     }).pipe(
       Effect.timeout(timeoutMs),
       // A network error, a timeout or an unreadable answer all mean "try the next engine".
