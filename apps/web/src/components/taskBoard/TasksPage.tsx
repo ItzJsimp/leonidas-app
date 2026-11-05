@@ -77,7 +77,7 @@ import { TaskTableView } from "./TaskTable";
 import { TaskPropertiesMenu } from "./TaskPropertiesMenu";
 import type { LayoutChange } from "./TaskTableHeader";
 import { moveRank, pruneRanks, setColumnHidden, type TasksLayout } from "./taskLayout.logic";
-import type { RowMovePlan } from "./taskRows";
+import { ALL_GROUPS, type GroupOverrides, type RowMovePlan } from "./taskRows";
 import type { PendingEdit } from "./taskUndo.logic";
 
 const NO_PENDING: ReadonlyMap<string, PendingEdit> = new Map();
@@ -154,6 +154,13 @@ export function TasksPage() {
   const [prefs, setPrefs] = useState<TasksPrefs>(readSavedPrefs);
   const { width: railWidth, handle: railHandle } = useRailWidth();
   const [query, setQuery] = useState("");
+  const [groupFold, setGroupFold] = useState<GroupOverrides>({});
+  const [foldGroupBy, setFoldGroupBy] = useState(prefs.groupBy);
+  // A new grouping starts with every group at its default.
+  if (foldGroupBy !== prefs.groupBy) {
+    setFoldGroupBy(prefs.groupBy);
+    setGroupFold({});
+  }
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -509,6 +516,8 @@ export function TasksPage() {
         sections={board.sections}
         // Search hits show as one flat list so none hide inside a folded group.
         groupBy={prefs.groupBy === "state" && query.trim() ? "none" : prefs.groupBy}
+        overrides={groupFold}
+        onOverridesChange={setGroupFold}
         context={context}
         actions={actions}
         selectedId={selectedId}
@@ -522,6 +531,8 @@ export function TasksPage() {
         tasks={board.visibleTasks}
         sections={board.sections}
         groupBy={prefs.groupBy === "state" && query.trim() ? "none" : prefs.groupBy}
+        overrides={groupFold}
+        onOverridesChange={setGroupFold}
         layout={shownLayout}
         onLayoutChange={changeLayout}
         onMoveRow={inPractice ? undefined : moveRow}
@@ -669,6 +680,7 @@ export function TasksPage() {
                     onQueryChange={setQuery}
                     onPrefsChange={patchPrefs}
                     showGroupBy={listLike}
+                    onFoldAll={(open) => setGroupFold({ [ALL_GROUPS]: open })}
                     showClosedToggle={listLike}
                   />
                 ) : null}

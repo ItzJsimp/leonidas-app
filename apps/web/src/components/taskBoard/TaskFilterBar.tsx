@@ -10,6 +10,7 @@ import {
   MenuCheckboxItem,
   MenuGroup,
   MenuGroupLabel,
+  MenuItem,
   MenuPopup,
   MenuRadioGroup,
   MenuRadioItem,
@@ -64,6 +65,8 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
   readonly onPrefsChange: (patch: Partial<TasksPrefs>) => void;
   /** Group-by only applies to the List view. */
   readonly showGroupBy: boolean;
+  /** Opens (true) or folds (false) every group. */
+  readonly onFoldAll: (open: boolean) => void;
   /** The Board always shows its Done column, so it has no closed-work toggle. */
   readonly showClosedToggle: boolean;
 }) {
@@ -252,6 +255,13 @@ export const TaskFilterBar = memo(function TaskFilterBar(props: {
                 ))}
               </MenuRadioGroup>
             </MenuGroup>
+            {prefs.groupBy === "none" ? null : (
+              <>
+                <MenuSeparator />
+                <MenuItem onClick={() => props.onFoldAll(false)}>Collapse all</MenuItem>
+                <MenuItem onClick={() => props.onFoldAll(true)}>Expand all</MenuItem>
+              </>
+            )}
           </MenuPopup>
         </Menu>
       ) : null}

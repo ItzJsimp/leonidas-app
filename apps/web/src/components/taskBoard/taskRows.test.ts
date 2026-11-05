@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { groupBySection, type TaskView } from "./taskBoard.logic";
 import {
+  ALL_GROUPS,
   buildListGroups,
   capByRecency,
   COLUMN_PAGE,
@@ -187,6 +188,15 @@ describe("buildListGroups", () => {
       "b",
       "c",
     ]);
+  });
+
+  it("collapses or expands every group at once, and one group can still differ", () => {
+    const groups = buildListGroups({ tasks, sections: [], groupBy: "status" });
+    const shownTasks = (overrides: Record<string, boolean>) =>
+      flattenGroups(groups, overrides).filter((item) => item.kind === "task").length;
+    expect(shownTasks({ [ALL_GROUPS]: false })).toBe(0);
+    expect(visibleTaskIds(groups, { [ALL_GROUPS]: true })).toEqual(["a", "d", "b", "c"]);
+    expect(visibleTaskIds(groups, { [ALL_GROUPS]: false, "status:todo": true })).toEqual(["a"]);
   });
 
   it("groups by priority, most urgent first, empty groups dropped", () => {

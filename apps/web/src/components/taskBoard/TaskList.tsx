@@ -15,8 +15,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type FocusEvent,
   type KeyboardEvent,
+  type SetStateAction,
 } from "react";
 import { flushSync } from "react-dom";
 
@@ -62,6 +64,7 @@ import {
   sameMember,
   visibleTaskIds,
   type ListGroup,
+  type GroupOverrides,
   type ListItem,
   type ListNavigationKey,
 } from "./taskRows";
@@ -319,6 +322,9 @@ export function TaskListView(props: {
   tasks: ReadonlyArray<TaskView>;
   sections: ReadonlyArray<TaskSectionGroup>;
   groupBy: TaskListGroupBy;
+  /** Folded and opened groups. The page keeps them, so "Collapse all" reaches every view. */
+  overrides: GroupOverrides;
+  onOverridesChange: Dispatch<SetStateAction<GroupOverrides>>;
   context: TaskContext;
   actions: TaskActions;
   selectedId: string | null;
@@ -330,7 +336,7 @@ export function TaskListView(props: {
   const onSelectRef = useLatest(props.onSelect);
   const listRef = useRef<HTMLDivElement>(null);
   const virtualRef = useRef<LegendListRef | null>(null);
-  const [overrides, setOverrides] = useState<Readonly<Record<string, boolean>>>({});
+  const { overrides, onOverridesChange: setOverrides } = props;
 
   const groups = useMemo(
     () => buildListGroups({ tasks, sections, groupBy, team: context.team, now: context.now }),
@@ -361,7 +367,7 @@ export function TaskListView(props: {
       if (!group) return;
       setOverrides((current) => ({ ...current, [key]: !isGroupExpanded(group, current) }));
     },
-    [groups],
+    [groups, setOverrides],
   );
   const runAction = useCallback(
     (task: TaskView, action: RowAction) => {

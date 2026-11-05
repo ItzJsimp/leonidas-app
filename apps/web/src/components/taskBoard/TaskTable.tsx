@@ -14,8 +14,10 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type Dispatch,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
 } from "react";
 
 import { cn } from "~/lib/utils";
@@ -63,6 +65,7 @@ import {
   withManualOrder,
   type ListGroup,
   type ListItem,
+  type GroupOverrides,
   type ListNavigationKey,
   type RowDrop,
   type RowMovePlan,
@@ -329,6 +332,9 @@ export function TaskTableView(props: {
   readonly tasks: ReadonlyArray<TaskView>;
   readonly sections: ReadonlyArray<TaskSectionGroup>;
   readonly groupBy: TaskListGroupBy;
+  /** Folded and opened groups. The page keeps them, so "Collapse all" reaches every view. */
+  readonly overrides: GroupOverrides;
+  readonly onOverridesChange: Dispatch<SetStateAction<GroupOverrides>>;
   readonly layout: TasksLayout;
   readonly context: TaskContext;
   readonly actions: TaskActions;
@@ -349,7 +355,7 @@ export function TaskTableView(props: {
   const onSelectRef = useLatest(props.onSelect);
   const gridRef = useRef<HTMLDivElement>(null);
   const virtualRef = useRef<LegendListRef | null>(null);
-  const [overrides, setOverrides] = useState<Readonly<Record<string, boolean>>>({});
+  const { overrides, onOverridesChange: setOverrides } = props;
 
   const columns = useMemo(() => table.columns.filter((column) => !column.hidden), [table.columns]);
   const { template, width } = useMemo(
@@ -493,7 +499,7 @@ export function TaskTableView(props: {
       if (group)
         setOverrides((current) => ({ ...current, [key]: !isGroupExpanded(group, current) }));
     },
-    [groups],
+    [groups, setOverrides],
   );
 
   const focusRow = (id: string) =>

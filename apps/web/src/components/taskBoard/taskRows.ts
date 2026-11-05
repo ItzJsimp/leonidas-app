@@ -281,8 +281,14 @@ export function buildListGroups(input: {
     }));
 }
 
+/** Group keys the user folded (false) or opened (true), over each group's default. */
+export type GroupOverrides = Readonly<Record<string, boolean>>;
+
+/** The override key that "Collapse all" and "Expand all" set; one group's own key still wins. */
+export const ALL_GROUPS = "*";
+
 export function isGroupExpanded(group: ListGroup, overrides: Readonly<Record<string, boolean>>) {
-  return overrides[group.key] ?? group.defaultOpen;
+  return overrides[group.key] ?? overrides[ALL_GROUPS] ?? group.defaultOpen;
 }
 
 /** One row of the flat, virtualized list: a group header or a task. */
