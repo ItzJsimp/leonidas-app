@@ -6,6 +6,7 @@ import {
   cellChange,
   cellEdit,
   columnProperty,
+  listOptions,
   optionTone,
   type CellEditor,
 } from "./taskCells.logic";
@@ -150,5 +151,18 @@ describe("cellChange", () => {
       "error",
     );
     expect(cellChange("due", task(), edit("due"), "11/04")).toHaveProperty("error");
+  });
+});
+
+describe("listOptions", () => {
+  it("shows the no-value row only before a search, so Enter picks the first match", () => {
+    expect(listOptions(edit("prop:lane"), "", "clear").map((o) => o.value)).toEqual([
+      "clear",
+      "draft",
+      "human",
+    ]);
+    expect(listOptions(edit("prop:lane"), " HUM", "clear").map((o) => o.value)).toEqual(["human"]);
+    expect(listOptions(edit("status"), "", "clear")[0]?.value).toBe("todo");
+    expect(listOptions(edit("title"), "", "clear")).toEqual([]);
   });
 });

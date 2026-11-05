@@ -249,3 +249,20 @@ export function cellChange(
     return { error: "Use a date like 2026-11-04." };
   return { type: "setProp", key, value: text || null };
 }
+
+/**
+ * The rows of a list editor for the search text. The "no value" row (`clearValue`) shows only
+ * before a search, so Enter picks the first match.
+ */
+export function listOptions(
+  editor: CellEditor,
+  search: string,
+  clearValue: string,
+): ReadonlyArray<CellOption> {
+  if (editor.kind !== "select" && editor.kind !== "multi") return [];
+  const query = search.trim().toLowerCase();
+  const matches = editor.options.filter((option) => option.label.toLowerCase().includes(query));
+  return editor.kind === "select" && editor.clearLabel !== null && !query
+    ? [{ value: clearValue, label: editor.clearLabel, tone: "muted" }, ...matches]
+    : matches;
+}

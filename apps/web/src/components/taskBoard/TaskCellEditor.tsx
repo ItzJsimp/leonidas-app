@@ -6,7 +6,7 @@ import { cn } from "~/lib/utils";
 
 import { useLatest } from "./TaskRowParts";
 import { OptionChip, PriorityMark, StatusPill } from "./TaskTableCells";
-import type { CellEditor, CellOption, CellValue } from "./taskCells.logic";
+import { listOptions, type CellEditor, type CellOption, type CellValue } from "./taskCells.logic";
 
 /** Where the editor opens: the cell box, relative to the table. */
 export type CellBox = {
@@ -70,15 +70,7 @@ export function TaskCellEditor({
   const listId = useId();
   const isList = editor.kind === "select" || editor.kind === "multi";
 
-  const query = text.trim().toLowerCase();
-  const options: ReadonlyArray<CellOption> = isList
-    ? [
-        ...(editor.kind === "select" && editor.clearLabel !== null
-          ? [{ value: CLEAR, label: editor.clearLabel, tone: "muted" as const }]
-          : []),
-        ...editor.options.filter((option) => option.label.toLowerCase().includes(query)),
-      ]
-    : [];
+  const options = listOptions(editor, text, CLEAR);
 
   const commit = (value: CellValue, close = true) => {
     const problem = onCommit(value, close);
