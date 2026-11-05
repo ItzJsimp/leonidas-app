@@ -34,7 +34,7 @@ import { TaskDashboardView } from "./TaskDashboard";
 import { useHiddenProjects } from "./useHiddenProjects";
 import { useFocusShortcut } from "./useFocusShortcut";
 import { TaskDetailPanel } from "./TaskDetail";
-import { TaskFilterBar } from "./TaskFilterBar";
+import { TaskFilterBar, TaskQuickFilters } from "./TaskFilterBar";
 import { TaskKanbanView } from "./TaskKanban";
 import { TaskPresenceProvider } from "./TaskPresence";
 import { RoadmapEmpty } from "./TaskEmptyStates";
@@ -706,6 +706,15 @@ export function TasksPage() {
                 <Button size="sm" variant="outline" onClick={practice.reset}>
                   Reset
                 </Button>
+              </div>
+            ) : null}
+            {listLike ? (
+              <div className="border-b border-border px-3 py-1.5">
+                <TaskQuickFilters
+                  prefs={prefs}
+                  counts={board.quickCounts}
+                  onPrefsChange={patchPrefs}
+                />
               </div>
             ) : null}
             {(listLike || prefs.view === "board") && !inPractice ? (

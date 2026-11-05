@@ -38,10 +38,12 @@ import {
 import {
   buildRailEntries,
   openFirst,
+  quickFilterCounts,
   searchBase,
   tasksInSection,
   tasksInFocus,
   toTaskFilters,
+  type QuickFilter,
   type RailEntry,
   type TasksPrefs,
 } from "./tasksPage.logic";
@@ -75,6 +77,8 @@ export type TaskBoardState = {
   readonly scopedTasks: ReadonlyArray<TaskView>;
   /** The selected section's tasks after filters and sorting. */
   readonly visibleTasks: ReadonlyArray<TaskView>;
+  /** Cards per quick-filter pill, with search, priority and sharing applied. */
+  readonly quickCounts: Readonly<Record<QuickFilter, number>>;
   readonly sections: TaskSectionGroup[];
   readonly rail: RailEntry[];
   readonly dashboard: TaskDashboard;
@@ -191,6 +195,11 @@ export function useTaskBoard(input: {
     );
     return query.trim() ? openFirst(found) : found;
   }, [allTasks, now, prefs, query, scopedTasks]);
+  const quickCounts = useMemo(() => {
+    const filters = toTaskFilters(prefs, query, now);
+    const base = { ...filters, statuses: null, flag: null, includeClosed: true };
+    return quickFilterCounts(filterTasks(searchBase(allTasks, scopedTasks, query), base), now);
+  }, [allTasks, now, prefs, query, scopedTasks]);
   const sections = useMemo(
     () => groupBySection(visibleTasks, projects, { hideEmpty: true }),
     [projects, visibleTasks],
@@ -215,6 +224,7 @@ export function useTaskBoard(input: {
     ownerOptions,
     scopedTasks,
     visibleTasks,
+    quickCounts,
     sections,
     rail,
     dashboard,

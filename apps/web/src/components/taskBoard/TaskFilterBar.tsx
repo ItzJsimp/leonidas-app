@@ -19,7 +19,15 @@ import {
 } from "~/components/ui/menu";
 
 import { priorityLabel, statusLabel, type TaskFlag, type TaskSort } from "./taskBoard.logic";
-import { activeFilterCount, type TaskListGroupBy, type TasksPrefs } from "./tasksPage.logic";
+import {
+  activeFilterCount,
+  activeQuickFilter,
+  QUICK_FILTERS,
+  quickFilterPatch,
+  type QuickFilter,
+  type TaskListGroupBy,
+  type TasksPrefs,
+} from "./tasksPage.logic";
 
 const STATUS_CHIPS: ReadonlyArray<TaskBoardTaskStatus> = [
   "todo",
@@ -48,6 +56,31 @@ const GROUP_LABELS: Record<TaskListGroupBy, string> = {
   due: "Due week",
   none: "None",
 };
+
+/** One-click filters with live counts. A pressed pill clicked again goes back to All open. */
+export const TaskQuickFilters = memo(function TaskQuickFilters(props: {
+  readonly prefs: TasksPrefs;
+  readonly counts: Readonly<Record<QuickFilter, number>>;
+  readonly onPrefsChange: (patch: Partial<TasksPrefs>) => void;
+}) {
+  const active = activeQuickFilter(props.prefs);
+  return (
+    <div role="group" aria-label="Quick filters" className="flex flex-wrap items-center gap-1">
+      {QUICK_FILTERS.map((quick) => (
+        <Button
+          key={quick.id}
+          variant={active === quick.id ? "secondary" : "ghost"}
+          size="xs"
+          aria-pressed={active === quick.id}
+          onClick={() => props.onPrefsChange(quickFilterPatch(quick.id, props.prefs))}
+        >
+          {quick.label}
+          <span className="text-muted-foreground tabular-nums">{props.counts[quick.id]}</span>
+        </Button>
+      ))}
+    </div>
+  );
+});
 
 function toggled<T>(list: ReadonlyArray<T> | null, value: T, on: boolean): T[] | null {
   const next = on ? [...(list ?? []), value] : (list ?? []).filter((item) => item !== value);

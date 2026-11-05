@@ -213,13 +213,19 @@ export type TaskFilters = {
   priorities: ReadonlySet<TaskBoardTaskPriority> | null;
   sharedOnly: boolean;
   includeClosed: boolean;
-  /** Keep only stale, or only gateless, open cards. */
+  /** Keep only stale, gateless or past-due open cards. */
   flag: TaskFlag | null;
-  /** The time the stale flag compares against. */
+  /** The time the flag compares against. */
   now: number;
 };
 
-export type TaskFlag = "stale" | "noGates";
+export type TaskFlag = "stale" | "noGates" | "late";
+
+/** True when an open card is stale, has no gates, or is past its due date. */
+export function hasFlag(task: TaskView, flag: TaskFlag, now: number): boolean {
+  if (flag !== "late") return taskFlags(task, now)[flag];
+  return isOpen(task) && (daysUntilDue(task.due, now) ?? 0) < 0;
+}
 
 export const DEFAULT_FILTERS: TaskFilters = {
   query: "",
@@ -252,7 +258,7 @@ export function filterTasks<T extends TaskView>(
     }
     if (filters.priorities !== null && !filters.priorities.has(task.priority)) return false;
     if (filters.sharedOnly && task.origin === "local") return false;
-    if (filters.flag !== null && !taskFlags(task, filters.now)[filters.flag]) return false;
+    if (filters.flag !== null && !hasFlag(task, filters.flag, filters.now)) return false;
     if (query.length === 0) return true;
     const haystack = [
       task.title,

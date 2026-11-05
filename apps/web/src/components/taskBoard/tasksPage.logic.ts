@@ -11,6 +11,7 @@ import { DEFAULT_OWNER_LENS, parseOwnerLens, type OwnerLens } from "./owner.logi
 
 import {
   groupBySection,
+  hasFlag,
   isOpen,
   shareableOpenCount,
   type TaskFilters,
@@ -44,7 +45,7 @@ export type TasksPrefs = {
   includeClosed: boolean;
   sort: TaskSort;
   groupBy: TaskListGroupBy;
-  /** Keep only stale, or only gateless, open cards. */
+  /** Keep only stale, gateless or past-due open cards. */
   flag: TaskFlag | null;
 };
 
@@ -140,7 +141,10 @@ export function parseTasksPrefs(raw: string | null): TasksPrefs {
     includeClosed: record.includeClosed === true,
     sort: pick(SORTS, record.sort, DEFAULT_TASKS_PREFS.sort),
     groupBy: pick(GROUP_BYS, record.groupBy, DEFAULT_TASKS_PREFS.groupBy),
-    flag: record.flag === "stale" || record.flag === "noGates" ? record.flag : null,
+    flag:
+      record.flag === "stale" || record.flag === "noGates" || record.flag === "late"
+        ? record.flag
+        : null,
   };
 }
 
@@ -193,6 +197,62 @@ export function prefsForList(list: FocusList): Partial<TasksPrefs> {
     sharedOnly: false,
     flag: list === "stale" || list === "noGates" ? list : null,
   };
+}
+
+export type QuickFilter = "open" | "late" | "noGates" | "stale" | "done";
+
+type QuickFilterPrefs = Pick<TasksPrefs, "statuses" | "flag" | "includeClosed">;
+
+/** The quick-filter pills, in shown order. Each one sets the status and flag filters. */
+export const QUICK_FILTERS: ReadonlyArray<{
+  readonly id: QuickFilter;
+  readonly label: string;
+  readonly prefs: QuickFilterPrefs;
+}> = [
+  { id: "open", label: "All open", prefs: { statuses: null, flag: null, includeClosed: false } },
+  { id: "late", label: "Past due", prefs: { statuses: null, flag: "late", includeClosed: false } },
+  {
+    id: "noGates",
+    label: "No gates",
+    prefs: { statuses: null, flag: "noGates", includeClosed: false },
+  },
+  { id: "stale", label: "Stale", prefs: { statuses: null, flag: "stale", includeClosed: false } },
+  { id: "done", label: "Done", prefs: { statuses: ["done"], flag: null, includeClosed: false } },
+];
+
+/** The pill that matches the current filters, or null when the Filter menu set something else. */
+export function activeQuickFilter(prefs: TasksPrefs): QuickFilter | null {
+  const statuses = prefs.statuses?.join() ?? null;
+  const match = QUICK_FILTERS.find(
+    (quick) =>
+      (quick.prefs.statuses?.join() ?? null) === statuses &&
+      quick.prefs.flag === prefs.flag &&
+      quick.prefs.includeClosed === prefs.includeClosed,
+  );
+  return match?.id ?? null;
+}
+
+/** The filter change for a pill click. A second click on a pressed pill goes back to All open. */
+export function quickFilterPatch(id: QuickFilter, prefs: TasksPrefs): QuickFilterPrefs {
+  const target = activeQuickFilter(prefs) === id ? "open" : id;
+  return QUICK_FILTERS.find((quick) => quick.id === target)!.prefs;
+}
+
+/** Card counts per pill, in one pass. Pass the cards before the status and flag filters. */
+export function quickFilterCounts(
+  tasks: ReadonlyArray<TaskView>,
+  now: number,
+): Record<QuickFilter, number> {
+  const counts = { open: 0, late: 0, noGates: 0, stale: 0, done: 0 };
+  for (const task of tasks) {
+    if (task.status === "done") counts.done++;
+    if (!isOpen(task)) continue;
+    counts.open++;
+    if (hasFlag(task, "late", now)) counts.late++;
+    if (hasFlag(task, "noGates", now)) counts.noGates++;
+    if (hasFlag(task, "stale", now)) counts.stale++;
+  }
+  return counts;
 }
 
 /** How many filters narrow the list, for the "Clear filters" affordance. */

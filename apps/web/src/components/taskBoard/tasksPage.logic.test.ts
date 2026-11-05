@@ -1,9 +1,11 @@
 import type { ProjectId, TaskBoardTask, TaskBoardWorkspaceProject } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { mergeTasks, type TaskView } from "./taskBoard.logic";
+import { filterTasks, mergeTasks, type TaskView } from "./taskBoard.logic";
+import { buildListGroups } from "./taskRows";
 import {
   activeFilterCount,
+  activeQuickFilter,
   buildRailEntries,
   DEFAULT_TASKS_PREFS,
   landingPrefs,
@@ -11,6 +13,8 @@ import {
   nextHidden,
   parseTasksPrefs,
   prefsForList,
+  quickFilterCounts,
+  quickFilterPatch,
   splitRail,
   placeSharedOnlyIn,
   searchBase,
@@ -295,5 +299,63 @@ describe("hidden rail projects", () => {
     expect(nextHidden(["a"], "b", true)).toEqual(["a", "b"]);
     expect(nextHidden(["a", "b"], "b", true)).toEqual(["a", "b"]);
     expect(nextHidden(["a", "b"], "a", false)).toEqual(["b"]);
+  });
+});
+
+describe("quick filters", () => {
+  const now = new Date(2026, 10, 5, 12).getTime();
+  const tasks = mergeTasks(
+    [
+      task("a", { updatedAt: now }),
+      task("b", { updatedAt: now, due: "2026-11-01" }),
+      task("c", { status: "done", updatedAt: now, due: "2026-11-01" }),
+      task("d"),
+    ],
+    [],
+  );
+
+  it("counts each pill over the same cards, closed ones included", () => {
+    expect(quickFilterCounts(tasks, now)).toEqual({
+      open: 3,
+      late: 1,
+      noGates: 3,
+      stale: 1,
+      done: 1,
+    });
+  });
+
+  it("presses the pill that matches the filters, and none for a custom filter", () => {
+    expect(activeQuickFilter(DEFAULT_TASKS_PREFS)).toBe("open");
+    expect(activeQuickFilter({ ...DEFAULT_TASKS_PREFS, flag: "late" })).toBe("late");
+    expect(activeQuickFilter({ ...DEFAULT_TASKS_PREFS, statuses: ["done"] })).toBe("done");
+    expect(activeQuickFilter({ ...DEFAULT_TASKS_PREFS, statuses: ["review"] })).toBeNull();
+    expect(activeQuickFilter({ ...DEFAULT_TASKS_PREFS, includeClosed: true })).toBeNull();
+  });
+
+  it("applies a pill, and a second click on it goes back to All open", () => {
+    const late = { ...DEFAULT_TASKS_PREFS, ...quickFilterPatch("late", DEFAULT_TASKS_PREFS) };
+    expect(activeQuickFilter(late)).toBe("late");
+    expect(filterTasks(tasks, toTaskFilters(late, "", now)).map((item) => item.id)).toEqual(["b"]);
+    expect(activeQuickFilter({ ...late, ...quickFilterPatch("late", late) })).toBe("open");
+  });
+
+  it("filters, counts and groups 450 cards in under 100 ms", () => {
+    const many = mergeTasks(
+      Array.from({ length: 450 }, (_, index) =>
+        task(`t${index}`, {
+          title: `Card ${index} ${index % 7 === 0 ? "google" : "plan"}`,
+          status: index % 5 === 0 ? "done" : "todo",
+          due: index % 3 === 0 ? "2026-11-01" : null,
+          updatedAt: now,
+        }),
+      ),
+      [],
+    );
+    const start = performance.now();
+    const hits = filterTasks(many, toTaskFilters(DEFAULT_TASKS_PREFS, "goo", now));
+    quickFilterCounts(many, now);
+    buildListGroups({ tasks: hits, sections: [], groupBy: "state", now });
+    expect(hits.length).toBeGreaterThan(0);
+    expect(performance.now() - start).toBeLessThan(100);
   });
 });
