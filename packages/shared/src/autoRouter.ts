@@ -34,11 +34,10 @@ import {
   type UsageObservationPoint,
 } from "./usageForecast.ts";
 
-export const AUTO_ROUTE_PREFERENCES = AutoRoutePreference.literals;
 export type { AutoRoutePreference };
 export type { UsageHistoryProfile, UsageObservationPoint };
 
-export const AUTO_ROUTE_PREFERENCE_LABELS: Record<AutoRoutePreference, string> = {
+const AUTO_ROUTE_PREFERENCE_LABELS: Record<AutoRoutePreference, string> = {
   balanced: "Balanced",
   cost: "Lowest cost",
   quality: "Best quality",

@@ -74,7 +74,7 @@ function joinPath(base: string, next: string, separator: "/" | "\\"): string {
  * the project folder must become the real absolute path, so code that tests "is this inside the
  * project" sees the truth. A ".." never climbs above the drive, the share or the root.
  */
-export function collapseDotSegments(path: string, separator: "/" | "\\"): string {
+function collapseDotSegments(path: string, separator: "/" | "\\"): string {
   const normalized = path.replaceAll("\\", "/");
   const drive = /^[A-Za-z]:/.exec(normalized)?.[0] ?? "";
   const unc = drive === "" && normalized.startsWith("//");
