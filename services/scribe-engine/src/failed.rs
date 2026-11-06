@@ -173,5 +173,7 @@ mod tests {
             std::thread::sleep(Duration::from_millis(2));
         }
         assert_eq!(s.count(), MAX_FILES);
+        // The prune drops the oldest takes, never the newest.
+        assert_eq!(s.latest().unwrap().1.bytes[0], (MAX_FILES + 2) as u8);
     }
 }

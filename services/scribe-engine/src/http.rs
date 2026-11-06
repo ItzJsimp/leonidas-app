@@ -1175,6 +1175,26 @@ mod tests {
     }
 
     #[test]
+    fn retry_with_no_saved_take_is_404_nothing_to_retry() {
+        let engine = Engine::new(
+            Box::new(FakeRecorder::default()),
+            Box::new(FakeStt(Ok("hello".into()))),
+            Box::new(UpperPolish),
+            Box::new(Arc::new(FakePaster::default())),
+            250,
+            None,
+        );
+        let services = test_services(Arc::new(MemoryKeyStore::default()));
+        let server = TestServer(Some(
+            serve_with_ping(engine, services, 0, TEST_PING).unwrap(),
+        ));
+        server
+            .request("POST", "/v1/retry", "")
+            .error(404, "nothing_to_retry");
+        assert_eq!(server.request("GET", "/v1/retry", "").status, 405);
+    }
+
+    #[test]
     fn suggestions_come_from_history_and_a_reject_hides_one() {
         let dir = temp_dir("sugg");
         let history = Arc::new(crate::history::History::open(&dir.join("history.jsonl")));

@@ -554,11 +554,12 @@ impl Engine {
                 }
             }
             Err(mut message) => {
-                // Keep the audio, so the words are not lost. A retry keeps its own file.
+                // Keep the audio, so the words are not lost. A retry keeps its own file. A private
+                // take is never kept: a later retry with private mode off would upload it.
                 let kept = match (&shared.failed, &retry_of) {
                     (Some(_), Some(_)) => true,
-                    (Some(store), None) => store.save(&audio).is_ok(),
-                    (None, _) => false,
+                    (Some(store), None) if !private => store.save(&audio).is_ok(),
+                    _ => false,
                 };
                 if kept {
                     message.push_str(" The audio is saved. Retry it in Scribe.");
@@ -910,6 +911,10 @@ mod tests {
     fn a_take_every_provider_failed_is_kept_and_a_retry_saves_and_copies_it() {
         struct Flaky(AtomicBool);
         impl Transcriber for Flaky {
+            // Unknown privacy counts as private, and a private take is never kept.
+            fn private_mode(&self) -> bool {
+                false
+            }
             fn transcribe(&self, _: &EncodedAudio) -> Result<Transcription, String> {
                 if self.0.swap(false, Ordering::SeqCst) {
                     return Err("Could not reach Groq.".into());

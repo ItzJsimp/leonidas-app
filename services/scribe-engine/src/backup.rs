@@ -79,8 +79,9 @@ fn unreadable(provider: &str) -> CloudFailure {
     }
 }
 
+/// No redirects: a redirect could carry the key header to another host.
 fn agent() -> ureq::Agent {
-    ureq::Agent::new_with_config(ureq::Agent::config_builder().build())
+    ureq::Agent::new_with_config(ureq::Agent::config_builder().max_redirects(0).build())
 }
 
 fn read_body(
