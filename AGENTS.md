@@ -26,20 +26,21 @@ This project lives inside its builder's AI operating system at `../../`. If `../
 
 ## 3. Read when the task calls for it
 
-| Task                                                                                                     | Read                                                              |
-| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Any code change: principles, surfaces, dev servers, test data, verifying, PRs, docs, architecture, taste | [engineering](./.agents/rules/engineering.md)                     |
-| Any UI task: screens, components, colors, theme, tokens, layout (design in Doop first)                   | [DESIGN.md](./DESIGN.md)                                          |
-| Pushing, branching, roadmap lanes, versions, release notes, dev copy                                     | [team-workflow](./.agents/rules/team-workflow.md)                 |
-| Starting or closing work, task cards                                                                     | [task-driven-work](./.agents/rules/task-driven-work.md)           |
-| Hooks, skills, config, or how Claude, Codex and the app layer together                                   | [harness-layers](./.agents/rules/harness-layers.md)               |
-| Delegating to another model                                                                              | [tiered-models](./.agents/rules/tiered-models.md)                 |
-| Reply format additions (pushed-to-main banner)                                                           | [output-standard](./.agents/rules/output-standard.md)             |
-| Module map, data sources, cheap verify loop                                                              | [agent-playbook](./agent-playbook.md)                             |
-| Traps already paid for                                                                                   | [project/agent-gotchas.md](./project/agent-gotchas.md)            |
-| Preparing a release                                                                                      | [leonidas-release](./.agents/skills/leonidas-release/SKILL.md)    |
-| UI verification                                                                                          | `test-t3-app` (web), `test-t3-mobile` (mobile) skills             |
-| Server code                                                                                              | `docs/internals/effect-services.md`, `.repos/effect-smol/LLMS.md` |
+| Task                                                                                                                  | Read                                                                   |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Any code change: principles, surfaces, dev servers, test data, verifying, PRs, docs, architecture, taste              | [engineering](./.agents/rules/engineering.md)                          |
+| Any UI task: screens, components, colors, theme, tokens, layout (design in Doop first)                                | [DESIGN.md](./DESIGN.md)                                               |
+| Pushing, branching, roadmap lanes, versions, release notes, dev copy                                                  | [team-workflow](./.agents/rules/team-workflow.md)                      |
+| Starting or closing work, task cards                                                                                  | [task-driven-work](./.agents/rules/task-driven-work.md)                |
+| Hooks, skills, config, or how Claude, Codex and the app layer together                                                | [harness-layers](./.agents/rules/harness-layers.md)                    |
+| Delegating to another model                                                                                           | [tiered-models](./.agents/rules/tiered-models.md)                      |
+| Reply format additions (pushed-to-main banner)                                                                        | [output-standard](./.agents/rules/output-standard.md)                  |
+| Module map, data sources, cheap verify loop, top 10 traps                                                             | [agent-playbook](./agent-playbook.md)                                  |
+| All other traps (install, Git, release, tests, Scribe, dev copy, laptop, phone, upstream ports, server HTTP API), why | [project/agent-gotchas.md](./project/agent-gotchas.md)                 |
+| Past session notes (newest 10 in agent-gotchas.md, older here)                                                        | [project/session-notes-archive.md](./project/session-notes-archive.md) |
+| Preparing a release                                                                                                   | [leonidas-release](./.agents/skills/leonidas-release/SKILL.md)         |
+| UI verification                                                                                                       | `test-t3-app` (web), `test-t3-mobile` (mobile) skills                  |
+| Server code                                                                                                           | `docs/internals/effect-services.md`, `.repos/effect-smol/LLMS.md`      |
 
 ## 4. Where things live
 
