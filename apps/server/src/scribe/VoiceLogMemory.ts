@@ -6,7 +6,6 @@ import {
   type VoiceLogMemoryApproveInput,
   type VoiceLogMemoryReview,
 } from "@t3tools/contracts";
-import { routeTurn } from "@t3tools/shared/autoRouter";
 import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -135,30 +134,24 @@ export const make = Effect.gen(function* () {
         return;
       }
       const connected = yield* providers.getProviders;
-      const decision = routeTurn({
-        preference: "cost",
-        prompt: "Summarize these dictations into durable memory statements.",
-        now,
-        quotaBlockPercent: current.subagentQuotaBlockPercent,
-        candidates: connected
-          .filter(
-            (provider) =>
-              (provider.driver === "claudeAgent" || provider.driver === "codex") &&
-              provider.auth.status === "authenticated" &&
-              isProviderAvailable(provider) &&
-              isProviderTextGenerationCapable(provider),
-          )
-          .map((provider) => ({
-            instanceId: provider.instanceId,
-            driverKind: provider.driver,
-            label: provider.displayName ?? provider.driver,
-            models: provider.models,
-            usageLimits: provider.usageLimits,
-          })),
-      });
+      const picked = current.textGenerationModelSelection;
+      const provider = connected.find(
+        (candidate) =>
+          candidate.instanceId === picked.instanceId &&
+          candidate.auth.status === "authenticated" &&
+          isProviderAvailable(candidate) &&
+          isProviderTextGenerationCapable(candidate),
+      );
+      const decision = provider
+        ? {
+            modelSelection: picked,
+            providerLabel: provider.displayName ?? provider.driver,
+            reason: "Your text generation model",
+          }
+        : null;
       if (!decision || !generation.generateVoiceLogDraft)
         return yield* new VoiceLogMemoryError({
-          message: "Connect an authenticated Claude or Codex account to draft voice-log memories.",
+          message: "Connect the account of your text generation model to draft voice-log memories.",
         });
       // Recheck consent after history paging, immediately before sending text.
       if (!(yield* settings.getSettings).voiceLogMemory.enabled) return;

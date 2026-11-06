@@ -427,10 +427,6 @@
       "types": "./src/apiKeyProviders.ts",
       "import": "./src/apiKeyProviders.ts"
     },
-    "./autoRouter": {
-      "types": "./src/autoRouter.ts",
-      "import": "./src/autoRouter.ts"
-    },
     "./usageLimits": {
       "types": "./src/usageLimits.ts",
       "import": "./src/usageLimits.ts"

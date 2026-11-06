@@ -1475,12 +1475,6 @@ export const ServerSettings = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_SNOOZE_PRESETS)),
   ),
   /**
-   * When a delegated task names no provider or model, run
-   * it on the cheapest capable model instead of the parent's. Off keeps every
-   * unnamed child on the parent's model.
-   */
-  routeLightDelegatedTasks: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
-  /**
    * Models that start a subagent with no confirm card (ADR-0082). Any other
    * model asks first. An AIOS `.agents/subagents/model-tiers.json` overrides it.
    */
@@ -1858,7 +1852,6 @@ export const ServerSettingsPatch = Schema.Struct({
   sidebarAutoSettleOnMerge: Schema.optionalKey(Schema.Boolean),
   autoResumeLimitedThreads: Schema.optionalKey(Schema.Boolean),
   snoozeLimitedThreads: Schema.optionalKey(Schema.Boolean),
-  routeLightDelegatedTasks: Schema.optionalKey(Schema.Boolean),
   subagentFreeTierModels: Schema.optionalKey(Schema.Array(Schema.String)),
   subagentQuotaBlockPercent: Schema.optionalKey(
     Schema.Number.check(Schema.isBetween({ minimum: 1, maximum: 100 })),

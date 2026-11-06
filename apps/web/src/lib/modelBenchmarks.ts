@@ -4,7 +4,6 @@ import type {
   ModelBenchmarkReport,
   ModelSelection,
 } from "@t3tools/contracts";
-import { METERED_DRIVERS } from "@t3tools/shared/autoRouter";
 import { createModelSelection } from "@t3tools/shared/model";
 
 import { EFFORT_OPTION_IDS } from "../components/chat/runIdentity.logic";
@@ -14,6 +13,9 @@ import { isProviderInstancePickerReady, type ProviderInstanceEntry } from "../pr
  * What running a model costs this user right now. `subscription` carries the
  * tightest window's remaining percent; `metered` bills per token from a key.
  */
+
+/** Drivers that bill per token instead of a subscription. */
+const METERED_DRIVERS: ReadonlySet<string> = new Set(["openrouter", "opencode", "pi"]);
 export type BenchmarkQuota =
   | { readonly kind: "subscription"; readonly leftPercent: number; readonly resetsAt?: string }
   | { readonly kind: "metered" }

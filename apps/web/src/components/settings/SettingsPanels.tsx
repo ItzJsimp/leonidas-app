@@ -3560,27 +3560,10 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
             <ThreadTitleInstructionsSettings />
             <AdvancedSettings
               targetIds={[
-                searchableSetting("route-light-delegated-tasks").id,
                 searchableSetting("subagent-free-tier-models").id,
                 searchableSetting("response-streaming").id,
               ]}
             >
-              <SettingsRow
-                serverScoped
-                {...searchableSetting("route-light-delegated-tasks")}
-                description="Send helper jobs that name no model to the cheapest capable model. Switch accounts near their usage limit."
-                settingKeys={["routeLightDelegatedTasks"]}
-                control={
-                  <ScopedSwitch
-                    settingKeys={["routeLightDelegatedTasks"]}
-                    checked={settings.routeLightDelegatedTasks}
-                    onCheckedChange={(checked) =>
-                      updateSettings({ routeLightDelegatedTasks: Boolean(checked) })
-                    }
-                    aria-label="Send helper work to the cheapest capable model"
-                  />
-                }
-              />
               <SettingsRow
                 serverScoped
                 {...searchableSetting("subagent-free-tier-models")}

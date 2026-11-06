@@ -126,7 +126,6 @@ import * as ProjectService from "../project/ProjectService.ts";
 import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as ServerSettings from "../serverSettings.ts";
-import { routeLightDelegatedTask } from "./lightTaskRouting.ts";
 import {
   clientRuntimeModeCeiling,
   type McpInvocationScope,
@@ -2482,12 +2481,6 @@ const make = Effect.gen(function* () {
                   catch: (error) => failure("invalid_request", errorMessage(error)),
                 });
               });
-        const unnamedTarget =
-          persona === undefined &&
-          input.target?.providerInstanceId === undefined &&
-          input.target?.driverKind === undefined &&
-          input.target?.model === undefined &&
-          input.target?.options === undefined;
         // A persona that names a model but no account runs on an account that offers it.
         const personaCapable =
           persona !== undefined && persona.spec.model !== null && persona.spec.account === null
@@ -2504,7 +2497,7 @@ const make = Effect.gen(function* () {
                   providerConstraints(provider, true).length === 0,
               )
             : undefined;
-        let routedTarget: OrchestratorMcpTarget | undefined =
+        const routedTarget: OrchestratorMcpTarget | undefined =
           persona !== undefined && input.target?.model === undefined && persona.spec.model !== null
             ? {
                 ...input.target,
@@ -2522,30 +2515,6 @@ const make = Effect.gen(function* () {
                       }),
               }
             : input.target;
-        let fallbackModelSelection: ModelSelection | undefined;
-        let routingReason: string | undefined;
-        if (delegationSettings.routeLightDelegatedTasks && unnamedTarget) {
-          const capable = yield* loadOrchestrationCapableInstanceIds();
-          const routed = routeLightDelegatedTask({
-            task: input.task,
-            providers,
-            isRunnable: (provider) =>
-              capable.has(provider.instanceId) && providerConstraints(provider, true).length === 0,
-            runtimeMode: parent.thread.runtimeMode,
-            now: yield* Clock.currentTimeMillis,
-            quotaBlockPercent: delegationSettings.subagentQuotaBlockPercent,
-          });
-          if (routed !== null) {
-            const { selection } = routed;
-            routedTarget = {
-              providerInstanceId: selection.instanceId,
-              model: selection.model,
-              ...(selection.options === undefined ? {} : { options: selection.options }),
-            };
-            fallbackModelSelection = routed.fallback;
-            routingReason = routed.reason;
-          }
-        }
         const backgroundTarget = yield* resolveBackgroundTaskTarget({
           parent,
           target: routedTarget,
@@ -2665,11 +2634,6 @@ const make = Effect.gen(function* () {
                     tools: persona.spec.tools,
                   },
                 }),
-            routingReason,
-            ...(fallbackModelSelection !== undefined &&
-            target.modelSelection.model === routedTarget?.model
-              ? { fallbackModelSelection }
-              : {}),
             runtimeMode,
             interactionMode,
             // Async delegations wake the parent on every child terminal; wait

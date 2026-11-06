@@ -458,14 +458,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["auto-resume limited threads usage quota rate limit reset recover continue"],
   },
   {
-    id: "route-light-delegated-tasks",
-    title: "Send helper work to the cheapest capable model",
-    to: "/settings/threads",
-    searchTerms: [
-      "route light delegated tasks subagent delegate cheap model quota cost autorouter",
-    ],
-  },
-  {
     id: "subagent-free-tier-models",
     title: "Subagent models that start without asking",
     to: "/settings/threads",
