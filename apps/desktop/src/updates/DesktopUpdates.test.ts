@@ -512,6 +512,47 @@ describe("DesktopUpdates", () => {
     );
   });
 
+  it.effect(
+    "tells a Mac user to install the newest installer when the signature is rejected",
+    () => {
+      const cause = new Error("Could not get code signature for running application");
+      const harness = makeHarness({
+        platform: "darwin",
+        checkForUpdates: Effect.fail(
+          new ElectronUpdater.ElectronUpdaterCheckForUpdatesError({ channel: null, cause }),
+        ),
+      });
+      const loggedReasons: Array<unknown> = [];
+      const logger = Logger.make(({ fiber }) => {
+        const annotations = fiber.getRef(References.CurrentLogAnnotations);
+        if (annotations.errorTag === "ElectronUpdaterCheckForUpdatesError") {
+          loggedReasons.push(annotations.reason);
+        }
+      });
+
+      return Effect.scoped(
+        Effect.gen(function* () {
+          const updates = yield* DesktopUpdates.DesktopUpdates;
+          yield* updates.configure;
+
+          yield* updates.check("manual");
+
+          const state = yield* updates.getState;
+          assert.include(state.message ?? "", "Download the newest installer once");
+          assert.deepEqual(loggedReasons, ["mac-signature-rejected"]);
+        }),
+      ).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            TestClock.layer(),
+            harness.layer,
+            Logger.layer([logger], { mergeWithExisting: false }),
+          ),
+        ),
+      );
+    },
+  );
+
   it.effect("recovers download state after an unexpected setup failure", () => {
     let disableDifferentialCalls = 0;
     const harness = makeHarness({

@@ -35,6 +35,7 @@ import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import { normalizeDesktopUpdateReleaseNotes } from "./releaseNotes.ts";
 import { applyDownloadProgress, decodeDownloadProgressInfo } from "./downloadProgress.ts";
 import { resolveDefaultDesktopUpdateChannel } from "./updateChannels.ts";
+import { describeUpdaterFailure, isMacSignatureFailure } from "./updaterFailure.ts";
 import {
   createInitialDesktopUpdateState,
   reduceDesktopUpdateStateOnCheckFailure,
@@ -283,6 +284,22 @@ export const make = Effect.gen(function* () {
   yield* recordDelivery("started", environment.appVersion);
 
   const appUpdateYmlConfigRef = yield* Ref.make<Option.Option<AppUpdateYmlConfig>>(Option.none());
+
+  // Fixed label only: the cause text can hold a URL with a token, so it is never logged.
+  const failureAnnotations = (cause: unknown) =>
+    isMacSignatureFailure(environment.platform, cause) ? { reason: "mac-signature-rejected" } : {};
+
+  const describeFailure = (cause: unknown, fallback: string) =>
+    Ref.get(appUpdateYmlConfigRef).pipe(
+      Effect.map((feed) =>
+        describeUpdaterFailure({
+          platform: environment.platform,
+          cause,
+          fallback,
+          feed: Option.getOrNull(feed),
+        }),
+      ),
+    );
   const activeUpdateActionRef = yield* Ref.make<Option.Option<UpdateAction>>(Option.none());
   const finishedUpdateActions = yield* PubSub.unbounded<UpdateAction>();
   const updaterConfiguredRef = yield* Ref.make(false);
@@ -435,12 +452,14 @@ export const make = Effect.gen(function* () {
             "desktop.updates.handleCheckForUpdatesFailure",
           )(function* (error) {
             const failedAt = yield* currentIsoTimestamp;
+            const message = yield* describeFailure(error.cause, error.message);
             yield* updateState((current) =>
-              reduceDesktopUpdateStateOnCheckFailure(current, error.message, failedAt),
+              reduceDesktopUpdateStateOnCheckFailure(current, message, failedAt),
             );
             yield* logUpdaterError(error.message, {
               errorTag: error._tag,
               channel: error.channel,
+              ...failureAnnotations(error.cause),
             });
             return true;
           }),
@@ -480,12 +499,14 @@ export const make = Effect.gen(function* () {
       Effect.catchTags({
         ElectronUpdaterDownloadUpdateError: Effect.fn("desktop.updates.handleDownloadFailure")(
           function* (error) {
+            const message = yield* describeFailure(error.cause, error.message);
             yield* updateState((current) =>
-              reduceDesktopUpdateStateOnDownloadFailure(current, error.message),
+              reduceDesktopUpdateStateOnDownloadFailure(current, message),
             );
             yield* logUpdaterError(error.message, {
               errorTag: error._tag,
               channel: error.channel,
+              ...failureAnnotations(error.cause),
             });
             return { accepted: true, completed: false };
           },
@@ -820,6 +841,7 @@ export const make = Effect.gen(function* () {
       return;
     }
 
+    const message = yield* describeFailure(cause, error.message);
     if (Option.isNone(activeAction)) {
       const checkedAt = yield* currentIsoTimestamp;
       yield* updateState((current) => ({
@@ -829,7 +851,7 @@ export const make = Effect.gen(function* () {
           current.availableVersion !== null
             ? "available"
             : "error",
-        message: error.message,
+        message,
         checkedAt,
         downloadPercent: null,
         errorContext:
@@ -843,6 +865,7 @@ export const make = Effect.gen(function* () {
     yield* logUpdaterError(error.message, {
       errorTag: error._tag,
       operation: error.operation,
+      ...failureAnnotations(cause),
     });
   });
 
