@@ -385,8 +385,8 @@ const requestAllCodexModels = Effect.fn("requestAllCodexModels")(function* (
 export function buildCodexInitializeParams(): CodexSchema.V1InitializeParams {
   return {
     clientInfo: {
-      name: "Leonidas Code",
-      title: "Leonidas Code",
+      name: "Leonidas",
+      title: "Leonidas",
       version: packageJson.version,
     },
     capabilities: {
@@ -610,7 +610,7 @@ const makePendingCodexProvider = (
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Codex is disabled in Leonidas Code settings.",
+          message: "Codex is disabled in Leonidas settings.",
         },
       });
     }
@@ -703,7 +703,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Codex is disabled in Leonidas Code settings.",
+        message: "Codex is disabled in Leonidas settings.",
       },
     });
   }

@@ -135,7 +135,7 @@ export class PortalCaptureShortcut {
       throw new Error("Change the capture binding in your Hyprland config, then save it.");
     if (!this.hasSession || this.version < 2)
       throw new Error(
-        "Open your desktop's shortcut settings and allow Leonidas Code's capture shortcut.",
+        "Open your desktop's shortcut settings and allow Leonidas's capture shortcut.",
       );
     await this.call({
       destination: this.owner,
@@ -304,7 +304,7 @@ export class PortalCaptureShortcut {
             shortcutMessage:
               this.version >= 2
                 ? "Shortcut permission wasn't granted. Open shortcut permissions to allow it."
-                : "Shortcut permission wasn't granted. Allow Leonidas Code in your desktop's shortcut settings.",
+                : "Shortcut permission wasn't granted. Allow Leonidas in your desktop's shortcut settings.",
           });
           return undefined;
         }

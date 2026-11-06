@@ -1,8 +1,8 @@
 # Observability
 
-> For maintainers. Using Leonidas Code? See [docs/user](../user/).
+> For maintainers. Using Leonidas? See [docs/user](../user/).
 
-Leonidas Code has one server-side observability model:
+Leonidas has one server-side observability model:
 
 - pretty logs go to stdout for humans
 - completed spans go to a local NDJSON trace file
@@ -220,7 +220,7 @@ macOS app bundle example:
 T3CODE_OTLP_TRACES_URL=http://localhost:4318/v1/traces \
 T3CODE_OTLP_METRICS_URL=http://localhost:4318/v1/metrics \
 T3CODE_OTLP_LOGS_URL=http://localhost:4318/v1/logs \
-"/Applications/Leonidas Code.app/Contents/MacOS/Leonidas Code"
+"/Applications/Leonidas.app/Contents/MacOS/Leonidas"
 ```
 
 Direct binary example:
@@ -672,7 +672,7 @@ pid="$(jq .pid "${T3CODE_HOME:-$HOME/.t3}/userdata/server-runtime.json")"
 ps -p "$pid" -o command=
 ```
 
-If `ps` shows the Leonidas Code server, send the signal:
+If `ps` shows the Leonidas server, send the signal:
 
 ```bash
 kill -USR2 "$pid"

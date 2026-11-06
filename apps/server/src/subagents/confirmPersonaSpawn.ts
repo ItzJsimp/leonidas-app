@@ -97,7 +97,7 @@ const awaitSpawnCard = Effect.fnUntraced(function* (input: {
     case "still_waiting":
       return yield* new OrchestratorMcpFailure({
         code: "approval_pending",
-        message: `No task started. The user has not answered the approval card for ${subagent} on ${model} (${input.account}) yet. Do not start another task. Tell the user to answer the card in Leonidas Code. Then call delegate_task again with the same task and the same clientRequestId: the retry joins this card. Run t3_thread_list first if you are not sure.`,
+        message: `No task started. The user has not answered the approval card for ${subagent} on ${model} (${input.account}) yet. Do not start another task. Tell the user to answer the card in Leonidas. Then call delegate_task again with the same task and the same clientRequestId: the retry joins this card. Run t3_thread_list first if you are not sure.`,
       });
     case "allow_once":
     case "allow_thread":

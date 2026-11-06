@@ -60,8 +60,8 @@ button:focus-visible { outline: 2px solid #007aff; outline-offset: -2px; }
 img { width: 32px; height: 32px; pointer-events: none; }
 </style></head><body><main id="panel">
 <button id="close" aria-label="Close permission helper">×</button>
-<header>↑ Drag Leonidas Code into the list above</header>
-<button id="app" draggable="true" aria-label="Drag Leonidas Code to System Settings, or click to reveal in Finder"><img src="${escapeHtml(icon)}" alt="" draggable="false">Leonidas Code</button>
+<header>↑ Drag Leonidas into the list above</header>
+<button id="app" draggable="true" aria-label="Drag Leonidas to System Settings, or click to reveal in Finder"><img src="${escapeHtml(icon)}" alt="" draggable="false">Leonidas</button>
 </main></body></html>`;
 }
 

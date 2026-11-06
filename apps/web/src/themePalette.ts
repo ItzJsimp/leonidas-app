@@ -348,7 +348,7 @@ function legacyThemeMode(theme: ThemePreference): ThemeAppearance | null {
 }
 
 /**
- * The standard Leonidas Code palette, also used to seed new theme files and
+ * The standard Leonidas palette, also used to seed new theme files and
  * fill roles omitted by older theme files.
  */
 export function getStandardThemeColors(appearance: ThemeAppearance): ThemeColors {
@@ -624,7 +624,7 @@ function solveOklchLightness(
 }
 
 /**
- * The status colors Leonidas Code shows without a theme, read from the app's own
+ * The status colors Leonidas shows without a theme, read from the app's own
  * tokens (red-500 / amber-500 families). Generated palettes fall back to
  * these instead of the flagship theme's, so an imported or created theme
  * never inherits a brand tint on destructive buttons and warnings.

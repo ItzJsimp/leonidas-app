@@ -389,7 +389,7 @@ const runPackageManagerProbe = Effect.fn("runPackageManagerProbe")(function* (
 /**
  * Derive update capabilities from where the executable actually lives. Every
  * package-manager branch has evidence that the named tool owns that path, so
- * Leonidas Code never runs a package manager against an install it did not create.
+ * Leonidas never runs a package manager against an install it did not create.
  * An unproven install falls back to the provider's own updater, which detects
  * its installer itself, and stays manual-only without one.
  */

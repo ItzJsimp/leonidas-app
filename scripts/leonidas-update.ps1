@@ -12,13 +12,15 @@ param(
   [string]$Repository = 'ItzJsimp/leonidas-code'
 )
 $ErrorActionPreference = 'Stop'
-$app = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas Code.exe'
+$app = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas.exe'
+# Installs from before the rename run as 'Leonidas Code.exe'. Treat them as the same app.
+$legacyApp = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas Code.exe'
 $release = Invoke-RestMethod "https://api.github.com/repos/$Repository/releases/latest"
 if ($release.draft -or $release.prerelease -or $release.tag_name -notmatch '^v\d+\.\d+\.\d+$') {
   throw 'Latest release is not a published stable version.'
 }
 $version = $release.tag_name.Substring(1)
-$asset = $release.assets | Where-Object name -eq "Leonidas-Code-$version-x64.exe"
+$asset = $release.assets | Where-Object { $_.name -in @("Leonidas-$version-x64.exe", "Leonidas-Code-$version-x64.exe") } | Select-Object -First 1
 $manifest = $release.assets | Where-Object name -eq 'latest.yml'
 if (-not $asset -or -not $manifest -or $asset.digest -notmatch '^sha256:([a-f0-9]{64})$') {
   throw 'Release is missing its installer, manifest or installer checksum.'
@@ -46,17 +48,17 @@ if ($sha512 -cne $Matches[1]) { throw 'Updater manifest checksum mismatch.' }
 Write-Host "Verified $version installer: $installer"
 if ($PrepareOnly) { return }
 # Capture only processes belonging to this installed executable; never kill by name.
-$running = @(Get-CimInstance Win32_Process -Filter "Name='Leonidas Code.exe'" |
-  Where-Object { $_.ExecutablePath -eq $app })
+$running = @(Get-CimInstance Win32_Process -Filter "Name='Leonidas.exe' OR Name='Leonidas Code.exe'" |
+  Where-Object { $_.ExecutablePath -in @($app, $legacyApp) })
 if ($running.Count -gt 0 -and -not $WaitForExit) {
-  throw 'Close Leonidas Code first, or use -WaitForExit to install after it closes normally.'
+  throw 'Close Leonidas first, or use -WaitForExit to install after it closes normally.'
 }
 foreach ($process in $running) {
   Wait-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
 }
 # A new app instance may have started while waiting; leave it alone.
-if (Get-CimInstance Win32_Process -Filter "Name='Leonidas Code.exe'" | Where-Object { $_.ExecutablePath -eq $app }) {
-  throw 'Leonidas Code reopened; close it and run the migration again.'
+if (Get-CimInstance Win32_Process -Filter "Name='Leonidas.exe' OR Name='Leonidas Code.exe'" | Where-Object { $_.ExecutablePath -in @($app, $legacyApp) }) {
+  throw 'Leonidas reopened; close it and run the migration again.'
 }
 $installed = Start-Process -FilePath $installer -ArgumentList '/S', '/currentuser', '--updated', '/KEEP_APP_DATA' -WindowStyle Hidden -Wait -PassThru
 if ($installed.ExitCode -ne 0) { throw "Installer failed with exit $($installed.ExitCode)." }

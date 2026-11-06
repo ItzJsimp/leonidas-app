@@ -85,11 +85,11 @@ export function resolveProviderCompatibility(
       : "unknown";
   const message =
     status === "broken"
-      ? "This provider version is known to be incompatible with this Leonidas Code release."
+      ? "This provider version is known to be incompatible with this Leonidas release."
       : status === "unsupported"
-        ? "This provider version is outside the supported range for this Leonidas Code release."
+        ? "This provider version is outside the supported range for this Leonidas release."
         : status === "graceful"
-          ? "This provider version has limited compatibility with this Leonidas Code release."
+          ? "This provider version has limited compatibility with this Leonidas release."
           : null;
   const recommendedVersion = policy.recommendedVersion ?? null;
   const recommendedRange = policy.recommendedRange ?? null;

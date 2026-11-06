@@ -119,7 +119,7 @@ export function resolvePiLaunchArgs(launchArgs: string): PiLaunchArgsResolution 
     if (reserved !== undefined) {
       return {
         ok: false,
-        message: `Pi launch argument '${reserved}' is controlled by Leonidas Code and cannot be overridden.`,
+        message: `Pi launch argument '${reserved}' is controlled by Leonidas and cannot be overridden.`,
       };
     }
     if (arg === "--") {
@@ -154,7 +154,7 @@ export function resolvePiLaunchArgs(launchArgs: string): PiLaunchArgsResolution 
       continue;
     }
     if (arg.startsWith("-")) {
-      return { ok: false, message: `Pi launch argument '${arg}' is not supported by Leonidas Code.` };
+      return { ok: false, message: `Pi launch argument '${arg}' is not supported by Leonidas.` };
     }
     return {
       ok: false,

@@ -22,9 +22,9 @@ const defaultEnvironmentInput = {
   platform: "darwin",
   processArch: "arm64",
   appVersion: "1.2.3",
-  appPath: "/Applications/Leonidas Code.app/Contents/Resources/app.asar",
+  appPath: "/Applications/Leonidas.app/Contents/Resources/app.asar",
   isPackaged: true,
-  resourcesPath: "/Applications/Leonidas Code.app/Contents/Resources",
+  resourcesPath: "/Applications/Leonidas.app/Contents/Resources",
   runningUnderArm64Translation: false,
 } satisfies DesktopEnvironment.MakeDesktopEnvironmentInput;
 
@@ -41,7 +41,7 @@ interface ElectronAppCalls {
 const layerElectronApp = (calls: ElectronAppCalls) =>
   Layer.succeed(ElectronApp.ElectronApp, {
     metadata: Effect.die("unexpected metadata read"),
-    name: Effect.succeed("Leonidas Code"),
+    name: Effect.succeed("Leonidas"),
     systemLocale: Effect.succeed("en-US"),
     whenReady: Effect.void,
     quit: Effect.void,
@@ -217,8 +217,8 @@ describe("DesktopAppIdentity", () => {
         const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
         yield* identity.configure;
 
-        assert.deepEqual(calls.setName, ["Leonidas Code Alpha"]);
-        assert.equal(calls.setAboutPanelOptions[0]?.applicationName, "Leonidas Code");
+        assert.deepEqual(calls.setName, ["Leonidas Alpha"]);
+        assert.equal(calls.setAboutPanelOptions[0]?.applicationName, "Leonidas");
         assert.equal(calls.setAboutPanelOptions[0]?.applicationVersion, "1.2.3");
         assert.equal(calls.setAboutPanelOptions[0]?.version, "0123456789ab");
         // Packaged: the bundle's own icon stands, so a custom one the user
@@ -261,12 +261,12 @@ describe("DesktopAppIdentity", () => {
 
         const runtimeName = calls.setName[0];
         assert.isDefined(runtimeName);
-        assert.equal(runtimeName, `Leonidas Code ${stage}`);
+        assert.equal(runtimeName, `Leonidas ${stage}`);
         // RFC 9110's token grammar, after Electron removes ASCII spaces.
         assert.match(runtimeName.replaceAll(" ", ""), /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/);
         assert.equal(
           calls.setAboutPanelOptions[0]?.applicationName,
-          stage === "Alpha" ? "Leonidas Code" : `Leonidas Code (${stage})`,
+          stage === "Alpha" ? "Leonidas" : `Leonidas (${stage})`,
         );
       }),
       { calls, environment },

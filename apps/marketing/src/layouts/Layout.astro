@@ -13,8 +13,8 @@ interface Props {
 }
 
 const {
-  title = "Leonidas Code",
-  description = "Leonidas Code. The open-source control plane for coding agents.",
+  title = "Leonidas",
+  description = "Leonidas. The open-source control plane for coding agents.",
   pageClass,
 } = Astro.props;
 
@@ -30,7 +30,7 @@ const socialImage = await getImage({
 });
 const socialImageUrl = new URL(socialImage.src, Astro.site);
 const socialImageAlt =
-  "Leonidas Code: the open-source control plane for coding agents, with Claude Code, Codex, Cursor, OpenCode, Grok and Antigravity.";
+  "Leonidas: the open-source control plane for coding agents, with Claude Code, Codex, Cursor, OpenCode, Grok and Antigravity.";
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
 ---
 
@@ -41,7 +41,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalUrl} />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Leonidas Code" />
+    <meta property="og:site_name" content="Leonidas" />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -71,7 +71,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
     <div class:list={["page", pageClass]}>
       <nav class="nav">
         <div class="nav-inner">
-          <a href="/" class="nav-brand" aria-label="Leonidas Code home">
+          <a href="/" class="nav-brand" aria-label="Leonidas home">
             <svg
               class="nav-brand-mark"
               viewBox="15.5309 37 94.3941 56.96"
@@ -106,7 +106,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
               loading="lazy"
               decoding="async"
             />
-            <span>&copy; {new Date().getFullYear()} Leonidas Code, a fork of T3 Code by T3 Tools Inc · MIT licensed</span>
+            <span>&copy; {new Date().getFullYear()} Leonidas, a fork of T3 Code by T3 Tools Inc · MIT licensed</span>
           </div>
           <div class="footer-links">
             <a href={GITHUB_REPOSITORY_URL} target="_blank" rel="noopener noreferrer">GitHub</a>

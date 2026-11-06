@@ -11,7 +11,7 @@ try {
     if ($check.Home -ne $expectedHome) { throw 'Ambient live home leaked into dev' }
     if ($check.ElectronProfile -ne (Join-Path $expectedHome 'electron/t3code-dev')) { throw 'Electron profile is not isolated' }
     if ($check.ServerPortStart -eq 3773 -or $check.ServerPortStart -eq $check.WebPortStart) { throw 'Dev ports collide' }
-    if ($check.Title -ne 'Leonidas Code (Dev)') { throw 'Missing dev identity' }
+    if ($check.Title -ne 'Leonidas (Dev)') { throw 'Missing dev identity' }
     if ($env:PATH -ne $beforePath -or $env:T3CODE_HOME -ne 'live-profile-must-not-be-used' -or $env:T3CODE_PORT -ne '3773') { throw 'Launcher leaked environment changes' }
     $web = & $launcher -Mode web -Check
     if ($web.Mode -ne 'dev') { throw 'Web mode did not select single-origin dev' }

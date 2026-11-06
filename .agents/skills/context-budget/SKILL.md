@@ -19,7 +19,7 @@ license: MIT
 
 # Context Budget
 
-Analyze token overhead across every loaded component in an agent workspace (Leonidas Code and its provider runtimes) and surface actionable optimizations to reclaim context space.
+Analyze token overhead across every loaded component in an agent workspace (Leonidas and its provider runtimes) and surface actionable optimizations to reclaim context space.
 
 ## When to Use
 

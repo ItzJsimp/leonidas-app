@@ -26,8 +26,8 @@ const METHOD = {
 };
 // Shown in the browser tab after the callback; the app does the rest.
 const DONE_PAGE =
-  "<!doctype html><meta charset=utf-8><title>Leonidas Code</title>" +
-  "<p style='font:16px system-ui;margin:3rem'>OpenRouter is connected. Go back to Leonidas Code.</p>";
+  "<!doctype html><meta charset=utf-8><title>Leonidas</title>" +
+  "<p style='font:16px system-ui;margin:3rem'>OpenRouter is connected. Go back to Leonidas.</p>";
 
 const isSetupError = Schema.is(ProviderSetupError);
 

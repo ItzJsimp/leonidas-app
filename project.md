@@ -1,12 +1,12 @@
 ---
 type: project
 id: project-leonidas-code
-name: "Leonidas Code"
+name: "Leonidas"
 status: "Active"
 owner: leonidas
 scope: structural
 category: app
-description: "Shared Jake + Mob fork of T3 Code (MIT) as the single agent harness replacing the Claude Code front end and Antigravity: shared repo, push-to-update releases, synced task board, rebrand to Leonidas Code."
+description: "Shared Jake + Mob fork of T3 Code (MIT) as the single agent harness replacing the Claude Code front end and Antigravity: shared repo, push-to-update releases, synced task board, rebrand to Leonidas."
 created: 2026-10-09
 verified: 2026-10-10
 tasks:
@@ -25,7 +25,7 @@ tasks:
   - "tasks/t3-code-synced-task-board.md"
 ---
 
-# Leonidas Code: project ledger
+# Leonidas: project ledger
 
 - **Inputs:** Mob's modified T3 Code build, upstream `pingdotgg/t3code`, the fork `ItzJsimp/leonidas-code` (renamed from `ItzJsimp/t3code` 2026-10-10). The repo is this folder (`projects/leonidas-code/`, [ADR-0072](../../decisions/0072-code-projects-live-inside-the-aios-as-their-own-git-repos-with-a-workspace-layer.md)).
 - **Outputs:** one shared GitHub repo both machines build from; Windows installer per push; task board synced between both instances.

@@ -1,5 +1,5 @@
 /**
- * ManagedProjectFolders - the project folders Leonidas Code makes for the user under
+ * ManagedProjectFolders - the project folders Leonidas makes for the user under
  * its data dir, rather than ones the user picks:
  *
  * - `<baseDir>/scratch`: the Scratch project ("No project"), with a folder of
@@ -208,7 +208,7 @@ function namedProjectReadme(name: string): string {
     "",
     `# ${name}`,
     "",
-    "Created in [Leonidas Code](https://github.com/ItzJsimp/leonidas-code).",
+    "Created in [Leonidas](https://github.com/ItzJsimp/leonidas-code).",
     "",
   ].join("\n");
 }

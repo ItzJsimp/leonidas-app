@@ -98,7 +98,7 @@ export function WallpaperSettings() {
           </WallpaperTile>
           <WallpaperTile
             label="Match theme"
-            tooltip={`Uses the art of the current theme (${THEME_LABELS.get(themeArt) ?? "Leonidas Code"}) and follows theme changes.`}
+            tooltip={`Uses the art of the current theme (${THEME_LABELS.get(themeArt) ?? "Leonidas"}) and follows theme changes.`}
             selected={settings.choice === "theme"}
             onSelect={() => choose("theme")}
           >

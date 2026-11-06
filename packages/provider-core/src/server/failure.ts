@@ -80,7 +80,7 @@ function causeMessage(cause: unknown): string | undefined {
         case "CursorModelUnavailableError":
           return stringField(cause, "message");
         case "ContextHandoffDeliveryUncertainError":
-          return "Leonidas Code could not confirm whether conversation history reached the provider. Retry the turn to recover the session.";
+          return "Leonidas could not confirm whether conversation history reached the provider. Retry the turn to recover the session.";
         case "ProviderAdapterTurnStartError": {
           const innerDetail = turnStartCauseDetails((cause as Record<string, unknown>).cause);
           message = innerDetail

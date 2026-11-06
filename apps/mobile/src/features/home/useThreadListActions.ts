@@ -144,7 +144,7 @@ function useThreadActionExecutor(
         ) {
           Alert.alert(
             actionFailureTitle(action),
-            "Leonidas Code on this computer cannot mark chats as done yet. Update Leonidas Code on the computer to use it.",
+            "Leonidas on this computer cannot mark chats as done yet. Update Leonidas on the computer to use it.",
           );
           return false;
         }
@@ -301,7 +301,7 @@ export function useThreadListActions(): {
         if (!environmentSupportsSnooze(thread.environmentId)) {
           Alert.alert(
             "Could not snooze chat",
-            "Leonidas Code on this computer does not support snoozing yet. Update Leonidas Code on the computer to use Snooze.",
+            "Leonidas on this computer does not support snoozing yet. Update Leonidas on the computer to use Snooze.",
           );
           return false;
         }
@@ -357,7 +357,7 @@ export function useThreadListActions(): {
         if (!environmentSupportsSnooze(thread.environmentId)) {
           Alert.alert(
             "Could not bring the chat back",
-            "Leonidas Code on this computer does not support snoozing yet. Update Leonidas Code on the computer to bring this chat back.",
+            "Leonidas on this computer does not support snoozing yet. Update Leonidas on the computer to bring this chat back.",
           );
           return false;
         }
@@ -399,7 +399,7 @@ export function useThreadListActions(): {
       if (!environmentSupportsPinning(thread.environmentId)) {
         Alert.alert(
           "Could not pin chat",
-          "Leonidas Code on this computer does not support pinning yet. Update Leonidas Code on the computer to use Pin.",
+          "Leonidas on this computer does not support pinning yet. Update Leonidas on the computer to use Pin.",
         );
         return false;
       }
@@ -440,7 +440,7 @@ export function useThreadListActions(): {
       if (!environmentSupportsPinning(thread.environmentId)) {
         Alert.alert(
           "Could not unpin chat",
-          "Leonidas Code on this computer does not support pinning yet. Update Leonidas Code on the computer to use Pin.",
+          "Leonidas on this computer does not support pinning yet. Update Leonidas on the computer to use Pin.",
         );
         return false;
       }
@@ -468,7 +468,7 @@ export function useThreadListActions(): {
       if (!environmentSupportsAutoSettleOptOut(thread.environmentId)) {
         Alert.alert(
           "Could not change “Mark as done by itself”",
-          "Leonidas Code on this computer cannot turn off “Mark as done by itself” for one chat yet. Update Leonidas Code on the computer to use it.",
+          "Leonidas on this computer cannot turn off “Mark as done by itself” for one chat yet. Update Leonidas on the computer to use it.",
         );
         return false;
       }
@@ -504,7 +504,7 @@ export function useThreadListActions(): {
       if (!environmentSupportsTitleRegeneration(thread.environmentId)) {
         Alert.alert(
           "Could not regenerate title",
-          "Leonidas Code on this computer does not support title regeneration yet. Update Leonidas Code on the computer to regenerate chat titles.",
+          "Leonidas on this computer does not support title regeneration yet. Update Leonidas on the computer to regenerate chat titles.",
         );
         return false;
       }
@@ -620,7 +620,7 @@ export function useThreadListActions(): {
       if (!supportsReorder(thread.environmentId)) {
         Alert.alert(
           "Could not move chat",
-          "Leonidas Code on this computer does not support reordering these chats. Update Leonidas Code on the computer to arrange them.",
+          "Leonidas on this computer does not support reordering these chats. Update Leonidas on the computer to arrange them.",
         );
         return false;
       }

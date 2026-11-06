@@ -1,12 +1,12 @@
 # Harness layers: who owns what
 
-Leonidas Code is a front end and manager. It is not a harness on top of a harness. Each vendor engine runs as a child process, and the app shows and steers it.
+Leonidas is a front end and manager. It is not a harness on top of a harness. Each vendor engine runs as a child process, and the app shows and steers it.
 
 | Layer  | Engine                                        | Started by                                                     | Source                                                                         |
 | ------ | --------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Claude | Claude Agent SDK (same engine as Claude Code) | `apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts` | `systemPrompt` preset `claude_code` plus our appended instructions             |
 | Codex  | `codex app-server`                            | `CodexAdapterV2.ts`                                            | `CodexDeveloperInstructions.ts`                                                |
-| App    | Leonidas Code                                 | n/a                                                            | threads, tasks, delegation, reply format, `/` skill folders, updates, previews |
+| App    | Leonidas                                      | n/a                                                            | threads, tasks, delegation, reply format, `/` skill folders, updates, previews |
 
 ## Where to edit
 

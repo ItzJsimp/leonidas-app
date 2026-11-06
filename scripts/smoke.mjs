@@ -5,7 +5,7 @@
 // command gate closed, so the port bound but every request hung with no error.
 //   node scripts/smoke.mjs                    run the server from source
 //   node scripts/smoke.mjs --entry <bin>      run a built entry (apps/server/dist/bin.mjs)
-//   node scripts/smoke.mjs --runtime <Leonidas Code.exe> --entry <server.asar>/apps/server/dist/bin.mjs
+//   node scripts/smoke.mjs --runtime <Leonidas.exe> --entry <server.asar>/apps/server/dist/bin.mjs
 //                                             run a packaged server with the app's Electron as Node
 // Exit 0 = pass, 1 = fail. Prints one line per step with its time in ms.
 // The server always gets a fresh temp home, so it never touches ~/.t3/userdata.

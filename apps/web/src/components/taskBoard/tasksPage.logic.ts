@@ -246,7 +246,7 @@ export type SectionShareState =
 
 /**
  * What the share strip above a project's tasks should say. Sharing needs the AIOS project to be
- * set up in Leonidas Code and to have a GitHub repository; without one the strip says why.
+ * set up in Leonidas and to have a GitHub repository; without one the strip says why.
  */
 export function sectionShareState(
   entry: RailEntry | null,

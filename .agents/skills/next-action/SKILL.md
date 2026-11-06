@@ -74,7 +74,7 @@ Route badges from the script:
 Start in the same turn. Set the card status to `In progress` first.
 
 - **In-chat:** pick the method from the task type, not by habit. Code: `idea-to-ship` or `build` (tests first). Decisions: `grilling` on the card, then write the decisions into it. Docs and admin: do the work and check `Done when`. Review: `review-two-axis` or read the diff against `Done when`.
-- **Fresh chat:** run `... --draft-prompt <N>`, improve it with `prompt-composer`, and show it in a fenced block. In Leonidas Code, also open it with `t3_thread_launch` (`message` = the prompt, `workspaceStrategy` = `root`). The operator chose this route, so this counts as the explicit ask for a new thread.
+- **Fresh chat:** run `... --draft-prompt <N>`, improve it with `prompt-composer`, and show it in a fenced block. In Leonidas, also open it with `t3_thread_launch` (`message` = the prompt, `workspaceStrategy` = `root`). The operator chose this route, so this counts as the explicit ask for a new thread.
 - **Delegate:** follow the project's subagent rule. Ask for approval if the rule requires it. Send `delegate_task` with the card path, objective, file limits and `Done when`. Check the diff and run the checks yourself before you report done. See [verify delegated work](references/hermes-plate-verify.md).
 - **Grill first or human:** run the `grilling` skill on the card (it keeps its own capture file). For `human` cards, give numbered steps of 2 minutes or less and the exact link or command for each. Use `wizard` for long flows.
 

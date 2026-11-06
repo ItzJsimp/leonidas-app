@@ -2042,7 +2042,7 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
               driver: MUSE_PROVIDER,
               providerThreadId: args.providerThread.id,
               checkpointId: args.target.checkpointId,
-              cause: "Muse Code does not support conversation rollback in Leonidas Code.",
+              cause: "Muse Code does not support conversation rollback in Leonidas.",
             }),
           ),
         forkThread: (args) =>
@@ -2050,7 +2050,7 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
             new ProviderAdapter.ProviderAdapterForkThreadError({
               driver: MUSE_PROVIDER,
               providerThreadId: args.sourceProviderThread.id,
-              cause: "Muse Code does not support native forks in Leonidas Code.",
+              cause: "Muse Code does not support native forks in Leonidas.",
             }),
           ),
       };

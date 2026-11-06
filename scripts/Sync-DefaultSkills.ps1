@@ -98,7 +98,7 @@ function Remove-EmptySkillDir([string]$Path) {
         Remove-Item -LiteralPath $Path -Force
     }
 }
-# Shared skills: a skill committed in the Leonidas Code clone is the one copy; the AIOS gets a junction to it
+# Shared skills: a skill committed in the Leonidas clone is the one copy; the AIOS gets a junction to it
 # (Share-SkillToLeonidasCode.ps1 moves a skill there). This recreates missing junctions after a pull or on a new machine.
 $sharedLinked = 0
 $sharedRoot = Join-Path $repo 'projects/leonidas-code/.agents/skills'
@@ -112,8 +112,8 @@ if (-not $ProjectPath -and (Test-Path -LiteralPath $sharedRoot)) {
             $PSCmdlet.ShouldProcess($aiosLink, 'Remove cache-only folder blocking a shared skill link')) {
             Remove-Item -LiteralPath $aiosLink -Recurse -Force; $item = $null
         }
-        if (-not $item -and $PSCmdlet.ShouldProcess($aiosLink, 'Link shared skill from Leonidas Code')) { New-SkillLink $aiosLink $dir.FullName; $sharedLinked++ }
-        # Skills that started in Leonidas Code are not in .agents/skills/.gitignore; keep their links out of AIOS git too.
+        if (-not $item -and $PSCmdlet.ShouldProcess($aiosLink, 'Link shared skill from Leonidas')) { New-SkillLink $aiosLink $dir.FullName; $sharedLinked++ }
+        # Skills that started in Leonidas are not in .agents/skills/.gitignore; keep their links out of AIOS git too.
         if (-not $WhatIfPreference -and (Get-Item -LiteralPath $aiosLink -Force -ErrorAction SilentlyContinue).LinkType) { Add-LocalExclude $repo ".agents/skills/$($dir.Name)" }
         $adapter = Join-Path $repo ".claude/skills/$($dir.Name)"
         $adapterRoot = Get-Item -LiteralPath (Join-Path $repo '.claude/skills') -Force -ErrorAction SilentlyContinue
@@ -163,4 +163,4 @@ if (-not $WhatIfPreference) {
     }
 }Write-Host "[OK] Updated $updated default skill files across $($targets.Count) workspace(s)."
 Write-Host "[OK] Core skills: $linked link(s) created across $($targets.Count) workspace(s)."
-Write-Host "[OK] Shared skills: $sharedLinked link(s) created from Leonidas Code."
+Write-Host "[OK] Shared skills: $sharedLinked link(s) created from Leonidas."

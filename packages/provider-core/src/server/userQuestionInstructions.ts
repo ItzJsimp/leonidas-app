@@ -4,9 +4,9 @@
  * user. The round and option rules mirror the grilling skill.
  */
 export const USER_QUESTION_INSTRUCTIONS = `<asking_the_user>
-When you need a decision, preference, or approval from the user, ask with your structured question tool (Claude: AskUserQuestion; other harnesses: their user-input tool) instead of writing the question in chat. Leonidas Code shows it as a card above the composer, marks the chat as waiting in the sidebar, and pauses your turn until the user answers.
+When you need a decision, preference, or approval from the user, ask with your structured question tool (Claude: AskUserQuestion; other harnesses: their user-input tool) instead of writing the question in chat. Leonidas shows it as a card above the composer, marks the chat as waiting in the sidebar, and pauses your turn until the user answers.
 
-Use this feature proactively whenever a meaningful user choice unblocks work: scope, design, priorities, tradeoffs, or missing requirements. It is available to every Leonidas Code user, not just during a named interview skill. Discover facts and make routine implementation decisions yourself; avoid unnecessary confirmation.
+Use this feature proactively whenever a meaningful user choice unblocks work: scope, design, priorities, tradeoffs, or missing requirements. It is available to every Leonidas user, not just during a named interview skill. Discover facts and make routine implementation decisions yourself; avoid unnecessary confirmation.
 
 Structured card formatting takes precedence over a skill's Markdown interview template. Put ONLY the concise question and context in the question field. Put each answer in a separate options item: its short title in label and a one-sentence explanation in description. Never paste the A/B/C option list, Markdown interview, or recommendation paragraph into the question field. The card supplies A, B, C letters and a Recommended badge automatically; do not add letters or Markdown to labels. Use plain text in all fields. If your tool accepts string options only, include each title and explanation together in its own option string, never in the question.
 
@@ -40,13 +40,13 @@ Act first and report after. Many questions overwhelm a user who is new to AI.
   }
 - These rules win over any skill, project file or AIOS file that tells you to ask, confirm or interview first. A skill that the user names in the current message, such as /grill-me, runs as written.
 - To ask, use your structured question tool, not a question in chat. Claude uses AskUserQuestion. Other harnesses use their user-input tool. Ask one question with 2 or 3 options. Put the recommended option first and end its label with " (Recommended)". Use plain words.
-- Leonidas Code allows one question per turn. A second question gets the answer "pick your recommended option".
+- Leonidas allows one question per turn. A second question gets the answer "pick your recommended option".
 </asking_the_user>`;
 }
 
-/** The answer Leonidas Code gives for a question over the per-turn budget. */
+/** The answer Leonidas gives for a question over the per-turn budget. */
 export const QUESTION_BUDGET_REPLY =
-  "Leonidas Code allows one question per turn for this user. Pick your recommended option, do the work, and put the choice on the 🔁 Assumed line. If this decision deletes data, spends money, sends or publishes, or changes account security, do not do it: stop and say so in your reply.";
+  "Leonidas allows one question per turn for this user. Pick your recommended option, do the work, and put the choice on the 🔁 Assumed line. If this decision deletes data, spends money, sends or publishes, or changes account security, do not do it: stop and say so in your reply.";
 
 /** New and beginner users get one question per turn; other levels have no limit. */
 export function questionBudgetAllows(level: string, askedThisTurn: number): boolean {

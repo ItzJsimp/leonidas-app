@@ -181,7 +181,7 @@ function buildUserError(
         detail,
         title: "The AI program is not installed.",
         reason:
-          "Leonidas Code could not find the AI program on this computer. Install it from the AI accounts page.",
+          "Leonidas could not find the AI program on this computer. Install it from the AI accounts page.",
         action: { kind: "route", label: "Install it", to: PROVIDER_SETTINGS_ROUTE },
       };
     case "auth-expired":
@@ -243,7 +243,7 @@ function buildUserError(
         kind,
         detail,
         title: "The update did not download.",
-        reason: "Leonidas Code could not get the update from the update server.",
+        reason: "Leonidas could not get the update from the update server.",
         action: options.canRetry
           ? RETRY
           : { kind: "url", label: "Download installer", url: INSTALLER_DOWNLOAD_URL },
@@ -252,7 +252,7 @@ function buildUserError(
       return {
         kind,
         detail,
-        title: "Leonidas Code cannot reach its server.",
+        title: "Leonidas cannot reach its server.",
         reason: `The server answered HTTP ${facts.status ?? "5xx"}, so it is starting or stopped.`,
         action: options.canRetry ? RETRY : RELOAD,
       };
@@ -261,7 +261,7 @@ function buildUserError(
         kind,
         detail,
         title: "The connection dropped.",
-        reason: "Leonidas Code lost its network connection to the server or provider.",
+        reason: "Leonidas lost its network connection to the server or provider.",
         action: options.canRetry ? RETRY : RELOAD,
       };
     case "unknown":

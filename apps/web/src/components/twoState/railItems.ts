@@ -48,8 +48,8 @@ const under = (pathname: string, base: string) =>
 const BEFORE_EXTRAS: readonly RailItem[] = [
   item("command-center", "Command Center", "/command-center", "your work and what needs you"),
   {
-    ...item("chat", "Code / Chat", "/", "talk with Leonidas"),
-    tooltip: "Leonidas Code / Chat: talk with Leonidas and run agents",
+    ...item("chat", "Leonidas Chat", "/", "talk with Leonidas"),
+    tooltip: "Leonidas Chat: talk with Leonidas and run agents",
   },
   item("scribe", "Scribe", "/scribe", "talk and have it typed for you"),
   item("inbox", "Notifications", "/inbox", "what needs you and what finished"),

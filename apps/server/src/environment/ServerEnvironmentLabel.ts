@@ -192,5 +192,5 @@ export const resolveServerEnvironmentLabel = Effect.fn("resolveServerEnvironment
     return hostname;
   }
 
-  return normalizeLabel(input.cwdBaseName) ?? "Leonidas Code environment";
+  return normalizeLabel(input.cwdBaseName) ?? "Leonidas environment";
 });

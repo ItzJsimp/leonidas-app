@@ -1,7 +1,7 @@
 // No console window in release builds; piped stdio from a parent still works.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-//! The always-on Scribe engine process. Leonidas Code supervises it over the contract.
+//! The always-on Scribe engine process. Leonidas supervises it over the contract.
 //!
 //! Flags: `--config <path>` (default `%APPDATA%\Leonidas\scribe-engine\config.json`),
 //! `--accept-injected` (the latency bench sends synthetic hotkeys),

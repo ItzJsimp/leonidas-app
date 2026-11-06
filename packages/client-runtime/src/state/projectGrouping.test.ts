@@ -84,7 +84,7 @@ const repositoryIdentity = {
   provider: "github",
   owner: "t3tools",
   name: "t3code",
-  displayName: "Leonidas Code",
+  displayName: "Leonidas",
 };
 
 function makeProject(
@@ -154,7 +154,7 @@ describe("buildProjectGroups", () => {
     ];
 
     expect(buildProjectGroups({ projects, settings: settings("repository") })[0]?.label).toBe(
-      "Leonidas Code",
+      "Leonidas",
     );
   });
 

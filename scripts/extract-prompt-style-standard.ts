@@ -4,7 +4,7 @@
 // Anonymization rules are in ANONYMIZATION below and must stay in step with the review notes.
 import * as NodeFS from "node:fs";
 
-const AGENT_APP = /^(?:claude|codex|antigravity|cursor|windsurf|leonidas code)(?:\.exe)?$/i;
+const AGENT_APP = /^(?:claude|codex|antigravity|cursor|windsurf|leonidas(?: code)?)(?:\.exe)?$/i;
 const TARGET = 150;
 const MIN_WORD_DOC_FREQ = 8; // a word must appear in this many distinct prompts to be allowed
 const MAX_WORDS = 22;

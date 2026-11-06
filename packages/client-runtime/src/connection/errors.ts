@@ -157,7 +157,7 @@ export function mapRemoteEnvironmentError(
       // snapshot). Treat it as a configuration issue with the endpoint.
       return new ConnectionBlockedError({
         reason: "configuration",
-        detail: "Leonidas Code could not find the computer at that address.",
+        detail: "Leonidas could not find the computer at that address.",
         traceId: error.traceId,
       });
     case "RemoteEnvironmentAuthTimeoutError":

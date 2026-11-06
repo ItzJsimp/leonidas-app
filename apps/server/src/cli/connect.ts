@@ -186,7 +186,7 @@ function formatCloudStatus(status: CloudCliStatus, options?: { readonly json?: b
     : !status.desired
       ? "Run `t3 connect link` to enable remote access."
       : !status.linked
-        ? "Start Leonidas Code to provision the environment link and launch its managed tunnel."
+        ? "Start Leonidas to provision the environment link and launch its managed tunnel."
         : undefined;
 
   return [
@@ -511,7 +511,7 @@ const connectLinkCommand = Command.make("link", {
     Flag.withDefault(false),
   ),
 }).pipe(
-  Command.withDescription("Set up remote access when Leonidas Code next starts."),
+  Command.withDescription("Set up remote access when Leonidas next starts."),
   Command.withHandler((flags) =>
     runCloudCommand(
       flags,
@@ -522,7 +522,7 @@ const connectLinkCommand = Command.make("link", {
           const serveCommand = yield* resolveCliCommand("serve");
           yield* Console.log(
             flags.publishOnly
-              ? `✓ Authorized${connectedAs(linked.identity)}\n\nNext\n  Start Leonidas Code to publish agent activity (no managed tunnel).`
+              ? `✓ Authorized${connectedAs(linked.identity)}\n\nNext\n  Start Leonidas to publish agent activity (no managed tunnel).`
               : `✓ Authorized${connectedAs(linked.identity)}\n\nNext\n  Start the server with \`${serveCommand}\` to make this machine reachable.`,
           );
         }
@@ -632,7 +632,7 @@ const connectPublishCommand = Command.make("publish", {
         // link is pending at all.
         if (yield* CliState.readCliDesiredCloudLink) {
           yield* Console.log(
-            "A remote access link is already pending. Start Leonidas Code to finish setup.",
+            "A remote access link is already pending. Start Leonidas to finish setup.",
           );
           return;
         }
@@ -689,8 +689,8 @@ export const connectCommand = Command.make("connect", {
           const platform = yield* HostProcess.Platform;
           yield* Console.log(
             platform === "darwin"
-              ? "\n✓ Background service ready\n\nLeonidas Code runs while you are logged in to this Mac. It enables remote access on startup."
-              : "\n✓ Background service ready\n\nLeonidas Code keeps running after you log out. It enables remote access on startup.",
+              ? "\n✓ Background service ready\n\nLeonidas runs while you are logged in to this Mac. It enables remote access on startup."
+              : "\n✓ Background service ready\n\nLeonidas keeps running after you log out. It enables remote access on startup.",
           );
           return;
         }

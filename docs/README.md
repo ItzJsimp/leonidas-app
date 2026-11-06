@@ -1,8 +1,8 @@
-# Leonidas Code docs
+# Leonidas docs
 
-## Using Leonidas Code
+## Using Leonidas
 
-- [Install Leonidas Code](./user/install.md)
+- [Install Leonidas](./user/install.md)
 - [Messages and context](./user/composer.md)
 - [Working with threads](./user/thread-sidebar.md)
 - [Permission modes](./user/permission-modes.md)
@@ -16,19 +16,19 @@
 - [Visual replies](./user/html-renders.md)
 - [Images](./user/images.md)
 - [Import browser sessions](./user/browser-import.md)
-- [Use Leonidas Code as your default browser](./user/default-browser.md)
+- [Use Leonidas as your default browser](./user/default-browser.md)
 - [Devices](./user/devices.md)
 - [Usage and limits](./user/usage.md)
 - [Product usage data](./user/telemetry.md)
 - [Remote access](./user/remote-access.md)
 - [Outside agents (MCP)](./user/outside-agents.md)
 - [Running in the background](./user/background-service.md)
-- [Updating Leonidas Code](./user/updating.md)
+- [Updating Leonidas](./user/updating.md)
 - Provider guides: [Codex](./user/providers-codex.md) · [Claude](./user/providers-claude.md) · [Cursor](./user/cursor.md) · [OpenCode](./user/providers-opencode.md) · [Antigravity](./user/providers-antigravity.md) · [Pi](./user/providers-pi.md) · [Muse Code](./user/providers-muse.md)
 
 ---
 
-## Working on Leonidas Code
+## Working on Leonidas
 
 Start with the [development runbook](./operations/development.md) and
 [contribution policy](../CONTRIBUTING.md).

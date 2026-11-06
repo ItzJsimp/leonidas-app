@@ -1,6 +1,6 @@
 # Writing updates people understand
 
-Write for someone using Leonidas Code, not someone building it. After ten seconds, they should know what changed and why they care. Explain the visible result before any detail. Use the exact button or screen name when it helps someone find the change.
+Write for someone using Leonidas, not someone building it. After ten seconds, they should know what changed and why they care. Explain the visible result before any detail. Use the exact button or screen name when it helps someone find the change.
 
 ## Two jobs, one standard
 
@@ -22,13 +22,13 @@ Copy [the template](../assets/release-story-template.md), replace the placeholde
 
 Use Added, Improved, Fixed, Changed or Removed. Aim for 8 to 18 words, one change each. Name the thing users see and the benefit or symptom. Keep the strongest five as highlights; use details for the rest. Product names and visible controls are fine. Explain unfamiliar terms or replace them. Never append "walk me through it", "restart and try", or other actions.
 
-| Too technical | Clear to a user |
-| --- | --- |
-| Turn ledger reports cache writes separately from fresh input. | Improved the usage breakdown so you can see what each reply costs. |
+| Too technical                                                 | Clear to a user                                                               |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Turn ledger reports cache writes separately from fresh input. | Improved the usage breakdown so you can see what each reply costs.            |
 | Context-audit reports instruction chain and skill token cost. | Added a breakdown showing how much space instructions take in a conversation. |
-| Fixed RPC authorization for task mutations. | Fixed task changes failing when you use Leonidas Code from another device. |
-| Added release feed and version library. | Added pictures and clearer explanations to help you catch up on updates. |
-| Fixed pending update restart coordination. | Fixed updates restarting the app before your running agents finished. |
+| Fixed RPC authorization for task mutations.                   | Fixed task changes failing when you use Leonidas from another device.         |
+| Added release feed and version library.                       | Added pictures and clearer explanations to help you catch up on updates.      |
+| Fixed pending update restart coordination.                    | Fixed updates restarting the app before your running agents finished.         |
 
 These are wording examples, not claims to reuse without checking the actual change. Keep details that affect a user's decision, such as a limit or required sign-in. Drop implementation causes, file paths, acronyms, and development history. Required user action belongs in the explanation, never in a button attached to each note.
 

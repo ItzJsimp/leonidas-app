@@ -209,7 +209,7 @@ const makeClaudeInstallation = Effect.fn("makeClaudeInstallation")(function* () 
     if (!found) {
       return yield* installationError(
         "verify",
-        "Claude installed, but Leonidas Code cannot start it. Restart Leonidas Code, then try again.",
+        "Claude installed, but Leonidas cannot start it. Restart Leonidas, then try again.",
       );
     }
     yield* SubscriptionRef.update(state, (current): ProviderInstallState =>
@@ -316,7 +316,7 @@ const makeClaudeInstallation = Effect.fn("makeClaudeInstallation")(function* () 
     Effect.fail(
       installationError(
         "remove",
-        "Leonidas Code does not remove Claude. Uninstall it from your system settings.",
+        "Leonidas does not remove Claude. Uninstall it from your system settings.",
       ),
     );
 

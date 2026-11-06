@@ -8,7 +8,7 @@ v1.1 (2026-10-17, lane L1) is additive: v1 clients keep working and `apiVersion`
 
 v1.2 (2026-10-18, lane L1) is additive: dictation history, dictionary, settings and devices. New: `GET /v1/history`, `DELETE /v1/history/{id}`, the `history` event, `GET` and `PUT /v1/dictionary`, `GET /v1/dictionary/suggestions`, `DELETE /v1/dictionary/suggestions/{wrong}`, `GET` and `PATCH /v1/settings`, and `GET /v1/devices`. The engine saves each transcript to `history.jsonl` next to its config file.
 
-The engine is a Rust process. Leonidas Code supervises it and drives it over loopback HTTP. The contract is the only coupling ([ADR-0074](../../../../decisions/0074-leonidas-scribe-engine-moves-to-rust-and-python-leaves-the-product.md)). Any UI can drive the engine through it.
+The engine is a Rust process. Leonidas supervises it and drives it over loopback HTTP. The contract is the only coupling ([ADR-0074](../../../../decisions/0074-leonidas-scribe-engine-moves-to-rust-and-python-leaves-the-product.md)). Any UI can drive the engine through it.
 
 v1.3 (2026-10-18, lane L1) is additive too. New: `localModel` in status, and `engine: "local"` in the `transcript` event. The engine falls back to an on-device whisper.cpp model when the cloud cannot answer, and private mode uses only that model.
 

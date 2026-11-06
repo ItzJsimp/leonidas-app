@@ -13,7 +13,8 @@ const MIN_RAM_BYTES = 500 * MB;
 const MAX_ITEMS_PER_KIND = 5;
 
 /** Programs that belong to the model setup itself, so the advisor never lists them. */
-const OWN_PROGRAMS = /^(ollama|ollama app|ollama_llama_server|leonidas code|node|electron)$/i;
+const OWN_PROGRAMS =
+  /^(ollama|ollama app|ollama_llama_server|leonidas code|leonidas|node|electron)$/i;
 
 /** Plain hints for programs that often hold memory on a game and AI PC. */
 const HINTS: ReadonlyArray<readonly [RegExp, string]> = [

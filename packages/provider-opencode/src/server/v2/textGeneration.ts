@@ -130,7 +130,7 @@ const runOnServer = (
     // either request can stall while the event stream stays connected.
     const generate = Effect.gen(function* () {
       const session = yield* client.session.create({
-        title: `Leonidas Code ${input.operation}`,
+        title: `Leonidas ${input.operation}`,
         location: Location.PublicRef.make({ directory: AbsolutePath.make(input.cwd) }),
         model: Model.Ref.make({
           providerID: Provider.ID.make(parsed.providerID),

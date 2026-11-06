@@ -92,10 +92,10 @@ export const threadTitleEvaluationCases = [
   {
     id: "research",
     source: "Maintainer title generation request",
-    request: "How can we improve title generation in Leonidas Code?",
+    request: "How can we improve title generation in Leonidas?",
     previousTitle: "Research title gen improvements",
     messages: [
-      { role: "user", text: "How can we improve title gen further in Leonidas Code?" },
+      { role: "user", text: "How can we improve title gen further in Leonidas?" },
       {
         role: "assistant",
         text: "Prioritize user messages, refine vague titles once, and resolve PR subjects.",

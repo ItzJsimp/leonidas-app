@@ -1,8 +1,8 @@
-# Leonidas Code
+# Leonidas
 
-Leonidas Code is an "agent harness control surface". It controls the coding agents on your machine (Claude Code, Codex, Cursor, Grok Build, OpenCode, and Google Antigravity) from one desktop app, using your own subscriptions. If they are set up on your computer, Leonidas Code can control them.
+Leonidas is an "agent harness control surface". It controls the coding agents on your machine (Claude Code, Codex, Cursor, Grok Build, OpenCode, and Google Antigravity) from one desktop app, using your own subscriptions. If they are set up on your computer, Leonidas can control them.
 
-Leonidas Code is a fork of [T3 Code](https://github.com/pingdotgg/t3code) by T3 Tools (MIT). The original MIT copyright notice is kept in [LICENSE](./LICENSE).
+Leonidas is a fork of [T3 Code](https://github.com/pingdotgg/t3code) by T3 Tools (MIT). The original MIT copyright notice is kept in [LICENSE](./LICENSE).
 
 ## Installation
 
@@ -36,7 +36,7 @@ Full docs live in [docs/](./docs).
 - [Keeping app and server in sync](./docs/user/updating.md)
 - [Source control integrations](./docs/user/source-control.md)
 - Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)
-- [Run Leonidas Code as a background service](./docs/user/background-service.md)
+- [Run Leonidas as a background service](./docs/user/background-service.md)
 
 Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md). Team workflow for this fork is in [LEONIDAS.md](./LEONIDAS.md).
 
@@ -44,7 +44,7 @@ Building from source? Start at [docs/internals/overview.md](./docs/internals/ove
 
 ### Install `vp`
 
-Leonidas Code uses Vite+ so you'll need to install the global `vp` command-line tool.
+Leonidas uses Vite+ so you'll need to install the global `vp` command-line tool.
 
 #### macOS / Linux
 

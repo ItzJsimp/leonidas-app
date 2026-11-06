@@ -534,7 +534,7 @@ function armAgentAwarenessLiveActivityForLocalWorkNow(input: {
     const nowIso = new Date(Date.now()).toISOString();
     const activity = startAgentLiveActivity(
       {
-        title: "Leonidas Code",
+        title: "Leonidas",
         subtitle: "AI work in progress",
         activeCount: 1,
         updatedAt: nowIso,

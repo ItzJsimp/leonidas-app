@@ -1,6 +1,6 @@
 ---
 name: subagent-builder
-description: "Write, edit or audit an AIOS or project subagent spec in .agents/subagents/ that runs through Leonidas Code app delegate. Use when asked to create, change, extend or review a subagent."
+description: "Write, edit or audit an AIOS or project subagent spec in .agents/subagents/ that runs through Leonidas app delegate. Use when asked to create, change, extend or review a subagent."
 category: agents
 scope: structural
 distribution: core

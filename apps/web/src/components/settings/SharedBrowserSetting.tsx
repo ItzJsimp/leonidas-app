@@ -86,8 +86,8 @@ export function SharedBrowserSetting() {
             Disconnect keeps saved logins. Your normal Chrome profile stays separate.
           </span>
           <span className="block">
-            Provider support requires Leonidas Code Preview tools. Providers without those tools
-            cannot use this connection.
+            Provider support requires Leonidas Preview tools. Providers without those tools cannot
+            use this connection.
           </span>
           {!browserAccess ? (
             <span className="block">

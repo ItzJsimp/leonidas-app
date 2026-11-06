@@ -15,7 +15,7 @@ pub(crate) const VOCABULARY_CAP: usize = 800;
 /// Only add a phrase that no one says on purpose: a real word ("Cloud") never goes in.
 pub(crate) const BUILTIN_VOCABULARY: &[&str] = &[
     "Leonidas",
-    "Leonidas Code",
+    "Leonidas Chat",
     "Leonidas Scribe",
     "Claude",
     "Claude Code",
@@ -39,7 +39,7 @@ pub(crate) const BUILTIN_VOCABULARY: &[&str] = &[
 ];
 pub(crate) const BUILTIN_REPLACEMENTS: &[(&str, &str)] = &[
     ("Leonidas scribe", "Leonidas Scribe"),
-    ("Leonidas code", "Leonidas Code"),
+    ("Leonidas chat", "Leonidas Chat"),
     ("United Scribe", "Leonidas Scribe"),
     ("Leonard's scribe", "Leonidas Scribe"),
     ("Loonidas", "Leonidas"),

@@ -318,7 +318,7 @@
     },
     {
       "name": "leonidas-canvas",
-      "description": "Build and publish offline interactive canvases in Leonidas Code. Use when a reply needs a spec, architecture, research, roadmap or audit view, or when the body is over 400 words."
+      "description": "Build and publish offline interactive canvases in Leonidas. Use when a reply needs a spec, architecture, research, roadmap or audit view, or when the body is over 400 words."
     },
     {
       "name": "leonidas-os-audit",
@@ -518,7 +518,7 @@
     },
     {
       "name": "subagent-builder",
-      "description": "Write, edit or audit an AIOS or project subagent spec in .agents/subagents/ that runs through Leonidas Code app delegate. Use when asked to create, change, extend or review a subagent."
+      "description": "Write, edit or audit an AIOS or project subagent spec in .agents/subagents/ that runs through Leonidas app delegate. Use when asked to create, change, extend or review a subagent."
     },
     {
       "name": "system-prompt-authoring",
@@ -574,7 +574,7 @@
     },
     {
       "name": "upstream-review",
-      "description": "Review new upstream T3 Code commits and releases, then recommend what to port into Leonidas Code. Use when asked to check upstream, T3 updates or a T3 change, or run /upstream-review."
+      "description": "Review new upstream T3 Code commits and releases, then recommend what to port into Leonidas. Use when asked to check upstream, T3 updates or a T3 change, or run /upstream-review."
     },
     {
       "name": "using-git-worktrees",

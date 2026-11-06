@@ -60,7 +60,7 @@ describe("task milestone versions", () => {
     expect(
       decodeRoadmap({
         projectSlug: "leonidas-code",
-        name: "Leonidas Code",
+        name: "Leonidas",
         currentVersion: "0.22.0",
         targetVersion: "1.0.0",
         releaseDefinition: "Public launch",

@@ -1,6 +1,6 @@
-# Engineering guide (Leonidas Code)
+# Engineering guide (Leonidas)
 
-Read before changing code. Leonidas Code is a Node WebSocket server that wraps provider CLIs and agents (Codex, Claude, Cursor, Grok, OpenCode, Antigravity) and serves web, desktop and mobile clients. Forked from T3 Code (MIT); internal ids `@t3tools/*`, `T3CODE_*`, `~/.t3` stay for data safety.
+Read before changing code. Leonidas is a Node WebSocket server that wraps provider CLIs and agents (Codex, Claude, Cursor, Grok, OpenCode, Antigravity) and serves web, desktop and mobile clients. Forked from T3 Code (MIT); internal ids `@t3tools/*`, `T3CODE_*`, `~/.t3` stay for data safety.
 
 ## Principles
 

@@ -14,9 +14,9 @@ const defaultInput = {
   platform: "darwin",
   processArch: "arm64",
   appVersion: "0.0.22",
-  appPath: "/Applications/Leonidas Code.app/Contents/Resources/app.asar",
+  appPath: "/Applications/Leonidas.app/Contents/Resources/app.asar",
   isPackaged: false,
-  resourcesPath: "/Applications/Leonidas Code.app/Contents/Resources",
+  resourcesPath: "/Applications/Leonidas.app/Contents/Resources",
   runningUnderArm64Translation: false,
 } satisfies DesktopEnvironment.MakeDesktopEnvironmentInput;
 

@@ -26,7 +26,7 @@ export const MOBILE_THEME_OPTIONS: ReadonlyArray<{
   readonly id: MobileThemeId;
   readonly label: string;
 }> = [
-  { id: DEFAULT_MOBILE_THEME_ID, label: "Leonidas Code" },
+  { id: DEFAULT_MOBILE_THEME_ID, label: "Leonidas" },
   { id: "material-you", label: "Material You" },
   ...BUILT_IN_THEMES.filter((theme) => theme.id !== DEFAULT_MOBILE_THEME_ID).map((theme) => ({
     id: theme.id as MobileThemeId,

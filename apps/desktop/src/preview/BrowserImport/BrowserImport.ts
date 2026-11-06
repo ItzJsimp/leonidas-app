@@ -1,6 +1,6 @@
 /**
  * Browser import service - lists importable sources and writes their cookies
- * into a Leonidas Code browser profile's Electron partition.
+ * into a Leonidas browser profile's Electron partition.
  *
  * @module BrowserImport
  */

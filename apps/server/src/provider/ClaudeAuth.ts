@@ -403,7 +403,7 @@ export const makeClaudeAuthCommands = Effect.fn("makeClaudeAuthCommands")(functi
         Effect.mapError(() =>
           failure(
             "start",
-            "Leonidas Code could not start Claude. Install Claude, then start sign-in again.",
+            "Leonidas could not start Claude. Install Claude, then start sign-in again.",
           ),
         ),
       );

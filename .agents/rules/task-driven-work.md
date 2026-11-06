@@ -1,6 +1,6 @@
 # Task-driven work (every agent, every provider)
 
-Work in Leonidas Code is organized around tasks. The Tasks page (Inbox, Today, Upcoming, All tasks; Dashboard, Board, List, Roadmap) is how the user sees and steers everything, so what you do has to be visible there.
+Work in Leonidas is organized around tasks. The Tasks page (Inbox, Today, Upcoming, All tasks; Dashboard, Board, List, Roadmap) is how the user sees and steers everything, so what you do has to be visible there.
 
 ## Start
 

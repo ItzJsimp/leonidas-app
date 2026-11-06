@@ -65,9 +65,10 @@ describe("railItems", () => {
       to: "/inbox",
       tooltip: "Notifications: what needs you and what finished",
     });
-    expect(
-      main.find((item) => item.id === "chat")?.tooltip.startsWith("Leonidas Code / Chat"),
-    ).toBe(true);
+    expect(main.find((item) => item.id === "chat")).toMatchObject({
+      label: "Leonidas Chat",
+      tooltip: "Leonidas Chat: talk with Leonidas and run agents",
+    });
     expect(main.find((item) => item.id === "content")).toMatchObject({
       to: "/marketing",
       label: "Marketing",
@@ -83,9 +84,9 @@ describe("railItems", () => {
       "/git",
       "/pull-requests",
     ]);
-    // Jake named the chat item "Leonidas Code / Chat" (2026-10-23). Other items stay plain.
+    // Jake named the chat item "Leonidas Chat" (2026-11-05). Other items stay plain.
     for (const item of [...main, ...bottom]) {
-      const text = `${item.label}${item.tooltip}`.replaceAll("Code / Chat", "");
+      const text = `${item.label}${item.tooltip}`;
       expect(text).not.toMatch(/—|\bcode\b|MCP|worktree|T3/i);
     }
   });

@@ -18,7 +18,7 @@ import {
 function view(id: string, overrides: Partial<TaskView> = {}): TaskView {
   const base: TaskBoardTask = {
     id,
-    project: "Leonidas Code",
+    project: "Leonidas",
     title: `Task ${id}`,
     description: "",
     status: "todo",
@@ -96,10 +96,10 @@ describe("pageColumn", () => {
 });
 
 describe("projectNameFor", () => {
-  const names = new Map([["leonidas-code", "Leonidas Code"]]);
+  const names = new Map([["leonidas-code", "Leonidas"]]);
 
   it("uses the known project name, falls back to the card's project, and hides general", () => {
-    expect(projectNameFor({ section: "leonidas-code", project: "x" }, names)).toBe("Leonidas Code");
+    expect(projectNameFor({ section: "leonidas-code", project: "x" }, names)).toBe("Leonidas");
     expect(projectNameFor({ section: "other", project: "Other Co" }, names)).toBe("Other Co");
     expect(projectNameFor({ section: "general", project: "General" }, names)).toBeNull();
   });
@@ -128,7 +128,7 @@ describe("buildListGroups", () => {
     const sections = groupBySection(tasks, [
       {
         slug: "leonidas-code",
-        name: "Leonidas Code",
+        name: "Leonidas",
         projectId: null,
         repository: null,
         total: 0,
@@ -137,7 +137,7 @@ describe("buildListGroups", () => {
       { slug: "empty", name: "Empty", projectId: null, repository: null, total: 0, open: 0 },
     ]);
     const groups = buildListGroups({ tasks, sections, groupBy: "project" });
-    expect(groups.map((group) => group.label)).toEqual(["Leonidas Code", "Scribe"]);
+    expect(groups.map((group) => group.label)).toEqual(["Leonidas", "Scribe"]);
     expect(groups[0]?.openCount).toBe(1);
   });
 

@@ -72,7 +72,7 @@ describe("explicitTaskId", () => {
 // orchestrator stream feeds. "Restart" is a second handler over the same files.
 const boardProject = {
   id: "project-board",
-  title: "Leonidas Code",
+  title: "Leonidas",
   workspaceRoot: "D:/leonidas-code",
 } as Project;
 

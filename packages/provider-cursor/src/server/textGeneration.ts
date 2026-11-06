@@ -69,7 +69,7 @@ export const makeCursorTextGeneration = Effect.fn("makeCursorTextGeneration")(fu
       if (!cursorSettings.enabled) {
         return yield* new TextGenerationError({
           operation,
-          detail: "Cursor is disabled in Leonidas Code settings.",
+          detail: "Cursor is disabled in Leonidas settings.",
         });
       }
 

@@ -6,7 +6,7 @@
 // budgets fail it only with --enforce-app; before that they warn and the report
 // says whether the Tauri gate (an app budget busted) is tripped.
 //
-//   node scripts/release-benchmark.ts --version 1.0.100 --installer release/Leonidas-Code-1.0.100-x64.exe \
+//   node scripts/release-benchmark.ts --version 1.0.100 --installer release/Leonidas-1.0.100-x64.exe \
 //     --engine-dir services/scribe-engine/target/x86_64-pc-windows-msvc/release \
 //     [--history benchmark-history.csv] [--out-dir release] [--idle-seconds 30] [--enforce-app]
 import { spawn, spawnSync } from "node:child_process";
@@ -267,7 +267,7 @@ async function main() {
     spawnSync(sevenZip(), ["x", "-y", `-o${appDir}`, join(outer, "$PLUGINSDIR", "app-64.7z")], {
       stdio: "ignore",
     });
-    const appExe = join(appDir, "Leonidas Code.exe");
+    const appExe = join(appDir, "Leonidas.exe");
     if (!existsSync(appExe)) throw new Error(`installer did not contain ${appExe}`);
     app = await measureApp(appExe, idleSeconds);
   } catch (error) {

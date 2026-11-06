@@ -11,7 +11,7 @@ const NOW = new Date(2026, 9, 11, 12, 0, 0).getTime();
 function task(id: string, overrides: Partial<TaskBoardTask> = {}): TaskBoardTask {
   return {
     id,
-    project: "Leonidas Code",
+    project: "Leonidas",
     title: `Task ${id}`,
     description: "",
     status: "todo",

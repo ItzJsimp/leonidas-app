@@ -263,7 +263,7 @@ const INTERNAL_OPERATION_MESSAGES = {
   "persist-desired-link": "Could not save the remote access setup. Try again.",
   "sign-recovery-proof": "Could not sign the managed tunnel recovery request.",
   "unsupported-recovered-tunnel":
-    "Remote access returned an unsupported connection setup. Update Leonidas Code, then try again.",
+    "Remote access returned an unsupported connection setup. Update Leonidas, then try again.",
   "persist-recovered-tunnel": "Could not persist the recovered managed tunnel configuration.",
   "read-relay-config": "Could not read environment relay configuration.",
   "remove-relay-config": "Could not remove environment relay configuration.",

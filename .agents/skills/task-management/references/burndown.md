@@ -17,7 +17,7 @@ Ask, using the [grilling](../../grilling/SKILL.md) format, only what the facts c
 
 ## 3. Engine routing
 
-Use [`workflows/task-pipeline.md`](../../../../workflows/task-pipeline.md) §4. The old fixed table (Antigravity, Hermes, named model versions) was retired on 2026-10-15: Leonidas Code is the daily harness, and the live model list comes from `orchestrator_capabilities`.
+Use [`workflows/task-pipeline.md`](../../../../workflows/task-pipeline.md) §4. The old fixed table (Antigravity, Hermes, named model versions) was retired on 2026-10-15: Leonidas is the daily harness, and the live model list comes from `orchestrator_capabilities`.
 
 ## 3b. Batch ranking and card handling
 

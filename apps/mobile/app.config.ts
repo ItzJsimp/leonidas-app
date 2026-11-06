@@ -73,7 +73,7 @@ const RELEASE_ASSETS = {
 
 const VARIANT_CONFIG = {
   development: {
-    appName: "Leonidas Code Dev",
+    appName: "Leonidas Dev",
     scheme: "t3code-dev",
     iosBundleIdentifier: "com.t3tools.t3code.dev",
     androidPackage: "com.t3tools.t3code.dev",
@@ -81,7 +81,7 @@ const VARIANT_CONFIG = {
     assets: DEVELOPMENT_ASSETS,
   },
   preview: {
-    appName: "Leonidas Code Preview",
+    appName: "Leonidas Preview",
     scheme: "t3code-preview",
     iosBundleIdentifier: "com.t3tools.t3code.preview",
     androidPackage: "com.t3tools.t3code.preview",
@@ -89,7 +89,7 @@ const VARIANT_CONFIG = {
     assets: PREVIEW_ASSETS,
   },
   production: {
-    appName: "Leonidas Code",
+    appName: "Leonidas",
     scheme: "t3code",
     iosBundleIdentifier: "com.t3tools.t3code",
     androidPackage: "com.t3tools.t3code",
@@ -134,7 +134,7 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
       {
         name: "SubscriptionUsage",
         displayName: "Subscription usage",
-        description: "Subscription quotas from your connected Leonidas Code environments.",
+        description: "Subscription quotas from your connected Leonidas environments.",
         ios: {
           configuration: {
             title: "Subscription usage",
@@ -185,7 +185,7 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
       {
         name: "AgentActivity",
         displayName: "Agent Activity",
-        description: "Shows the current state of active Leonidas Code agents.",
+        description: "Shows the current state of active Leonidas agents.",
         // Live Activity companion; there is no Android presentation for it.
         android: null,
         ios: { supportedFamilies: ["systemSmall", "systemMedium", "accessoryRectangular"] },
@@ -273,8 +273,8 @@ const config: ExpoConfig = {
         NSAllowsArbitraryLoads: true,
       },
       NSLocalNetworkUsageDescription:
-        "Allow Leonidas Code to connect to Leonidas Code servers on your local network or tailnet.",
-      NSPhotoLibraryAddUsageDescription: "Allow Leonidas Code to save images to your photo library.",
+        "Allow Leonidas to connect to Leonidas servers on your local network or tailnet.",
+      NSPhotoLibraryAddUsageDescription: "Allow Leonidas to save images to your photo library.",
       // "Audio, AirPlay, and Picture in Picture": the browser screen's system
       // picture in picture needs it to start and to stay up outside the app.
       UIBackgroundModes: ["audio"],
@@ -382,7 +382,7 @@ const config: ExpoConfig = {
     [
       "expo-audio",
       {
-        microphonePermission: "Allow Leonidas Code to use your microphone for voice input.",
+        microphonePermission: "Allow Leonidas to use your microphone for voice input.",
         recordAudioAndroid: false,
         enableBackgroundPlayback: false,
         enableBackgroundRecording: false,
@@ -391,7 +391,7 @@ const config: ExpoConfig = {
     [
       "expo-camera",
       {
-        cameraPermission: "Allow Leonidas Code to access your camera so you can scan pairing QR codes.",
+        cameraPermission: "Allow Leonidas to access your camera so you can scan pairing QR codes.",
         microphonePermission: false,
         barcodeScannerEnabled: true,
         recordAudioAndroid: false,
@@ -500,4 +500,3 @@ const config: ExpoConfig = {
 };
 
 export default config;
-

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  One click to "Leonidas Code (Dev)": makes sure the always-on dev server is running, then opens
+  One click to "Leonidas (Dev)": makes sure the always-on dev server is running, then opens
   its window. Run Install-DevShortcut.ps1 once to set up the server task and the shortcut.
 .DESCRIPTION
   The window is an app-style Chromium window (Vivaldi, Chrome, Edge or Brave, first found) on the dev server (the web port the server records), with its
@@ -25,7 +25,7 @@ $taskName = 'Leonidas Code Dev Server'
 
 function Show-Problem([string]$Message) {
     Add-Type -AssemblyName PresentationFramework
-    [void][System.Windows.MessageBox]::Show($Message, 'Leonidas Code (Dev)', 'OK', 'Error')
+    [void][System.Windows.MessageBox]::Show($Message, 'Leonidas (Dev)', 'OK', 'Error')
 }
 
 try {
@@ -39,7 +39,7 @@ try {
             # First run on this machine: install visibly (it takes a while), then carry on.
             $setup = Start-Process -FilePath (Get-Process -Id $PID).Path -Wait -PassThru -WorkingDirectory $repoRoot -ArgumentList @(
                 '-NoProfile', '-Command',
-                'Write-Host "Leonidas Code (Dev): first-time setup, this can take 10 to 20 minutes. Leave this window open."; $env:CI = "true"; npx --yes pnpm@11.10.0 install --frozen-lockfile; exit $LASTEXITCODE')
+                'Write-Host "Leonidas (Dev): first-time setup, this can take 10 to 20 minutes. Leave this window open."; $env:CI = "true"; npx --yes pnpm@11.10.0 install --frozen-lockfile; exit $LASTEXITCODE')
             if ($setup.ExitCode -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $repoRoot 'node_modules/.bin/vp.cmd'))) {
                 throw "First-time setup failed. In $repoRoot run: npx pnpm@11.10.0 install --frozen-lockfile"
             }

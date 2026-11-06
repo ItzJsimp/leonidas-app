@@ -154,7 +154,7 @@ export const readCursorAccountUsage = Effect.fn("readCursorAccountUsage")(functi
         : typeof credentialSource === "string"
           ? "Cursor credentials could not be read."
           : CursorKeychain.isCursorKeychainTimeoutError(cause)
-            ? "Allow Keychain access on the Mac running Leonidas Code, then refresh."
+            ? "Allow Keychain access on the Mac running Leonidas, then refresh."
             : "Cursor Keychain credentials could not be read.",
     };
   }

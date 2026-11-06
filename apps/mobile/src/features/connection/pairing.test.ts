@@ -45,7 +45,7 @@ describe("extractPairingUrlFromQrPayload", () => {
   it("rejects empty qr payloads", () => {
     expect(() => extractPairingUrlFromQrPayload("   ")).toThrowError(PairingQrPayloadEmptyError);
     expect(() => extractPairingUrlFromQrPayload("   ")).toThrowError(
-      "This QR code is not from Leonidas Code. Scan the code on your computer and try again.",
+      "This QR code is not from Leonidas. Scan the code on your computer and try again.",
     );
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Leonidas Code's reply text, appended to every provider's runtime instructions in two parts.
+ * Leonidas's reply text, appended to every provider's runtime instructions in two parts.
  *
  * The render contract is what the client draws: answer blocks, canvases, file links and the Dock
  * grammar that `packages/shared/src/outputDock.ts` parses. It is not a user setting. Change it and

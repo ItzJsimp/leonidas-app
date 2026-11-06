@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Gives the "Leonidas Code (Dev)" window and its pinned shortcut one taskbar identity and the green icon.
+  Gives the "Leonidas (Dev)" window and its pinned shortcut one taskbar identity and the green icon.
 .DESCRIPTION
   The dev window is a Vivaldi/Chrome app window, so Windows files it under the browser, not under the
   pinned shortcut, and paints the page favicon. This sets one AppUserModelID on the window (and, with
@@ -118,7 +118,7 @@ do {
     $pids = [uint32[]]@(Get-CimInstance Win32_Process |
             Where-Object { $_.CommandLine -match [regex]::Escape($ProfileMarker) } | ForEach-Object { $_.ProcessId })
     if ($pids.Count -gt 0) {
-        $n = [DevIdentity]::StampWindows($pids, $appId, "`"wscript.exe`" `"$launcher`"", "$icon,0", 'Leonidas Code (Dev)', $icon)
+        $n = [DevIdentity]::StampWindows($pids, $appId, "`"wscript.exe`" `"$launcher`"", "$icon,0", 'Leonidas (Dev)', $icon)
         if ($n -gt 0) { Write-Output "windows stamped: $n"; return }
     }
     if ($WaitSeconds -gt 0) { Start-Sleep -Milliseconds 700 }

@@ -20,10 +20,10 @@ Run this outside the repo. Never commit the key or the .p12.
 
 ```bash
 MSYS_NO_PATHCONV=1 openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 3650 \
-  -subj "/CN=Leonidas Code Self-Signed" -addext "keyUsage=critical,digitalSignature" \
+  -subj "/CN=Leonidas Self-Signed" -addext "keyUsage=critical,digitalSignature" \
   -addext "extendedKeyUsage=critical,codeSigning" -addext "basicConstraints=critical,CA:false"
 PW=$(openssl rand -hex 16)
-openssl pkcs12 -export -inkey key.pem -in cert.pem -out sign.p12 -name "Leonidas Code Self-Signed" \
+openssl pkcs12 -export -inkey key.pem -in cert.pem -out sign.p12 -name "Leonidas Self-Signed" \
   -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1 -passout "pass:$PW"
 base64 -w0 sign.p12 | gh secret set MAC_SELF_SIGN_P12 -R ItzJsimp/leonidas-code
 printf %s "$PW" | gh secret set MAC_SELF_SIGN_PASSWORD -R ItzJsimp/leonidas-code

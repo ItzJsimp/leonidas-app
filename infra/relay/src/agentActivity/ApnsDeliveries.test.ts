@@ -77,7 +77,7 @@ const state: RelayAgentActivityState = {
 };
 
 const aggregate: RelayAgentActivityAggregateState = {
-  title: "Leonidas Code",
+  title: "Leonidas",
   subtitle: "Agent work in progress",
   activeCount: 1,
   updatedAt: state.updatedAt,

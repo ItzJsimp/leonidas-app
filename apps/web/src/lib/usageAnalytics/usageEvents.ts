@@ -1,7 +1,7 @@
 import { ClientSettingsSchema, PROVIDER_DISPLAY_NAMES, ServerSettings } from "@t3tools/contracts";
 
 /**
- * Usage events: the only data Leonidas Code can send about how the app is used.
+ * Usage events: the only data Leonidas can send about how the app is used.
  * Every event has a fixed name and a fixed list of numeric or enum fields, so a
  * prompt, a path or a file name can never enter a payload.
  */

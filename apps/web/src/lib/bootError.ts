@@ -1,6 +1,6 @@
 /** Shows startup failures before React can replace the boot splash. */
 export function showBootError(error: unknown) {
-  console.error("Leonidas Code failed to start.", error);
+  console.error("Leonidas failed to start.", error);
   const bootShell = document.getElementById("boot-shell");
   if (!bootShell) return;
 

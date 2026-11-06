@@ -33,7 +33,7 @@ export function CompactBrandTitle(
   return (
     <View
       aria-level={1}
-      accessibilityLabel="Leonidas Code, chats"
+      accessibilityLabel="Leonidas, chats"
       accessible
       role="heading"
       className="flex-row items-center gap-1.5"

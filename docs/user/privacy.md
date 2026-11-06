@@ -1,6 +1,6 @@
 # Privacy: usage numbers
 
-Leonidas Code can send anonymous usage numbers. It does this only if you click **Yes, share usage**. If you click **No thanks**, the app sends nothing.
+Leonidas can send anonymous usage numbers. It does this only if you click **Yes, share usage**. If you click **No thanks**, the app sends nothing.
 
 ## What we send
 

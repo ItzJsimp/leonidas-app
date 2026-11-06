@@ -435,7 +435,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                           key={target.environmentId}
                           icon="server.rack"
                           label={target.label}
-                          value="Updates for Leonidas Code and AI services"
+                          value="Updates for Leonidas and AI services"
                           onPress={() =>
                             navigation.navigate("SettingsSheet", {
                               screen: "SettingsContent",
@@ -469,7 +469,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                         subtitle={
                           supportsContinuation
                             ? "Resume stopped chats after an update or restart."
-                            : "Update Leonidas Code on older computers to control this."
+                            : "Update Leonidas on older computers to control this."
                         }
                         value={uniform("continueThreadsAfterServerUpdate")}
                         disabled={

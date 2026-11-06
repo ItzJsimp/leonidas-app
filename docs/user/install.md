@@ -1,18 +1,18 @@
-# Install Leonidas Code
+# Install Leonidas
 
-Leonidas Code runs coding agents on your computer and lets you control them from its
+Leonidas runs coding agents on your computer and lets you control them from its
 desktop, web, or mobile app. Set up the machine where the agents will work first.
 
 ## Requirements
 
 You need an installed, authenticated provider before starting a thread. You can
-launch Leonidas Code and configure providers afterwards.
+launch Leonidas and configure providers afterwards.
 
 ## Command line
 
 The `t3` command-line tool ships inside the desktop app (see
 [The `t3` command](#the-t3-command)). The upstream one-line installer at
-t3.codes installs T3 Code, not Leonidas Code, so it is not listed here.
+t3.codes installs T3 Code, not Leonidas, so it is not listed here.
 
 | Task                                             | Command                                                   |
 | ------------------------------------------------ | --------------------------------------------------------- |
@@ -49,7 +49,7 @@ update it with `git pull` and a rebuild.
 
 Download the latest installer from [GitHub Releases](https://github.com/ItzJsimp/leonidas-code/releases).
 The Windows build is unsigned, so SmartScreen warns once on first install.
-Package-manager installs (winget, Homebrew, AUR) are not published for Leonidas Code.
+Package-manager installs (winget, Homebrew, AUR) are not published for Leonidas.
 
 Development releases use `0.MINOR.PATCH`: new features advance MINOR, and fixes
 advance PATCH. Version `1.0.0` is reserved for the public launch. If you have a
@@ -83,7 +83,7 @@ from npm, it stays as it is.
 ### Windows Subsystem for Linux
 
 Choose a WSL distro in **Settings → Connections** to run agents and projects
-there. Install the provider CLIs inside that distro. Leonidas Code installs its own
+there. Install the provider CLIs inside that distro. Leonidas installs its own
 server runtime there automatically; the first launch after an app update can
 take longer.
 
@@ -102,7 +102,7 @@ command cannot reach the app, start or update the desktop app and try again.
 
 ## Mobile app
 
-Leonidas Code does not publish its own mobile app yet. The upstream T3 Code mobile
+Leonidas does not publish its own mobile app yet. The upstream T3 Code mobile
 app can connect to a server you run, using a pairing URL (see
 [remote access](./remote-access.md)).
 
@@ -126,15 +126,15 @@ computer.
 | Cursor      | [Sign in with Cursor](./cursor.md#sign-in) in **Settings → Providers → Cursor**, or set `CURSOR_API_KEY` (requires secrets). No CLI is required.          |
 | Grok Build  | Install [Grok Build CLI](https://x.ai/cli), then run `grok login`.                                                                                        |
 | OpenCode    | Install [OpenCode](https://opencode.ai), then run `opencode auth login`.                                                                                  |
-| Antigravity | Install and sign in with Google from Leonidas Code's provider settings.                                                                                   |
+| Antigravity | Install and sign in with Google from Leonidas's provider settings.                                                                                        |
 | Pi          | Install [Pi](https://pi.dev), then run `pi` once to finish its login or API-key setup.                                                                    |
 | Muse Code   | Install [Muse Code](https://dev.meta.ai/docs/muse-code) on the server, run `muse login`, then enable it in Settings → Providers.                          |
 
-Provider CLIs must be on the server's `PATH`. If Leonidas Code cannot find one, set its
+Provider CLIs must be on the server's `PATH`. If Leonidas cannot find one, set its
 **Binary path** in provider settings, especially when using a version manager.
 Codex connected through ChatGPT, Cursor via SDK, and Antigravity use managed runtimes without a `PATH` entry.
 
-Leonidas Code warns when a provider version has known compatibility problems with your
+Leonidas warns when a provider version has known compatibility problems with your
 release. Check **Settings → Providers** on that environment for the recommended
 version or range. When its package manager supports installing a specific version,
 you can install the recommendation there. Otherwise use the provider's installer
@@ -143,14 +143,14 @@ on the environment's machine. An unlisted version is unverified.
 When a provider CLI is behind its latest release, its provider card shows the
 available version. **Update now** runs the installer that owns the CLI
 (Homebrew, or a global npm, pnpm, Yarn, Bun, Volta, or Vite+ install), or the
-CLI's own update command when Leonidas Code cannot tell. Update a CLI installed with
-mise through mise. Cursor and Antigravity update with Leonidas Code. Homebrew installs
+CLI's own update command when Leonidas cannot tell. Update a CLI installed with
+mise through mise. Cursor and Antigravity update with Leonidas. Homebrew installs
 compare against the version Homebrew offers, which can trail the npm release by
 a few hours.
 
 Add another provider instance for a separate account or configuration. Each
 instance can have its own environment variables, such as API keys or a custom
-base URL. Mark secret values as sensitive; after saving, Leonidas Code does not display
+base URL. Mark secret values as sensitive; after saving, Leonidas does not display
 their original values.
 
 For provider-specific setup and accounts, see [Codex](./providers-codex.md),
@@ -164,4 +164,4 @@ For provider-specific setup and accounts, see [Codex](./providers-codex.md),
 - [Permission modes](./permission-modes.md): choose when agents ask before acting.
 - [Remote access](./remote-access.md): connect from another device.
 - [Running in the background](./background-service.md): keep a Linux or macOS host available.
-- [Updating Leonidas Code](./updating.md): update the app and connected servers.
+- [Updating Leonidas](./updating.md): update the app and connected servers.

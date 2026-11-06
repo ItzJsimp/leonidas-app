@@ -1,6 +1,6 @@
 # Claude
 
-Leonidas Code uses Claude Code's login and configuration. Start with the default provider
+Leonidas uses Claude Code's login and configuration. Start with the default provider
 for one account; [provider setup](./install.md#providers) covers installation and
 shared provider settings.
 
@@ -41,7 +41,7 @@ For presets that differ only in API keys or endpoints, use the instance's
 
 Claude Code's verbose mode can stay enabled when you use Claude for text generation, including
 thread titles, branch names, commit messages, and pull request descriptions. On a remote connection,
-Leonidas Code uses the Claude configuration on the connected server.
+Leonidas uses the Claude configuration on the connected server.
 
 ## Compact long conversations
 
@@ -85,7 +85,7 @@ Add an **OpenRouter** instance in **Settings > Providers**, create an API key at
 OpenRouter runs through the Claude Code runtime, so Claude Code CLI must be installed
 on the machine running the Leonidas environment; an OpenRouter key is enough for model
 access, and no Claude subscription is required.
-Leonidas Code discovers OpenRouter's tool-capable text models and current token prices
+Leonidas discovers OpenRouter's tool-capable text models and current token prices
 automatically. **OpenRouter Free Model Router** is the default and routes to an available
 free model; paid models are billed per token by OpenRouter. You can select any discovered
 model in the chat model picker.

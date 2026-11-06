@@ -192,7 +192,7 @@ export const makeOpenCodeTextGeneration = Effect.fn("makeOpenCodeTextGeneration"
         const session = yield* Effect.tryPromise({
           try: () =>
             client.session.create({
-              title: `Leonidas Code ${input.operation}`,
+              title: `Leonidas ${input.operation}`,
               // OpenCode Zen refuses free-model requests that carry no tools, so keep read.
               permission: [
                 { permission: "*", pattern: "*", action: "deny" },

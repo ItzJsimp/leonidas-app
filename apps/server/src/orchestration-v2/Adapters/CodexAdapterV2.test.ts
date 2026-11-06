@@ -1596,8 +1596,8 @@ function codexReplayPreamble(input: {
         method: "initialize",
         params: {
           clientInfo: {
-            name: "Leonidas Code",
-            title: "Leonidas Code",
+            name: "Leonidas",
+            title: "Leonidas",
             version: packageJson.version,
           },
           capabilities: {
@@ -1616,7 +1616,7 @@ function codexReplayPreamble(input: {
       frame: {
         id: 1,
         result: {
-          userAgent: "Leonidas Code/0.156.1",
+          userAgent: "Leonidas/0.156.1",
           codexHome: "/tmp/codex-home",
           platformFamily: "unix",
           platformOs: "macos",
@@ -2197,8 +2197,8 @@ describe("CodexAdapterV2 post-settle continuation", () => {
       assert.deepEqual(initializeParams, [
         {
           clientInfo: {
-            name: "Leonidas Code",
-            title: "Leonidas Code",
+            name: "Leonidas",
+            title: "Leonidas",
             version: packageJson.version,
           },
           capabilities: {

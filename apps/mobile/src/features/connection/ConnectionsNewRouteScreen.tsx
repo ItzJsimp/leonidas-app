@@ -370,7 +370,7 @@ function PairingScanCard(props: {
           )}
         </View>
         <Text className={cn("text-center text-sm", light ? "text-black/70" : "text-white/80")}>
-          Scan a code from Leonidas Code on your computer.
+          Scan a code from Leonidas on your computer.
         </Text>
       </View>
     </Pressable>

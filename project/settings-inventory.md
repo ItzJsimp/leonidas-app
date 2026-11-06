@@ -1,14 +1,14 @@
 ---
 type: reference
 id: t3-code-settings-inventory
-title: "Leonidas Code: settings inventory and proposed team values"
-description: "Where every Leonidas Code setting is persisted, which can never be shipped (secrets, accounts, machine paths), the team-defaults seed that shipped on the server, and the remaining values awaiting Jake's approval."
+title: "Leonidas: settings inventory and proposed team values"
+description: "Where every Leonidas setting is persisted, which can never be shipped (secrets, accounts, machine paths), the team-defaults seed that shipped on the server, and the remaining values awaiting Jake's approval."
 scope: structural
 owner: leonidas
 verified: 2026-10-11
 ---
 
-# Leonidas Code settings inventory
+# Leonidas settings inventory
 
 Source: read-only sweep of `this repo` on 2026-10-10 (`packages/contracts/src/settings.ts`, `apps/server/src/serverSettings.ts`, `apps/desktop/src/settings/DesktopAppSettings.ts`). Companion: [`settings-walkthrough.md`](./settings-walkthrough.md). Card: [`leonidas-code-settings-parity-for-jake-and-mob`](../../../tasks/leonidas-code-settings-parity-for-jake-and-mob.md).
 

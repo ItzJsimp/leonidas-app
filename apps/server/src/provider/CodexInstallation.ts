@@ -285,7 +285,7 @@ export const makeCodexInstallation = Effect.fn("makeCodexInstallation")(function
       return executable;
     },
     Effect.mapError(
-      wrapFailure("resolve", "Codex is not installed in Leonidas Code. Install it to continue."),
+      wrapFailure("resolve", "Codex is not installed in Leonidas. Install it to continue."),
     ),
   );
   const acquire = Effect.fn("CodexInstallation.acquire")(function* () {

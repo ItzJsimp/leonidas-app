@@ -207,7 +207,7 @@ const LOG_VIEWS: ReadonlyArray<{ value: LogView; label: string }> = [
   { value: "names", label: "By name" },
 ];
 
-/** Traces, failures and logs that Leonidas Code recorded on this computer. */
+/** Traces, failures and logs that Leonidas recorded on this computer. */
 export function LogsPanel() {
   const environmentId = usePrimaryEnvironmentId();
   const { environments } = useEnvironments();

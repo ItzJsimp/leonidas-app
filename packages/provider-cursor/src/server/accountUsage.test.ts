@@ -328,7 +328,7 @@ describe("readCursorAccountUsage", () => {
         accountKey: null,
         records: [],
         missing: false,
-        error: "Allow Keychain access on the Mac running Leonidas Code, then refresh.",
+        error: "Allow Keychain access on the Mac running Leonidas, then refresh.",
       });
     }).pipe(Effect.provide(NodeServices.layer)),
   );

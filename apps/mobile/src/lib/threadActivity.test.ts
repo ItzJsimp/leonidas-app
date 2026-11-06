@@ -91,14 +91,14 @@ it("expands a T3 Code notice to the prompt the agent got", () => {
     type: "notification",
     source: { kind: "system" },
     outcome: "updated",
-    summary: "Leonidas Code restarted and resumed this turn",
+    summary: "Leonidas restarted and resumed this turn",
     detail: "Continue where you left off.",
   } as OrchestrationV2TurnItem;
   const [activity] = buildThreadFeed([projected(item, 0)]).flatMap((entry) =>
     entry.type === "activity-group" ? entry.activities : [],
   );
 
-  expect(activity?.summary).toBe("Leonidas Code restarted and resumed this turn");
+  expect(activity?.summary).toBe("Leonidas restarted and resumed this turn");
   expect(activity?.canExpand).toBe(true);
   expect(activity?.getFullDetail()).toBe("Continue where you left off.");
 });

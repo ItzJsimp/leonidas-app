@@ -201,7 +201,7 @@ export class GnomeCaptureSetup {
       if (info.state?.value === 1)
         return {
           status: "enabled",
-          message: "The Leonidas Code extension is running. Active-window snapshots are available.",
+          message: "The Leonidas extension is running. Active-window snapshots are available.",
         };
       if (info.state?.value === 3 || info.state?.value === 4)
         return {
@@ -213,7 +213,7 @@ export class GnomeCaptureSetup {
       return {
         status: "disabled",
         message:
-          "Enable the Leonidas Code extension to allow active-window snapshots. You can disable it here at any time.",
+          "Enable the Leonidas extension to allow active-window snapshots. You can disable it here at any time.",
       };
     } catch (error) {
       return {

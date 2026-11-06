@@ -1,14 +1,14 @@
-# Leonidas Code: plan and constraints
+# Leonidas: plan and constraints
 
-Shared Jake + Mob fork of T3 Code, the agent harness that replaces the Claude Code front end and Antigravity. Agent playbook (read first): [`agent-playbook.md`](../agent-playbook.md). Ledger: [`project.md`](../project.md). Settings guide: [`settings-walkthrough.md`](./settings-walkthrough.md). Name check: [`name-research.md`](./name-research.md).
+Jake's fork of T3 Code (Mob tests), the agent harness that replaces the Claude Code front end and Antigravity. Agent playbook (read first): [`agent-playbook.md`](../agent-playbook.md). Ledger: [`project.md`](../project.md). Settings guide: [`settings-walkthrough.md`](./settings-walkthrough.md). Name check: [`name-research.md`](./name-research.md).
 
 ## What already exists in T3 Code (do not rebuild)
 
-| Need | Already in source | Gap |
-|---|---|---|
-| Update toast, accept now or later, restart | `apps/desktop/src/updates/DesktopUpdates.ts` (electron-updater, polls every 4 minutes), `apps/web/src/components/desktopUpdate.toast.tsx`, `SidebarUpdatePill.tsx` | Builds point at `pingdotgg` releases. Fix: publish our own GitHub Releases; `scripts/build-desktop-artifact.ts` `resolveGitHubPublishConfig` already reads `GITHUB_REPOSITORY`, so a CI build in our repo auto-targets our repo. |
-| Two Claude accounts + Antigravity + Codex in one app | Provider instances with per-instance `CLAUDE_CONFIG_DIR`; Antigravity driver in `packages/` | None found. |
-| Claude canon (`CLAUDE.md`, hooks, skills, MCP) | Claude provider runs the Claude Agent SDK, which loads them | Keep the `claude` CLI installed; only its GUI is retired. |
+| Need                                                 | Already in source                                                                                                                                                  | Gap                                                                                                                                                                                                                              |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Update toast, accept now or later, restart           | `apps/desktop/src/updates/DesktopUpdates.ts` (electron-updater, polls every 4 minutes), `apps/web/src/components/desktopUpdate.toast.tsx`, `SidebarUpdatePill.tsx` | Builds point at `pingdotgg` releases. Fix: publish our own GitHub Releases; `scripts/build-desktop-artifact.ts` `resolveGitHubPublishConfig` already reads `GITHUB_REPOSITORY`, so a CI build in our repo auto-targets our repo. |
+| Two Claude accounts + Antigravity + Codex in one app | Provider instances with per-instance `CLAUDE_CONFIG_DIR`; Antigravity driver in `packages/`                                                                        | None found.                                                                                                                                                                                                                      |
+| Claude canon (`CLAUDE.md`, hooks, skills, MCP)       | Claude provider runs the Claude Agent SDK, which loads them                                                                                                        | Keep the `claude` CLI installed; only its GUI is retired.                                                                                                                                                                        |
 
 ## Plan
 

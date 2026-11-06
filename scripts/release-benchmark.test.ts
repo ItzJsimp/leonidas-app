@@ -118,10 +118,10 @@ describe("history and report", () => {
 
 describe("appMemoryScript", () => {
   it("sums private memory over the app processes, not the working set that counts shared pages twice", () => {
-    const script = appMemoryScript("C:\Apps\Leonidas Code.exe");
+    const script = appMemoryScript("C:\Apps\Leonidas.exe");
     assert.include(script, "PrivateMemorySize64");
     assert.notInclude(script, "WorkingSet64");
-    assert.include(script, "C:\Apps\Leonidas Code.exe");
+    assert.include(script, "C:\Apps\Leonidas.exe");
   });
 
   it("escapes a single quote in the path", () => {

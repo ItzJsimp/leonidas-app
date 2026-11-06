@@ -1,4 +1,4 @@
-# Dead-code report: Leonidas Code, 2026-11-05
+# Dead-code report: Leonidas, 2026-11-05
 
 Read-only scan. Nothing was deleted or edited. The lockfile did not change.
 

@@ -260,7 +260,7 @@ describe("ssh tunnel scripts", () => {
     assert.include(launch, '"$RUNNER_FILE" serve --host 127.0.0.1');
     assert.include(launch, '--base-dir "$DEFAULT_SERVER_HOME"');
     assert.notInclude(launch, "server-home");
-    assert.include(launch, "Remote Leonidas Code server did not become ready");
+    assert.include(launch, "Remote Leonidas server did not become ready");
     assert.include(launch, 'wait_ready "60000"');
     assert.include(launch, 'if [ -s "$LOG_FILE" ]; then');
     assert.include(launch, "It wrote nothing to %s");
@@ -516,7 +516,7 @@ describe("ssh tunnel scripts", () => {
                 exitCode: Effect.succeed(ChildProcessSpawner.ExitCode(1)),
                 stderr: Stream.make(
                   new TextEncoder().encode(
-                    "Remote Leonidas Code server did not stop within 2 seconds. Its state files were kept. Try again.\n",
+                    "Remote Leonidas server did not stop within 2 seconds. Its state files were kept. Try again.\n",
                   ),
                 ),
               };
@@ -559,7 +559,7 @@ describe("ssh tunnel scripts", () => {
             assert.instanceOf(disconnected.failure, SshCommandError);
             assert.equal(
               disconnected.failure.message,
-              "Remote Leonidas Code server did not stop within 2 seconds. Its state files were kept. Try again.",
+              "Remote Leonidas server did not stop within 2 seconds. Its state files were kept. Try again.",
             );
           }
         } else {

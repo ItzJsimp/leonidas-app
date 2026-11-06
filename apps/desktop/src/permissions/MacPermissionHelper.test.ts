@@ -61,7 +61,7 @@ vi.mock("electron", async () => {
   }
   return {
     app: {
-      getPath: () => "/Applications/Leonidas Code (Nightly).app/Contents/MacOS/Leonidas Code",
+      getPath: () => "/Applications/Leonidas (Nightly).app/Contents/MacOS/Leonidas",
     },
     nativeImage: { createFromPath: mocks.createFromPath },
     BrowserWindow: class extends MockWindow {},
@@ -124,13 +124,11 @@ function send(action: string, trusted = true) {
 
 describe("macAppBundlePath", () => {
   it("resolves bundles with spaces and refuses non-bundle executables", () => {
-    expect(macAppBundlePath("/Applications/Leonidas Code.app/Contents/MacOS/Leonidas Code")).toBe(
-      "/Applications/Leonidas Code.app",
+    expect(macAppBundlePath("/Applications/Leonidas.app/Contents/MacOS/Leonidas")).toBe(
+      "/Applications/Leonidas.app",
     );
     expect(macAppBundlePath("/usr/local/bin/electron")).toBeUndefined();
-    expect(
-      macAppBundlePath("/Applications/Leonidas Code.app/other/MacOS/Leonidas Code"),
-    ).toBeUndefined();
+    expect(macAppBundlePath("/Applications/Leonidas.app/other/MacOS/Leonidas")).toBeUndefined();
   });
 });
 it("drags the running app bundle only for the helper's own renderer", async () => {
@@ -140,11 +138,11 @@ it("drags the running app bundle only for the helper's own renderer", async () =
   send("drag");
   expect(mocks.createFromPath).toHaveBeenCalledWith("/bundle/prod-resources/icon.png");
   expect(mocks.startDrag).toHaveBeenCalledWith({
-    file: "/Applications/Leonidas Code (Nightly).app",
+    file: "/Applications/Leonidas (Nightly).app",
     icon: mocks.createFromPath.mock.results[0]!.value.resize(),
   });
   send("finder");
-  expect(mocks.showItemInFolder).toHaveBeenCalledWith("/Applications/Leonidas Code (Nightly).app");
+  expect(mocks.showItemInFolder).toHaveBeenCalledWith("/Applications/Leonidas (Nightly).app");
 });
 it("rechecks permissions and releases resources when granted", async () => {
   await open();
@@ -186,7 +184,7 @@ it("offers the Finder fallback when native dragging fails", async () => {
     throw new Error("drag failed");
   });
   send("drag");
-  expect(mocks.showItemInFolder).toHaveBeenCalledWith("/Applications/Leonidas Code (Nightly).app");
+  expect(mocks.showItemInFolder).toHaveBeenCalledWith("/Applications/Leonidas (Nightly).app");
   expect(windows[0]!.destroyed).toBe(false);
 });
 

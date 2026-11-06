@@ -1,7 +1,7 @@
 # Use one browser across AI accounts
 
 The shared browser keeps website logins in a dedicated profile on one computer.
-Claude accounts, Codex, and other providers with Leonidas Code browser tools use that same profile.
+Claude accounts, Codex, and other providers with Leonidas browser tools use that same profile.
 It does not need the Claude in Chrome extension or a matching Claude account.
 
 ## Connect
@@ -35,7 +35,7 @@ Turning off the shared connection adds no browser tool definitions to new sessio
 - **Browser could not start:** check the computer's browser setup and available disk space. Retry Open shared browser.
 - **Connection lost:** select Open shared browser again.
 - **No shared profile in agent status:** check Shared browser and AI browser access, then start a new agent session.
-- **Provider has no browser tools:** use a provider session that exposes Leonidas Code's Preview tools. A setting cannot add unsupported provider capabilities.
+- **Provider has no browser tools:** use a provider session that exposes Leonidas's Preview tools. A setting cannot add unsupported provider capabilities.
 
 When you connect from another device, the browser runs on the selected computer.
 Each computer has its own shared profile. Website logins do not sync between computers.

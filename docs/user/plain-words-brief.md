@@ -12,7 +12,7 @@ Goal: a non-developer understands every user-visible string the first time.
 - Replace jargon with the glossary word. When the plain word loses needed detail, keep the plain word and add a one-line tooltip with the old term, using the tooltip component already used in that folder.
 - Every button label starts with a verb ("Save", "Add AI account").
 - Every empty or error message says what to do next ("No chats yet. Type a message below to start one.").
-- Remove every user-visible "T3 Code" or "T3" product name: say "Leonidas Code". Keep "T3 Code" only as credit to the upstream project (About, licenses).
+- Remove every user-visible "T3 Code" or "T3" product name: say "Leonidas". Keep "T3 Code" only as credit to the upstream project (About, licenses).
 - Write in ASD-STE100 short form: short active sentences, one idea each, simple tense, no idioms. No em dash (U+2014).
 
 ## Do not change

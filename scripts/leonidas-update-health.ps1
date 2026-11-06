@@ -30,7 +30,8 @@ if ($Register) {
   Register-ScheduledTask -TaskName 'Leonidas Code update health' -Action $action -Trigger $trigger -Settings $settings -Description 'Local-only release delivery status and timings' -Force | Out-Null
   Write-Host 'Registered local update health monitoring every five minutes.'
 }
-$app = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas Code.exe'
+$app = @('Leonidas.exe', 'Leonidas Code.exe') | ForEach-Object { Join-Path $env:LOCALAPPDATA "Programs/t3code/$_" } | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $app) { $app = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas.exe' }
 $installedVersion = if (Test-Path -LiteralPath $app) { (Get-Item -LiteralPath $app).VersionInfo.ProductVersion -replace '\+.*$', '' -replace '^(\d+\.\d+\.\d+)\.\d+$', '$1' } else { $null }
 $report = [ordered]@{
   device = $DeviceLabel; checkedAt = [DateTimeOffset]::UtcNow.ToString('o')

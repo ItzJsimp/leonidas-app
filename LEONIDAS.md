@@ -1,13 +1,13 @@
-# Leonidas Code: the shared team brief
+# Leonidas: the shared team brief
 
-The brief both builders' agents read. Each builder's private notes live in their own AI operating system, so anything both sides need goes here or in a linked rule.
+The brief every agent on this repo reads. Jake builds alone. Mob and other friends test. Private notes live in Jake's AI operating system, so anything an agent needs goes here or in a linked rule.
 
-## What Leonidas Code is (say it this way every time)
+## What Leonidas is (say it this way every time)
 
 - **T3 Code** is an open-source, MIT-licensed AI coding harness by T3 Tools (`pingdotgg/t3code`). We forked it.
-- **Leonidas Code** is our own product from that fork, repo `ItzJsimp/leonidas-code`, with its own features and direction. It is the shell of the **Leonidas app**: the Command Center is a view inside it, Scribe stays a tray process, and each user's AIOS is what it loads for them.
-- It replaces the Claude Code and Antigravity front ends for both of us, on our own AI subscriptions.
-- Keep the MIT notice in `LICENSE`. Say "T3 Code" only about upstream (merges, credit, internal ids `@t3tools/*`, `T3CODE_*`, `~/.t3`, app id `com.t3tools.t3code`, which stay for data safety). Everywhere a user sees the app, it is Leonidas Code.
+- **Leonidas** is our own product from that fork, repo `ItzJsimp/leonidas-code`, with its own features and direction. It is one app: the chat surface is **Leonidas Chat**, the Command Center is a view inside it, Scribe stays a tray process, and each user's AIOS is what it loads for them.
+- It replaces the Claude Code and Antigravity front ends for Jake, on his own AI subscriptions.
+- Keep the MIT notice in `LICENSE`. Say "T3 Code" only about upstream (merges, credit, internal ids `@t3tools/*`, `T3CODE_*`, `~/.t3`, app id `com.t3tools.t3code`, which stay for data safety). Everywhere a user sees the app, it is Leonidas.
 
 ## Output standard
 

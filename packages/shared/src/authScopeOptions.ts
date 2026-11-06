@@ -46,7 +46,7 @@ export const AUTH_SCOPE_OPTIONS: ReadonlyArray<{
   {
     scope: AuthEnvironmentMaintainScope,
     title: "Keep this computer running",
-    description: "Update Leonidas Code and restart its background parts.",
+    description: "Update Leonidas and restart its background parts.",
   },
   {
     scope: AuthPreviewOperateScope,

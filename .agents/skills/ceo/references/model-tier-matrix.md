@@ -1,6 +1,6 @@
 # Live Model Selection Guide
 
-Model names and provider instances change. Use the current Leonidas Code capability catalog.
+Model names and provider instances change. Use the current Leonidas capability catalog.
 
 | Role         | Selection                                                                 | Responsibility                                          |
 | ------------ | ------------------------------------------------------------------------- | ------------------------------------------------------- |

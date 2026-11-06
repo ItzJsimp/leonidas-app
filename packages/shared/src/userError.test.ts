@@ -18,7 +18,7 @@ describe("describeUserError", () => {
     const result = describeUserError(nodeError("spawn claude ENOENT", "ENOENT"));
     expect(result.kind).toBe("provider-cli-missing");
     expect(result.reason).toBe(
-      "Leonidas Code could not find the AI program on this computer. Install it from the AI accounts page.",
+      "Leonidas could not find the AI program on this computer. Install it from the AI accounts page.",
     );
     expect(result.action).toEqual({
       kind: "route",
@@ -155,7 +155,7 @@ describe("describeUserError", () => {
     const error = new Error("ERR_UPDATER_ZIP_FILE_NOT_FOUND");
     const result = describeUserError(error);
     expect(result.kind).toBe("update-download-failed");
-    expect(result.reason).toBe("Leonidas Code could not get the update from the update server.");
+    expect(result.reason).toBe("Leonidas could not get the update from the update server.");
     expect(result.action).toEqual({
       kind: "url",
       label: "Download installer",

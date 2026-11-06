@@ -1,6 +1,6 @@
-# Leonidas Code: agent router
+# Leonidas: agent router
 
-You are building **Leonidas Code**, the Leonidas team's AI coding app (a fork of T3 Code, MIT). Builders: Jake and Mob, one shared `main`. Brief: [LEONIDAS.md](./LEONIDAS.md). This file is the always-loaded router; detail lives in the rule files below, read when the task needs them.
+You are building **Leonidas**, the Leonidas team's AI coding app (a fork of T3 Code, MIT). Builder: Jake, who builds alone. Mob is a tester. One `main`. Brief: [LEONIDAS.md](./LEONIDAS.md). This file is the always-loaded router; detail lives in the rule files below, read when the task needs them.
 
 ## 1. Load your operator's AIOS first
 
@@ -13,7 +13,7 @@ This project lives inside its builder's AI operating system at `../../`. If `../
 1. **Never kill by pattern.** No `pkill -f`, `pgrep | kill`, or killing a PID matched by name or path; your own process carries the worktree path. Kill only a PID you captured at spawn, or your port's owner after confirming its cwd.
 2. **Never write to the live install.** `~/.t3/userdata` is the real database in use. Read or copy from it; never start a server against it or open it read-write.
 3. **Never bake in origins.** Do not set `VITE_HTTP_URL` or `VITE_WS_URL` for dev; it silently breaks remote browsers.
-4. **A push to `main` ships a release to both machines.** Commit locally; push only when the user says so.
+4. **An agent pushes to main by itself when all checks pass.** A push to `main` ships a release. The checks are typecheck, scoped tests and `node scripts/smoke.mjs` (ADR "Agents auto-ship when checks pass").
 5. **Scoped checks only:** `vp test run <files>`, scoped lint and typecheck. No repo-wide `vp check` or `-r` runs unless asked.
 6. **Performance gate:** every code change passes [`performance-gate`](./.agents/skills/performance-gate/SKILL.md) before "done". A perf claim needs a before and after number.
 7. **Task first:** find or create the task card before substantive work and close it with a verified note ([task-driven-work](./.agents/rules/task-driven-work.md)).

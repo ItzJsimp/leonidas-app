@@ -1,4 +1,4 @@
-# Leonidas Code: shipped roadmap (tick when merged to main)
+# Leonidas: shipped roadmap (tick when merged to main)
 
 Version plan from v0.35 on: [project-roadmap.json](../project-roadmap.json).
 
@@ -9,7 +9,7 @@ Version plan from v0.35 on: [project-roadmap.json](../project-roadmap.json).
 - [x] Token counter: output and thinking tokens, current-turn t/s, recent-turn averages; missing telemetry stays visible
 - [x] Synced task board panel (GitHub Issues store; same list on both machines within about 10 seconds)
 - [x] Prompt predictor: ghost text from the user's Scribe `history.jsonl`, Tab accepts
-- [x] Thin rebrand to Leonidas Code; internal ids unchanged so data survives
+- [x] Thin rebrand to Leonidas; internal ids unchanged so data survives
 - [x] Subagents: any chat starts a named subagent as a lean persona; confirm card for premium models; Subagents view to see, create and edit them; `@name` and an attach tab; starters in new setups
 - [x] Leonidas shell: Command Center views as a tab; Scribe stays a tray app with a localhost API
 - [x] Dev instance isolation: agents test on a separate dev app and never restart the live app

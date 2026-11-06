@@ -29,7 +29,7 @@ const task = (id: string, patch: Partial<TaskBoardTask> = {}): TaskBoardTask => 
 });
 
 const plan = (local: TaskBoardTask[], board: TaskBoardTask[]) =>
-  planSharedSync({ local, board, projectName: "Leonidas Code", actor: "Jake" });
+  planSharedSync({ local, board, projectName: "Leonidas", actor: "Jake" });
 
 describe("planSharedSync", () => {
   it("returns null when the board already matches", () => {

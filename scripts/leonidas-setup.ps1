@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-  One-shot setup for a Leonidas Code builder machine (any teammate). Safe to re-run.
+  One-shot setup for a Leonidas builder machine (any teammate). Safe to re-run.
 .DESCRIPTION
   1. Git: fast-forward-only pulls preserve local history and unfinished work; disables a copied
      AIOS pre-commit hook that does not exist in this repo.
   2. Identity (optional): writes CLAUDE.local.md importing your own AIOS and keeps it out of git.
-  3. App: installs the latest Leonidas Code release from GitHub (upgrades an old T3 Code install
+  3. App: installs the latest Leonidas release from GitHub (upgrades an old T3 Code install
      in place, same app id) and removes every leftover T3 Code shortcut.
   The repo's .claude/settings.json pulls main at every Claude session start, and the installed
   app's updater shows a toast for every new release, so after this nothing needs managing.
@@ -55,11 +55,11 @@ if ($AiosClaudeMd) {
 $skillAiosRoot = if ($AiosClaudeMd) { Split-Path -Parent (Resolve-Path -LiteralPath $AiosClaudeMd).Path } else { $null }
 & (Join-Path $PSScriptRoot 'Install-NextAction.ps1') -AiosRoot $skillAiosRoot
 
-# Always-on dev copy: server task plus a green "Leonidas Code (Dev)" Desktop shortcut.
+# Always-on dev copy: server task plus a green "Leonidas (Dev)" Desktop shortcut.
 # Runs before -SkipApp so every builder gets it, even on a machine that skips the app install.
 try {
   & (Join-Path $PSScriptRoot 'Install-DevShortcut.ps1')
-  Write-Host 'Right-click "Leonidas Code (Dev)" on the Desktop > Show more options > Pin to taskbar. Its first click installs dependencies (10 to 20 minutes, once).'
+  Write-Host 'Right-click "Leonidas (Dev)" on the Desktop > Show more options > Pin to taskbar. Its first click installs dependencies (10 to 20 minutes, once).'
 } catch { Write-Warning "Dev shortcut setup skipped: $($_.Exception.Message)" }
 
 if ($SkipApp) { return }
@@ -78,7 +78,7 @@ $shortcutDirs = @(
 Get-ChildItem -LiteralPath $shortcutDirs -Filter "T3 Code*.lnk" -ErrorAction SilentlyContinue |
   ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force; Write-Host "Removed $($_.FullName)" }
 
-$exePath = Join-Path $env:LOCALAPPDATA "Programs\t3code\Leonidas Code.exe"
+$exePath = Join-Path $env:LOCALAPPDATA "Programs\t3code\Leonidas.exe"
 if (-not (Test-Path -LiteralPath $exePath)) { throw "Expected $exePath after install." }
 Start-Process -FilePath $exePath
-Write-Host "Launched Leonidas Code. Right-click its taskbar icon > Pin to taskbar (Windows blocks scripted pins)."
+Write-Host "Launched Leonidas. Right-click its taskbar icon > Pin to taskbar (Windows blocks scripted pins)."

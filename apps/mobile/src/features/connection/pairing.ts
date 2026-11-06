@@ -23,7 +23,7 @@ export class PairingQrPayloadEmptyError extends Schema.TaggedError<PairingQrPayl
   {},
 ) {
   override get message(): string {
-    return "This QR code is not from Leonidas Code. Scan the code on your computer and try again.";
+    return "This QR code is not from Leonidas. Scan the code on your computer and try again.";
   }
 }
 

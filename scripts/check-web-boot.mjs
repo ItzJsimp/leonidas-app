@@ -1,5 +1,5 @@
 // Loads the built web app (apps/web/dist) in a headless browser and fails when
-// the boot shell reports "Leonidas Code could not load". Catches module-order
+// the boot shell reports "Leonidas could not load". Catches module-order
 // bugs (import cycles) that only appear in the production bundle: 0.24.0
 // shipped with one and nothing else noticed until the installed app died.
 // Run after the web build: node scripts/check-web-boot.mjs

@@ -92,7 +92,7 @@ export const makeProviderInstallation = Effect.fn("makeProviderInstallation")(fu
       return yield* new ProviderSetupError({
         instanceId,
         operation,
-        detail: "Choose managed setup to install Codex in Leonidas Code.",
+        detail: "Choose managed setup to install Codex in Leonidas.",
       });
     }
     if (managedOnly && config.binaryPath && (!isCodex || config.binaryPath !== "codex")) {
@@ -100,7 +100,7 @@ export const makeProviderInstallation = Effect.fn("makeProviderInstallation")(fu
         instanceId,
         operation,
         detail:
-          "This instance uses a custom executable. Clear its binary path to manage installation in Leonidas Code.",
+          "This instance uses a custom executable. Clear its binary path to manage installation in Leonidas.",
       });
     }
     return { installation, driver: instance.driverKind };

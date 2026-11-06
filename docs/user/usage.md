@@ -22,7 +22,7 @@ server to read a different data directory; comma-separated paths read multiple d
 
 Cursor reads account usage from Cursor's dashboard API using the CLI login saved on the server.
 This includes headless T3 sessions and desktop usage across machines; the same account counts
-once across connected environments. Without an accessible CLI login, Leonidas Code shows a
+once across connected environments. Without an accessible CLI login, Leonidas shows a
 notice instead of incomplete local totals. T3 does not estimate missing tokens from conversation text.
 On macOS, choose **Enable Cursor usage** on Usage to allow T3 to read your existing CLI login
 from Keychain. You can turn it off in **Settings → Providers → Usage providers**. macOS may ask

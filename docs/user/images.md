@@ -4,7 +4,7 @@ The Images page makes pictures with models on your own computer. It is free: not
 
 ## Set up
 
-Images uses ComfyUI, a free program that runs the models. Install and start ComfyUI yourself. Leonidas Code does not install it. The page connects to `http://127.0.0.1:8188` by default. To use another address, change it in the ComfyUI connection box and press Save.
+Images uses ComfyUI, a free program that runs the models. Install and start ComfyUI yourself. Leonidas does not install it. The page connects to `http://127.0.0.1:8188` by default. To use another address, change it in the ComfyUI connection box and press Save.
 
 ## Make images
 

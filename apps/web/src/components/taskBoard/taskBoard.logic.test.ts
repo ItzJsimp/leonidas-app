@@ -38,7 +38,7 @@ const at = (daysAgo: number, hour = 12) => {
 function task(id: string, overrides: Partial<TaskBoardTask> = {}): TaskBoardTask {
   return {
     id,
-    project: "Leonidas Code",
+    project: "Leonidas",
     title: `Task ${id}`,
     description: "",
     status: "todo",
@@ -114,14 +114,14 @@ describe("mergeTasks", () => {
       [task("a", { projectSlug: "alpha" })],
       [
         task("b", { sourceId: "b", projectSlug: "beta", sharedBy: "Mob" }),
-        task("c", { source: "board", sourceId: null, project: "Leonidas Code" }),
+        task("c", { source: "board", sourceId: null, project: "Leonidas" }),
         task("d", { source: "github_issue", sourceId: "42", project: "Team & Co!" }),
       ],
     );
     const byId = Object.fromEntries(merged.map((item) => [item.id, item]));
     expect(byId.a).toMatchObject({ origin: "local", section: "alpha" });
     expect(byId.b).toMatchObject({ origin: "shared", section: "beta", shared: true });
-    expect(byId.c).toMatchObject({ origin: "shared", section: "leonidas-code" });
+    expect(byId.c).toMatchObject({ origin: "shared", section: "leonidas" });
     expect(byId.d).toMatchObject({ origin: "shared", section: "team-co" });
   });
 

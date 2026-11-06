@@ -78,7 +78,7 @@ describe("daily task views", () => {
 function task(id: string, overrides: Partial<TaskBoardTask> = {}): TaskBoardTask {
   return {
     id,
-    project: "Leonidas Code",
+    project: "Leonidas",
     title: `Task ${id}`,
     description: "",
     status: "todo",
@@ -197,7 +197,7 @@ describe("buildRailEntries", () => {
 describe("sectionShareState", () => {
   const entry = (overrides: Partial<ReturnType<typeof buildRailEntries>[number]> = {}) => ({
     slug: "leonidas-code",
-    name: "Leonidas Code",
+    name: "Leonidas",
     projectId: PROJECT_ID,
     repository: "a/b",
     open: 0,

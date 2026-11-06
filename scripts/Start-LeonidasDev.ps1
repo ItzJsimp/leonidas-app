@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Opens "Leonidas Code (Dev)" beside the real app: a separate copy of this checkout with its
+  Opens "Leonidas (Dev)" beside the real app: a separate copy of this checkout with its
   own profile and ports, so it never touches the installed app.
 
 .DESCRIPTION
@@ -50,7 +50,7 @@ if ($Stop -or $Restart) {
     if ($null -eq $launcherPid) {
         if ($null -ne (Get-DevRuntime $devHome)) {
             Write-Host 'A dev copy is running that this script did not start, so it will not close it.'
-            Write-Host 'Close its "Leonidas Code (Dev)" window with the X button, then run this again.'
+            Write-Host 'Close its "Leonidas (Dev)" window with the X button, then run this again.'
             return
         }
         Write-Host 'No dev copy is running.'
@@ -59,7 +59,7 @@ if ($Stop -or $Restart) {
         # The pid was recorded when we started it, so this only ends our own dev tree.
         taskkill /pid $launcherPid /T /F | Out-Null
         Remove-Item -LiteralPath $pidFile -ErrorAction SilentlyContinue
-        Write-Host 'Dev copy stopped. Your real Leonidas Code was not touched.' -ForegroundColor Green
+        Write-Host 'Dev copy stopped. Your real Leonidas was not touched.' -ForegroundColor Green
         if ($Stop) { return }
         for ($i = 0; $i -lt 20 -and $null -ne (Get-DevRuntime $devHome); $i++) { Start-Sleep -Milliseconds 500 }
     }
@@ -75,7 +75,7 @@ if ($Status) {
 
 if ($running) {
     Write-Host "A dev copy is already running (server $($runtime.ServerPort), web $($runtime.WebPort))." -ForegroundColor Green
-    Write-Host 'Look for the window titled "Leonidas Code (Dev)" (check the taskbar if it is behind other windows).'
+    Write-Host 'Look for the window titled "Leonidas (Dev)" (check the taskbar if it is behind other windows).'
     Write-Host 'To close it: run this script again with -Stop, or close that window.'
     return
 }
@@ -100,7 +100,7 @@ if ($null -ne $launcherPid) {
         -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repoRoot 'scripts/dev-isolated.ps1'), '-Mode', $Mode) `
         -RedirectStandardOutput $logFile -RedirectStandardError "$logFile.err"
     Set-Content -LiteralPath $pidFile -Value $launch.Id
-    Write-Host "Starting Leonidas Code (Dev) in the background (this takes about a minute)..." -ForegroundColor Cyan
+    Write-Host "Starting Leonidas (Dev) in the background (this takes about a minute)..." -ForegroundColor Cyan
 }
 # Only a descriptor written after this launcher began counts; an older one is stale state.
 $launchedAt = $launch.StartTime.ToUniversalTime()
@@ -117,8 +117,8 @@ while ((Get-Date) -lt $deadline) {
     }
     $runtime = Get-DevRuntime $devHome
     if ((Test-DevHealthy $runtime) -and $runtime.StartedAt -ge $launchedAt) {
-        Write-Host "Ready (server $($runtime.ServerPort), web $($runtime.WebPort)). Look for the window titled `"Leonidas Code (Dev)`"." -ForegroundColor Green
-        Write-Host 'It is a separate copy: your real Leonidas Code keeps running. Close it any time with: scripts\Start-LeonidasDev.ps1 -Stop'
+        Write-Host "Ready (server $($runtime.ServerPort), web $($runtime.WebPort)). Look for the window titled `"Leonidas (Dev)`"." -ForegroundColor Green
+        Write-Host 'It is a separate copy: your real Leonidas keeps running. Close it any time with: scripts\Start-LeonidasDev.ps1 -Stop'
         return
     }
 }

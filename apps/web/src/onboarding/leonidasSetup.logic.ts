@@ -1,6 +1,6 @@
 import * as Schema from "effect/Schema";
 
-/** What the user told the welcome step they build with Leonidas Code. */
+/** What the user told the welcome step they build with Leonidas. */
 export const LEONIDAS_GOALS_STORAGE_KEY = "leonidas:onboarding-goals";
 export const LeonidasGoalsSchema = Schema.Array(Schema.String);
 

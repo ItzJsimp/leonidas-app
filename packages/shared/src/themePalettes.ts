@@ -8,7 +8,7 @@ export const BUILT_IN_THEME_IDS = [
   "iris",
 ] as const;
 
-/** The standard Leonidas Code palette is also available to native clients. */
+/** The standard Leonidas palette is also available to native clients. */
 export const MOBILE_DEFAULT_THEME_ID = "leonidas";
 
 /**
@@ -265,7 +265,7 @@ export const T3_CODE_DARK_THEME_COLORS: ThemeColors = {
   terminalScrollbarHover: "#363636",
 };
 
-/** Leonidas Code on Linen Sand paper: Dispatch paper and its darker accent twins, so every role clears its contrast floor. */
+/** Leonidas on Linen Sand paper: Dispatch paper and its darker accent twins, so every role clears its contrast floor. */
 export const LEONIDAS_LIGHT_THEME_COLORS: ThemeColors = {
   ...T3_CODE_LIGHT_THEME_COLORS,
   searchMatchBackground: "#f2c75c",
@@ -331,7 +331,7 @@ export const LEONIDAS_LIGHT_THEME_COLORS: ThemeColors = {
   terminalScrollbarHover: "#5f5647",
 };
 
-/** Leonidas Code on Obsidian: the Command register's tiers with the approved P1 crimson and cyan. */
+/** Leonidas on Obsidian: the Command register's tiers with the approved P1 crimson and cyan. */
 export const LEONIDAS_DARK_THEME_COLORS: ThemeColors = {
   ...T3_CODE_DARK_THEME_COLORS,
   searchMatchBackground: "#79601e",
@@ -399,7 +399,7 @@ export const LEONIDAS_DARK_THEME_COLORS: ThemeColors = {
 
 export const LEONIDAS_THEME: ThemeDefinition = {
   id: "leonidas",
-  label: "Leonidas Code",
+  label: "Leonidas",
   appearance: "light",
   colors: LEONIDAS_LIGHT_THEME_COLORS,
   variants: { dark: LEONIDAS_DARK_THEME_COLORS },

@@ -1,12 +1,12 @@
-# Task system unification: Command Center into Leonidas Code
+# Task system unification: Command Center into Leonidas
 
-Decision: Leonidas Code's Tasks page becomes the only task UI and the only writer. The AIOS Command Center Tasks tab (`projects/leonidas-command-center`) is folded in and then retired. No data migration is needed, because both already read the same files.
+Decision: Leonidas's Tasks page becomes the only task UI and the only writer. The AIOS Command Center Tasks tab (`projects/leonidas-command-center`) is folded in and then retired. No data migration is needed, because both already read the same files.
 
 ## Why no migration
 
-Both apps treat one markdown card per task in the AIOS `tasks/` folder as the record. Command Center reads it through `Get-Tasks.ps1` and writes through `server/task-write.ts`. Leonidas Code reads it through `apps/server/src/taskBoard/aiosCards.ts` (`cardToTask`) and rewrites only the lines it changes. The "Notion-style" part is the typed-property schema in `config/task-schema.json` (select, status, person, multi_select, date, checkbox, with option colors), plus saved views in `config/task-views.json`. The merge ports behavior onto `TaskBoardTask`; it does not copy rows.
+Both apps treat one markdown card per task in the AIOS `tasks/` folder as the record. Command Center reads it through `Get-Tasks.ps1` and writes through `server/task-write.ts`. Leonidas reads it through `apps/server/src/taskBoard/aiosCards.ts` (`cardToTask`) and rewrites only the lines it changes. The "Notion-style" part is the typed-property schema in `config/task-schema.json` (select, status, person, multi_select, date, checkbox, with option colors), plus saved views in `config/task-views.json`. The merge ports behavior onto `TaskBoardTask`; it does not copy rows.
 
-## What Command Center has that Leonidas Code lacks
+## What Command Center has that Leonidas lacks
 
 - **Fields:** `lane`, `accountable`, `scope`, `autonomous`, `tags`, `owner` (tenant repo) and the computed rank (`isBlocked`, `unblocksCount`, `score`). Code's contract carries none of them yet.
 - **Saved views** (`DEFAULT_VIEWS` in `src/tasks-view.ts`): Today (critical, in progress or due within 7 days), Deadlines, Triage, Quick wins, Blocked, Stagnant, Completed, By owner, By project, Eisenhower matrix and Focus queue, plus `nextMoves`.

@@ -51,7 +51,7 @@ Walk this precedence ladder top-to-bottom. Select the first matching operational
 
 ## Agent Delegation Fitness Checklist
 
-Before delegating work to a coding agent (connected providers or delegated child agents in Leonidas Code), ask these three questions. Your answer determines scope and preparation depth.
+Before delegating work to a coding agent (connected providers or delegated child agents in Leonidas), ask these three questions. Your answer determines scope and preparation depth.
 
 | Fitness Question                              | Example: Brainstorming                                                                                                 | Example: Execution                             | Example: Domain Knowledge                                                                                |
 | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -86,7 +86,7 @@ A phase boundary is the transition point between two operational chunks (e.g. di
 
 1. **Continue:** Stay in active session if the next phase requires verbatim history as a primary source and the token count is within the **smart zone** (below the selected model's live context warning).
 2. **Fresh Session:** Open a new chat window when prior exploration context is disposable. Never run `/clear` (which permanently wipes history).
-3. **`/session-handoff`:** Emit a portable briefing when changing providers or accounts inside Leonidas Code, switching directories, or handing off to collaborators.
+3. **`/session-handoff`:** Emit a portable briefing when changing providers or accounts inside Leonidas, switching directories, or handing off to collaborators.
 4. **Subagent:** Dispatch an isolated background agent for autonomous, non-blocking tasks (e.g. test sweeps, diff audits).
 5. **`/compact`:** Condense active context with an explicit retention instruction when smart zone limit is reached and session must continue in-place.
 

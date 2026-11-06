@@ -114,7 +114,7 @@ function createWindow(
     resizable: false,
     show: false,
     skipTaskbar: true,
-    title: "Leonidas Code Snapshot Animation",
+    title: "Leonidas Snapshot Animation",
     transparent: true,
     webPreferences: {
       backgroundThrottling: false,

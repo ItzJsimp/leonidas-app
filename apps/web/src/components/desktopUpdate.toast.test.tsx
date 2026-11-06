@@ -218,7 +218,7 @@ describe("manual desktop update feedback", () => {
       expect.objectContaining({
         type: "error",
         title: "Could not check for updates",
-        description: "Leonidas Code could not get the update from the update server.",
+        description: "Leonidas could not get the update from the update server.",
         actionProps: expect.objectContaining({ children: "Download installer" }),
         data: expect.objectContaining({ copyText: "Network unavailable" }),
       }),

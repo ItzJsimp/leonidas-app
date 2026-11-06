@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Keeps the isolated Leonidas Code dev server (server + web, no window) running. Started at
+  Keeps the isolated Leonidas dev server (server + web, no window) running. Started at
   sign-in by the "Leonidas Code Dev Server" scheduled task; restarts the server if it exits.
   Output goes to .t3/dev-server.log and dev-server.err.log (git-ignored, replaced each start).
 #>

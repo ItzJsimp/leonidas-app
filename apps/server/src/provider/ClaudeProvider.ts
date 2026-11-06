@@ -569,7 +569,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Claude is disabled in Leonidas Code settings.",
+        message: "Claude is disabled in Leonidas settings.",
       },
     });
   }
@@ -673,7 +673,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
         status: "warning",
         auth: { status: "unknown" },
         message:
-          "Claude is installed, but Leonidas Code could not read its sign-in yet. Refresh in a few seconds. If this stays, sign in again.",
+          "Claude is installed, but Leonidas could not read its sign-in yet. Refresh in a few seconds. If this stays, sign in again.",
       },
     });
   }
@@ -819,7 +819,7 @@ export const makePendingClaudeProvider = (
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Claude is disabled in Leonidas Code settings.",
+          message: "Claude is disabled in Leonidas settings.",
         },
       });
     }

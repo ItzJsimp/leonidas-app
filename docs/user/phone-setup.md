@@ -1,4 +1,4 @@
-# Use Leonidas Code on your phone
+# Use Leonidas on your phone
 
 Your computer runs the AI. Your phone is a remote control. The computer must stay on.
 Setup takes about 10 minutes. You need the free Tailscale app on both devices.
@@ -6,7 +6,7 @@ Setup takes about 10 minutes. You need the free Tailscale app on both devices.
 ## On your computer
 
 1. Install Tailscale from https://tailscale.com/download. Sign in. Keep the same account for step 5.
-2. Open Leonidas Code. Go to **Settings**, then **Sharing and access**.
+2. Open Leonidas. Go to **Settings**, then **Sharing and access**.
 3. Turn on **Network access**. The app restarts.
 4. Turn on **Tailscale HTTPS**.
 5. Click **Create link**. Keep this page open until the phone is paired. The link works one time only.
@@ -17,16 +17,16 @@ Setup takes about 10 minutes. You need the free Tailscale app on both devices.
 2. Scan the QR code from step 5 with the phone camera, or send the link to yourself and tap it.
 3. Open the link in Safari. Tap **Share**, then **Add to Home Screen**.
 
-Done. Open the new icon to use Leonidas Code.
+Done. Open the new icon to use Leonidas.
 
 ## If your computer is a Mac
 
 The phone steps do not change. On the computer, do these things first:
 
 1. Use an Apple Silicon Mac (M1 or newer). Intel Macs have no build.
-2. Download https://github.com/ItzJsimp/leonidas-code/releases/latest/download/Leonidas-Setup-mac.dmg. Drag **Leonidas Code** to Applications.
+2. Download https://github.com/ItzJsimp/leonidas-code/releases/latest/download/Leonidas-Setup-mac.dmg. Drag **Leonidas** to Applications.
 3. Open the app. If macOS blocks it, go to **System Settings, Privacy & Security** and click **Open Anyway**.
-4. If macOS says the app "is damaged", run this once in Terminal, then open the app again: `xattr -dr com.apple.quarantine "/Applications/Leonidas Code.app"`
+4. If macOS says the app "is damaged", run this once in Terminal, then open the app again: `xattr -dr com.apple.quarantine "/Applications/Leonidas.app"`
 5. Install Tailscale on the Mac from https://tailscale.com/download. Then follow "On your computer" above.
 6. To keep the Mac awake: **System Settings, Battery** (or **Energy**), then turn on **Prevent automatic sleeping when the display is off**.
 

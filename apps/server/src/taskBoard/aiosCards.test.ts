@@ -668,7 +668,7 @@ describe("AIOS folder reading", () => {
     );
     write(
       "projects/leonidas-code/project.md",
-      '---\ntype: project\nname: "Leonidas Code"\n---\n# Leonidas Code: project ledger\n',
+      '---\ntype: project\nname: "Leonidas"\n---\n# Leonidas: project ledger\n',
     );
     write("projects/projects-index.md", "# index\n");
     write("projects/_archive/x/project.md", "# no\n");
@@ -771,9 +771,7 @@ describe("AIOS folder reading", () => {
     const projects = discoverProjects(root);
     expect(projects.map((project) => project.slug).sort()).toEqual(["beta", "leonidas-code"]);
     expect(projects.find((project) => project.slug === "beta")?.name).toBe("Frontmatter Name");
-    expect(projects.find((project) => project.slug === "leonidas-code")?.name).toBe(
-      "Leonidas Code",
-    );
+    expect(projects.find((project) => project.slug === "leonidas-code")?.name).toBe("Leonidas");
   });
 
   it("creates uniquely named cards and never overwrites", () => {

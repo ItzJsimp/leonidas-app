@@ -142,7 +142,7 @@ describe("prompt prediction", () => {
         app: "claude.exe",
         mode: "transform",
       }),
-      row("Fix the bug", "Leonidas Code.exe"),
+      row("Fix the bug", "Leonidas.exe"),
       "{unfinished",
     ].join("\n");
     expect(buildPromptCandidates(history).map((c) => c.text)).toEqual([

@@ -987,7 +987,7 @@ export const DESKTOP_FILE_EXCLUSIONS = [
   "!**/node_modules/@cursor/sdk-*/**/*",
   "!apps/desktop/prod-resources/cursor-sdk",
   "!apps/desktop/prod-resources/cursor-sdk/**/*",
-  // Leonidas Code always passes the user's installed Claude executable to the SDK,
+  // Leonidas always passes the user's installed Claude executable to the SDK,
   // so the SDK's optional platform packages (each a ~200MB bundled executable)
   // are dead weight. The trailing dash keeps the SDK's own JS package.
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**/*",
@@ -2841,8 +2841,8 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 
 export function resolveDesktopProductName(version: string): string {
   return resolveDesktopUpdateChannel(version) === "nightly"
-    ? "Leonidas Code (Nightly)"
-    : (desktopPackageJson.productName ?? "Leonidas Code");
+    ? "Leonidas (Nightly)"
+    : (desktopPackageJson.productName ?? "Leonidas");
 }
 
 export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
@@ -2867,7 +2867,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   const buildConfig: Record<string, unknown> = {
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "Leonidas-Code-${version}-${arch}.${ext}",
+    artifactName: "Leonidas-${version}-${arch}.${ext}",
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
@@ -2919,12 +2919,12 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       category: "public.app-category.developer-tools",
       extendInfo: {
         NSLocalNetworkUsageDescription:
-          "Leonidas Code connects to devices on your local network for remote environments and commands run by terminals and coding agents.",
+          "Leonidas connects to devices on your local network for remote environments and commands run by terminals and coding agents.",
         NSScreenCaptureUsageDescription:
-          "Leonidas Code captures the active window when you use the window capture shortcut.",
+          "Leonidas captures the active window when you use the window capture shortcut.",
         // Without this key macOS ends the app when the composer mic button records.
         NSMicrophoneUsageDescription:
-          "Leonidas Code uses the microphone when you dictate a message to your agent.",
+          "Leonidas uses the microphone when you dictate a message to your agent.",
         // macOS lists an app under Default web browser only when it opens web
         // pages as documents as well as http and https links (see protocols).
         CFBundleDocumentTypes: [
@@ -2938,10 +2938,10 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       },
       protocols: [
         {
-          name: "Leonidas Code",
+          name: "Leonidas",
           schemes: ["t3code", "t3code-dev"],
         },
-        // Lets people choose Leonidas Code as their default web browser, which opens
+        // Lets people choose Leonidas as their default web browser, which opens
         // each link in a new thread's browser panel.
         {
           name: "Web site URL",
@@ -3001,13 +3001,13 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       category: "Development",
       synopsis: "Desktop GUI for coding agents",
       // Required by the .deb control file.
-      maintainer: "Leonidas Code <noreply@github.com>",
+      maintainer: "Leonidas <noreply@github.com>",
       // electron-builder turns these into MimeType=x-scheme-handler/<scheme>;
       // in the .desktop entry (Exec already gets %U), so browsers can hand
       // t3code:// OAuth callbacks to the app.
       protocols: [
         {
-          name: "Leonidas Code",
+          name: "Leonidas",
           schemes: ["t3code", "t3code-dev"],
         },
       ],
@@ -3991,11 +3991,11 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     private: true,
     packageManager: rootPackageJson.packageManager,
     description:
-      "Leonidas Code is an open-source desktop app for coding agents. Work with your existing agent subscriptions, review code changes, and run commands in your projects. Connect from desktop, web, or mobile to continue working remotely.",
+      "Leonidas is an open-source desktop app for coding agents. Work with your existing agent subscriptions, review code changes, and run commands in your projects. Connect from desktop, web, or mobile to continue working remotely.",
     license: "MIT",
     // Required by the .deb control file.
     homepage: "https://github.com/ItzJsimp/leonidas-code",
-    author: "Leonidas Code (fork of T3 Code by T3 Tools)",
+    author: "Leonidas (fork of T3 Code by T3 Tools)",
     main: "apps/desktop/dist-electron/boot.cjs",
     build: yield* createBuildConfig(
       options.platform,
@@ -4280,7 +4280,7 @@ const buildDesktopArtifactCli = Command.make("build-desktop-artifact", {
     Flag.optional,
   ),
 }).pipe(
-  Command.withDescription("Build a desktop artifact for Leonidas Code."),
+  Command.withDescription("Build a desktop artifact for Leonidas."),
   Command.withHandler((input) => Effect.flatMap(resolveBuildOptions(input), buildDesktopArtifact)),
 );
 

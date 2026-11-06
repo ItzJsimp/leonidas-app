@@ -1,7 +1,7 @@
 ---
 type: reference
 id: leonidas-code-settings-audit-20261012
-title: "Leonidas Code: settings list, reorganisation, bloat, gaps and ship defaults"
+title: "Leonidas: settings list, reorganisation, bloat, gaps and ship defaults"
 description: "Every searchable setting by page (118 rows), a proposed grouping for new users, what to fold or remove, 8 settings to add, and the default values to ship."
 scope: structural
 owner: leonidas

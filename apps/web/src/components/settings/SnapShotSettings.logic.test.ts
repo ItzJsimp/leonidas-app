@@ -317,7 +317,7 @@ it("hides macOS setup only while permissions and the shortcut are all in place",
   const revoked = {
     ...ready,
     macPermissions: { screenRecording: true, accessibility: false },
-    message: "Allow Accessibility in System Settings, then restart Leonidas Code.",
+    message: "Allow Accessibility in System Settings, then restart Leonidas.",
   };
   expect(snapShotSetupComplete(revoked, true)).toBe(false);
   expect(snapShotStatus(revoked, true)).toBe("Capture needs attention");

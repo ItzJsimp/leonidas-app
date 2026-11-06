@@ -28,7 +28,7 @@ export class PullRequestDiffCredentialRejectedError extends Schema.TaggedError<P
   },
 ) {
   override get message(): string {
-    return "This computer session is no longer valid (invalid_credential). Refresh the page or quit and reopen Leonidas Code.";
+    return "This computer session is no longer valid (invalid_credential). Refresh the page or quit and reopen Leonidas.";
   }
 }
 

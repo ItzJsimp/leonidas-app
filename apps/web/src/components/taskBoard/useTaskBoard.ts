@@ -113,7 +113,7 @@ export function useTaskBoard(input: {
   const viewer = canonicalName(member, team) ?? member;
 
   // Every repository-backed project's shared board is read, selected or not, so a project a
-  // collaborator shares (a shared Leonidas Code repo) shows up on its own.
+  // collaborator shares (a shared Leonidas repo) shows up on its own.
   const localCards = data?.tasks;
   const sharedTargets = useMemo(() => {
     // Projects can point at one repository (a sub-folder and its parent); its board is read

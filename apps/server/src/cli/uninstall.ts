@@ -214,5 +214,5 @@ const runUninstall = Effect.fn("cli.uninstall.run")(function* (input: {
     }
   }
   yield* Console.log("");
-  yield* Console.log("t3 is uninstalled. Thanks for trying Leonidas Code.");
+  yield* Console.log("t3 is uninstalled. Thanks for trying Leonidas.");
 });

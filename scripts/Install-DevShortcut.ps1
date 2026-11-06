@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  One-time setup for "Leonidas Code (Dev)": an always-on dev server that starts at sign-in, and
+  One-time setup for "Leonidas (Dev)": an always-on dev server that starts at sign-in, and
   a Desktop shortcut that opens its window. Right-click the shortcut and choose "Pin to taskbar"
   once; Windows does not allow scripts to pin for you.
 
@@ -43,7 +43,8 @@ Register-ScheduledTask -TaskName $taskName -Force -Settings $settings -Action $s
 
 if (-not $IconPath) { $IconPath = Join-Path $repoRoot 'assets/dev/leonidas-dev-green.ico' }
 $shell = New-Object -ComObject WScript.Shell
-$path = Join-Path $Directory 'Leonidas Code (Dev).lnk'
+$path = Join-Path $Directory 'Leonidas (Dev).lnk'
+Remove-Item -LiteralPath (Join-Path $Directory 'Leonidas Code (Dev).lnk') -Force -ErrorAction SilentlyContinue
 $link = $shell.CreateShortcut($path)
 # wscript runs the launcher with no console window; powershell -WindowStyle Hidden still flashes one.
 $link.TargetPath = Join-Path $env:WINDIR 'System32\wscript.exe'
@@ -51,7 +52,7 @@ $link.Arguments = "`"$(Join-Path $PSScriptRoot 'Open-LeonidasDev.vbs')`""
 $link.WorkingDirectory = $repoRoot
 $link.WindowStyle = 7
 $link.IconLocation = $IconPath
-$link.Description = 'Opens the always-on Leonidas Code dev copy (never touches the installed app).'
+$link.Description = 'Opens the always-on Leonidas dev copy (never touches the installed app).'
 $link.Save()
 # Same taskbar identity the dev window gets, so the window joins this shortcut's pinned button.
 & (Join-Path $PSScriptRoot 'Set-DevWindowIdentity.ps1') -ShortcutPath $path | Out-Null

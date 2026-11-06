@@ -9,9 +9,9 @@ describe("Release delivery checks", () => {
     expect(elapsedSeconds("2026-10-11T01:01:00Z", "2026-10-11T01:00:00Z")).toBeNull();
   });
   it("rejects manifests that would send the updater to the wrong installer", () => {
-    const yaml = `version: 0.2.2\npath: Leonidas-Code-0.2.2-x64.exe\nsha512: ${"A".repeat(86)}==\n`;
+    const yaml = `version: 0.2.2\npath: Leonidas-0.2.2-x64.exe\nsha512: ${"A".repeat(86)}==\n`;
     expect(parseUpdateManifest(yaml).version).toBe("0.2.2");
-    expect(() => parseUpdateManifest(yaml.replace("Code-0.2.2", "Code-1.0.16"))).toThrow();
+    expect(() => parseUpdateManifest(yaml.replace("Leonidas-0.2.2", "Leonidas-1.0.16"))).toThrow();
     expect(() => parseUpdateManifest(yaml.replace("sha512:", "missing:"))).toThrow();
   });
 });

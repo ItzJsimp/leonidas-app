@@ -22,7 +22,7 @@ export function parseUpdateManifest(yaml: string) {
     sha512 = value("sha512");
   if (
     !/^\d+\.\d+\.\d+$/.test(version) ||
-    path !== `Leonidas-Code-${version}-x64.exe` ||
+    path !== `Leonidas-${version}-x64.exe` ||
     !/^[A-Za-z0-9+/]{86}==$/.test(sha512)
   )
     throw new Error("Invalid updater manifest");

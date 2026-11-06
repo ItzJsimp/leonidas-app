@@ -24,7 +24,7 @@ export interface ResolvedReplyStyle {
 const LEONIDAS: ReplyStylePreset = {
   slug: LEONIDAS_REPLY_STYLE_SLUG,
   name: "Leonidas",
-  description: "The shipped Leonidas Code reply style.",
+  description: "The shipped Leonidas reply style.",
   builtin: true,
 };
 

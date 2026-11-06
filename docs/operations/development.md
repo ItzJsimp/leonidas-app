@@ -53,7 +53,7 @@ different preference when needed.
 
 ### Desktop isolation and live edits
 
-`vp run dev:desktop` launches Leonidas Code (Dev) with its own Electron profile
+`vp run dev:desktop` launches Leonidas (Dev) with its own Electron profile
 (`t3code-dev`), application identity and development protocol. The installed app uses
 `t3code-v2` on Windows and continues running independently. Ports are probed before
 launch, so occupied ports move the dev stack to an available pair.
@@ -88,7 +88,7 @@ The workarounds live in the [web entry](../../apps/web/src/bootstrap.ts) and
 
 Use this only on a hostname where you trust every service. Browsers send cookies to all ports
 on that hostname. Any service you visit there can receive the reusable admin credential,
-including services unrelated to Leonidas Code. If you run untrusted services on that hostname, keep
+including services unrelated to Leonidas. If you run untrusted services on that hostname, keep
 normal per-environment pairing instead.
 
 To use one browser profile across web dev worktrees on the same hostname, generate one fixed

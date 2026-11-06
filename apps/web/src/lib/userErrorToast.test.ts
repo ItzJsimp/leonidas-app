@@ -38,7 +38,7 @@ describe("userErrorToastFields", () => {
   it("provider CLI missing: opens provider settings", () => {
     const fields = userErrorToastFields(nodeError("spawn codex ENOENT", "ENOENT"));
     expect(fields.description).toBe(
-      "Leonidas Code could not find the provider's command-line tool on this computer.",
+      "Leonidas could not find the provider's command-line tool on this computer.",
     );
     expect(fields.actionProps.children).toBe("Open provider settings");
     fields.actionProps.onClick();
@@ -63,7 +63,7 @@ describe("userErrorToastFields", () => {
     const onRetry = vi.fn();
     const fields = userErrorToastFields(new TypeError("Failed to fetch"), { onRetry });
     expect(fields.description).toBe(
-      "Leonidas Code lost its network connection to the server or provider.",
+      "Leonidas lost its network connection to the server or provider.",
     );
     expect(fields.actionProps.children).toBe("Try again");
     fields.actionProps.onClick();
@@ -99,9 +99,7 @@ describe("userErrorToastFields", () => {
 
   it("update failure: opens the installer download", () => {
     const fields = userErrorToastFields("net::ERR_CONNECTION_RESET", { area: "update" });
-    expect(fields.description).toBe(
-      "Leonidas Code could not get the update from the update server.",
-    );
+    expect(fields.description).toBe("Leonidas could not get the update from the update server.");
     expect(fields.actionProps.children).toBe("Download installer");
     fields.actionProps.onClick();
     expect(mocks.openExternal).toHaveBeenCalledWith(INSTALLER_DOWNLOAD_URL);

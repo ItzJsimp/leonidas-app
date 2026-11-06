@@ -1155,7 +1155,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
         );
 
         // T3CODE_OTLP_TRACES_URL wins over the OTEL variable for the same
-        // signal, and keeps Leonidas Code's own headers since Leonidas Code still owns it.
+        // signal, and keeps Leonidas's own headers since Leonidas still owns it.
         expect(resolved.otlpTracesUrl).toBe("http://t3:4318/v1/traces");
         expect(resolved.otlpTracesExport.headers).toEqual({ "x-key": "secret" });
         // Metrics named no T3CODE_OTLP_METRICS_URL, so the OTEL endpoint wins
@@ -1222,7 +1222,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
         // T3CODE_OTLP_TRACES_URL still wins outright.
         expect(resolved.otlpTracesUrl).toBe("http://t3:4318/v1/traces");
         // The OTEL endpoint claimed metrics and logs, so neither the bootstrap
-        // envelope nor Settings receives them with Leonidas Code's headers.
+        // envelope nor Settings receives them with Leonidas's headers.
         expect(resolved.otlpMetricsUrl).toBeUndefined();
         expect(resolved.otlpLogsUrl).toBeUndefined();
       }),

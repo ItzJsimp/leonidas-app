@@ -194,7 +194,7 @@ jobs:
       - name: Benchmark the installer
         env:
           ENFORCE_APP: ${{ vars.LEONIDAS_ENFORCE_APP_BUDGETS == 'true' && '--enforce-app' || '' }}
-        run: node scripts/release-benchmark.ts --version "${{ steps.release.outputs.version }}" --installer "release/Leonidas-Code-${{ steps.release.outputs.version }}-x64.exe" --engine-dir services/scribe-engine/target/x86_64-pc-windows-msvc/release --history benchmark-history.csv --out-dir release $ENFORCE_APP
+        run: node scripts/release-benchmark.ts --version "${{ steps.release.outputs.version }}" --installer "release/Leonidas-${{ steps.release.outputs.version }}-x64.exe" --engine-dir services/scribe-engine/target/x86_64-pc-windows-msvc/release --history benchmark-history.csv --out-dir release $ENFORCE_APP
 
       - name: Save release artifacts
         uses: actions/upload-artifact@v4
@@ -385,7 +385,7 @@ jobs:
           find artifacts -type f \( -name '*.exe' -o -name '*.blockmap' -o -name 'latest.yml' \) -print0 | xargs -0 gh release upload "v$VERSION" --clobber
           # Fixed name so releases/latest/download/Leonidas-Setup.exe is one link that never changes.
           find artifacts -type f -name 'benchmark-*' -print0 | xargs -0 gh release upload "v$VERSION" --clobber
-          cp "$(find artifacts -type f -name 'Leonidas-Code-*-x64.exe' | head -n 1)" artifacts/Leonidas-Setup.exe
+          cp "$(find artifacts -type f -name 'Leonidas-*-x64.exe' | head -n 1)" artifacts/Leonidas-Setup.exe
           gh release upload "v$VERSION" artifacts/Leonidas-Setup.exe --clobber
           if [ -d artifacts/mac ]; then
             find artifacts/mac -type f -print0 | xargs -0 gh release upload "v$VERSION" --clobber

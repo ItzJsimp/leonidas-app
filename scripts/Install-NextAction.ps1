@@ -3,7 +3,7 @@
 .SYNOPSIS
     Install and verify next-action and the core skills in the owner's AIOS and its existing projects.
 .DESCRIPTION
-    Uses the skill shipped with Leonidas Code. Backs up changed skill files and
+    Uses the skill shipped with Leonidas. Backs up changed skill files and
     preserves user tasks and instructions. In the usual projects/leonidas-code
     layout, detects the parent AIOS; otherwise installs in this code project.
     Prints a verification result from this machine, never a remote-install claim.
@@ -87,4 +87,4 @@ if ($python -and (Test-Path -LiteralPath (Join-Path $target 'tasks'))) {
 }
 Write-Host "[PASS] Next action installed and discoverable in $($workspaces.Count) workspace(s) on $env:COMPUTERNAME."
 Write-Host "Task store: $taskCache"
-Write-Host 'Open a fresh Leonidas Code conversation and say: next action, skip.'
+Write-Host 'Open a fresh Leonidas conversation and say: next action, skip.'

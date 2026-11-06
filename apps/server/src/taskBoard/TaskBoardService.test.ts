@@ -34,7 +34,7 @@ const output = (stdout: string, code = 0, stderr = ""): ProcessRunner.ProcessRun
 
 const boardProject = {
   id: "project-board",
-  title: "Leonidas Code",
+  title: "Leonidas",
   workspaceRoot: "D:/leonidas-code",
   repositoryIdentity: {
     canonicalKey: "github.com/ItzJsimp/leonidas-code",
@@ -452,7 +452,7 @@ it.effect("loads only valid project roadmaps and uses the workspace project slug
     const roadmapFile = NodePath.join(projectRoot, "project-roadmap.json");
     const roadmap = {
       projectSlug: "wrong-slug",
-      name: "Leonidas Code",
+      name: "Leonidas",
       currentVersion: "0.22.0",
       targetVersion: "1.0.0",
       releaseDefinition: "Public launch",
@@ -469,9 +469,7 @@ it.effect("loads only valid project roadmaps and uses the workspace project slug
     return Effect.gen(function* () {
       const board = yield* TaskBoardService.TaskBoardService;
       const loaded = yield* board.workspace([project]);
-      expect(loaded.roadmaps).toMatchObject([
-        { projectSlug: "leonidas-code", name: "Leonidas Code" },
-      ]);
+      expect(loaded.roadmaps).toMatchObject([{ projectSlug: "leonidas-code", name: "Leonidas" }]);
       NodeFS.writeFileSync(roadmapFile, "not json");
       expect((yield* board.workspace([project])).roadmaps).toEqual([]);
     }).pipe(Effect.provide(boardLayer(noGithub)));
@@ -722,7 +720,7 @@ it.effect("refuses an edit made from an old view and keeps the newer edit and it
 // The shared board copy of task-one, as a collaborator's machine would have published it.
 const sharedCopy = (overrides: Partial<TaskBoardTask> = {}): TaskBoardTask => ({
   id: "task-one",
-  project: "Leonidas Code",
+  project: "Leonidas",
   title: "First card",
   description: "",
   status: "todo",

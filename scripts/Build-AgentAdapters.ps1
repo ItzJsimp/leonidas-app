@@ -25,7 +25,7 @@ $header
 
 $cursor = @"
 ---
-description: Leonidas Code agent router (generated from AGENTS.md)
+description: Leonidas agent router (generated from AGENTS.md)
 alwaysApply: true
 ---
 $header

@@ -29,7 +29,7 @@ export interface SignalExport {
   readonly exportIntervalMs: number;
 }
 
-/** What Leonidas Code exports with when nothing configured a signal. */
+/** What Leonidas exports with when nothing configured a signal. */
 export const DEFAULT_SIGNAL_EXPORT: SignalExport = {
   protocol: "http/json",
   headers: undefined,

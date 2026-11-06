@@ -173,7 +173,7 @@ export function homeNews(): Promise<{ items: TaskBoardHomeNewsItem[] }> {
         try {
           const response = await fetch(feed.url, {
             signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-            headers: { "User-Agent": "LeonidasCode/1.0 (+home news)" },
+            headers: { "User-Agent": "Leonidas/1.0 (+home news)" },
           });
           return response.ok ? parseFeed(await response.text(), feed.source) : [];
         } catch {

@@ -7,7 +7,7 @@ import {
   T3_CODE_ORCHESTRATION_INSTRUCTIONS,
 } from "@t3tools/provider-core/server/orchestrationInstructions";
 
-const T3_CODE_DEVICE_TOOL_INSTRUCTIONS = `## Leonidas Code devices
+const T3_CODE_DEVICE_TOOL_INSTRUCTIONS = `## Leonidas devices
 
 For iOS Simulators and Android Emulators here, call \`device_list\`, then \`device_open\`. Drive the device with the exact \`agent-device\` launcher and flags it returns, on every command. Prefer \`agent-device snapshot -i\` refs over coordinates. Use \`device_screenshot\` to see the screen. Use \`xcrun simctl\` or \`adb\` only for builds, logs, and ports. If a platform is unavailable, say so.`;
 
@@ -196,7 +196,7 @@ export function buildCodexDeveloperInstructions(interactionMode: ProviderInterac
 }
 
 /**
- * Leonidas Code context for `turn/start.additionalContext`. Codex renders each entry
+ * Leonidas context for `turn/start.additionalContext`. Codex renders each entry
  * as a `<key>value</key>` developer message and resends it only when the value
  * changes.
  *

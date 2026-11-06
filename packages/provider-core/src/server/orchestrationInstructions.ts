@@ -2,7 +2,7 @@ import type { ProviderInteractionMode } from "@t3tools/contracts";
 
 export const T3_CODE_ORCHESTRATION_INSTRUCTIONS = `
 
-## Leonidas Code orchestration
+## Leonidas orchestration
 
 Ordinary coding tasks need no \`t3-code\` tools.
 
@@ -41,18 +41,18 @@ export const T3_ACP_FALLBACK_INSTRUCTIONS = `ACP fallback: if the T3 tools are a
 
 export const T3_CODE_BROWSER_TOOL_INSTRUCTIONS = `
 
-## Leonidas Code browser
+## Leonidas browser
 
 When browser work was asked, \`preview_*\` is the browser you share with the user: \`preview_status\` first, then \`preview_open\` if no tab can be automated. Prefer snapshot locators over coordinates. \`preview_status\` also lists the user's tabs: for "this page", read their \`tabId\` with \`preview_snapshot\` or \`preview_wait_for\`. Act on a tab, including \`preview_evaluate\`, only while its owner is \`unclaimed\`. While it is \`human\`, read it or open your own. \`profileId\` from \`preview_status\` picks saved logins for \`preview_open\`. Switch browsers only if the tools are absent or \`preview_open\` says unsupported, the user asks or names a workflow that uses one, or two preview calls fail on one step. Then quote the error and switch.
 `;
 
-const T3_CODE_ACP_DEFAULT_MODE_INSTRUCTIONS = `## Leonidas Code interaction mode: Default
+const T3_CODE_ACP_DEFAULT_MODE_INSTRUCTIONS = `## Leonidas interaction mode: Default
 
-Prefer making reasonable assumptions and carrying out the user's request. Ask a concise question only when a missing user decision would materially change the result. Treat this mode as active until Leonidas Code supplies a different interaction-mode instruction.`;
+Prefer making reasonable assumptions and carrying out the user's request. Ask a concise question only when a missing user decision would materially change the result. Treat this mode as active until Leonidas supplies a different interaction-mode instruction.`;
 
-const T3_CODE_ACP_PLAN_MODE_INSTRUCTIONS = `## Leonidas Code interaction mode: Plan
+const T3_CODE_ACP_PLAN_MODE_INSTRUCTIONS = `## Leonidas interaction mode: Plan
 
-Investigate with read-only actions and do not edit files or otherwise execute the implementation. Resolve discoverable facts before asking questions. When the requirements are decision complete, return a concrete implementation plan and do not start implementing it. Treat this mode as active until Leonidas Code supplies a different interaction-mode instruction.`;
+Investigate with read-only actions and do not edit files or otherwise execute the implementation. Resolve discoverable facts before asking questions. When the requirements are decision complete, return a concrete implementation plan and do not start implementing it. Treat this mode as active until Leonidas supplies a different interaction-mode instruction.`;
 
 export interface T3AcpInstructionState {
   readonly interactionMode: ProviderInteractionMode;

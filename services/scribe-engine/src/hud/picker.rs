@@ -1,6 +1,6 @@
 //! Focus-taking preset picker, with its own message loop on the caller's worker thread,
 //! plus a no-focus status popup that shows while a rewrite runs.
-//! Look: Leonidas Code dark theme, design direction A (`projects/leonidas-scribe/design/rewrite-picker-directions.html`).
+//! Look: Leonidas dark theme, design direction A (`projects/leonidas-scribe/design/rewrite-picker-directions.html`).
 use std::{
     cell::{Cell, RefCell},
     ptr::{null, null_mut},
@@ -31,7 +31,7 @@ const RADIUS: i32 = 10;
 /// The picker closes by itself, so it can never stay on screen.
 const TIMEOUT_MS: u32 = 30_000;
 
-// Leonidas Code dark tokens, as Win32 BGR values.
+// Leonidas dark tokens, as Win32 BGR values.
 const POPOVER: u32 = 0x00251d1d; // #1d1d25
 const FG: u32 = 0x00f5f4f4; // #f4f4f5
 const MUTED: u32 = 0x00aaa1a1; // #a1a1aa

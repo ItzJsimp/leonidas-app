@@ -453,7 +453,7 @@
     </div>
     <script>
       const P = {
-        LC: ["Leonidas Code", "--pLC", "LC"],
+        LC: ["Leonidas", "--pLC", "LC"],
         AI: ["Leonidas AIOS", "--pAI", "LA"],
         GOO: ["clean-the-goo", "--pGOO", "CG"],
       };
@@ -569,7 +569,7 @@
     .map((x) => row(x))
     .join("")}
   <div class="indent">
-  <div class="proj">${mono("LC")}Leonidas Code<span class="n">31</span></div><div class="more">Show 31 chats</div>
+  <div class="proj">${mono("LC")}Leonidas<span class="n">31</span></div><div class="more">Show 31 chats</div>
   <div class="proj">${mono("AI")}Leonidas AIOS<span class="n">48</span></div>${byP("AI")
     .map((x) => row(x, { noProj: true }))
     .join("")}
@@ -597,7 +597,7 @@
 
       const days = ["Today", "Yesterday", "This week"];
       const C = `<div class="panel">${bar('<span class="btn">View</span>')}
-  <div class="chips"><span class="chip on">All projects</span><span class="chip">Leonidas Code</span><span class="chip">AIOS</span><span class="chip">+1</span></div>
+  <div class="chips"><span class="chip on">All projects</span><span class="chip">Leonidas</span><span class="chip">AIOS</span><span class="chip">+1</span></div>
   ${days
     .map((d) => {
       const xs = T.filter((x) => x.d === d);
@@ -612,7 +612,7 @@
     <span class="mono" style="--c:var(--pAI)">LA</span>
     <span class="mono" style="--c:var(--pGOO)">CG</span></div>
   <div class="railbody">${bar('<span class="btn">View</span>')}
-  <div class="proj" style="padding-top:2px">Leonidas Code<span class="n">31 chats</span></div>
+  <div class="proj" style="padding-top:2px">Leonidas<span class="n">31 chats</span></div>
   ${sec("Needs you", 3)}${T.filter((x) => x.p === "LC" && need(x))
     .map(crow)
     .join("")}

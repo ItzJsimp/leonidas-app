@@ -79,7 +79,7 @@ export function plainInstallError(error: unknown): string {
   const code = (error as { code?: string } | null)?.code;
   if (code === "ENOSPC") return "The disk is full. Free some space, then try again.";
   if (code === "EACCES" || code === "EPERM") {
-    return "Leonidas Code cannot write to your user folder. Check its permissions, then try again.";
+    return "Leonidas cannot write to your user folder. Check its permissions, then try again.";
   }
   if (error instanceof Error && /fetch failed|Download failed/i.test(error.message)) {
     return "The download failed. Check your internet connection, then try again.";
@@ -328,7 +328,7 @@ async function install(input: {
         await NodeFSP.rm(target, { force: true });
         set({
           status: "error",
-          message: `${file.name} did not match its checksum, so Leonidas Code did not use it.`,
+          message: `${file.name} did not match its checksum, so Leonidas did not use it.`,
           missingPackages: [],
         });
         return;

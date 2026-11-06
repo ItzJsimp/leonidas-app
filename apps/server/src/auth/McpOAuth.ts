@@ -40,7 +40,7 @@ import {
 
 /**
  * The OAuth authorization server MCP clients (Claude Code, Codex, any agent
- * Leonidas Code did not launch) use to sign in to this environment's `/mcp`.
+ * Leonidas did not launch) use to sign in to this environment's `/mcp`.
  *
  * Every URL is derived from the request's own origin, so the same server
  * answers correctly over loopback, Tailscale Serve and a T3 Connect tunnel.
@@ -88,7 +88,7 @@ export const protectedResourceMetadata = (
   authorization_servers: [urls.issuer],
   scopes_supported: MCP_OAUTH_SCOPES,
   bearer_methods_supported: ["header"],
-  resource_name: "Leonidas Code",
+  resource_name: "Leonidas",
 });
 
 export const authorizationServerMetadata = (

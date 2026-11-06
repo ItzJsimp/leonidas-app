@@ -68,7 +68,7 @@ async function withAppServer<T>(
   const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
   try {
     await call("initialize", {
-      clientInfo: { name: "leonidas-code", title: "Leonidas Code", version: "0.0.0" },
+      clientInfo: { name: "leonidas-code", title: "Leonidas", version: "0.0.0" },
     });
     child.stdin.write(`${JSON.stringify({ method: "initialized", params: {} })}\n`);
     return await run(call);

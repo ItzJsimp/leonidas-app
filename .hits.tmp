@@ -80,7 +80,7 @@ features/settings/scheduled-task-editor.tsx:84: const voiceOwnerKey = `scheduled
 features/settings/scheduled-task-editor.tsx:132: if (!context) throw new Error("Scheduled task editor provider is missing.");
 features/settings/scheduled-task-editor-state.ts:53: if (`scheduled-task:${session?.id ?? 0}` !== voiceOwnerKey) return null;
 features/settings/settings-environment-filter.tsx:98: if (filter === null) throw new Error("Settings environment filter provider is missing.");
-features/settings/SettingsMicrophoneRouteScreen.tsx:168: : "Microphone access is off for Leonidas Code. Turn it on in Settings to use voice input."}
+features/settings/SettingsMicrophoneRouteScreen.tsx:168: : "Microphone access is off for Leonidas. Turn it on in Settings to use voice input."}
 features/sharing/incoming-share-model.ts:127: warnings.push(`'${attachment.name}' was skipped because this server does not support files.`);
 features/shortcuts/useAppShortcuts.ts:92: console.warn("[app-shortcuts] failed to load recent threads", error);
 features/shortcuts/useAppShortcuts.ts:134: console.warn("[app-shortcuts] failed to persist recent threads", error);

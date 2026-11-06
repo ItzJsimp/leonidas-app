@@ -11,7 +11,7 @@ const start = "<!-- leonidas-output-standard:start -->";
 const end = "<!-- leonidas-output-standard:end -->";
 const block = `${start}\n${LEONIDAS_OUTPUT_STANDARD}\n${end}`;
 // AIOS overlays get a pointer, not the full text: the harness already injects the standard.
-const pointer = `${start}\nReply shape: Leonidas Code injects its render contract and the selected reply style into every session. The default style is Leonidas. Presets live in \`.agents/reply-styles/<slug>.md\`. Source: \`packages/provider-core/src/server/outputStandard.ts\`. Do not restate them here.\n${end}`;
+const pointer = `${start}\nReply shape: Leonidas injects its render contract and the selected reply style into every session. The default style is Leonidas. Presets live in \`.agents/reply-styles/<slug>.md\`. Source: \`packages/provider-core/src/server/outputStandard.ts\`. Do not restate them here.\n${end}`;
 const normalize = (value: string) => value.replaceAll("\r\n", "\n");
 
 /** Update only managed copies and overlay blocks, preserving personal instructions and backups. */
@@ -48,7 +48,7 @@ export async function syncOutputStandard(input: {
           if (instructions && !instructions.includes(".agents/rules/leonidas-code-overlay.md")) {
             files.set(
               file,
-              `${instructions.trimEnd()}\n\n<!-- Leonidas Code overlay loader -->\nBefore acting in Leonidas Code, read [.agents/rules/leonidas-code-overlay.md](.agents/rules/leonidas-code-overlay.md).\n@.agents/rules/leonidas-code-overlay.md\n`,
+              `${instructions.trimEnd()}\n\n<!-- Leonidas overlay loader -->\nBefore acting in Leonidas, read [.agents/rules/leonidas-code-overlay.md](.agents/rules/leonidas-code-overlay.md).\n@.agents/rules/leonidas-code-overlay.md\n`,
             );
           }
         }
@@ -61,7 +61,7 @@ export async function syncOutputStandard(input: {
         files.set(
           overlay,
           a < 0
-            ? `${previous.trimEnd() || "# Leonidas Code: shared operating layer"}\n\n${pointer}\n`
+            ? `${previous.trimEnd() || "# Leonidas: shared operating layer"}\n\n${pointer}\n`
             : `${previous.slice(0, a)}${pointer}${previous.slice(b + end.length)}`,
         );
         for (const file of skillFiles)

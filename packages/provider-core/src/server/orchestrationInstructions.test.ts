@@ -88,9 +88,9 @@ describe("T3 orchestration provider instructions", () => {
       state: { interactionMode: "default", hasT3Mcp: true },
     });
 
-    assert.include(injected, "Leonidas Code interaction mode: Default");
-    assert.include(injected, "Leonidas Code browser");
-    assert.include(injected, "Leonidas Code orchestration");
+    assert.include(injected, "Leonidas interaction mode: Default");
+    assert.include(injected, "Leonidas browser");
+    assert.include(injected, "Leonidas orchestration");
     assert.include(injected, "<user_request>\nInspect the repository.\n</user_request>");
   });
 
@@ -124,9 +124,9 @@ describe("T3 orchestration provider instructions", () => {
         prompt: "x",
         state: { interactionMode: "default", hasT3Mcp: true, hasBrowserTools },
       });
-    assert.include(build(true), "Leonidas Code browser");
-    assert.notInclude(build(false), "Leonidas Code browser");
-    assert.include(build(false), "Leonidas Code orchestration");
+    assert.include(build(true), "Leonidas browser");
+    assert.notInclude(build(false), "Leonidas browser");
+    assert.include(build(false), "Leonidas orchestration");
   });
 
   it("injects the ACP fallback block only when the node bridge is available", () => {
@@ -137,7 +137,7 @@ describe("T3 orchestration provider instructions", () => {
       });
     assert.include(build(true), "ACP fallback:");
     assert.notInclude(build(false), "ACP fallback:");
-    assert.include(build(false), "Leonidas Code orchestration");
+    assert.include(build(false), "Leonidas orchestration");
   });
 
   it("reinjects when only browser or fallback availability changes", () => {
@@ -166,15 +166,15 @@ describe("T3 orchestration provider instructions", () => {
         state: { ...defaultState, interactionMode: "plan" },
         previousState: defaultState,
       }),
-      "Leonidas Code interaction mode: Plan",
+      "Leonidas interaction mode: Plan",
     );
     const withoutMcp = t3AcpPromptWithInstructions({
       prompt,
       state: { interactionMode: "default", hasT3Mcp: false },
     });
-    assert.include(withoutMcp, "Leonidas Code interaction mode: Default");
-    assert.notInclude(withoutMcp, "Leonidas Code browser");
-    assert.notInclude(withoutMcp, "Leonidas Code orchestration");
+    assert.include(withoutMcp, "Leonidas interaction mode: Default");
+    assert.notInclude(withoutMcp, "Leonidas browser");
+    assert.notInclude(withoutMcp, "Leonidas orchestration");
   });
 });
 

@@ -1,14 +1,14 @@
 ---
 type: reference
 id: leonidas-code-agent-playbook
-title: "Leonidas Code: agent playbook"
-description: "Read before changing Leonidas Code (the fork of T3 Code). Where the updater and settings live, upstream traps, the cheap verify loop, gotchas already paid for, and one line per past session."
+title: "Leonidas: agent playbook"
+description: "Read before changing Leonidas (the fork of T3 Code). Where the updater and settings live, upstream traps, the cheap verify loop, gotchas already paid for, and one line per past session."
 scope: structural
 owner: leonidas
 verified: 2026-10-11
 ---
 
-# Leonidas Code agent playbook
+# Leonidas agent playbook
 
 ## 1. Start here (under 5 calls)
 
@@ -32,7 +32,7 @@ verified: 2026-10-11
 | Source          | Reached by                                                                                                                   | Latency                                     | Trap                                                                                                                                          |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Update feed     | GitHub Releases of the repo named in `T3CODE_DESKTOP_UPDATE_REPOSITORY` or `GITHUB_REPOSITORY` at build time                 | 4 minute poll (`AUTO_UPDATE_POLL_INTERVAL`) | Baked in at build: an official T3 install keeps updating from `pingdotgg` until replaced by our build. Private repo needs a token in the app. |
-| Public download | `releases/latest/download/Leonidas-Setup.exe` on `ItzJsimp/leonidas-code`, a fixed-name copy that `team-release.yml` uploads | n/a                                         | The versioned `Leonidas-Code-<v>-x64.exe` name changes every release; give users only the fixed link. Unsigned, so SmartScreen shows once.    |
+| Public download | `releases/latest/download/Leonidas-Setup.exe` on `ItzJsimp/leonidas-code`, a fixed-name copy that `team-release.yml` uploads | n/a                                         | The versioned `Leonidas-<v>-x64.exe` name changes every release; give users only the fixed link. Unsigned, so SmartScreen shows once.         |
 | Update channel  | Derived from version string: `-nightly.YYYYMMDD.N` is nightly, else latest                                                   | n/a                                         | Updates whose channel does not match the selected one are ignored silently; version our builds as plain semver (`1.0.<run_number>`).          |
 
 ## 4. The cheap build and verify loop
@@ -44,7 +44,7 @@ verified: 2026-10-11
 5. Which skills Codex sees in a folder, free and with no model call: `codex debug prompt-input` run there (skills are listed as `(file: rN/<name>/SKILL.md)`).
 6. Web typecheck: from `apps/web`, `../../node_modules/.bin/vp run typecheck` (about 13 s). `npx tsgo` and a local `tsc` bin do not exist.
 7. Dev copy (green icon app): it follows the derived local `dev` branch, not the main checkout. `pwsh scripts/Update-DevBranch.ps1 -Force` rebuilds it (origin/main plus every clean branch of the last 21 days, gated; 1 to 3 min). Read `.t3/dev-branch-status.md` for what merged, what the gate dropped and what needs a person. Tests for that machinery: `pwsh -NoProfile -File scripts/Update-DevBranch.test.ps1` (about 15 s, throwaway repo).
-8. Server boot smoke, no install needed: `node scripts/smoke.mjs --runtime "<install>/Leonidas Code.exe" --entry "<install>/resources/server.asar/apps/server/dist/bin.mjs"` (about 8 s, fresh temp home). With an install, plain `node scripts/smoke.mjs`. It fails on a hung server (the 0.62.0 bug).
+8. Server boot smoke, no install needed: `node scripts/smoke.mjs --runtime "<install>/Leonidas.exe" --entry "<install>/resources/server.asar/apps/server/dist/bin.mjs"` (about 8 s, fresh temp home). With an install, plain `node scripts/smoke.mjs`. It fails on a hung server (the 0.62.0 bug).
 
 9. Scoped package checks without a full install: from the package folder, `pnpm --config.verify-deps-before-run=false exec vp test run --config ../../vite.config.ts --dir .` and `... exec tsc --noEmit`. Plain `pnpm exec` runs a dependency check that calls the failing `pnpm install` in a partial main checkout. The real gate is an installed `C:/lcw` worktree: `pnpm install --frozen-lockfile` (2.5 minutes with a warm store), then `vp lint --report-unused-disable-directives packages/<pkg>` and `tsc --noEmit` there. Only that toolchain loads the Effect plugin and the type-aware lint, and both found errors that the partial install hid.
 
@@ -77,7 +77,7 @@ verified: 2026-10-11
 Full list and session notes: [project/agent-gotchas.md](./project/agent-gotchas.md). Search it before touching updater, release, rebrand, worktree, build-preflight or quota code.
 
 - **`gh` defaults to upstream in this fork:** `gh release list` with no `-R` reads `pingdotgg/t3code`. Always pass `-R ItzJsimp/leonidas-code`.
-- **A push to `main` ships a release to both machines:** changes stay local commits until Jake says push.
+- **A push to `main` ships a release:** an agent pushes by itself when typecheck, scoped tests and the boot smoke pass.
 - **Rebrand scope rule:** change user-visible names only; leave `@t3tools/*`, `T3CODE_*`, the `~/.t3` folder and app id `com.t3tools.t3code`, or threads orphan and installs duplicate.
 - **No `vp` on PATH:** run `node_modules/.bin/vp test run <files>` from the repo.
 - **The main checkout is shared with live agents:** another session may be committing here every few seconds. Never `git switch`/`git checkout -b` (its commits land on your branch) and never `git stash` (an old `stash@{0}` exists and `pop` applies it). Commit by explicit path with `git commit --only -- <paths>`; for a baseline, compare error lists instead of stashing.

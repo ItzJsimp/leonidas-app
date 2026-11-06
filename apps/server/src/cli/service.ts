@@ -68,10 +68,10 @@ export function formatServiceStatus(
   cliVersion: string,
 ): string {
   if (!status.supported) {
-    return "Leonidas Code service\n  Status: unavailable on this machine\n  Supported on: Linux with systemd, macOS with launchd";
+    return "Leonidas service\n  Status: unavailable on this machine\n  Supported on: Linux with systemd, macOS with launchd";
   }
   if (!status.installed) {
-    return "Leonidas Code service\n  Status: not installed\n  Next: Run `t3 service install`.";
+    return "Leonidas service\n  Status: not installed\n  Next: Run `t3 service install`.";
   }
   const installedVersion = status.installedVersion ?? cliVersion;
   const problems = (status.problems ?? []).map(
@@ -83,7 +83,7 @@ export function formatServiceStatus(
     compareExactServiceVersions(status.installedVersion, cliVersion) > 0
   ) {
     return [
-      "Leonidas Code service",
+      "Leonidas service",
       `  Status: installed · t3@${installedVersion} (newer than this t3@${cliVersion} CLI)`,
       `  Unit: ${status.unitPath}`,
       `  Logs: ${status.logPath}`,
@@ -92,7 +92,7 @@ export function formatServiceStatus(
     ].join("\n");
   }
   return [
-    "Leonidas Code service",
+    "Leonidas service",
     `  Status: ${status.current ? `installed · t3@${installedVersion}` : "needs an update or repair"}`,
     `  Unit: ${status.unitPath}`,
     `  Logs: ${status.logPath}`,
@@ -119,7 +119,7 @@ const serviceReconcileFlags = {
 };
 
 const serviceInstallCommand = Command.make("install", serviceReconcileFlags).pipe(
-  Command.withDescription("Install Leonidas Code as a background service for this user."),
+  Command.withDescription("Install Leonidas as a background service for this user."),
   Command.withHandler((flags) =>
     runServiceCommand(
       flags,
@@ -127,12 +127,12 @@ const serviceInstallCommand = Command.make("install", serviceReconcileFlags).pip
         const result = yield* reconcileService({ allowDowngrade: flags.allowDowngrade });
         if (!result.changed) {
           yield* Console.log(
-            `Leonidas Code service is already installed with t3@${packageJson.version}.`,
+            `Leonidas service is already installed with t3@${packageJson.version}.`,
           );
           return;
         }
         yield* Console.log(
-          `${result.previouslyInstalled ? "Updated" : "Installed"} Leonidas Code service with t3@${packageJson.version}.\nLogs: ${result.plan.logPath}`,
+          `${result.previouslyInstalled ? "Updated" : "Installed"} Leonidas service with t3@${packageJson.version}.\nLogs: ${result.plan.logPath}`,
         );
       }),
     ),
@@ -153,11 +153,11 @@ const serviceUpdateCommand = Command.make("update", serviceReconcileFlags).pipe(
         );
         const result = yield* reconcileService({ allowDowngrade: flags.allowDowngrade });
         if (!result.changed) {
-          yield* Console.log(`Leonidas Code service is already using t3@${packageJson.version}.`);
+          yield* Console.log(`Leonidas service is already using t3@${packageJson.version}.`);
           return;
         }
         yield* Console.log(
-          `${result.previouslyInstalled ? "Updated" : "Installed"} Leonidas Code service with t3@${packageJson.version}.\nLogs: ${result.plan.logPath}`,
+          `${result.previouslyInstalled ? "Updated" : "Installed"} Leonidas service with t3@${packageJson.version}.\nLogs: ${result.plan.logPath}`,
         );
       }),
     ),
@@ -177,8 +177,8 @@ const serviceRestartCommand = Command.make("restart", projectLocationFlags).pipe
         const restarted = yield* service.restart;
         yield* Console.log(
           restarted
-            ? `Restarted the Leonidas Code service${status.installedVersion === undefined ? "" : ` on t3@${status.installedVersion}`}.`
-            : "Leonidas Code service is not installed.",
+            ? `Restarted the Leonidas service${status.installedVersion === undefined ? "" : ` on t3@${status.installedVersion}`}.`
+            : "Leonidas service is not installed.",
         );
       }),
     ),
@@ -186,7 +186,7 @@ const serviceRestartCommand = Command.make("restart", projectLocationFlags).pipe
 );
 
 const serviceUninstallCommand = Command.make("uninstall", projectLocationFlags).pipe(
-  Command.withDescription("Stop and remove the Leonidas Code background service."),
+  Command.withDescription("Stop and remove the Leonidas background service."),
   Command.withHandler((flags) =>
     runServiceCommand(
       flags,
@@ -194,9 +194,7 @@ const serviceUninstallCommand = Command.make("uninstall", projectLocationFlags).
         const service = yield* BootService.BootService;
         const removed = yield* service.uninstall;
         yield* Console.log(
-          removed
-            ? "Removed the Leonidas Code service."
-            : "Leonidas Code service is not installed.",
+          removed ? "Removed the Leonidas service." : "Leonidas service is not installed.",
         );
       }),
     ),
@@ -204,7 +202,7 @@ const serviceUninstallCommand = Command.make("uninstall", projectLocationFlags).
 );
 
 const serviceStatusCommand = Command.make("status", projectLocationFlags).pipe(
-  Command.withDescription("Show whether the Leonidas Code background service is installed."),
+  Command.withDescription("Show whether the Leonidas background service is installed."),
   Command.withHandler((flags) =>
     runServiceCommand(
       flags,
@@ -224,7 +222,7 @@ export const offerServiceDuringOnboarding = Effect.gen(function* () {
     return false;
   }
   if (installed && current) {
-    yield* Console.log("Leonidas Code is already set up to run in the background on this machine.");
+    yield* Console.log("Leonidas is already set up to run in the background on this machine.");
     return true;
   }
   for (const problem of status.problems ?? []) {
@@ -247,11 +245,11 @@ export const offerServiceDuringOnboarding = Effect.gen(function* () {
   const wanted = yield* Prompt.run(
     Prompt.Confirm({
       message: installed
-        ? "The installed Leonidas Code service needs an update or repair. Update it now?"
+        ? "The installed Leonidas service needs an update or repair. Update it now?"
         : platform === "darwin"
-          ? "Run Leonidas Code in the background whenever you log in to this Mac? " +
+          ? "Run Leonidas in the background whenever you log in to this Mac? " +
             "Remote access stays available while you are logged in."
-          : "Run Leonidas Code in the background whenever this machine boots? " +
+          : "Run Leonidas in the background whenever this machine boots? " +
             "Remote access stays available after you log out.",
       initial: true,
     }),
@@ -290,7 +288,7 @@ export const recoverServiceOnboardingOffer = <R>(
   );
 
 export const serviceCommand = Command.make("service").pipe(
-  Command.withDescription("Manage the Leonidas Code background service."),
+  Command.withDescription("Manage the Leonidas background service."),
   Command.withSubcommands([
     serviceInstallCommand,
     serviceRestartCommand,

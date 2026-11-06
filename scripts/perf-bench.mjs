@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Leonidas Code performance benchmark. Times typecheck, tests, the web build,
+// Leonidas performance benchmark. Times typecheck, tests, the web build,
 // bundle size and a headless boot of the built app, then appends one JSON line
 // per run to perf/benchmarks.jsonl (the single store for all benchmark data).
 //   node scripts/perf-bench.mjs --root C:/lcw/perf-bench   full run against the bench worktree

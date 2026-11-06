@@ -17,9 +17,9 @@ const layerEnvironment = DesktopEnvironment.layer({
   platform: "darwin",
   processArch: "arm64",
   appVersion: "1.2.3",
-  appPath: "/Applications/Leonidas Code.app/Contents/Resources/app.asar",
+  appPath: "/Applications/Leonidas.app/Contents/Resources/app.asar",
   isPackaged: true,
-  resourcesPath: "/Applications/Leonidas Code.app/Contents/Resources",
+  resourcesPath: "/Applications/Leonidas.app/Contents/Resources",
   runningUnderArm64Translation: false,
 }).pipe(
   Layer.provide(

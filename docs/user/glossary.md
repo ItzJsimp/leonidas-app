@@ -1,10 +1,10 @@
 # Words we use
 
-Leonidas Code and Leonidas Scribe use one word for one thing. This list is the source for every label, message and tooltip. When you write text a user can see, use the word in the first column. Do not use the words in the last column.
+Leonidas and Leonidas Scribe use one word for one thing. This list is the source for every label, message and tooltip. When you write text a user can see, use the word in the first column. Do not use the words in the last column.
 
 Code names (`thread`, `providerInstance`, `worktree`, `turn`, `T3CODE_*`, `@t3tools/*`, `~/.t3`) stay as they are. Only the text a user sees changes.
 
-## Leonidas Code
+## Leonidas
 
 | Word                  | One meaning                                                                                                           | Do not use                                         |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
@@ -17,9 +17,9 @@ Code names (`thread`, `providerInstance`, `worktree`, `turn`, `T3CODE_*`, `@t3to
 | project               | A folder on your computer that you work on with the AI.                                                               | workspace, repo (in labels), cwd                   |
 | separate copy         | A second copy of the project folder, so the AI does not change your main files. Tooltip: "Git calls this a worktree." | worktree, sandbox, checkout                        |
 | main folder           | The project folder itself, not a separate copy.                                                                       | checkout, current checkout, local checkout         |
-| computer              | A machine that runs Leonidas Code: this one, or one you connect to.                                                   | environment, host, server, backend                 |
-| remote access         | Use Leonidas Code on this computer from your phone or another computer. Tooltip: "Uses the T3 Connect service."       | T3 Connect, tunnel, relay, pairing, managed tunnel |
-| remote access account | The sign-in for remote access. It is a T3 account, not a Leonidas Code account.                                       | T3 Account, Leonidas Code account                  |
+| computer              | A machine that runs Leonidas: this one, or one you connect to.                                                        | environment, host, server, backend                 |
+| remote access         | Use Leonidas on this computer from your phone or another computer. Tooltip: "Uses the T3 Connect service."            | T3 Connect, tunnel, relay, pairing, managed tunnel |
+| remote access account | The sign-in for remote access. It is a T3 account, not a Leonidas account.                                            | T3 Account, Leonidas account                       |
 | helper                | A second AI that does one part of the work for the chat you are in.                                                   | subagent, child task, delegate, worker             |
 | teamwork              | Many helpers that work at the same time and report back to one chat.                                                  | orchestration, fan-out, swarm                      |
 | tools                 | Extra abilities you add to the AI, for example a database or a browser. Tooltip: "These use MCP servers."             | MCP, MCP server, integrations (in labels)          |
@@ -32,7 +32,7 @@ Code names (`thread`, `providerInstance`, `worktree`, `turn`, `T3CODE_*`, `@t3to
 | changes               | The lines the AI added, changed or removed in your files.                                                             | diff, patch, delta                                 |
 | usage                 | How much of your AI account limit you used.                                                                           | quota, tokens (in labels), credits                 |
 | permission            | What the AI can do without asking you first.                                                                          | runtime mode, approval policy, sandbox mode        |
-| update                | A new version of Leonidas Code or Scribe.                                                                             | release, build, patch (in labels)                  |
+| update                | A new version of Leonidas or Scribe.                                                                                  | release, build, patch (in labels)                  |
 | AI                    | The AI that works in a chat, in short labels such as "AI behavior".                                                   | agent                                              |
 | copied chat           | A new chat that starts from a copy of another chat. The first chat is the original chat.                              | fork, forked thread, branch (for chats)            |
 | save point            | A saved state of the project files that you can go back to.                                                           | checkpoint, snapshot                               |

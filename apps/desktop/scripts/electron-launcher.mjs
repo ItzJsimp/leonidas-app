@@ -1,4 +1,4 @@
-// This file mostly exists because we want dev mode to say "Leonidas Code (Dev)" instead of "electron"
+// This file mostly exists because we want dev mode to say "Leonidas (Dev)" instead of "electron"
 
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
@@ -15,7 +15,7 @@ const repoRoot = NodePath.resolve(desktopDir, "..", "..");
 const devBundleIdSuffix = NodePath.basename(repoRoot)
   .toLowerCase()
   .replaceAll(/[^a-z0-9]+/g, "");
-const APP_DISPLAY_NAME = isDevelopment ? "Leonidas Code (Dev)" : "Leonidas Code";
+const APP_DISPLAY_NAME = isDevelopment ? "Leonidas (Dev)" : "Leonidas";
 const APP_BUNDLE_ID = isDevelopment
   ? `com.t3tools.t3code.dev.${devBundleIdSuffix || "local"}`
   : "com.t3tools.t3code";
@@ -270,8 +270,8 @@ export function resolveMacBundleInfoPlistStrings(executableName) {
     CFBundleExecutable: executableName,
     CFBundleIconFile: "icon.icns",
     NSScreenCaptureUsageDescription:
-      "Leonidas Code captures the active window when you use the snapshot shortcut.",
-    NSDocumentsFolderUsageDescription: "Leonidas Code reads project files you open in the desktop app.",
+      "Leonidas captures the active window when you use the snapshot shortcut.",
+    NSDocumentsFolderUsageDescription: "Leonidas reads project files you open in the desktop app.",
   };
 }
 
@@ -402,7 +402,7 @@ function buildMacLauncher(electronBinaryPath) {
   if (isDevelopment) {
     // Keep Electron's native executable inside the branded bundle. Launching the
     // node_modules copy makes macOS associate the process (and Dock label) with
-    // Electron.app even though this bundle's Info.plist has the Leonidas Code name.
+    // Electron.app even though this bundle's Info.plist has the Leonidas name.
     // Its conventional executable name also keeps Electron's default-app runtime
     // in development mode instead of making app.isPackaged report true.
     writeDevelopmentEnvironmentScript();

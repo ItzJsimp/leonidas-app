@@ -2601,7 +2601,7 @@ describe("OrchestratorMcpService board tasks", () => {
   };
   const boardTask = (overrides: Partial<TaskBoardTask> & { id: string }): TaskBoardTask =>
     ({
-      project: "Leonidas Code",
+      project: "Leonidas",
       projectSlug: "leonidas-code",
       title: overrides.id,
       description: "",
@@ -2622,7 +2622,7 @@ describe("OrchestratorMcpService board tasks", () => {
       projects: [
         {
           slug: "leonidas-code",
-          name: "Leonidas Code",
+          name: "Leonidas",
           projectId,
           repository: null,
           total: 0,

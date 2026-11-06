@@ -32,7 +32,7 @@ describe("settings window requests", () => {
       main as unknown as BrowserWindow,
       "t3code://app/",
       "/preload.js",
-      "Leonidas Code",
+      "Leonidas",
       openExternal,
     );
     const before = main.listenerCount("closed");

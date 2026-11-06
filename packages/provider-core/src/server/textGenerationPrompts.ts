@@ -240,7 +240,7 @@ export interface ThreadTitlePromptInput {
 
 // Keep shared editorial rules in these two prompts in sync. Regeneration
 // intentionally adds guidance for thread history and the previous title.
-const INITIAL_THREAD_TITLE_PROMPT = `Generate a title that will help the user recognize this Leonidas Code thread weeks later.
+const INITIAL_THREAD_TITLE_PROMPT = `Generate a title that will help the user recognize this Leonidas thread weeks later.
 Return JSON with keys title and needsRefinement.
 Set needsRefinement to true only if the subject is still unknown, such as an unresolved link, "fix this", or an unexplained attachment. Otherwise set it to false.
 
@@ -275,7 +275,7 @@ function regenerateThreadTitlePrompt(previousTitle: string, hint?: string): stri
     ? `
 The user wants this focus for the new title: ${JSON.stringify(hint.trim().slice(0, 200))}. Follow it unless the thread contradicts it.`
     : "";
-  return `Regenerate the title for an existing Leonidas Code thread so the user can recognize it weeks later.
+  return `Regenerate the title for an existing Leonidas thread so the user can recognize it weeks later.
 The previous title was ${JSON.stringify(previousTitle)}.${focus}
 Return JSON with keys title and needsRefinement. Set needsRefinement to false.
 

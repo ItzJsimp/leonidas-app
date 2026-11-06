@@ -18,7 +18,7 @@ license: MIT
 
 # Prompt Composer: Agent Instruction & Prompt Authoring Engine
 
-Compose, audit, optimize, and grade high-precision prompts for AI agents. Bridges frontier LLM capabilities with deterministic operational constraints across providers in Leonidas Code and existing unattended workers.
+Compose, audit, optimize, and grade high-precision prompts for AI agents. Bridges frontier LLM capabilities with deterministic operational constraints across providers in Leonidas and existing unattended workers.
 
 ---
 
@@ -52,7 +52,7 @@ Leonidas AI automatically invokes this skill whenever writing, reviewing, or ana
 ### Phase 0: Engine & Scaffolding Inference
 
 To eliminate user friction, do NOT ask the operator what model will be used unless genuinely ambiguous. Autonomously infer the target model from conversational context or active harness:
-Infer the selected provider/model from Leonidas Code live capabilities, not the app name. Old harness names below identify model families only; they do not route users into old interfaces.
+Infer the selected provider/model from Leonidas live capabilities, not the app name. Old harness names below identify model families only; they do not route users into old interfaces.
 
 1. **Claude Context (Opus 5.5 / Sonnet 5):** Target if prompt mentions Claude, Anthropic, or runs inside Claude Code. Requires **Minimal Scaffolding** (frontier reasoning, native extended thinking, high steerability).
 2. **Antigravity Context (Gemini 3.8 Flash / Pro):** Target if prompt mentions Antigravity, Google AI, or runs inside Antigravity. Requires **Medium Scaffolding** (tool-centric bounds, test-first CLI verification commands).

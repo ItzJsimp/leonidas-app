@@ -47,7 +47,7 @@ try {
             ElectronProfile = Join-Path $devHome 'electron/t3code-dev'
             ServerPortStart = 13773 + $PortOffset
             WebPortStart = 5733 + $PortOffset
-            Title = 'Leonidas Code (Dev)'
+            Title = 'Leonidas (Dev)'
         }
         return
     }

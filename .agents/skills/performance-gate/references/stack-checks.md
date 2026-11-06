@@ -2,7 +2,7 @@
 
 Read only the section for the stack you changed.
 
-## Leonidas Code (TypeScript, Effect, React, Electron, Node WebSocket server, React Native mobile)
+## Leonidas (TypeScript, Effect, React, Electron, Node WebSocket server, React Native mobile)
 
 - Upstream's rule applies: never send more data over the WebSocket than the client uses, and no CSS animation that spikes the GPU. Both are named in the project's `AGENTS.md`.
 - Server: Effect scopes and finalizers own every listener, fiber, stream and child process; a resource created outside a scope is a leak. Streams must apply backpressure, never buffer a whole run.
