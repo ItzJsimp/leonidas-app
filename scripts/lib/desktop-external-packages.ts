@@ -25,7 +25,7 @@ const DESKTOP_RUNTIME_EXTERNAL_PREFIXES = [
   "playwright-core",
 ] as const;
 
-function isDesktopRuntimeExternalDependency(id: string): boolean {
+export function isDesktopRuntimeExternalDependency(id: string): boolean {
   return DESKTOP_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix));
 }
 
