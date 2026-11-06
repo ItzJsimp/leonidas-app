@@ -2,6 +2,7 @@ import type { ProviderOptionDescriptor } from "@t3tools/contracts";
 import { CheckIcon } from "lucide-react";
 import { memo, type ReactNode } from "react";
 import { cn } from "~/lib/utils";
+import { Switch } from "../ui/switch";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
   getDescriptorStringValue,
@@ -11,7 +12,27 @@ import {
   type TraitsPersistence,
 } from "./TraitsPicker";
 
-type Choice = { id: string; label: string; selected: boolean; isDefault?: boolean; hint?: string };
+type Choice = {
+  id: string;
+  label: string;
+  selected: boolean;
+  isDefault?: boolean;
+  hint?: string;
+  note?: string;
+};
+
+// A short plain note beside each effort level; the model's default level says "Default" instead.
+const EFFORT_NOTES: Record<string, string> = {
+  none: "No thinking",
+  minimal: "Bare minimum",
+  low: "Fastest",
+  medium: "Balanced",
+  high: "Deeper",
+  xhigh: "Harder problems",
+  max: "Most thorough",
+  ultra: "Long tasks",
+  ultracode: "Long tasks",
+};
 
 function ChoiceGroup(props: {
   label: string;
@@ -22,9 +43,14 @@ function ChoiceGroup(props: {
 }) {
   return (
     <div className="flex flex-col">
-      <div className="flex items-baseline justify-between gap-2 px-3 pt-2 pb-1 text-xs text-muted-foreground">
-        <span className="font-medium">{props.label}</span>
-        {props.hint ? <span className="min-w-0 truncate">{props.hint}</span> : null}
+      <div className="flex items-center gap-2 px-3 pt-2 pb-1 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">{props.label}</span>
+        {props.hint ? (
+          <>
+            <span className="h-3 w-px shrink-0 bg-border" aria-hidden="true" />
+            <span className="min-w-0 truncate">{props.hint}</span>
+          </>
+        ) : null}
       </div>
       <div
         role="radiogroup"
@@ -47,11 +73,12 @@ function ChoiceGroup(props: {
               )}
             >
               <span className="min-w-0 truncate">{choice.label}</span>
-              {choice.selected ? (
-                <CheckIcon className="size-3.5 shrink-0" aria-hidden="true" />
-              ) : choice.isDefault ? (
-                <span className="shrink-0 text-xs text-muted-foreground/70">Default</span>
-              ) : null}
+              <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground/70">
+                {choice.isDefault ? "Default" : choice.note}
+                {choice.selected ? (
+                  <CheckIcon className="size-3.5 shrink-0 text-foreground" aria-hidden="true" />
+                ) : null}
+              </span>
             </button>
           );
           return choice.hint ? (
@@ -100,7 +127,7 @@ export const PickerReasoningColumn = memo(function PickerReasoningColumn(
 
   return (
     <div
-      className="flex max-h-72 w-full shrink-0 flex-col overflow-y-auto border-t border-border/70 bg-muted/40 sm:max-h-none sm:w-44 sm:border-t-0 sm:border-l"
+      className="flex max-h-72 w-full shrink-0 flex-col overflow-y-auto border-t border-border/70 bg-muted/40 sm:max-h-none sm:w-54 sm:border-t-0 sm:border-l"
       data-picker-reasoning-column="true"
     >
       {selects.map((descriptor) => {
@@ -112,7 +139,7 @@ export const PickerReasoningColumn = memo(function PickerReasoningColumn(
         return (
           <ChoiceGroup
             key={descriptor.id}
-            label={descriptor.label}
+            label={isPrimary ? "Effort" : descriptor.label}
             hint={isPrimary ? modelName : undefined}
             disabled={isPrimary && ultrathinkInBodyText}
             choices={pickable(descriptor).map((option) => ({
@@ -121,29 +148,32 @@ export const PickerReasoningColumn = memo(function PickerReasoningColumn(
               selected: option.id === current,
               ...(option.isDefault ? { isDefault: true } : {}),
               ...(option.description ? { hint: option.description } : {}),
+              ...(isPrimary && EFFORT_NOTES[option.id] ? { note: EFFORT_NOTES[option.id] } : {}),
             }))}
             onPick={(id) => handleSelectChange(descriptor, id)}
           />
         );
       })}
       {booleanDescriptors.map((descriptor) => (
-        <ChoiceGroup
+        <label
           key={descriptor.id}
-          label={descriptor.label}
-          choices={[
-            { id: "on", label: "On", selected: descriptor.currentValue === true },
-            { id: "off", label: "Off", selected: descriptor.currentValue !== true },
-          ]}
-          onPick={(id) =>
-            updateDescriptors(
-              replaceDescriptorCurrentValue(
-                descriptors as ReadonlyArray<ProviderOptionDescriptor>,
-                descriptor.id,
-                id === "on",
-              ),
-            )
-          }
-        />
+          className="mx-1.5 flex min-h-9 cursor-pointer items-center justify-between gap-2 border-t border-border/70 px-2 text-sm"
+        >
+          {descriptor.label}
+          <Switch
+            size="sm"
+            checked={descriptor.currentValue === true}
+            onCheckedChange={(on) =>
+              updateDescriptors(
+                replaceDescriptorCurrentValue(
+                  descriptors as ReadonlyArray<ProviderOptionDescriptor>,
+                  descriptor.id,
+                  on,
+                ),
+              )
+            }
+          />
+        </label>
       ))}
     </div>
   );
