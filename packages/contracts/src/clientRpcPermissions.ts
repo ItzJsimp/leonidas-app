@@ -28,6 +28,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.voiceTranscribe]: AuthOrchestrationOperateScope,
   [WS_METHODS.scribeStart]: AuthOrchestrationOperateScope,
   [WS_METHODS.scribeStop]: AuthOrchestrationOperateScope,
+  [WS_METHODS.scribeRetry]: AuthOrchestrationOperateScope,
   [WS_METHODS.scribeDeleteHistory]: AuthOrchestrationOperateScope,
   [WS_METHODS.scribePutDictionary]: AuthOrchestrationOperateScope,
   [WS_METHODS.scribeRejectSuggestion]: AuthOrchestrationOperateScope,

@@ -48,6 +48,11 @@ export const scribeStop = createEnvironmentRpcCommand(connectionAtomRuntime, {
   tag: WS_METHODS.scribeStop,
 });
 
+export const scribeRetry = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:scribe:retry",
+  tag: WS_METHODS.scribeRetry,
+});
+
 /** One page of history, read on demand (the Transcripts tab pages by cursor and searches loaded pages). */
 export const scribeListHistoryPage = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:scribe:history-page",

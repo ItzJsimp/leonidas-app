@@ -46,6 +46,15 @@ it.effect("starts and stops a dictation", () =>
   }),
 );
 
+it.effect("a retry with no saved take is not_found, and invalid_state while listening", () =>
+  Effect.gen(function* () {
+    const engine = yield* withMock();
+    expect((yield* Effect.flip(engine.retry)).reason).toBe("not_found");
+    yield* engine.start({ mode: "toggle" });
+    expect((yield* Effect.flip(engine.retry)).reason).toBe("invalid_state");
+  }),
+);
+
 it.effect("maps 409 to invalid_state", () =>
   Effect.gen(function* () {
     const engine = yield* withMock();

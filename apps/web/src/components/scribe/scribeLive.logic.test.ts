@@ -76,6 +76,18 @@ describe("reduceScribeLive", () => {
     ).toBeNull();
   });
 
+  it("keeps a failed take error after ready, until the next take starts", () => {
+    const failed = fold([
+      { type: "state", state: "processing", at: "t" },
+      { type: "error", code: "stt_error", message: "No speech. Retry it in Scribe.", at: "t" },
+      { type: "state", state: "ready", at: "t" },
+    ]);
+    expect(failed.lastError?.code).toBe("stt_error");
+    expect(
+      reduceScribeLive(failed, { type: "state", state: "listening", at: "t" }).lastError,
+    ).toBeNull();
+  });
+
   it("caps saved items and drops a repeated id", () => {
     const events: ScribeLiveEvent[] = Array.from({ length: SCRIBE_LIVE_LIMIT + 5 }, (_, i) => ({
       type: "history",

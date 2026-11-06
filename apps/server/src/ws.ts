@@ -3566,6 +3566,7 @@ const layerWsRpc = (
         [WS_METHODS.scribeGetStatus]: () => scribeStatus.get,
         [WS_METHODS.scribeStart]: (input) => scribeEngine.start(input),
         [WS_METHODS.scribeStop]: (input) => scribeEngine.stop(input),
+        [WS_METHODS.scribeRetry]: () => scribeEngine.retry,
         [WS_METHODS.voiceLogMemoryReview]: () => voiceLogMemory.review,
         [WS_METHODS.voiceLogMemoryApprove]: (input) => voiceLogMemory.approve(input),
         [WS_METHODS.scribeListHistory]: (input) => scribeEngine.listHistory(input),
