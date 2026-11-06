@@ -109,7 +109,12 @@ fn run() -> Result<(), String> {
             }
             std::thread::sleep(std::time::Duration::from_millis(gap_ms));
         }
-        println!("n={} polishMs: p50={} p90={}", times.len(), pct(&mut times.clone(), 0.5), pct(&mut times, 0.9));
+        println!(
+            "n={} polishMs: p50={} p90={}",
+            times.len(),
+            pct(&mut times.clone(), 0.5),
+            pct(&mut times, 0.9)
+        );
         return Ok(());
     }
 
