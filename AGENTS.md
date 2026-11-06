@@ -13,7 +13,7 @@ This project lives inside its builder's AI operating system at `../../`. If `../
 1. **Never kill by pattern.** No `pkill -f`, `pgrep | kill`, or killing a PID matched by name or path; your own process carries the worktree path. Kill only a PID you captured at spawn, or your port's owner after confirming its cwd.
 2. **Never write to the live install.** `~/.t3/userdata` is the real database in use. Read or copy from it; never start a server against it or open it read-write.
 3. **Never bake in origins.** Do not set `VITE_HTTP_URL` or `VITE_WS_URL` for dev; it silently breaks remote browsers.
-4. **A push to `main` ships a release to both machines.** Commit locally; push only when the user says so.
+4. **One task, one worktree, one queue.** Never edit the main checkout. Start with `pwsh scripts/Start-AgentTask.ps1 -Task <slug>`: it claims the task and makes `C:/lcw/<slug>`. "taken" means another agent has it: pick another task. Land with `pwsh scripts/Invoke-MergeQueue.ps1 -Branch task/<slug> -Task <slug> -Wait`. It pushes to `main` only when the checks pass. A push to `main` ships a release (Jake, 2026-11-05: auto-ship when checks pass).
 5. **Scoped checks only:** `vp test run <files>`, scoped lint and typecheck. No repo-wide `vp check` or `-r` runs unless asked.
 6. **Performance gate:** every code change passes [`performance-gate`](./.agents/skills/performance-gate/SKILL.md) before "done". A perf claim needs a before and after number.
 7. **Task first:** find or create the task card before substantive work and close it with a verified note ([task-driven-work](./.agents/rules/task-driven-work.md)).
