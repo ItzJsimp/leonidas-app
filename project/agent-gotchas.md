@@ -14,6 +14,7 @@ Moved out of [agent-playbook.md](../agent-playbook.md) so it is not loaded every
 
 ### Moved from the playbook core (2026-11-06)
 
+- **A release without Mac files breaks every Mac app (2026-11-06):** the updater and `releases/latest/download/Leonidas-Setup-mac.dmg` read the latest release. v0.124.56 shipped with Windows files only because its Mac job was cancelled by a newer push. `publish` in `team-release.yml` now needs the Mac job to succeed, and `scripts/leonidas-release-health.ts` fails a release that lacks `latest-mac.yml`, the arm64 zip or the dmg. A Mac build failure now blocks the whole release: fix the Mac job first.
 - **A red "Verify delivery and timings" job can follow a good release (2026-11-04):** run 41789190926 had the type check, both app builds and "Publish complete release" green and the installer verified, then `scripts/leonidas-release-health.ts` failed after a 632 second publish. Read the job list first (`gh run view <id> -R ItzJsimp/leonidas-app --json jobs`); I did not read the script's slow threshold.
 - **Skill ranking for the composer (spike, 2026-11-03):** Laya zero-shot is a weak skill ranker. On 22 prompts it put a right skill in the top 3 for 14, keyword TF-IDF for 18, and it scored a wrong skill 1.0. Laya answers file yes/no questions, not "does this request need skill X". Rerun with `python scripts/laya/evals/skill_rank_spike.py` in the AIOS (`--dump-fixture <path>` writes the fixture for the web test). The Jev API call returned HTTP 402 until the OpenRouter account has credit.
 

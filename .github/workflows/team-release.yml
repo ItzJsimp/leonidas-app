@@ -210,7 +210,8 @@ jobs:
           retention-days: 3
           if-no-files-found: error
 
-  # Unsigned Apple Silicon build. A failure here never blocks the Windows release.
+  # Apple Silicon build. The release publishes only when this job succeeds, so the latest release
+  # always holds the Mac files the Mac updater and the Mac download link need.
   mac:
     name: macOS arm64 app
     runs-on: macos-latest
@@ -328,8 +329,10 @@ jobs:
   publish:
     name: Publish complete release
     needs: [windows, mac, checks]
-    # Publish Windows even when the Mac build fails, but never when the checks fail.
-    if: ${{ always() && !cancelled() && needs.windows.result == 'success' && needs.checks.result == 'success' }}
+    # Publish only when Windows, Mac and the checks all passed. A release without Mac files breaks
+    # every Mac app (no update feed) and the Mac download link. A cancelled Mac build means a newer
+    # push replaced this run, and that run publishes instead.
+    if: ${{ always() && !cancelled() && needs.windows.result == 'success' && needs.mac.result == 'success' && needs.checks.result == 'success' }}
     outputs:
       published: ${{ steps.publish.outputs.published }}
     runs-on: ubuntu-latest
