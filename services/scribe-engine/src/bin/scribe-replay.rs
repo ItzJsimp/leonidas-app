@@ -2,6 +2,8 @@
 //! dictation does, and print p50 and p90 of transcribeMs, polishMs and totalMs.
 //!
 //! Usage: `scribe-replay <dir of .flac or .wav> [--config <config.json>] [--out <file.jsonl>]`.
+//! Or: `scribe-replay <replay.jsonl> [--config ..] [--out ..] [--gap-ms N]` polishes the saved
+//! `raw` texts of an earlier `--out` file only, to compare polish providers on the same input.
 //! It reads keys and the dictionary like the engine, and uses the same speech chain and
 //! polish backups. It pastes nothing and saves no history.
 
@@ -57,12 +59,19 @@ fn run() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
     let dir: PathBuf = args.next().ok_or("give a folder of recordings")?.into();
     let (mut config_path, mut out_path) = (None, None);
+    let mut gap_ms = 0u64;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--config" => {
                 config_path = Some(PathBuf::from(args.next().ok_or("--config needs a path")?))
             }
             "--out" => out_path = Some(PathBuf::from(args.next().ok_or("--out needs a path")?)),
+            "--gap-ms" => {
+                gap_ms = args
+                    .next()
+                    .and_then(|v| v.parse().ok())
+                    .ok_or("--gap-ms needs a number")?
+            }
             other => return Err(format!("unknown argument {other}")),
         }
     }
@@ -81,6 +90,29 @@ fn run() -> Result<(), String> {
     groq.warm();
     std::thread::sleep(std::time::Duration::from_millis(1500));
 
+    if dir.extension().is_some_and(|e| e == "jsonl") {
+        let text = std::fs::read_to_string(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let mut out = out_path
+            .map(|p| std::fs::File::create(&p).map_err(|e| format!("{}: {e}", p.display())))
+            .transpose()?;
+        let mut times = Vec::new();
+        for line in text.lines().filter(|l| !l.trim().is_empty()) {
+            let row: serde_json::Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
+            let raw = row["raw"].as_str().unwrap_or_default();
+            let start = Instant::now();
+            let (cleaned, by) = polisher.polish_traced(raw);
+            let ms = start.elapsed().as_millis() as u64;
+            times.push(ms);
+            if let Some(out) = out.as_mut() {
+                let line = serde_json::json!({"file": row["file"], "raw": raw, "cleaned": cleaned, "polish": by, "polishMs": ms});
+                writeln!(out, "{line}").map_err(|e| e.to_string())?;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(gap_ms));
+        }
+        println!("n={} polishMs: p50={} p90={}", times.len(), pct(&mut times.clone(), 0.5), pct(&mut times, 0.9));
+        return Ok(());
+    }
+
     let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
         .map_err(|e| format!("{}: {e}", dir.display()))?
         .filter_map(|e| e.ok().map(|e| e.path()))
@@ -92,6 +124,8 @@ fn run() -> Result<(), String> {
         .transpose()?;
     let (mut stt, mut pol, mut total, mut failed) = (Vec::new(), Vec::new(), Vec::new(), 0);
     for file in &files {
+        // A gap keeps free rate limits (Groq: 20 speech requests a minute) out of the numbers.
+        std::thread::sleep(std::time::Duration::from_millis(gap_ms));
         let bytes = std::fs::read(file).map_err(|e| format!("{}: {e}", file.display()))?;
         let flac = file.extension().is_some_and(|e| e == "flac");
         let audio = EncodedAudio {
