@@ -1,4 +1,6 @@
-# Scribe engine contract (v1.4)
+# Scribe engine contract (v1.5)
+
+v1.5 (2026-11-06, Batch 4 parity): history items add optional `stt` and `polish`, strings. `stt` is the speech provider and model that served the take, as `provider/model` (for example `groq/whisper-large-v3-turbo`, `deepgram/nova-3`, `local/ggml-base.en-q5_1`). `polish` is `provider/model`, `fast-path` or `none`. A missing field means unknown (older lines and rewrites). `POST /v1/retry` runs the newest saved failed dictation again (see Retry).
 
 v1.4 (2026-10-19, lane L1 contract addition for Lane C): history items add optional `private`, a boolean. New engines write it on every take. `true` means private mode was on at recording start or transcription. A missing field means unknown. Memory jobs must skip both `true` and missing fields before reading transcript text.
 
@@ -66,6 +68,12 @@ Stop recording and start transcription. Allowed in `listening` only.
 
 Reply: `{"service":"leonidas-scribe","apiVersion":1,"state":"processing"}`. When `paste` is true, the engine pastes the final text into the focused window.
 
+### `POST /v1/retry` (v1.5)
+
+Run the newest failed take again. Allowed in `ready` only. When every speech provider fails, the engine keeps the audio in `failed/` next to the history file (20 files, 7 days at most), and the `stt_error` message ends with "The audio is saved. Retry it in Scribe."
+
+Reply: the state reply with `processing`. The result is a normal `history` event. The text goes to the clipboard, never into the focused window. The file is removed when the take succeeds. `404 nothing_to_retry` when no file is saved. `409 invalid_state` when not ready.
+
 ### `PUT /v1/credentials/groq` (v1.1)
 
 Store the user's Groq key in the OS credential store (Windows Credential Manager, macOS Keychain).
@@ -96,7 +104,9 @@ Query: `limit` (1 or more, default 50, at most 500), `before` (an item id; the p
       "cleanedText": "Hello world.",
       "words": 2,
       "metrics": { "transcribeMs": 700, "polishMs": 50, "totalMs": 760 },
-      "pasted": true
+      "pasted": true,
+      "stt": "groq/whisper-large-v3-turbo",
+      "polish": "groq/qwen/qwen3.8-27b"
     }
   ],
   "next": null
@@ -130,6 +140,7 @@ Reply 200 `{"deleted":true}`, or 404 `not_found` for an unknown id, or 500 `stor
 ```
 
 - Mined from the newest 500 history items: a run of 1 to 3 raw words that polish replaced with the same 1 to 3 words in 2 or more dictations. Case and punctuation changes do not count.
+- v1.5: the correct side must hold a term (an inner capital, a letter next to a digit, or a capital that a sentence start does not explain). Style edits such as "gonna" to "going to" are never suggested.
 - `wrong` is lower case. Runs already in the dictionary or rejected are left out. At most 50 items, most often first.
 - Accept a suggestion with `PUT /v1/dictionary`.
 

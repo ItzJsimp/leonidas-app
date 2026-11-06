@@ -68,6 +68,18 @@ const COMMAND_MESSAGES: Readonly<Record<string, string>> = {
 
 const COMMAND_FALLBACK = "Scribe could not do that. Try again.";
 
+/** The heading of the last engine error, and whether a saved take can be retried. */
+export function engineErrorView(error: { readonly code: string; readonly message: string }): {
+  readonly title: string;
+  readonly retry: boolean;
+} {
+  const failedTake = error.code === "stt_error";
+  return {
+    title: failedTake ? "Dictation failed" : "Microphone problem",
+    retry: failedTake && error.message.includes("Retry it in Scribe"),
+  };
+}
+
 export function commandErrorReason(failure: unknown): string | null {
   const reason =
     typeof failure === "object" && failure !== null && "reason" in failure

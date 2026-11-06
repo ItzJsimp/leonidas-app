@@ -12,7 +12,8 @@ interface MockScribeEngineOptions {
   readonly processingMs?: number;
   readonly pingMs?: number;
 }
-const mockPath = "../../../../scripts/mock-scribe-engine.ts";
+// Resolved from this file, so the test runs from the repo root and from apps/server alike.
+const mockPath = new URL("../../../../scripts/mock-scribe-engine.ts", import.meta.url).href;
 const { startMockScribeEngine } = (await import(/* @vite-ignore */ mockPath)) as {
   startMockScribeEngine(
     options: MockScribeEngineOptions,
@@ -43,6 +44,15 @@ it.effect("starts and stops a dictation", () =>
     const engine = yield* withMock();
     expect(yield* engine.start({ mode: "hold" })).toEqual({ state: "listening" });
     expect(yield* engine.stop({ paste: false })).toEqual({ state: "processing" });
+  }),
+);
+
+it.effect("a retry with no saved take is not_found, and invalid_state while listening", () =>
+  Effect.gen(function* () {
+    const engine = yield* withMock();
+    expect((yield* Effect.flip(engine.retry)).reason).toBe("not_found");
+    yield* engine.start({ mode: "toggle" });
+    expect((yield* Effect.flip(engine.retry)).reason).toBe("invalid_state");
   }),
 );
 

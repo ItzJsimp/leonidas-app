@@ -45,6 +45,8 @@ export class ScribeEngine extends Context.Service<
     readonly stop: (
       input: ScribeStopInput,
     ) => Effect.Effect<ScribeCommandResult, ScribeEngineError>;
+    /** Run the newest failed take again. `not_found` when the engine saved none. */
+    readonly retry: Effect.Effect<ScribeCommandResult, ScribeEngineError>;
     readonly listHistory: (
       input: ScribeListHistoryInput,
     ) => Effect.Effect<ScribeHistoryPage, ScribeEngineError>;
@@ -155,6 +157,8 @@ export const makeWith = (options: {
         HttpClientRequest.post(`${baseUrl}/v1/stop`).pipe(HttpClientRequest.bodyJsonUnsafe(input)),
         decodeCommand,
       );
+
+    const retry = call(HttpClientRequest.post(`${baseUrl}/v1/retry`), decodeCommand);
 
     const listHistory = (input: ScribeListHistoryInput, publicOnly = false) => {
       const params: Record<string, string> = {};
@@ -277,6 +281,7 @@ export const makeWith = (options: {
     return ScribeEngine.of({
       start,
       stop,
+      retry,
       listHistory,
       listPublicHistory: (input) => listHistory(input, true),
       deleteHistory,

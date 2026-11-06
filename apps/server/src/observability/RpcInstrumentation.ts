@@ -101,6 +101,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.scribeSubscribeEvents]: "scribe",
   [WS_METHODS.scribeStart]: "scribe",
   [WS_METHODS.scribeStop]: "scribe",
+  [WS_METHODS.scribeRetry]: "scribe",
   [WS_METHODS.voiceGetStatus]: "scribe",
   [WS_METHODS.voiceSetGroqKey]: "scribe",
   [WS_METHODS.voiceClearGroqKey]: "scribe",

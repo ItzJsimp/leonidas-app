@@ -640,6 +640,7 @@ export const WS_METHODS = {
   scribeGetStatus: "scribe.getStatus",
   scribeStart: "scribe.start",
   scribeStop: "scribe.stop",
+  scribeRetry: "scribe.retry",
   voiceLogMemoryReview: "voiceLogMemory.review",
   voiceLogMemoryApprove: "voiceLogMemory.approve",
   scribeListHistory: "scribe.listHistory",
@@ -2753,6 +2754,13 @@ const WsScribeStopRpc = Rpc.make(WS_METHODS.scribeStop, {
   error: Schema.Union([ScribeEngineError, EnvironmentAuthorizationError]),
 });
 
+/** Run the newest failed take again. `not_found` when no take is saved. */
+const WsScribeRetryRpc = Rpc.make(WS_METHODS.scribeRetry, {
+  payload: Schema.Struct({}),
+  success: ScribeCommandResult,
+  error: Schema.Union([ScribeEngineError, EnvironmentAuthorizationError]),
+});
+
 const WsVoiceLogMemoryReviewRpc = Rpc.make(WS_METHODS.voiceLogMemoryReview, {
   payload: Schema.Struct({}),
   success: VoiceLogMemoryReview,
@@ -3295,6 +3303,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsScribeGetStatusRpc,
   WsScribeStartRpc,
   WsScribeStopRpc,
+  WsScribeRetryRpc,
   WsVoiceLogMemoryReviewRpc,
   WsVoiceLogMemoryApproveRpc,
   WsScribeListHistoryRpc,

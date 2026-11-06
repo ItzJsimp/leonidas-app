@@ -9,7 +9,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { useEnvironmentQuery } from "~/state/query";
-import { scribeHistoryQuery, scribeSettingsQuery, scribeStart, scribeStop } from "~/state/scribe";
+import {
+  scribeHistoryQuery,
+  scribeRetry,
+  scribeSettingsQuery,
+  scribeStart,
+  scribeStop,
+} from "~/state/scribe";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -17,6 +23,7 @@ import { Skeleton } from "../ui/skeleton";
 import {
   commandErrorMessage,
   dictateButton,
+  engineErrorView,
   homeShortcuts,
   liveLine,
   rowMeta,
@@ -61,6 +68,8 @@ export function ScribeHomeTab({ environmentId, live }: ScribeTabProps) {
 function DictateCard({ environmentId, live }: ScribeTabProps) {
   const runStart = useAtomCommand(scribeStart, { reportFailure: false });
   const runStop = useAtomCommand(scribeStop, { reportFailure: false });
+  const runRetry = useAtomCommand(scribeRetry, { reportFailure: false });
+  const canRetry = useAtomValue(scribeRetry.permissionAtom(environmentId));
   const canStart = useAtomValue(scribeStart.permissionAtom(environmentId));
   const canStop = useAtomValue(scribeStop.permissionAtom(environmentId));
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +91,18 @@ function DictateCard({ environmentId, live }: ScribeTabProps) {
     }
   };
 
+  const retry = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const result = await runRetry({ environmentId, input: {} });
+    setBusy(false);
+    if (result._tag !== "Success" && !isAtomCommandInterrupted(result)) {
+      setError(commandErrorMessage(squashAtomCommandFailure(result)));
+    }
+  };
+
+  const failure = live.lastError ? engineErrorView(live.lastError) : null;
   const message =
     live.connected === false
       ? "Scribe engine is not running. Start it from the tray, or install it."
@@ -115,10 +136,22 @@ function DictateCard({ environmentId, live }: ScribeTabProps) {
               {message}
             </p>
           ) : null}
-          {live.lastError ? (
-            <div role="alert" className="text-sm">
-              <p className="font-medium">Microphone problem</p>
-              <p className="text-muted-foreground">{live.lastError.message}</p>
+          {live.lastError && failure ? (
+            <div role="alert" className="flex flex-col items-start gap-2 text-sm">
+              <div>
+                <p className="font-medium">{failure.title}</p>
+                <p className="text-muted-foreground">{live.lastError.message}</p>
+              </div>
+              {failure.retry ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy || !canRetry}
+                  onClick={() => void retry()}
+                >
+                  Retry
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>

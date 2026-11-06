@@ -253,8 +253,11 @@ fn turn(role: &str, content: &str) -> Value {
 
 pub struct GroqPolisher {
     client: GroqClient,
+    /// Other vendors after Groq (OpenAI-compatible), for example Gemini.
+    backups: Vec<GroqClient>,
     /// `enabled` and the system prompt. v1.2 settings replace them live.
     live: std::sync::RwLock<(bool, String)>,
+    /// Keyed by `provider/model`.
     cooldowns: Mutex<HashMap<String, Instant>>,
 }
 
@@ -262,9 +265,24 @@ impl GroqPolisher {
     pub fn new(client: GroqClient, polish: &PolishConfig) -> Self {
         Self {
             client,
+            backups: Vec::new(),
             live: std::sync::RwLock::new(live_state(polish)),
             cooldowns: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Clients the race tries after the Groq models run out, in order.
+    pub fn with_backups(mut self, backups: Vec<GroqClient>) -> Self {
+        self.backups = backups;
+        self
+    }
+
+    fn clients(&self) -> impl Iterator<Item = &GroqClient> {
+        std::iter::once(&self.client).chain(&self.backups)
+    }
+
+    fn has_key(&self) -> bool {
+        self.clients().any(|c| c.key().is_some())
     }
 
     /// v1.2: saved polish settings apply to the next dictation.
@@ -273,7 +291,7 @@ impl GroqPolisher {
     }
 
     pub fn rewrite(&self, text: &str, instruction: &str) -> Result<String, String> {
-        if self.client.key().is_none() {
+        if !self.has_key() {
             return Err("Rewrite needs a Groq API key.".into());
         }
         let prompt = Prompt {
@@ -292,6 +310,7 @@ impl GroqPolisher {
             rewrite: true,
         };
         self.race(&Arc::new(prompt))
+            .map(|(text, _)| text)
             .ok_or_else(|| "Rewrite failed. Please try again.".into())
     }
 
@@ -325,21 +344,30 @@ impl GroqPolisher {
         }
     }
 
-    /// Primary model first, then the backup. A model in cooldown is skipped
-    /// unless that would leave nothing.
-    fn order(&self) -> Vec<String> {
-        let cfg = &self.client.cfg;
-        let mut all: Vec<String> = Vec::new();
-        for model in [&cfg.polish_model, &cfg.backup_polish_model] {
-            if !model.is_empty() && !all.contains(model) {
-                all.push(model.clone());
+    /// Groq primary model first, then its backup, then each backup vendor's models.
+    /// A client without a key is left out. A model in cooldown is skipped unless that
+    /// would leave nothing. Each entry is (client index, model).
+    fn order(&self) -> Vec<(usize, String)> {
+        let mut all: Vec<(usize, String)> = Vec::new();
+        for (index, client) in self.clients().enumerate() {
+            if client.key().is_none() {
+                continue;
+            }
+            for model in [&client.cfg.polish_model, &client.cfg.backup_polish_model] {
+                if !model.is_empty() && !all.iter().any(|(i, m)| *i == index && m == model) {
+                    all.push((index, model.clone()));
+                }
             }
         }
         let now = Instant::now();
         let cooldowns = self.cooldowns.lock().unwrap_or_else(|e| e.into_inner());
-        let ready: Vec<String> = all
+        let ready: Vec<(usize, String)> = all
             .iter()
-            .filter(|m| cooldowns.get(*m).is_none_or(|until| now >= *until))
+            .filter(|(i, m)| {
+                cooldowns
+                    .get(&self.label(*i, m))
+                    .is_none_or(|until| now >= *until)
+            })
             .cloned()
             .collect();
         if ready.is_empty() {
@@ -349,21 +377,31 @@ impl GroqPolisher {
         }
     }
 
+    /// `provider/model`, as history records it.
+    fn label(&self, index: usize, model: &str) -> String {
+        let name = self.clients().nth(index).map_or("groq", |c| c.name);
+        format!("{name}/{model}")
+    }
+
     #[cfg(test)]
     pub(crate) fn in_cooldown(&self, model: &str) -> bool {
         let cooldowns = self.cooldowns.lock().unwrap_or_else(|e| e.into_inner());
+        let suffix = format!("/{model}");
         cooldowns
-            .get(model)
-            .is_some_and(|until| Instant::now() < *until)
+            .iter()
+            .any(|(label, until)| label.ends_with(&suffix) && Instant::now() < *until)
     }
 
     fn spawn_call(
         &self,
-        model: String,
+        (index, model): (usize, String),
         prompt: &Arc<Prompt>,
         tx: &mpsc::Sender<(String, Result<String, Duration>)>,
     ) -> bool {
-        let client = self.client.clone();
+        let Some(client) = self.clients().nth(index).cloned() else {
+            return false;
+        };
+        let label = self.label(index, &model);
         let prompt = prompt.clone();
         let tx = tx.clone();
         std::thread::Builder::new()
@@ -376,15 +414,16 @@ impl GroqPolisher {
                 };
                 let result =
                     call_model(&client, &model, &prompt, timeout).map_err(|e| e.cooldown());
-                let _ = tx.send((model, result));
+                let _ = tx.send((label, result));
             })
             .is_ok()
     }
 
     /// Hedged race: the first model runs alone. If it fails, or has not answered within
-    /// `hedge_ms`, the next model starts while the first keeps running. The first good reply wins.
-    fn race(&self, prompt: &Arc<Prompt>) -> Option<String> {
-        let mut queue: VecDeque<String> = self.order().into();
+    /// `hedge_ms`, the next model starts while the first keeps running. The first good reply
+    /// wins. It returns the text and the `provider/model` that wrote it.
+    fn race(&self, prompt: &Arc<Prompt>) -> Option<(String, String)> {
+        let mut queue: VecDeque<(usize, String)> = self.order().into();
         let (hedge, guard) = if prompt.rewrite {
             (REWRITE_HEDGE, REWRITE_TIMEOUT + Duration::from_secs(2))
         } else {
@@ -408,7 +447,7 @@ impl GroqPolisher {
                         .lock()
                         .unwrap_or_else(|e| e.into_inner())
                         .remove(&model);
-                    return Some(text);
+                    return Some((text, model));
                 }
                 Ok((model, Err(cooldown))) => {
                     pending -= 1;
@@ -506,22 +545,25 @@ impl Polisher for GroqPolisher {
         GroqPolisher::rewrite(self, text, instruction)
     }
     fn polish(&self, raw: &str) -> String {
+        self.polish_traced(raw).0
+    }
+    fn polish_traced(&self, raw: &str) -> (String, String) {
         let dictionary = self.client.dictionary.current();
         let text = dictionary.apply(raw);
         let enabled = self.live.read().unwrap_or_else(|e| e.into_inner()).0;
         if !enabled || text.trim().is_empty() {
-            return text;
+            return (text, "none".into());
         }
         if can_fast_path(&text) {
-            return fast_path(&text);
+            return (fast_path(&text), "fast-path".into());
         }
-        if self.client.key().is_none() {
-            return text;
+        if !self.has_key() {
+            return (text, "none".into());
         }
         let prompt = Arc::new(self.build_prompt(&text, &dictionary.vocabulary_prompt()));
         match self.race(&prompt) {
-            Some(polished) => dictionary.apply(&polished),
-            None => text,
+            Some((polished, by)) => (dictionary.apply(&polished), by),
+            None => (text, "none".into()),
         }
     }
 }
@@ -1069,5 +1111,52 @@ mod tests {
         ] {
             assert!(!lower.contains(banned), "{banned}");
         }
+    }
+
+    #[test]
+    fn groq_down_lets_the_backup_vendor_polish_and_names_it() {
+        let groq = Server::start(|_| Reply::json(500, "{}"));
+        let gemini = Server::start(|req| {
+            assert_eq!(req.header("authorization"), Some("Bearer gm-key"));
+            Reply::chat(CLEAN)
+        });
+        let dictionary = Arc::new(SharedDictionary::new(PathBuf::from("none.json")));
+        let store = MemoryKeyStore::default();
+        store.set("gm-key").unwrap();
+        let cfg = GroqConfig {
+            base_url: gemini.base_url(),
+            polish_model: "gemini-m".into(),
+            backup_polish_model: String::new(),
+            hedge_ms: 100,
+            polish_timeout_s: 2,
+            ..GroqConfig::default()
+        };
+        let key = crate::backup::ProviderKey::new("SCRIBE_TEST_UNSET_KEY", Some(Arc::new(store)));
+        let backup = GroqClient::named("gemini", &cfg, key, dictionary.clone());
+        let p = polisher_with(&groq, Some("k"), dictionary, |_| {}).with_backups(vec![backup]);
+        let (text, by) = p.polish_traced(SENTENCE);
+        assert_eq!(text, CLEAN);
+        assert_eq!(by, "gemini/gemini-m");
+        assert_eq!(gemini.chat_models(), vec!["gemini-m".to_owned()]);
+    }
+
+    #[test]
+    fn a_backup_vendor_without_a_key_is_never_called() {
+        let groq = Server::start(|_| Reply::chat(CLEAN));
+        let gemini = Server::start(|_| Reply::chat("wrong"));
+        let dictionary = Arc::new(SharedDictionary::new(PathBuf::from("none.json")));
+        let cfg = GroqConfig {
+            base_url: gemini.base_url(),
+            polish_model: "gemini-m".into(),
+            ..GroqConfig::default()
+        };
+        let key = crate::backup::ProviderKey::new("SCRIBE_TEST_UNSET_KEY", None);
+        let backup = GroqClient::named("gemini", &cfg, key, dictionary.clone());
+        let p = polisher_with(&groq, Some("k"), dictionary, |_| {}).with_backups(vec![backup]);
+        assert_eq!(
+            p.polish_traced(SENTENCE),
+            (CLEAN.to_owned(), "groq/primary-m".to_owned())
+        );
+        assert!(gemini.chat_models().is_empty());
     }
 }
