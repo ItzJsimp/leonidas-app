@@ -5,6 +5,9 @@ Moved out of [agent-playbook.md](../agent-playbook.md) so it is not loaded every
 ## Gotchas already paid for
 
 - **A bulk rebrand can miss variants (2026-11-06):** check uppercase queries, URL-encoded names, slugs, process matchers and installer filenames. Keep installed credential service names, scheduled task ids and the old CLI shim marker until a migration handles them. A matching baseline failure is still a failed check when the task requires every check to pass.
+- **Windows pins need a stable launch path (2026-11-06):** keep the installed executable basename during a rebrand. electron-builder omits the keep-shortcuts argument if the new executable path does not exist before uninstall. That removes existing pins. Use productName and shortcutName for visible branding.
+- **Shortcut icons need a new resource path (2026-11-06):** an existing pin and desktop shortcut can retain the cached old icon after replacing the executable. Update their icon references in place to a version-specific icon, then notify the shell. Test the closed pin and desktop shortcut after the update.
+- **Patch comments affect the lockfile (2026-11-06):** a rename inside patches changes its hash even if runtime behavior stays the same. Update all lockfile references and prove a frozen install passes.
 
 - **Build Windows installers from the Visual Studio shell (2026-11-06):** Git's GNU `link.exe` can hide the MSVC linker. Load the Visual Studio developer shell before building the resource monitor and installer. In a disposable Windows Sandbox, use the mock update server to test the published old installer against the new build. Wait for the installer process itself; waiting for its child processes can hang on the Scribe engine.
 

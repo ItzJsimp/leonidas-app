@@ -12,9 +12,9 @@ param(
   [string]$Repository = 'ItzJsimp/leonidas-code'
 )
 $ErrorActionPreference = 'Stop'
-$app = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas.exe'
-# Installs from before the rename run as 'Leonidas Code.exe'. Treat them as the same app.
-$legacyApp = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas Code.exe'
+$app = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas Code.exe'
+# Keep the Windows launch path stable; also recognize the alternate test-build filename.
+$alternateApp = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas.exe'
 $release = Invoke-RestMethod "https://api.github.com/repos/$Repository/releases/latest"
 if ($release.draft -or $release.prerelease -or $release.tag_name -notmatch '^v\d+\.\d+\.\d+$') {
   throw 'Latest release is not a published stable version.'
@@ -49,7 +49,7 @@ Write-Host "Verified $version installer: $installer"
 if ($PrepareOnly) { return }
 # Capture only processes belonging to this installed executable; never kill by name.
 $running = @(Get-CimInstance Win32_Process -Filter "Name='Leonidas.exe' OR Name='Leonidas Code.exe'" |
-  Where-Object { $_.ExecutablePath -in @($app, $legacyApp) })
+  Where-Object { $_.ExecutablePath -in @($app, $alternateApp) })
 if ($running.Count -gt 0 -and -not $WaitForExit) {
   throw 'Close Leonidas first, or use -WaitForExit to install after it closes normally.'
 }
@@ -57,10 +57,11 @@ foreach ($process in $running) {
   Wait-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
 }
 # A new app instance may have started while waiting; leave it alone.
-if (Get-CimInstance Win32_Process -Filter "Name='Leonidas.exe' OR Name='Leonidas Code.exe'" | Where-Object { $_.ExecutablePath -in @($app, $legacyApp) }) {
+if (Get-CimInstance Win32_Process -Filter "Name='Leonidas.exe' OR Name='Leonidas Code.exe'" | Where-Object { $_.ExecutablePath -in @($app, $alternateApp) }) {
   throw 'Leonidas reopened; close it and run the migration again.'
 }
-$installed = Start-Process -FilePath $installer -ArgumentList '/S', '/currentuser', '--updated', '/KEEP_APP_DATA' -WindowStyle Hidden -Wait -PassThru
+$installed = Start-Process -FilePath $installer -ArgumentList '/S', '/currentuser', '--updated', '/KEEP_APP_DATA' -WindowStyle Hidden -PassThru
+$installed.WaitForExit()
 if ($installed.ExitCode -ne 0) { throw "Installer failed with exit $($installed.ExitCode)." }
 if (-not (Test-Path -LiteralPath $app) -or (Get-Item -LiteralPath $app).VersionInfo.ProductVersion -notlike "$version*") {
   throw 'Installed executable does not match the requested version.'

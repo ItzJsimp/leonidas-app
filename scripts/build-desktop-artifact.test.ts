@@ -133,7 +133,8 @@ const makeLinuxCliArchiveFixture = Effect.fn("test.makeLinuxCliArchiveFixture")(
   }
   const archivePath = path.join(input.root, `${input.stem}.tar.gz`);
   const tar = yield* spawner.spawn(
-    ChildProcess.make("tar", ["-czf", archivePath, "-C", contentRoot, "."], {
+    ChildProcess.make("tar", ["-czf", `${input.stem}.tar.gz`, "-C", "content", "."], {
+      cwd: input.root,
       stdin: "ignore",
       stdout: "ignore",
       stderr: "pipe",
@@ -682,6 +683,11 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         ...DESKTOP_EXTRA_RESOURCES,
         ...WINDOWS_SERVER_EXTRA_RESOURCES,
         ...WINDOWS_SCRIBE_ENGINE_EXTRA_RESOURCES,
+        { from: "apps/desktop/prod-resources/icon.ico", to: "leonidas-shortcut-1.2.3.ico" },
+        {
+          from: "apps/desktop/resources/update-shortcut-icons.ps1",
+          to: "update-shortcut-icons.ps1",
+        },
         ...WSL_RUNTIME_EXTRA_RESOURCES,
       ]);
       // No Linux CLI archive means staging never writes the runtime, so
@@ -690,13 +696,21 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         ...DESKTOP_EXTRA_RESOURCES,
         ...WINDOWS_SERVER_EXTRA_RESOURCES,
         ...WINDOWS_SCRIBE_ENGINE_EXTRA_RESOURCES,
+        { from: "apps/desktop/prod-resources/icon.ico", to: "leonidas-shortcut-1.2.3.ico" },
+        {
+          from: "apps/desktop/resources/update-shortcut-icons.ps1",
+          to: "update-shortcut-icons.ps1",
+        },
       ]);
+      assert.equal(win.productName, "Leonidas");
+      assert.equal(win.executableName, "Leonidas Code");
       assert.deepStrictEqual(win.nsis, {
         differentialPackage: true,
         oneClick: true,
         perMachine: false,
         runAfterFinish: true,
         createDesktopShortcut: true,
+        shortcutName: "Leonidas",
       });
       // The Claude SDK platform packages and .bin shims never ship.
       assert.deepStrictEqual(WINDOWS_SERVER_ASAR_IGNORE_GLOBS, [
@@ -758,6 +772,23 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         assert.deepStrictEqual(config.electronLanguages, DESKTOP_ELECTRON_LANGUAGES);
       }
       assert.deepStrictEqual(mac.electronLanguages, DESKTOP_ELECTRON_LANGUAGES);
+    }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
+  );
+
+  it.effect("keeps the nightly Windows launch path independent of visible branding", () =>
+    Effect.gen(function* () {
+      const config = yield* createBuildConfig(
+        "win",
+        "nsis",
+        "0.126.0-nightly.20261106.1",
+        false,
+        false,
+        undefined,
+        undefined,
+      );
+      assert.equal(config.productName, "Leonidas (Nightly)");
+      assert.equal(config.executableName, "Leonidas Code (Nightly)");
+      assert.equal((config.nsis as Record<string, unknown>).shortcutName, "Leonidas (Nightly)");
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
 

@@ -31,6 +31,7 @@ import {
   type WebAssetBrand,
 } from "./lib/brand-assets.ts";
 import { getDefaultBuildArch } from "./lib/build-target-arch.ts";
+import { windowsExecutableName } from "./lib/windows-executable-name.ts";
 import {
   findInlinedExternalPackages,
   selectCliRuntimeExternalDependencies,
@@ -2892,6 +2893,18 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
       ...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : []),
       ...(platform === "win" ? WINDOWS_SCRIBE_ENGINE_EXTRA_RESOURCES : []),
+      ...(platform === "win"
+        ? [
+            {
+              from: "apps/desktop/prod-resources/icon.ico",
+              to: `leonidas-shortcut-${version}.ico`,
+            },
+            {
+              from: "apps/desktop/resources/update-shortcut-icons.ps1",
+              to: "update-shortcut-icons.ps1",
+            },
+          ]
+        : []),
       ...(platform === "win" && wslRuntimeBundled ? WSL_RUNTIME_EXTRA_RESOURCES : []),
     ],
   };
@@ -3043,6 +3056,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   }
 
   if (platform === "win") {
+    buildConfig.executableName = windowsExecutableName(version);
     buildConfig.npmRebuild = false;
     // Keep blockmap-based differential downloads enabled while changing the
     // installed file topology. The optimization is in the payload shape, not
@@ -3053,6 +3067,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       perMachine: false,
       runAfterFinish: true,
       createDesktopShortcut: true,
+      shortcutName: resolveDesktopProductName(version),
     };
     const winConfig: Record<string, unknown> = {
       target: [target],
@@ -4183,7 +4198,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   if (options.platform === "win") {
     yield* validateWindowsPackagedPayload({
       stageDistDir,
-      appExecutableName: `${resolveDesktopProductName(appVersion)}.exe`,
+      appExecutableName: `${windowsExecutableName(appVersion)}.exe`,
       targetArch: options.arch,
       appVersion,
       expectWslRuntime: bundlesWslRuntime({

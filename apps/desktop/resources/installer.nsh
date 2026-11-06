@@ -15,6 +15,13 @@
 !macroend
 
 !macro customInstall
+  nsExec::ExecToLog 'powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\resources\update-shortcut-icons.ps1" -InstallDirectory "$INSTDIR" -ExecutableName "${APP_EXECUTABLE_FILENAME}" -IconPath "$INSTDIR\resources\leonidas-shortcut-${VERSION}.ico"'
+  Pop $0
+  ${If} $0 != 0
+    DetailPrint "Leonidas shortcut icon update failed: $0"
+    SetErrorLevel 1
+    Abort
+  ${EndIf}
   WriteRegStr HKCU "${SCRIBE_RUN_KEY}" "${SCRIBE_RUN_NAME}" '"${SCRIBE_ENGINE_EXE}"'
   Exec '"${SCRIBE_ENGINE_EXE}"'
 !macroend

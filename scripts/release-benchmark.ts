@@ -9,10 +9,12 @@
 //   node scripts/release-benchmark.ts --version 1.0.100 --installer release/Leonidas-1.0.100-x64.exe \
 //     --engine-dir services/scribe-engine/target/x86_64-pc-windows-msvc/release \
 //     [--history benchmark-history.csv] [--out-dir release] [--idle-seconds 30] [--enforce-app]
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+
+import { windowsExecutableName } from "./lib/windows-executable-name.ts";
 
 export const BUDGETS = {
   hotkeyMs: 50,
@@ -164,11 +166,11 @@ export function renderReport(history: string, result: BudgetResult): string {
 function sevenZip(): string {
   if (process.env.SEVENZIP) return process.env.SEVENZIP;
   const local = "C:/Program Files/7-Zip/7z.exe";
-  return existsSync(local) ? local : "7z";
+  return NodeFS.existsSync(local) ? local : "7z";
 }
 
 function powershell(script: string): string {
-  const result = spawnSync(
+  const result = NodeChildProcess.spawnSync(
     "powershell.exe",
     ["-NoProfile", "-NonInteractive", "-Command", script],
     {
@@ -191,7 +193,7 @@ export const appMemoryScript = (appExe: string): string =>
   `(Get-Process | Where-Object { $_.Path -eq '${psPath(appExe)}' } | Measure-Object PrivateMemorySize64 -Sum).Sum`;
 
 /** Deletes a folder and never throws: cleanup must not replace a measurement already taken. */
-export function removeQuietly(path: string, remove: typeof rmSync = rmSync): void {
+export function removeQuietly(path: string, remove: typeof NodeFS.rmSync = NodeFS.rmSync): void {
   try {
     remove(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
   } catch (error) {
@@ -200,13 +202,13 @@ export function removeQuietly(path: string, remove: typeof rmSync = rmSync): voi
 }
 
 async function measureApp(appExe: string, idleSeconds: number) {
-  const home = mkdtempSync(join(tmpdir(), "leonidas-bench-"));
+  const home = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "leonidas-bench-"));
   const exeForPs = psPath(appExe);
   const started = Date.now();
   // The app allows one instance per user, so this cannot run beside a running
   // Leonidas on the same Windows account (a CI runner has none). The app
   // rejects --user-data-dir, so T3CODE_HOME alone isolates its state.
-  const child = spawn(appExe, [], {
+  const child = NodeChildProcess.spawn(appExe, [], {
     env: { ...process.env, T3CODE_HOME: home },
     stdio: "ignore",
   });
@@ -228,7 +230,9 @@ async function measureApp(appExe: string, idleSeconds: number) {
     const idleMb = bytes > 0 ? Math.round((bytes / 1024 / 1024) * 10) / 10 : Number.NaN;
     return { coldStartMs, idleMb };
   } finally {
-    spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+    NodeChildProcess.spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+    });
     // Windows keeps the files locked for a moment after the kill. A throw here would discard the
     // numbers above (release 0.100.0 reported "not measured" for this reason).
     removeQuietly(home);
@@ -247,28 +251,34 @@ async function main() {
   if (!version || !installer || !engineDir) {
     throw new Error("usage: release-benchmark.ts --version V --installer EXE --engine-dir DIR");
   }
-  const outDir = resolve(flag("--out-dir") ?? "release");
+  const outDir = NodePath.resolve(flag("--out-dir") ?? "release");
   const historyPath = flag("--history");
   const idleSeconds = Number(flag("--idle-seconds") ?? "30");
 
-  const bench = spawnSync(
-    join(engineDir, "scribe-bench.exe"),
-    ["--engine", join(engineDir, "scribe-engine.exe"), "--null-audio"],
+  const bench = NodeChildProcess.spawnSync(
+    NodePath.join(engineDir, "scribe-bench.exe"),
+    ["--engine", NodePath.join(engineDir, "scribe-engine.exe"), "--null-audio"],
     { encoding: "utf8" },
   );
   const engine = parseBenchOutput(bench.stdout ?? "");
 
-  const extracted = mkdtempSync(join(tmpdir(), "leonidas-bench-install-"));
+  const extracted = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "leonidas-bench-install-"));
   let app: { coldStartMs: number; idleMb: number };
   try {
-    const outer = join(extracted, "outer");
-    spawnSync(sevenZip(), ["x", "-y", `-o${outer}`, installer], { stdio: "ignore" });
-    const appDir = join(extracted, "app");
-    spawnSync(sevenZip(), ["x", "-y", `-o${appDir}`, join(outer, "$PLUGINSDIR", "app-64.7z")], {
+    const outer = NodePath.join(extracted, "outer");
+    NodeChildProcess.spawnSync(sevenZip(), ["x", "-y", `-o${outer}`, installer], {
       stdio: "ignore",
     });
-    const appExe = join(appDir, "Leonidas.exe");
-    if (!existsSync(appExe)) throw new Error(`installer did not contain ${appExe}`);
+    const appDir = NodePath.join(extracted, "app");
+    NodeChildProcess.spawnSync(
+      sevenZip(),
+      ["x", "-y", `-o${appDir}`, NodePath.join(outer, "$PLUGINSDIR", "app-64.7z")],
+      {
+        stdio: "ignore",
+      },
+    );
+    const appExe = NodePath.join(appDir, `${windowsExecutableName(version)}.exe`);
+    if (!NodeFS.existsSync(appExe)) throw new Error(`installer did not contain ${appExe}`);
     app = await measureApp(appExe, idleSeconds);
   } catch (error) {
     // An app that cannot be measured is a warning, not a stopped release, unless enforced.
@@ -284,17 +294,17 @@ async function main() {
     ...engine,
     appIdleMb: app.idleMb,
     appColdStartMs: app.coldStartMs,
-    installerBytes: readFileSync(installer).length,
+    installerBytes: NodeFS.readFileSync(installer).length,
   };
   const result = evaluateBudgets(sample, { enforceApp: argv.includes("--enforce-app") });
   const history = appendHistoryRow(
-    historyPath && existsSync(historyPath) ? readFileSync(historyPath, "utf8") : "",
+    historyPath && NodeFS.existsSync(historyPath) ? NodeFS.readFileSync(historyPath, "utf8") : "",
     sample,
   );
-  mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "benchmark-history.csv"), history);
+  NodeFS.mkdirSync(outDir, { recursive: true });
+  NodeFS.writeFileSync(NodePath.join(outDir, "benchmark-history.csv"), history);
   const report = renderReport(history, result);
-  writeFileSync(join(outDir, "benchmark-report.md"), report);
+  NodeFS.writeFileSync(NodePath.join(outDir, "benchmark-report.md"), report);
   console.log(report);
   for (const check of result.checks) {
     if (!check.ok && !check.gated) {

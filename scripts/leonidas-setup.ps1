@@ -78,7 +78,7 @@ $shortcutDirs = @(
 Get-ChildItem -LiteralPath $shortcutDirs -Filter "T3 Code*.lnk" -ErrorAction SilentlyContinue |
   ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force; Write-Host "Removed $($_.FullName)" }
 
-$exePath = Join-Path $env:LOCALAPPDATA "Programs\t3code\Leonidas.exe"
+$exePath = Join-Path $env:LOCALAPPDATA "Programs\t3code\Leonidas Code.exe"
 if (-not (Test-Path -LiteralPath $exePath)) { throw "Expected $exePath after install." }
 Start-Process -FilePath $exePath
 Write-Host "Launched Leonidas. Right-click its taskbar icon > Pin to taskbar (Windows blocks scripted pins)."
