@@ -115,7 +115,12 @@ export function ProviderReadinessControl(props: {
   }
   return (
     <div
-      className="flex flex-col gap-1 px-3 py-2 text-xs"
+      // A healthy account is a quiet one-line hint; only problems get the full row.
+      className={
+        readiness.color === "green" && !error
+          ? "flex flex-col px-3 py-1 text-2xs opacity-60"
+          : "flex flex-col gap-1 px-3 py-2 text-xs"
+      }
       data-provider-readiness={readiness.color}
     >
       <div className="flex items-center gap-2">

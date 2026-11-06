@@ -1112,7 +1112,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
               </ComboboxListVirtualized>
             </div>
             {readinessEntries.length > 0 ? (
-              <div className="max-h-44 shrink-0 overflow-y-auto border-t border-border/70 p-2">
+              <div className="max-h-44 shrink-0 overflow-y-auto border-t border-border/70 p-2 has-data-[provider-readiness=green]:border-t-0 has-data-[provider-readiness=green]:p-0 has-data-[provider-readiness=green]:pb-1">
                 {readinessEntries.map((entry) => (
                   <ProviderReadinessControl
                     key={entry.instanceId}
