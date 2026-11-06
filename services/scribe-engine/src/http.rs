@@ -503,6 +503,8 @@ mod tests {
                 history
                     .add(crate::history::NewItem {
                         preset: None,
+                        stt: String::new(),
+                        polish: String::new(),
                         at: crate::contract::iso_from_unix_ms(ms),
                         mode: mode.into(),
                         app: String::new(),
@@ -1174,6 +1176,8 @@ mod tests {
             history
                 .add(crate::history::NewItem {
                     preset: None,
+                    stt: String::new(),
+                    polish: String::new(),
                     at: crate::contract::iso_from_unix_ms(ms),
                     mode: "hold".into(),
                     app: String::new(),

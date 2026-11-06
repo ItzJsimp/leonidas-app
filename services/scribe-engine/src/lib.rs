@@ -2,6 +2,7 @@
 //! The HTTP contract in `contract.md` is the only coupling to the app.
 
 pub mod audio;
+pub mod backup;
 pub mod config;
 pub mod contract;
 pub mod credentials;

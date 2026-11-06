@@ -40,6 +40,8 @@ pub struct Transcription {
     pub text: String,
     pub engine: SttEngine,
     pub private: bool,
+    /// Who served it, as `provider/model`, for example `groq/whisper-large-v3-turbo`.
+    pub source: String,
 }
 
 pub trait Transcriber: Send + Sync {
@@ -53,6 +55,10 @@ pub trait Transcriber: Send + Sync {
 pub trait Polisher: Send + Sync {
     /// Never fails: on any error it returns the best text it has (at least `raw`).
     fn polish(&self, raw: &str) -> String;
+    /// The polished text and who served it (`provider/model`, `fast-path` or `none`).
+    fn polish_traced(&self, raw: &str) -> (String, String) {
+        (self.polish(raw), String::new())
+    }
     fn rewrite(&self, _text: &str, _instruction: &str) -> Result<String, String> {
         Err("Rewrite unavailable.".into())
     }
@@ -71,6 +77,9 @@ impl<T: Transcriber + ?Sized> Transcriber for Arc<T> {
 impl<T: Polisher + ?Sized> Polisher for Arc<T> {
     fn polish(&self, raw: &str) -> String {
         (**self).polish(raw)
+    }
+    fn polish_traced(&self, raw: &str) -> (String, String) {
+        (**self).polish_traced(raw)
     }
     fn rewrite(&self, text: &str, instruction: &str) -> Result<String, String> {
         (**self).rewrite(text, instruction)
@@ -276,6 +285,8 @@ impl Engine {
                                 raw_text: text.clone(),
                                 cleaned_text: result.clone(),
                                 preset: Some(preset.name),
+                                stt: String::new(),
+                                polish: String::new(),
                                 metrics: HistoryMetrics {
                                     transcribe_ms: 0,
                                     polish_ms: millis(started.elapsed()),
@@ -431,7 +442,7 @@ impl Engine {
             Ok(t) if t.text.trim().is_empty() => {}
             Ok(t) => {
                 let transcribed = Instant::now();
-                let text = shared.polisher.polish(&t.text);
+                let (text, polished_by) = shared.polisher.polish_traced(&t.text);
                 let polished = Instant::now();
                 let pasted = paste && !text.is_empty() && shared.paster.paste(&text);
                 let at_ms = crate::contract::unix_ms_now();
@@ -441,6 +452,8 @@ impl Engine {
                         at: at.clone(),
                         mode: mode_name(mode).into(),
                         preset: None,
+                        stt: t.source.clone(),
+                        polish: polished_by,
                         app,
                         raw_text: t.text.clone(),
                         cleaned_text: text.clone(),
@@ -546,6 +559,7 @@ pub mod fakes {
                 text,
                 engine: SttEngine::Groq,
                 private: false,
+                source: "fake/stt".into(),
             })
         }
     }
@@ -848,6 +862,8 @@ mod tests {
                 assert_eq!((item.words, item.pasted), (2, false));
                 assert_eq!(item.private, Some(true));
                 assert!(item.metrics.total_ms >= item.metrics.transcribe_ms);
+                // The serving speech provider is saved with the line.
+                assert_eq!(item.stt, "fake/stt");
             }
             e => panic!("{e:?}"),
         }

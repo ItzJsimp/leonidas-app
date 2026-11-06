@@ -36,6 +36,13 @@ impl OsKeyStore {
         Self::with_service("leonidas-scribe")
     }
 
+    /// Another provider's key, for example `deepgram` or `gemini`.
+    pub fn for_account(account: &str) -> Result<Self, String> {
+        keyring::Entry::new("leonidas-scribe", account)
+            .map(Self)
+            .map_err(|_| "Cannot open the credential store".into())
+    }
+
     fn with_service(service: &str) -> Result<Self, String> {
         keyring::Entry::new(service, "groq")
             .map(Self)

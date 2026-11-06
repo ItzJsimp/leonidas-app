@@ -12,6 +12,8 @@ pub struct Config {
     pub bindings: Bindings,
     pub audio: AudioConfig,
     pub groq: GroqConfig,
+    /// Backup vendors, so dictation keeps working when Groq fails.
+    pub backup: BackupConfig,
     pub polish: PolishConfig,
     /// Audio never leaves the device (local model only).
     pub private_mode: bool,
@@ -29,6 +31,7 @@ impl Default for Config {
             bindings: Bindings::default(),
             audio: AudioConfig::default(),
             groq: GroqConfig::default(),
+            backup: BackupConfig::default(),
             polish: PolishConfig::default(),
             private_mode: false,
             hud: HudConfig::default(),
@@ -121,6 +124,42 @@ impl Default for GroqConfig {
             hedge_ms: 800,
             transcribe_timeout_s: 30,
             polish_timeout_s: 4,
+        }
+    }
+}
+
+/// Provider order and backup vendor endpoints. A change applies after an engine restart.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct BackupConfig {
+    /// Speech providers in order: `groq`, `deepgram`, `gemini`. The first reply wins.
+    pub speech: Vec<String>,
+    /// Polish vendors after the Groq models, in order: `gemini`.
+    pub polish: Vec<String>,
+    pub deepgram_base_url: String,
+    pub deepgram_model: String,
+    /// Gemini native API, for speech (it takes FLAC; the OpenAI-compatible one does not).
+    pub gemini_native_url: String,
+    pub gemini_speech_model: String,
+    /// Gemini OpenAI-compatible API, for polish.
+    pub gemini_openai_url: String,
+    pub gemini_polish_model: String,
+    /// Base timeout of one backup speech request. Half the audio length is added.
+    pub speech_timeout_s: u64,
+}
+
+impl Default for BackupConfig {
+    fn default() -> Self {
+        Self {
+            speech: vec!["groq".into(), "deepgram".into(), "gemini".into()],
+            polish: vec!["gemini".into()],
+            deepgram_base_url: "https://api.deepgram.com/v1".into(),
+            deepgram_model: "nova-3".into(),
+            gemini_native_url: "https://generativelanguage.googleapis.com/v1beta".into(),
+            gemini_speech_model: "gemini-3.5-flash-lite".into(),
+            gemini_openai_url: "https://generativelanguage.googleapis.com/v1beta/openai".into(),
+            gemini_polish_model: "gemini-3.5-flash-lite".into(),
+            speech_timeout_s: 15,
         }
     }
 }

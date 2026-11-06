@@ -1,4 +1,6 @@
-# Scribe engine contract (v1.4)
+# Scribe engine contract (v1.5)
+
+v1.5 (2026-11-06, Batch 4 parity): history items add optional `stt` and `polish`, strings. `stt` is the speech provider and model that served the take, as `provider/model` (for example `groq/whisper-large-v3-turbo`, `deepgram/nova-3`, `local/ggml-base.en-q5_1`). `polish` is `provider/model`, `fast-path` or `none`. A missing field means unknown (older lines and rewrites). `POST /v1/retry` runs the newest saved failed dictation again (see Retry).
 
 v1.4 (2026-10-19, lane L1 contract addition for Lane C): history items add optional `private`, a boolean. New engines write it on every take. `true` means private mode was on at recording start or transcription. A missing field means unknown. Memory jobs must skip both `true` and missing fields before reading transcript text.
 
@@ -96,7 +98,9 @@ Query: `limit` (1 or more, default 50, at most 500), `before` (an item id; the p
       "cleanedText": "Hello world.",
       "words": 2,
       "metrics": { "transcribeMs": 700, "polishMs": 50, "totalMs": 760 },
-      "pasted": true
+      "pasted": true,
+      "stt": "groq/whisper-large-v3-turbo",
+      "polish": "groq/qwen/qwen3.8-27b"
     }
   ],
   "next": null

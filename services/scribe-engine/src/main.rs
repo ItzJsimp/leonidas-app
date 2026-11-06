@@ -76,14 +76,21 @@ fn run() -> Result<(), String> {
             std::thread::sleep(Duration::from_secs(30));
         });
     }
-    let polisher = Arc::new(GroqPolisher::new(groq.clone(), &cfg.effective_polish()));
+    let polisher = Arc::new(
+        GroqPolisher::new(groq.clone(), &cfg.effective_polish())
+            .with_backups(scribe_engine::backup::polish_backups(&cfg, &dictionary)),
+    );
     // Cloud first. The local model serves private mode and a cloud that cannot answer.
     let local = Arc::new(WhisperLocal::new(&config_dir.join("models")));
     if cfg.private_mode {
         local.ensure_downloaded();
     }
     let router = Arc::new(Router::new(
-        Arc::new(groq.clone()),
+        Arc::new(scribe_engine::backup::speech_chain(
+            &cfg,
+            &groq,
+            &dictionary,
+        )),
         local.clone(),
         cfg.private_mode,
     ));

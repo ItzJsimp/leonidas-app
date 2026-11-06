@@ -168,6 +168,12 @@ pub struct HistoryItem {
     pub pasted: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub private: Option<bool>,
+    /// Speech provider and model that served it, for example `groq/whisper-large-v3-turbo`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub stt: String,
+    /// Polish provider and model, `fast-path` or `none`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub polish: String,
 }
 
 /// v1.2: reply of `GET /v1/history`. `next` is the `before` cursor for the next page.
@@ -340,6 +346,8 @@ mod tests {
             },
             pasted: true,
             private: Some(true),
+            stt: String::new(),
+            polish: String::new(),
         };
         let wire = serde_json::to_value(Event::History { item }).unwrap();
         assert_eq!(wire["type"], "history");

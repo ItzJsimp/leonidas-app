@@ -97,6 +97,7 @@ impl Router {
             text,
             engine: SttEngine::Local,
             private,
+            source: format!("local/{}", MODEL_FILE.trim_end_matches(".bin")),
         })
     }
 }
@@ -112,6 +113,7 @@ impl Transcriber for Router {
                 text: String::new(),
                 engine: SttEngine::Local,
                 private,
+                source: String::new(),
             });
         }
         match choose_backend(private) {
@@ -382,6 +384,7 @@ mod tests {
                 text: text.into(),
                 engine: SttEngine::Groq,
                 private: false,
+                source: "groq/fake".into(),
             })
         }
     }
