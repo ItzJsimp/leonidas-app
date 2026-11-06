@@ -18,18 +18,37 @@
     },
     "scripts": {
       // Knip loads its preprocessor through a CLI option; native verification and
-      // worktree setup (from t3.json) run directly.
-      "entry": ["knip-schemas.ts", "mobile-native-client.ts", "setup-worktree.ts"],
+      // worktree setup (from t3.json) run directly. The rest are developer tools
+      // that people run by hand; docs, tests and error screens name them.
+      "entry": [
+        "knip-schemas.ts",
+        "mobile-native-client.ts",
+        "setup-worktree.ts",
+        "dev-health.mjs",
+        "extract-prompt-style-standard.ts",
+        "generate-aios-folders.ts",
+        "harness-acceptance.mjs",
+        "mock-feedback-relay.ts",
+        "perf-bench.mjs",
+        "ponytail-commit-size.mjs",
+        "self-sign-macos.cjs",
+        "server-bench-git.mjs",
+        "server-bench.mjs",
+        "trace-latency-report.ts",
+      ],
     },
     "apps/server": {
       // Vite+ pack entries and the launcher used by installed background services.
       "entry": [
         "src/bin.ts!",
         "src/claude-history-worker.ts!",
+        // A crash test starts this worker by file path.
+        "src/crash/crashWorker.ts",
         "scripts/cli.ts",
         "scripts/evaluate-thread-titles.ts",
         "scripts/measure-pr-preview.ts",
         "scripts/probe-claude-fork-local-rollback-replay.ts",
+        "scripts/server-bench-ws.ts",
         "scripts/update-test-shard-weights.ts",
         "scripts/verify-background-live.ts",
         "src/provider/testFixtures/*.mjs",
@@ -53,6 +72,7 @@
         "src/main.ts!",
         "src/preload.ts!",
         "src/preview-pick-preload.ts!",
+        "src/snip-overlay-preload.ts!",
         "src/preview-pip-preload.ts!",
         "src/mac-permission-preload.ts!",
         "src/preview/Annotation.css!",
