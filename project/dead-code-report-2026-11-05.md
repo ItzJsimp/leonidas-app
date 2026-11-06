@@ -419,6 +419,17 @@ A reference check on `origin/main` (2d9a120e87) found that the file ranking abov
 - `scripts/extract-prompt-style-standard.ts`: it rebuilds a data file for `promptPrediction.ts`.
 - `scripts/trace-latency-report.ts` and `scripts/ponytail-commit-size.mjs`: read-only tools with usage lines.
 
-Knip also flagged `scripts/self-sign-macos.cjs` on `origin/main`. It is a false positive: `build-desktop-artifact.ts` passes it to electron-builder as `afterSign`. All seven are now knip entries (branch `chore/dead-code` in `C:/lcw/dead-code`).
+Knip also flagged `scripts/self-sign-macos.cjs` on `origin/main`. It is a false positive: `build-desktop-artifact.ts` passes it to electron-builder as `afterSign`. All seven are now knip entries.
 
-Deleted for real (commits `1fcacbb7a5` and `01d18f7cf1`): `EventInbox.tsx`, `PonytailCard.tsx`, `VoiceLogCard.tsx`, `GoalProgressCard.tsx`, `OpenRouterAdapterV2.schema.ts`, `LegacySidebar.tsx`, the Sidebar (legacy) switch, the `legacySidebarEnabled` setting key and `@formkit/auto-animate`. Net −4,841 lines.
+Deleted for real (commits `f4276e6aaf` and `31955f29a2`): `EventInbox.tsx`, `PonytailCard.tsx`, `VoiceLogCard.tsx`, `GoalProgressCard.tsx`, `OpenRouterAdapterV2.schema.ts`, `LegacySidebar.tsx`, the Sidebar (legacy) switch, the `legacySidebarEnabled` setting key and `@formkit/auto-animate`. Net −4,841 lines.
+
+## Status after the export cleanup
+
+Unused exports are removed in `scripts`, `apps/web`, `apps/desktop` and five `packages/*` (one commit per package). A search of every stripped name for outside imports found one real use, in `apps/desktop/vite.config.ts`. That export is restored. Held on purpose:
+
+- 14 `index.ts` barrel exports in `mail-autopilot` and `business-pack`. They are the public API of private packages.
+- `FakeMailProvider` in `mail-autopilot/src/testing.ts`, a test helper.
+- `useLiveArea` `IDLE`: tests read it through a namespace import, so knip cannot see the use.
+- Files that active branches change: `TraitsPicker.tsx`, `DirectionSection.tsx`, `taskRows.ts`, `outputStandard.ts`.
+
+Not done yet: `apps/server` exports, the provider, source-control and effect packages, the 11 catalog entries in `pnpm-workspace.yaml`, and `apps/mobile` and `infra/relay` (skipped on purpose).
