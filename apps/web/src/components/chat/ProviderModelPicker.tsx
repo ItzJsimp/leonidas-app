@@ -339,11 +339,9 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         className="before:hidden"
         padding="none"
       >
-        {!listOpen ? (
-          <div aria-busy="true" className="h-86.5 w-[calc(100vw-1rem)] max-w-90" />
-        ) : null}
-        {listOpen ? (
-          <div className="flex min-w-0">
+        {/* The column renders with the placeholder, so the popup never resizes (and squeezes the list) when the list loads. */}
+        <div className="flex min-w-0">
+          {listOpen ? (
             <ModelPickerContent
               environmentId={props.environmentId}
               activeInstanceId={activeInstanceId}
@@ -373,9 +371,11 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                 : {})}
               onInstanceModelChange={handleInstanceModelChange}
             />
-            {props.reasoningColumn}
-          </div>
-        ) : null}
+          ) : (
+            <div aria-busy="true" className="h-86.5 w-[calc(100vw-1rem)] max-w-90" />
+          )}
+          {props.reasoningColumn}
+        </div>
         {listOpen && props.selectedModels === undefined ? (
           <ChatGptSharingControl provider={activeEntry?.snapshot ?? null} />
         ) : null}
