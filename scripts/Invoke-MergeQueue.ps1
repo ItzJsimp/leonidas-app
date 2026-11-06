@@ -78,18 +78,22 @@ function Invoke-Gate([string]$base) {
 function Remove-BranchWorktree([string]$branch) {
     $wt = git worktree list --porcelain | Out-String
     $m = [regex]::Match($wt, "worktree (?<p>[^\r\n]+)\r?\nHEAD [0-9a-f]+\r?\nbranch refs/heads/$([regex]::Escape($branch))")
-    if ($m.Success) {
-        $p = $m.Groups['p'].Value
-        if (git -C $p status --porcelain) { return "worktree $p kept (uncommitted changes)" }
-        # git worktree remove deletes through junctions: cut links first, then delete (long paths need .NET).
-        Get-ChildItem -LiteralPath $p -Force -Recurse -Attributes ReparsePoint -ErrorAction SilentlyContinue |
-            Sort-Object { $_.FullName.Length } -Descending |
-            ForEach-Object { if ($_.PSIsContainer) { [System.IO.Directory]::Delete($_.FullName, $false) } else { [System.IO.File]::Delete($_.FullName) } }
-        [System.IO.Directory]::Delete((Resolve-Path -LiteralPath $p).ProviderPath, $true)
-        git worktree prune
-    }
+    if (-not $m.Success) { git branch -q -d $branch 2>$null; return '' }
+    $p = $m.Groups['p'].Value
+    if (git -C $p status --porcelain) { return "worktree $p kept (uncommitted changes)" }
+    # Rename first: Windows refuses it while any process has a file or its current folder open in
+    # the worktree. A busy worktree (an agent still in it) is never touched (2026-11-06: deleting a
+    # busy one destroyed its ignored files).
+    $gone = "$p.landed-$PID"
+    try { Rename-Item -LiteralPath $p -NewName (Split-Path $gone -Leaf) } catch { return "worktree $p kept (in use; its agent removes it)" }
+    # git worktree remove deletes through junctions: cut links first, then delete (long paths need .NET).
+    Get-ChildItem -LiteralPath $gone -Force -Recurse -Attributes ReparsePoint -ErrorAction SilentlyContinue |
+        Sort-Object { $_.FullName.Length } -Descending |
+        ForEach-Object { if ($_.PSIsContainer) { [System.IO.Directory]::Delete($_.FullName, $false) } else { [System.IO.File]::Delete($_.FullName) } }
+    [System.IO.Directory]::Delete((Resolve-Path -LiteralPath $gone).ProviderPath, $true)
+    git worktree prune
     git branch -q -d $branch 2>$null
-    if ($m.Success) { "worktree $($m.Groups['p'].Value) removed" } else { '' }
+    "worktree $p removed"
 }
 
 function Invoke-Land($file) {
@@ -114,9 +118,12 @@ function Invoke-Land($file) {
             git -C $LandWorktree push -q origin HEAD:main 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 git fetch -q origin main
+                # The push is done: a cleanup problem is a note, never a failed landing.
                 $notes = @()
-                if ($entry.task) { $notes += (& (Join-Path $PSScriptRoot 'Start-AgentTask.ps1') -Task $entry.task -Release) }
-                $notes += Remove-BranchWorktree $entry.branch
+                try {
+                    if ($entry.task) { $notes += (& (Join-Path $PSScriptRoot 'Start-AgentTask.ps1') -Task $entry.task -Release) }
+                    $notes += Remove-BranchWorktree $entry.branch
+                } catch { $notes += "cleanup skipped: $_" }
                 return Write-Result $entryId $entry 'landed' $sha ($notes | Where-Object { $_ })
             }
             # origin/main moved while the gate ran: merge again onto the new tip and re-check.

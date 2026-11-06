@@ -12,6 +12,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $repo 'scripts') | Out-Null
 git init -q --bare -b main $origin
 G $repo init -q -b main; G $repo config user.name test; G $repo config user.email test@example.com
 Set-Content (Join-Path $repo 'base.txt') 'base'; G $repo add base.txt; G $repo commit -q -m base
+New-Item -ItemType Directory -Force (Join-Path $repo '.git/info') | Out-Null; Set-Content (Join-Path $repo '.git/info/exclude') 'node_modules/'
 G $repo remote add origin $origin; G $repo push -q origin main
 Copy-Item (Join-Path $PSScriptRoot 'Start-AgentTask.ps1'), (Join-Path $PSScriptRoot 'Invoke-MergeQueue.ps1') (Join-Path $repo 'scripts')
 Set-Content (Join-Path $root 'fake-gate.ps1') 'param($Worktree, $Base)
@@ -75,7 +76,24 @@ try {
     Assert (-not (Test-Path $wtA) -and -not (Test-Path $wtB)) 'landing removes both clean worktrees'
     Assert (-not (git -C $repo branch --list 'task/*')) 'landing deletes both merged branches'
 
-    # 3. A red branch never reaches origin/main, and its claim stays with its agent.
+    # 3. A worktree that its agent still uses lands, but the queue does not touch its files.
+    Push-Location $repo
+    try {
+        pwsh -NoProfile -File scripts/Start-AgentTask.ps1 -Task delta -Owner agent-5 | Out-Null
+        $wtD = Join-Path $env:LEONIDAS_WORKTREE_ROOT 'delta'
+        Set-Content (Join-Path $wtD 'delta.txt') 'd'; G $wtD add delta.txt; G $wtD commit -q -m 'delta work'
+        New-Item -ItemType Directory (Join-Path $wtD 'node_modules') | Out-Null
+        Set-Content (Join-Path $wtD 'node_modules/ignored.txt') 'i'
+        $busy = [System.IO.File]::Open((Join-Path $wtD 'delta.txt'), 'Open', 'Read', 'Read')
+        $out = pwsh -NoProfile -File scripts/Invoke-MergeQueue.ps1 -Branch task/delta -Task delta -Wait -WaitMinutes 1 | Out-String
+        $exit = $LASTEXITCODE
+        $busy.Dispose()
+    } finally { Pop-Location }
+    Assert ($exit -eq 0 -and $out -match 'result: landed') 'a busy worktree still lands'
+    Assert ($out -match 'kept \(in use')'the queue reports the busy worktree as kept'
+    Assert ((Test-Path (Join-Path $wtD 'node_modules/ignored.txt')) -and (Test-Path (Join-Path $wtD '.git'))) 'the busy worktree keeps every file'
+
+    # 4. A red branch never reaches origin/main, and its claim stays with its agent.
     # Every step runs inside the test repo: the scripts act on the repo of the current folder.
     Push-Location $repo
     try {
