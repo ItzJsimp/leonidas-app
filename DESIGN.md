@@ -135,7 +135,7 @@ Labels are one plain word. Business tabs follow the workspace template flag; Dev
 
 Every visible change goes through Doop before code.
 
-1. **Capture.** The agent imports the live screen into the Doop canvas for its app area, named `Leonidas <Area>` (for example "Leonidas Chat"). App-wide tokens and the theme live on "Leonidas Design system". Each surface gets one labeled row on the first page. Frame names: `<surface> · <state>`.
+1. **Capture.** The agent imports the live screen into the "Leonidas app" Doop canvas, on the page for its surface (Composer, Model picker, Command Center). Page 1, "Design system", holds the tokens and the theme. Frames are `<Surface> · <state>` and layers are `<Role> · <label>` (the doop skill, "Naming").
 2. **Design.** The agent adds 2 or 3 directions as frames of the real screen with real data, on these tokens. Every layer has a `data-doop-name`.
 3. **Jake edits.** Jake looks in the Doop app and picks, edits or asks in plain words. The agent changes frames until Jake approves one.
 4. **Record.** The agent saves Jake's words (Doop `save_decision`, the task card), deletes rejected frames and renames the pick `<surface> · your pick`.
