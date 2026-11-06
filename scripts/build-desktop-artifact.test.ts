@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - Tests use Node's glob matcher to verify electron-builder exclusions.
 import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
+import * as NodeModule from "node:module";
 import * as NodePath from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -2290,11 +2291,53 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         undefined,
       );
 
-      assert.match(
-        String((unsigned.mac as Record<string, unknown>).afterSign),
-        /[\\/]scripts[\\/]self-sign-macos\.cjs$/,
-      );
+      assert.match(String(unsigned.afterSign), /[\\/]scripts[\\/]self-sign-macos\.cjs$/);
+      assert.notProperty(signed, "afterSign");
+      // electron-builder rejects afterSign inside the mac block and fails the whole build.
+      assert.notProperty(unsigned.mac as Record<string, unknown>, "afterSign");
       assert.notProperty(signed.mac as Record<string, unknown>, "afterSign");
+    }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
+  );
+
+  // electron-builder rejects the whole config when one key sits in the wrong block, and the
+  // release then ships without a Mac build. Check against its own schema, not our assumptions.
+  it.effect("keeps every macOS build key in a block electron-builder accepts", () =>
+    Effect.gen(function* () {
+      const requireFromDesktop = NodeModule.createRequire(
+        NodePath.join(import.meta.dirname, "../apps/desktop/package.json"),
+      );
+      const requireFromBuilder = NodeModule.createRequire(
+        requireFromDesktop.resolve("electron-builder"),
+      );
+      const scheme = JSON.parse(
+        NodeFS.readFileSync(requireFromBuilder.resolve("app-builder-lib/scheme.json"), "utf8"),
+      ) as {
+        properties: Record<string, unknown>;
+        definitions: Record<string, { properties: Record<string, unknown> }>;
+      };
+      for (const signed of [false, true]) {
+        const config = yield* createBuildConfig(
+          "mac",
+          "dmg",
+          "1.2.3",
+          signed,
+          false,
+          undefined,
+          undefined,
+        );
+        const unknown = [
+          ...Object.keys(config)
+            .filter((key) => !(key in scheme.properties))
+            .map((key) => `root.${key}`),
+          ...Object.keys(config.mac as object)
+            .filter((key) => !(key in scheme.definitions.MacConfiguration!.properties))
+            .map((key) => `mac.${key}`),
+          ...Object.keys(config.dmg as object)
+            .filter((key) => !(key in scheme.definitions.DmgOptions!.properties))
+            .map((key) => `dmg.${key}`),
+        ];
+        assert.deepStrictEqual(unknown, [], `signed=${signed}`);
+      }
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
 

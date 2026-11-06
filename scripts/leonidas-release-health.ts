@@ -29,6 +29,19 @@ export function parseUpdateManifest(yaml: string) {
   return { version, path, sha512 };
 }
 
+// The Mac updater reads latest-mac.yml and installs the .zip it names. A release without both
+// leaves every Mac app unable to update, so the health check requires them.
+export function parseMacManifest(yaml: string) {
+  const version = yaml.match(/^version: (\d+\.\d+\.\d+)$/m)?.[1];
+  const files = [...yaml.matchAll(/^ {2}- url: (\S+)\n {4}sha512: (\S+)\n {4}size: (\d+)$/gm)].map(
+    (match) => ({ url: match[1]!, sha512: match[2]!, size: Number(match[3]) }),
+  );
+  const zip = files.find((file) => file.url === `Leonidas-Code-${version}-arm64.zip`);
+  if (!version || !zip || !/^[A-Za-z0-9+/]{86}==$/.test(zip.sha512))
+    throw new Error("Invalid Mac updater manifest");
+  return { version, zip, dmgUrl: `Leonidas-Code-${version}-arm64.dmg` };
+}
+
 async function main() {
   const repository = process.env.GITHUB_REPOSITORY;
   const runId = process.env.GITHUB_RUN_ID;
@@ -109,6 +122,22 @@ async function main() {
       )
         throw new Error("Published installer checksum/size mismatch");
       await download(asset(`${manifest.path}.blockmap`).browser_download_url);
+      const mac = parseMacManifest(
+        await (await download(asset("latest-mac.yml").browser_download_url)).text(),
+      );
+      if (mac.version !== report.version)
+        throw new Error("Mac manifest version differs from release");
+      asset(mac.dmgUrl);
+      asset("Leonidas-Setup-mac.dmg");
+      const macZip = asset(mac.zip.url);
+      const macBytes = new Uint8Array(
+        await (await download(macZip.browser_download_url)).arrayBuffer(),
+      );
+      if (
+        macBytes.length !== mac.zip.size ||
+        NodeCrypto.createHash("sha512").update(macBytes).digest("base64") !== mac.zip.sha512
+      )
+        throw new Error("Published Mac update checksum/size mismatch");
       const latest = api(`repos/${repository}/releases/latest`) as {
         tag_name: string;
         published_at: string;
