@@ -263,7 +263,7 @@ function ReleaseHistoryDialog({ onClose }: { readonly onClose?: () => void }) {
                 size="sm"
                 render={
                   <a
-                    href="https://github.com/ItzJsimp/leonidas-code/releases"
+                    href="https://github.com/ItzJsimp/leonidas-app/releases"
                     target="_blank"
                     rel="noopener noreferrer"
                   />

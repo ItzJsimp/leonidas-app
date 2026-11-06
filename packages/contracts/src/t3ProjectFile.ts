@@ -109,7 +109,7 @@ export const T3ProjectFile = Schema.Struct({
 }).annotate({
   title: "T3 project file",
   description:
-    "Checked-in project configuration for Leonidas Code (t3.json at the repository root). See https://github.com/ItzJsimp/leonidas-code for documentation.",
+    "Checked-in project configuration for Leonidas Code (t3.json at the repository root). See https://github.com/ItzJsimp/leonidas-app for documentation.",
 });
 export type T3ProjectFile = typeof T3ProjectFile.Type;
 

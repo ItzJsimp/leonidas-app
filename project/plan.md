@@ -22,4 +22,4 @@ Shared Jake + Mob fork of T3 Code, the agent harness that replaces the Claude Co
 - **Public vs private repo:** electron-updater reads public GitHub Releases with no token. A private repo needs a token baked into each install and burns the 2,000 free Actions minutes per month (Windows minutes count double).
 - **Unsigned installer:** Windows SmartScreen warns on first install; electron-updater still installs updates because no `publisherName` is set.
 - **Upstream divergence:** once installs come from our repo, upstream T3 fixes arrive only when we merge `upstream/main`. Every rebrand touch makes that merge harder.
-- **Mob's side:** Mob's AIOS clones this repo to the same path (`projects/leonidas-code/`); nothing here writes to his machine.
+- **Mob's side:** Mob's AIOS clones this repo to the same path (`projects/leonidas-app/`); nothing here writes to his machine.

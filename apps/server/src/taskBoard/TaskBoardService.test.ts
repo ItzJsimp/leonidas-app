@@ -15,7 +15,7 @@ import { ServerConfig } from "../config.ts";
 const issue = {
   number: 12,
   title: "Build the board",
-  url: "https://github.com/ItzJsimp/leonidas-code/issues/12",
+  url: "https://github.com/ItzJsimp/leonidas-app/issues/12",
   updatedAt: "2026-10-10T12:00:00Z",
   labels: [{ name: "feature" }],
   assignees: [{ login: "vMobxAi" }],
@@ -37,14 +37,14 @@ const boardProject = {
   title: "Leonidas Code",
   workspaceRoot: "D:/leonidas-code",
   repositoryIdentity: {
-    canonicalKey: "github.com/ItzJsimp/leonidas-code",
+    canonicalKey: "github.com/ItzJsimp/leonidas-app",
     locator: {
       source: "git-remote",
       remoteName: "origin",
-      remoteUrl: "https://github.com/ItzJsimp/leonidas-code.git",
+      remoteUrl: "https://github.com/ItzJsimp/leonidas-app.git",
     },
     provider: "github",
-    displayName: "ItzJsimp/leonidas-code",
+    displayName: "ItzJsimp/leonidas-app",
     owner: "ItzJsimp",
     name: "leonidas-code",
   },
@@ -60,11 +60,11 @@ const boardRunner = (
     run: (input) =>
       Effect.gen(function* () {
         if (input.args.some((arg) => arg.includes("matching-refs"))) return output("[]");
-        if (input.args[1] === "repos/ItzJsimp/leonidas-code") {
+        if (input.args[1] === "repos/ItzJsimp/leonidas-app") {
           return output(JSON.stringify({ default_branch: "main" }));
         }
         if (
-          input.args.some((arg) => arg.startsWith("repos/ItzJsimp/leonidas-code/git/ref/heads/"))
+          input.args.some((arg) => arg.startsWith("repos/ItzJsimp/leonidas-app/git/ref/heads/"))
         ) {
           return output(JSON.stringify({ object: { sha: "abc123" } }));
         }
@@ -251,7 +251,7 @@ it.effect("shares fork tasks with the origin repository instead of upstream", ()
         owner: "pingdotgg",
         name: "t3code",
         canonicalKey: "github.com/pingdotgg/t3code",
-        origin: { canonicalKey: "github.com/ItzJsimp/leonidas-code" },
+        origin: { canonicalKey: "github.com/ItzJsimp/leonidas-app" },
       },
     };
     const writes: ReadonlyArray<string>[] = [];
@@ -259,7 +259,7 @@ it.effect("shares fork tasks with the origin repository instead of upstream", ()
       const board = yield* TaskBoardService.TaskBoardService;
       const workspace = yield* board.workspace([fork]);
       expect(workspace.projects.find((entry) => entry.slug === "leonidas-code")?.repository).toBe(
-        "ItzJsimp/leonidas-code",
+        "ItzJsimp/leonidas-app",
       );
       yield* board.share(fork, { projectId: fork.id, shared: true, actor: "Jake" });
       expect(writes.some((args) => args.includes("PUT"))).toBe(true);
@@ -499,7 +499,7 @@ it.effect("sections every AIOS card by project, read from disk without touching 
           total: 1,
           open: 1,
           projectId: "project-board",
-          repository: "ItzJsimp/leonidas-code",
+          repository: "ItzJsimp/leonidas-app",
         });
         expect(workspace.projects.some((entry) => entry.slug === "simplygersi")).toBe(true);
         expect(githubCalls).toBe(0);

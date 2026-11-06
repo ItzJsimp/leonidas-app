@@ -1,1 +1,1 @@
-export const GITHUB_REPOSITORY_URL = "https://github.com/ItzJsimp/leonidas-code";
+export const GITHUB_REPOSITORY_URL = "https://github.com/ItzJsimp/leonidas-app";

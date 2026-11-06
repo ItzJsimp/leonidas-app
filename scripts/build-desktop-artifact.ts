@@ -58,7 +58,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = "com.t3tools.t3code";
 // Leonidas fork: poll our own releases unless an override or CI sets another repository.
-const DEFAULT_UPDATE_REPOSITORY = "ItzJsimp/leonidas-code";
+const DEFAULT_UPDATE_REPOSITORY = "ItzJsimp/leonidas-app";
 const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
@@ -3994,7 +3994,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       "Leonidas Code is an open-source desktop app for coding agents. Work with your existing agent subscriptions, review code changes, and run commands in your projects. Connect from desktop, web, or mobile to continue working remotely.",
     license: "MIT",
     // Required by the .deb control file.
-    homepage: "https://github.com/ItzJsimp/leonidas-code",
+    homepage: "https://github.com/ItzJsimp/leonidas-app",
     author: "Leonidas Code (fork of T3 Code by T3 Tools)",
     main: "apps/desktop/dist-electron/boot.cjs",
     build: yield* createBuildConfig(

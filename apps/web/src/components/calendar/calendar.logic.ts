@@ -1,7 +1,7 @@
 import type { CalendarEvent } from "@t3tools/contracts";
 
 export const CALENDAR_SETUP_DOC =
-  "https://github.com/ItzJsimp/leonidas-code/blob/main/docs/user/calendar.md";
+  "https://github.com/ItzJsimp/leonidas-app/blob/main/docs/user/calendar.md";
 
 /** Same set as the server picks from. A custom value is still accepted. */
 export const CALENDAR_COLORS = [

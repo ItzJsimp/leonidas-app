@@ -25,8 +25,8 @@ MSYS_NO_PATHCONV=1 openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -ou
 PW=$(openssl rand -hex 16)
 openssl pkcs12 -export -inkey key.pem -in cert.pem -out sign.p12 -name "Leonidas Code Self-Signed" \
   -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1 -passout "pass:$PW"
-base64 -w0 sign.p12 | gh secret set MAC_SELF_SIGN_P12 -R ItzJsimp/leonidas-code
-printf %s "$PW" | gh secret set MAC_SELF_SIGN_PASSWORD -R ItzJsimp/leonidas-code
+base64 -w0 sign.p12 | gh secret set MAC_SELF_SIGN_P12 -R ItzJsimp/leonidas-app
+printf %s "$PW" | gh secret set MAC_SELF_SIGN_PASSWORD -R ItzJsimp/leonidas-app
 ```
 
 The old SHA-1 key encryption is on purpose: the macOS `security import` command rejects the newer default.

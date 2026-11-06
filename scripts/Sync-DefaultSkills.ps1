@@ -101,7 +101,7 @@ function Remove-EmptySkillDir([string]$Path) {
 # Shared skills: a skill committed in the Leonidas Code clone is the one copy; the AIOS gets a junction to it
 # (Share-SkillToLeonidasCode.ps1 moves a skill there). This recreates missing junctions after a pull or on a new machine.
 $sharedLinked = 0
-$sharedRoot = Join-Path $repo 'projects/leonidas-code/.agents/skills'
+$sharedRoot = Join-Path $repo 'projects/leonidas-app/.agents/skills'
 if (-not $ProjectPath -and (Test-Path -LiteralPath $sharedRoot)) {
     foreach ($dir in Get-ChildItem -LiteralPath $sharedRoot -Directory | Where-Object { -not $_.LinkType -and (Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md')) }) {
         $aiosLink = Join-Path $repo ".agents/skills/$($dir.Name)"

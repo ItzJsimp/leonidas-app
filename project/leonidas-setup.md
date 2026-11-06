@@ -6,7 +6,7 @@ Moved out of [LEONIDAS.md](../LEONIDAS.md) so it is not loaded every turn. Read 
 
 Paste this to your Claude in any folder:
 
-> Clone https://github.com/ItzJsimp/leonidas-code into `projects/leonidas-code` inside my AIOS (if not already cloned), then run `pwsh -File scripts/leonidas-setup.ps1 -AiosClaudeMd "<path to my AIOS>/CLAUDE.md"` from the clone, then run `claude` once in the clone so I can approve the import dialog.
+> Clone https://github.com/ItzJsimp/leonidas-app into `projects/leonidas-app` inside my AIOS (if not already cloned), then run `pwsh -File scripts/leonidas-setup.ps1 -AiosClaudeMd "<path to my AIOS>/CLAUDE.md"` from the clone, then run `claude` once in the clone so I can approve the import dialog.
 
 That sets rebase pulls, links your AIOS identity, installs the latest Leonidas Code (replacing any T3 Code install and shortcuts) and launches it. Right-click its taskbar icon and pick Pin to taskbar. After that: code changes arrive by the auto-pull at each Claude session start; app changes arrive as the in-app update toast after every push to `main`.
 
@@ -16,7 +16,7 @@ The [next action skill](../.agents/skills/next-action/SKILL.md) ships in this re
 
 After pulling `main`, Codex loads [its project hook](../.codex/hooks.json) on startup and resume, including when started in a project subdirectory. With a current Codex CLI, trust this project and review the new hook once using `/hooks`; Codex skips untrusted hooks until reviewed. After that, installation runs automatically. The Codex hook installs from the checked-out source; it does not pull changes. Older Codex versions without lifecycle hooks need an update or the manual installer below. See [Codex hook setup](https://learn.chatgpt.com/docs/hooks).
 
-To install now, from your AIOS root run `git -C projects/leonidas-code pull --rebase --autostash origin main`, then `pwsh -NoProfile -File projects/leonidas-code/scripts/Install-NextAction.ps1 -AiosRoot .`. The installer prints the machine-local verification result. Say `next action, skip` in a fresh Leonidas Code conversation to get a recommendation without the energy interview.
+To install now, from your AIOS root run `git -C projects/leonidas-app pull --rebase --autostash origin main`, then `pwsh -NoProfile -File projects/leonidas-app/scripts/Install-NextAction.ps1 -AiosRoot .`. The installer prints the machine-local verification result. Say `next action, skip` in a fresh Leonidas Code conversation to get a recommendation without the energy interview.
 
 App updates and AIOS updates are separate: downloading a desktop installer does not by itself update the task folders or skill files in an existing AIOS.
 
@@ -24,7 +24,7 @@ App updates and AIOS updates are separate: downloading a desktop installer does 
 
 The project's `tasks/` folder is a generated view: one symlink per task card whose `project:` is `leonidas-code`, pointing at your AIOS `tasks/` folder (the cards stay the only copy). The session-start hook already refreshes it for this project. To get the same for every project in your AIOS and to make new cards appear instantly, paste this to your Claude:
 
-> In my AIOS root, copy `projects/leonidas-code/scripts/Sync-ProjectTaskViews.ps1` to `scripts/Sync-ProjectTaskViews.ps1`. Add a call to it at the end of `scripts/New-Task.ps1` right before the final "Created task" message: `if ($Project) { & (Join-Path $PSScriptRoot 'Sync-ProjectTaskViews.ps1') -RepoPath $RepoPath -Project $Project | Out-Null }` (use the repo-root variable that script already has). If `scripts/Build-TasksIndex.ps1` exists, call the script with `-RepoPath $RepoPath` at its end too. Add one line to my AIOS `AGENTS.md`: every `projects/<slug>/tasks/` is a generated symlink view of that project's cards, so cards are written only in the AIOS `tasks/`, never inside a project. Run `pwsh scripts/Sync-ProjectTaskViews.ps1`, then `-Check` and show me the output. It needs Windows Developer Mode on (Settings > System > For developers). Commit only those files.
+> In my AIOS root, copy `projects/leonidas-app/scripts/Sync-ProjectTaskViews.ps1` to `scripts/Sync-ProjectTaskViews.ps1`. Add a call to it at the end of `scripts/New-Task.ps1` right before the final "Created task" message: `if ($Project) { & (Join-Path $PSScriptRoot 'Sync-ProjectTaskViews.ps1') -RepoPath $RepoPath -Project $Project | Out-Null }` (use the repo-root variable that script already has). If `scripts/Build-TasksIndex.ps1` exists, call the script with `-RepoPath $RepoPath` at its end too. Add one line to my AIOS `AGENTS.md`: every `projects/<slug>/tasks/` is a generated symlink view of that project's cards, so cards are written only in the AIOS `tasks/`, never inside a project. Run `pwsh scripts/Sync-ProjectTaskViews.ps1`, then `-Check` and show me the output. It needs Windows Developer Mode on (Settings > System > For developers). Commit only those files.
 
 ## Load your own AIOS on top (each person, once per machine)
 
@@ -40,7 +40,7 @@ Select this repo folder in T3 Code. To also load your own AI operating system's 
 
 The Mac app is unsigned, so macOS blocks it the first time. Auto-update does not work on an unsigned Mac app: download each new version by hand.
 
-1. Download https://github.com/ItzJsimp/leonidas-code/releases/latest/download/Leonidas-Setup-mac.dmg and drag Leonidas Code to Applications.
+1. Download https://github.com/ItzJsimp/leonidas-app/releases/latest/download/Leonidas-Setup-mac.dmg and drag Leonidas Code to Applications.
 2. Open the app. When macOS blocks it, go to System Settings > Privacy & Security and click Open Anyway.
 3. If macOS says the app "is damaged", run this once in Terminal, then open the app again: `xattr -dr com.apple.quarantine "/Applications/Leonidas Code.app"`
 4. In the welcome wizard, sign in to Claude or Codex. The wizard installs them with the macOS command.

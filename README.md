@@ -18,7 +18,7 @@ Leonidas Code is a fork of [T3 Code](https://github.com/pingdotgg/t3code) by T3 
 
 ### Desktop app
 
-Download the latest Windows installer from [GitHub Releases](https://github.com/ItzJsimp/leonidas-code/releases). The app checks that repository for updates and shows a toast when a new release is ready.
+Download the latest Windows installer from [GitHub Releases](https://github.com/ItzJsimp/leonidas-app/releases). The app checks that repository for updates and shows a toast when a new release is ready.
 
 The installer is unsigned, so Windows SmartScreen warns once on first install. Updates still apply.
 
@@ -77,4 +77,4 @@ Grok Build and OpenCode must be installed before you can check their login comma
 
 Read [CONTRIBUTING.md](./CONTRIBUTING.md) before reporting a bug or opening a PR.
 
-Issues and ideas: https://github.com/ItzJsimp/leonidas-code/issues
+Issues and ideas: https://github.com/ItzJsimp/leonidas-app/issues

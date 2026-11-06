@@ -24,7 +24,7 @@ import { DesktopUpdateProgress } from "./DesktopUpdateProgress";
 import { fetchLatestReleaseWhatsNew, onWhatsNewPreviewRequested } from "./whatsNewPreview";
 
 const INSTALLER_URL =
-  "https://github.com/ItzJsimp/leonidas-code/releases/latest/download/Leonidas-Setup.exe";
+  "https://github.com/ItzJsimp/leonidas-app/releases/latest/download/Leonidas-Setup.exe";
 const INSTALL_FALLBACK = "Check your internet connection. Or download the latest installer.";
 
 function toastInstallError(description: string) {

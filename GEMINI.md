@@ -59,7 +59,7 @@ The brief both builders' agents read. Each builder's private notes live in their
 ## What Leonidas Code is (say it this way every time)
 
 - **T3 Code** is an open-source, MIT-licensed AI coding harness by T3 Tools (`pingdotgg/t3code`). We forked it.
-- **Leonidas Code** is our own product from that fork, repo `ItzJsimp/leonidas-code`, with its own features and direction. It is the shell of the **Leonidas app**: the Command Center is a view inside it, Scribe stays a tray process, and each user's AIOS is what it loads for them.
+- **Leonidas Code** is our own product from that fork, repo `ItzJsimp/leonidas-app`, with its own features and direction. It is the shell of the **Leonidas app**: the Command Center is a view inside it, Scribe stays a tray process, and each user's AIOS is what it loads for them.
 - It replaces the Claude Code and Antigravity front ends for both of us, on our own AI subscriptions.
 - Keep the MIT notice in `LICENSE`. Say "T3 Code" only about upstream (merges, credit, internal ids `@t3tools/*`, `T3CODE_*`, `~/.t3`, app id `com.t3tools.t3code`, which stay for data safety). Everywhere a user sees the app, it is Leonidas Code.
 

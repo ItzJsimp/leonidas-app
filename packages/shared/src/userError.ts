@@ -61,7 +61,7 @@ export interface DescribeUserErrorOptions {
 export const PROVIDER_SETTINGS_ROUTE = "/settings/providers";
 export const GENERAL_SETTINGS_ROUTE = "/settings/general";
 export const INSTALLER_DOWNLOAD_URL =
-  "https://github.com/ItzJsimp/leonidas-code/releases/latest/download/Leonidas-Setup.exe";
+  "https://github.com/ItzJsimp/leonidas-app/releases/latest/download/Leonidas-Setup.exe";
 
 const RETRY: UserErrorAction = { kind: "retry", label: "Try again" };
 const RELOAD: UserErrorAction = { kind: "reload", label: "Reload" };

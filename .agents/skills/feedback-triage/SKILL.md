@@ -32,7 +32,7 @@ Only when all hold: it is a `bug`, you located the cause, the fix is small and c
 
 1. Work in a new worktree under `C:/lcw/fix-<n>` from `origin/main`, branch `fix/feedback-<n>`. Run `pnpm install --frozen-lockfile` there first.
 2. Fix it with a focused test, run the scoped checks (`vp test run <files>`, `tsc --noEmit -p .`) and the `performance-gate` skill.
-3. Commit with a conventional `fix(...)` title in plain words, then open a **draft** PR against `main` in `ItzJsimp/leonidas-code`. The body explains the problem and fix in your own words and references the private issue as `feedback#<n>`; no reporter text, names or ids.
+3. Commit with a conventional `fix(...)` title in plain words, then open a **draft** PR against `main` in `ItzJsimp/leonidas-app`. The body explains the problem and fix in your own words and references the private issue as `feedback#<n>`; no reporter text, names or ids.
 4. Comment the PR link on the feedback issue and add `fix-drafted`.
 
 ## Hard limits

@@ -84,7 +84,7 @@ function psQuote(value: string): string {
 
 /** Raw file on the public main branch; the installed app has no repo checkout to run it from. */
 export const AIOS_FOLDERS_SCRIPT_URL =
-  "https://raw.githubusercontent.com/ItzJsimp/leonidas-code/main/scripts/New-AiosFolders.ps1";
+  "https://raw.githubusercontent.com/ItzJsimp/leonidas-app/main/scripts/New-AiosFolders.ps1";
 
 /** A leading ~/ becomes the user's home, since PowerShell would not expand it inside quotes. */
 function psFolderArgument(folder: string): string {

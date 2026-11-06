@@ -10,7 +10,7 @@
 param(
     [Parameter(Mandatory)][ValidateSet('List', 'Apply')][string]$Mode,
     [string]$Bundle = 'C:/lcw/dev-sync/in.bundle',
-    [string]$Repo = 'D:/Leonidas AIOS/projects/leonidas-code'
+    [string]$Repo = 'D:/Leonidas AIOS/projects/leonidas-app'
 )
 $ErrorActionPreference = 'Continue'   # git writes progress to stderr; check exit codes instead
 

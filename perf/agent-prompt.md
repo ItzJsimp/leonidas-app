@@ -32,7 +32,7 @@ Make Leonidas Code measurably faster, one small verified change per run. All ben
 
 - Kill only a PID you started. Never kill by name or pattern.
 - DO NOT push any branch. A push to main ships a release to users.
-- DO NOT touch D:/Leonidas AIOS/projects/leonidas-code, ~/.t3/userdata, or any other checkout.
+- DO NOT touch D:/Leonidas AIOS/projects/leonidas-app, ~/.t3/userdata, or any other checkout.
 - DO NOT change test files, TEST_FILES, or benchmark steps to make numbers look better.
 - Write in short, plain sentences. No em dash.
 

@@ -10,7 +10,7 @@ import * as NodeStreamPromises from "node:stream/promises";
 
 import type { LayaSetupResult } from "@t3tools/contracts";
 
-const RELEASE_URL = "https://github.com/ItzJsimp/leonidas-code/releases/download/laya-model-v1";
+const RELEASE_URL = "https://github.com/ItzJsimp/leonidas-app/releases/download/laya-model-v1";
 const REQUIRED_PACKAGES = ["onnxruntime", "tokenizers", "numpy"] as const;
 const PYTHON_CANDIDATES: ReadonlyArray<ReadonlyArray<string>> = [
   ["python"],

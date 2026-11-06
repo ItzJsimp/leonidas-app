@@ -19,7 +19,7 @@ $inlined = $agents -replace '(?m)^@LEONIDAS\.md\s*$', $brief.TrimEnd()
 $claude = @"
 $header
 @AGENTS.md
-<!-- Operator AIOS fallback: resolves when this repo sits at <AIOS>/projects/leonidas-code; ignored otherwise. -->
+<!-- Operator AIOS fallback: resolves when this repo sits at <AIOS>/projects/leonidas-app; ignored otherwise. -->
 @../../CLAUDE.md
 "@
 
