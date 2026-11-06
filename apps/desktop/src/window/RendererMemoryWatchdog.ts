@@ -18,7 +18,7 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
   vetoes a reload while an agent runs or waits, or a dialog is open.
 */
 export const RENDERER_MEMORY_LIMIT_BYTES = 2 * 1024 ** 3;
-export const RENDERER_OVER_LIMIT_SAMPLES = 3;
+const RENDERER_OVER_LIMIT_SAMPLES = 3;
 export const RENDERER_RELOAD_IDLE_SECONDS = 10 * 60;
 export const RENDERER_RELOAD_COOLDOWN_MS = 60 * 60_000;
 const SAMPLE_INTERVAL = Duration.minutes(1);

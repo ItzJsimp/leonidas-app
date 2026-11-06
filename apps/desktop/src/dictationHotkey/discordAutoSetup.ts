@@ -238,7 +238,7 @@ function withHiddenBind(text: string): string | undefined {
   return [...result].every((char) => char.charCodeAt(0) <= 0xff) ? result : undefined;
 }
 
-export const defaultAutoSetupDeps = (): AutoSetupDeps => ({
+const defaultAutoSetupDeps = (): AutoSetupDeps => ({
   dir: discordStoreDir(),
   // shortcut: Windows only, like the rest of the Discord store code. Add macOS with its store path.
   isDiscordRunning: async () => detectRunningApps(await listProcessNames("win32")).discord,
