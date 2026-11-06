@@ -845,12 +845,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["build plan composer old"],
   },
   {
-    id: "legacy-sidebar",
-    title: "Sidebar (legacy)",
-    to: "/settings/labs",
-    searchTerms: ["project thread tree old flat list"],
-  },
-  {
     id: "keybindings",
     title: "Keyboard shortcuts",
     to: "/settings/keybindings",

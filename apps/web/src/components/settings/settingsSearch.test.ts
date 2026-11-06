@@ -457,7 +457,7 @@ describe("settings search targets", () => {
     const streaming = getSettingsSearchTargetScope("response-streaming")!;
     expect(streaming.scope).toBe("project-defaults");
     expect(isSettingsSearchScopeAvailable(streaming.scope, "project")).toBe(true);
-    for (const id of ["legacy-plan-mode", "legacy-sidebar"]) {
+    for (const id of ["legacy-plan-mode"]) {
       expect(getSettingsSearchTargetScope(id)!.scope).toBeNull();
     }
   });

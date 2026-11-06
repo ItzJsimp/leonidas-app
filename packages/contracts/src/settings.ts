@@ -623,11 +623,6 @@ export const ClientSettingsSchema = Schema.Struct({
   composerToolbar: ComposerToolbarPrefs.pipe(
     Schema.withDecodingDefault(Effect.succeed({ hidden: [], order: [], custom: [] })),
   ),
-  // Legacy sidebar (the original per-project tree). Deliberately a fresh key
-  // (was `sidebarV2Enabled` + `sidebarV2ConfiguredByUser`): decoding drops the
-  // old keys, so everyone, including prior beta opt-outs, resets to the new
-  // default sidebar.
-  legacySidebarEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   // Beta: working and monitoring threads fold into a Working shelf and return
   // to the top of the inbox once they need the user. The inbox then orders by
   // time, so manual placement there is ignored (and kept) while it is on.
@@ -2067,7 +2062,6 @@ export const ClientSettingsPatch = Schema.Struct({
   skillFolders: Schema.optionalKey(SkillFolderPrefs),
   composerToolbarCollapsed: Schema.optionalKey(Schema.Boolean),
   composerToolbar: Schema.optionalKey(ComposerToolbarPrefs),
-  legacySidebarEnabled: Schema.optionalKey(Schema.Boolean),
   sidebarWorkingShelfEnabled: Schema.optionalKey(Schema.Boolean),
   sidebarProjectGroupingMode: Schema.optionalKey(SidebarProjectGroupingMode),
   sidebarProjectGroupingOverrides: Schema.optionalKey(
