@@ -54,13 +54,18 @@ fn words_with_starts(text: &str) -> (Vec<&str>, Vec<bool>) {
 /// Whether one written word is a term (see the module doc). `lower` holds every word seen
 /// written in lower case in the polished history.
 fn is_term(word: &str, sentence_start: bool, lower: &HashSet<String>) -> bool {
-    if word == "I" || word.starts_with("I'") {
+    if word == "I" || word.starts_with("I'") || word.starts_with("I\u{2019}") {
         return false;
     }
     let mut chars = word.chars();
     let first_upper = chars.next().is_some_and(char::is_uppercase);
     let inner_upper = chars.any(char::is_uppercase);
-    let coined = word.chars().any(|c| c.is_ascii_digit()) && word.chars().any(char::is_alphabetic);
+    // A letter next to a digit (`v1`, `gpt4`). `5-hour` is a style edit, not a term.
+    let letters: Vec<char> = word.chars().collect();
+    let coined = letters.windows(2).any(|w| {
+        (w[0].is_alphabetic() && w[1].is_ascii_digit())
+            || (w[0].is_ascii_digit() && w[1].is_alphabetic())
+    });
     inner_upper
         || coined
         || (first_upper && (!sentence_start || !lower.contains(&word.to_lowercase())))
@@ -79,8 +84,10 @@ fn replacements(
     if a.len() > MAX_WORDS || b.len() > MAX_WORDS {
         return Vec::new();
     }
-    let la: Vec<String> = a.iter().map(|w| w.to_lowercase()).collect();
-    let lb: Vec<String> = b.iter().map(|w| w.to_lowercase()).collect();
+    // A curly apostrophe is a punctuation change, not a new word.
+    let fold = |w: &&str| w.to_lowercase().replace('\u{2019}', "'");
+    let la: Vec<String> = a.iter().map(fold).collect();
+    let lb: Vec<String> = b.iter().map(fold).collect();
     // lcs[i][j]: longest common run of la[i..] and lb[j..].
     let mut lcs = vec![vec![0u16; lb.len() + 1]; la.len() + 1];
     for i in (0..la.len()).rev() {
@@ -279,6 +286,12 @@ mod tests {
         assert!(!is_term("I", false, &lower));
         assert!(!is_term("I'm", false, &lower));
         assert!(!is_term("5", false, &lower));
+        assert!(!is_term("5-hour", false, &lower));
+        assert!(!is_term("I\u{2019}m", false, &lower));
+        assert_eq!(
+            replacements("i'm here", "I\u{2019}m here.", Some(&lower)),
+            []
+        );
     }
 
     /// Before and after report on a real engine folder. Run:
@@ -288,7 +301,17 @@ mod tests {
     fn real_history_before_and_after() {
         let dir = std::path::PathBuf::from(std::env::var("SCRIBE_REAL_DIR").unwrap());
         let history = crate::history::History::open(&dir.join("history.jsonl"));
-        let page = history.page(crate::history::MAX_LIMIT, None, None);
+        // The engine mines the newest 500. SCRIBE_REAL_ALL=1 reads every line.
+        let mut items = Vec::new();
+        let mut before: Option<String> = None;
+        loop {
+            let page = history.page(crate::history::MAX_LIMIT, before.as_deref(), None);
+            items.extend(page.items);
+            before = page.next;
+            if before.is_none() || std::env::var_os("SCRIBE_REAL_ALL").is_none() {
+                break;
+            }
+        }
         let dictionary = crate::dictionary::Dictionary::load(&dir.join("dictionary.json"));
         let keys: HashSet<String> = dictionary
             .replacements
@@ -297,7 +320,7 @@ mod tests {
             .collect();
         let rejects = Rejects::open(&dir.join("suggestions-rejected.json"));
         let pairs = || {
-            page.items
+            items
                 .iter()
                 .map(|item| (item.raw_text.as_str(), item.cleaned_text.as_str()))
         };
@@ -306,7 +329,7 @@ mod tests {
         let after = mine_all(pairs(), known, true);
         println!(
             "dictations={} before={} after={}",
-            page.items.len(),
+            items.len(),
             before.len(),
             after.len()
         );
