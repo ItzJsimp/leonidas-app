@@ -10,6 +10,7 @@ pub mod dictionary;
 pub mod dictionary_sync;
 pub mod engine;
 pub mod errlog;
+pub mod failed;
 pub mod foreground;
 pub mod groq;
 pub mod history;

@@ -211,6 +211,11 @@ fn route(mut request: Request, engine: &Engine, services: &Services) {
             Ok(command) => state_reply(request, engine.stop(command.paste)),
             Err(()) => error(request, 400, "bad_request"),
         },
+        ("/v1/retry", Method::Post) => match engine.retry() {
+            Ok(Some(state)) => json(request, 200, &StateReply::new(state)),
+            Ok(None) => error(request, 404, "nothing_to_retry"),
+            Err(EngineError::InvalidState(_)) => error(request, 409, "invalid_state"),
+        },
         ("/v1/credentials/groq", Method::Put) => {
             match body::<CredentialRequest>(&mut request) {
                 Ok(command) if !command.key.trim().is_empty() => {
@@ -231,7 +236,15 @@ fn route(mut request: Request, engine: &Engine, services: &Services) {
                 error(request, 500, "store_error");
             }
         }
-        ("/v1/status" | "/v1/start" | "/v1/stop" | "/v1/events" | "/v1/credentials/groq", _) => {
+        (
+            "/v1/status"
+            | "/v1/start"
+            | "/v1/stop"
+            | "/v1/retry"
+            | "/v1/events"
+            | "/v1/credentials/groq",
+            _,
+        ) => {
             error(request, 405, "method_not_allowed");
         }
         _ => error(request, 404, "not_found"),

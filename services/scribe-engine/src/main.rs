@@ -110,7 +110,10 @@ fn run() -> Result<(), String> {
         cfg.audio.min_record_ms,
         Some(Arc::new(History::open(&config_dir.join("history.jsonl")))),
     )
-    .with_foreground(scribe_engine::foreground::foreground_app);
+    .with_foreground(scribe_engine::foreground::foreground_app)
+    .with_failed_store(scribe_engine::failed::FailedStore::new(
+        &config_dir.join("failed"),
+    ));
 
     let server = http::serve(
         engine.clone(),
