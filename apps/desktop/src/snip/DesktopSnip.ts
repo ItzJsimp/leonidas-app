@@ -9,14 +9,18 @@ import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
+import { captureMacSnip } from "./MacSnip.ts";
 import { makeSnipOverlay } from "./SnipOverlay.ts";
 import {
   captureSnipFrames,
   encodeSnipPng,
+  isMacScreenRecordingBlocked,
+  openMacScreenRecordingSettings,
   openSnipsDirectory,
   readSnipDisplays,
   readSnipImage,
   saveSnipPng,
+  snipPngSize,
   snipThumbnailDataUrl,
 } from "./SnipElectron.ts";
 import { listSnipFiles, resolveSnipPath } from "./SnipLibrary.ts";
@@ -25,6 +29,7 @@ import { loadWindowListApi, listVisibleWindows } from "./WindowList.ts";
 
 const DesktopSnipOperation = Schema.Literals([
   "unsupported",
+  "permission",
   "capture",
   "save",
   "list",
@@ -40,6 +45,8 @@ export class DesktopSnipError extends Schema.TaggedError<DesktopSnipError>()("De
     switch (this.operation) {
       case "unsupported":
         return "Snipping is not available on this computer yet.";
+      case "permission":
+        return "Allow Leonidas to record your screen: open System Settings, Privacy & Security, Screen Recording, turn on Leonidas, then reopen the app.";
       case "capture":
         return "Could not capture the screen.";
       case "save":
@@ -76,7 +83,36 @@ export const layer = Layer.effect(
     const preloadPath = path.join(environment.dirname, "snip-overlay-preload.cjs");
     const running = yield* Ref.make(false);
 
+    // macOS uses the system selector (drag an area, Space for a window, Esc to cancel).
+    const startMac = Effect.gen(function* () {
+      if (isMacScreenRecordingBlocked()) {
+        yield* Effect.promise(() => openMacScreenRecordingSettings().catch(() => undefined));
+        return yield* new DesktopSnipError({ operation: "permission" });
+      }
+      if (yield* Ref.getAndSet(running, true)) return { status: "cancelled" as const };
+      const now = yield* Clock.currentTimeMillis;
+      return yield* Effect.tryPromise({
+        try: async (): Promise<DesktopSnipResult> => {
+          const png = await captureMacSnip();
+          if (png === null) return { status: "cancelled" };
+          const saved = await saveSnipPng(snipsDirectory, png, now).catch(() => ({
+            path: "",
+            name: "snip.png",
+          }));
+          return {
+            status: "saved",
+            path: saved.path,
+            name: saved.name,
+            ...snipPngSize(png),
+            dataUrl: `data:image/png;base64,${png.toString("base64")}`,
+          };
+        },
+        catch: (cause) => new DesktopSnipError({ operation: "capture", cause }),
+      }).pipe(Effect.ensuring(Ref.set(running, false)));
+    });
+
     const start = Effect.gen(function* () {
+      if ((yield* HostProcess.Platform) === "darwin") return yield* startMac;
       if (!(yield* HostProcess.isWindows)) {
         return yield* new DesktopSnipError({ operation: "unsupported" });
       }

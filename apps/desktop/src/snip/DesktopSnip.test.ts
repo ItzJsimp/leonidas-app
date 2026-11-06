@@ -12,9 +12,14 @@ const mocks = vi.hoisted(() => ({
   runSnip: vi.fn(),
   release: vi.fn(),
   loadWindowListApi: vi.fn(),
+  captureMacSnip: vi.fn(),
+  saveSnipPng: vi.fn(),
+  isMacScreenRecordingBlocked: vi.fn(),
+  openMacScreenRecordingSettings: vi.fn(),
 }));
 
 vi.mock("./SnipRunner.ts", () => ({ runSnip: mocks.runSnip }));
+vi.mock("./MacSnip.ts", () => ({ captureMacSnip: mocks.captureMacSnip }));
 vi.mock("./SnipOverlay.ts", () => ({
   makeSnipOverlay: () => ({ pick: vi.fn(), release: mocks.release }),
 }));
@@ -28,8 +33,11 @@ vi.mock("./SnipElectron.ts", () => ({
   openSnipsDirectory: vi.fn(),
   readSnipDisplays: () => [],
   readSnipImage: vi.fn(),
-  saveSnipPng: vi.fn(),
+  saveSnipPng: mocks.saveSnipPng,
+  snipPngSize: () => ({ width: 4, height: 2 }),
   snipThumbnailDataUrl: vi.fn(),
+  isMacScreenRecordingBlocked: mocks.isMacScreenRecordingBlocked,
+  openMacScreenRecordingSettings: mocks.openMacScreenRecordingSettings,
 }));
 
 import * as DesktopSnip from "./DesktopSnip.ts";
@@ -52,6 +60,10 @@ beforeEach(() => {
   mocks.runSnip.mockReset();
   mocks.release.mockReset();
   mocks.loadWindowListApi.mockReset().mockResolvedValue({});
+  mocks.captureMacSnip.mockReset();
+  mocks.saveSnipPng.mockReset();
+  mocks.isMacScreenRecordingBlocked.mockReset().mockReturnValue(false);
+  mocks.openMacScreenRecordingSettings.mockReset().mockResolvedValue(undefined);
 });
 
 it.effect("returns the saved snip and frees the overlay", () => {
@@ -116,5 +128,80 @@ it.effect("cancels a second start while the first overlay is open, then allows a
       assert.deepStrictEqual(third, { status: "cancelled" });
       assert.strictEqual(mocks.runSnip.mock.calls.length, 2);
     }),
+  );
+});
+
+it.effect("on macOS saves the snip from the system selector and returns it", () => {
+  mocks.captureMacSnip.mockResolvedValue(Buffer.from("png-bytes"));
+  mocks.saveSnipPng.mockResolvedValue({ path: "/state/snips/m.png", name: "m.png" });
+  return withService(
+    Effect.gen(function* () {
+      const result = yield* (yield* DesktopSnip.DesktopSnip).start;
+      assert.deepStrictEqual(result, {
+        status: "saved",
+        path: "/state/snips/m.png",
+        name: "m.png",
+        width: 4,
+        height: 2,
+        dataUrl: `data:image/png;base64,${Buffer.from("png-bytes").toString("base64")}`,
+      });
+      assert.strictEqual(mocks.runSnip.mock.calls.length, 0);
+    }),
+    "darwin",
+  );
+});
+
+it.effect("on macOS still returns the snip when it cannot be saved to disk", () => {
+  mocks.captureMacSnip.mockResolvedValue(Buffer.from("png-bytes"));
+  mocks.saveSnipPng.mockRejectedValue(new Error("disk full"));
+  return withService(
+    Effect.gen(function* () {
+      const result = yield* (yield* DesktopSnip.DesktopSnip).start;
+      assert.strictEqual(result.status, "saved");
+      assert.strictEqual(result.status === "saved" ? result.name : "", "snip.png");
+    }),
+    "darwin",
+  );
+});
+
+it.effect("on macOS a cancelled selection saves nothing and a second snip can start", () => {
+  mocks.captureMacSnip.mockResolvedValue(null);
+  return withService(
+    Effect.gen(function* () {
+      const service = yield* DesktopSnip.DesktopSnip;
+      assert.deepStrictEqual(yield* service.start, { status: "cancelled" });
+      assert.deepStrictEqual(yield* service.start, { status: "cancelled" });
+      assert.strictEqual(mocks.saveSnipPng.mock.calls.length, 0);
+      assert.strictEqual(mocks.captureMacSnip.mock.calls.length, 2);
+    }),
+    "darwin",
+  );
+});
+
+it.effect(
+  "on macOS explains the Screen Recording setting and opens it when access is refused",
+  () => {
+    mocks.isMacScreenRecordingBlocked.mockReturnValue(true);
+    return withService(
+      Effect.gen(function* () {
+        const error = yield* Effect.flip((yield* DesktopSnip.DesktopSnip).start);
+        assert.strictEqual(error.operation, "permission");
+        assert.include(error.message, "Screen Recording");
+        assert.strictEqual(mocks.openMacScreenRecordingSettings.mock.calls.length, 1);
+        assert.strictEqual(mocks.captureMacSnip.mock.calls.length, 0);
+      }),
+      "darwin",
+    );
+  },
+);
+
+it.effect("on macOS maps a capture failure to a snip error", () => {
+  mocks.captureMacSnip.mockRejectedValue(new Error("ENOENT"));
+  return withService(
+    Effect.gen(function* () {
+      const error = yield* Effect.flip((yield* DesktopSnip.DesktopSnip).start);
+      assert.strictEqual(error.operation, "capture");
+    }),
+    "darwin",
   );
 });

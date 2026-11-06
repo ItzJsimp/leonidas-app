@@ -5,6 +5,7 @@ import * as NodePath from "node:path";
 
 import * as Electron from "electron";
 
+import { MAC_PERMISSION_SETTINGS_URLS } from "../permissions/MacPermission.ts";
 import type { SnipFrame } from "./SnipCompose.ts";
 import type { SnipDisplay } from "./SnipGeometry.ts";
 
@@ -108,4 +109,19 @@ export async function openSnipsDirectory(directory: string): Promise<void> {
   await NodeFSP.mkdir(directory, { recursive: true });
   const failure = await Electron.shell.openPath(directory);
   if (failure.length > 0) throw new Error(failure);
+}
+
+/** True when macOS already refused screen recording for this app, or a policy blocks it. */
+export function isMacScreenRecordingBlocked(): boolean {
+  const status = Electron.systemPreferences.getMediaAccessStatus("screen");
+  return status === "denied" || status === "restricted";
+}
+
+/** Opens System Settings at Screen Recording. Best effort: the error message tells the same path. */
+export function openMacScreenRecordingSettings(): Promise<void> {
+  return Electron.shell.openExternal(MAC_PERMISSION_SETTINGS_URLS["screen-recording"]);
+}
+
+export function snipPngSize(png: Buffer): { readonly width: number; readonly height: number } {
+  return Electron.nativeImage.createFromBuffer(png).getSize();
 }

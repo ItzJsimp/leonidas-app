@@ -1,16 +1,17 @@
 import type { DesktopBridge, DesktopSnipResult } from "@t3tools/contracts";
 
 import { dataUrlToFile } from "./imageCompression";
-import { isWindowsPlatform } from "./utils";
+import { isMacPlatform, isWindowsPlatform } from "./utils";
 
 type SnipMethods = "startSnip" | "listRecentSnips" | "readSnip" | "openSnipsFolder";
 
 export type DesktopSnipBridge = DesktopBridge & Required<Pick<DesktopBridge, SnipMethods>>;
 
-/** The snip tool needs the desktop app and Windows for now. */
+/** The snip tool needs the desktop app on Windows or macOS. */
 export function getDesktopSnipBridge(): DesktopSnipBridge | undefined {
   if (typeof window === "undefined") return undefined;
-  if (!isWindowsPlatform(window.navigator.platform)) return undefined;
+  const platform = window.navigator.platform;
+  if (!isWindowsPlatform(platform) && !isMacPlatform(platform)) return undefined;
   const bridge = window.desktopBridge;
   if (
     typeof bridge?.startSnip !== "function" ||
