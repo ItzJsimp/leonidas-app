@@ -104,7 +104,7 @@ export function WindowHeader({
                 className={cn(
                   TAB_CLASS,
                   selected
-                    ? "border-foreground font-medium text-foreground"
+                    ? "border-primary font-medium text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >

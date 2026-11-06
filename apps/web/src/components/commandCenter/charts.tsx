@@ -30,7 +30,7 @@ export function ProgressBar({
       className="h-1 w-full overflow-hidden rounded-full bg-muted-foreground/70"
     >
       <div
-        className={cn("h-full rounded-full", percent >= 100 ? "bg-success" : "bg-foreground")}
+        className={cn("h-full rounded-full", percent >= 100 ? "bg-success" : "bg-state")}
         style={{ width: `${percent}%` }}
       />
     </div>
@@ -97,7 +97,7 @@ export function Ring({
           strokeLinecap="round"
           strokeDasharray={RING_LENGTH}
           strokeDashoffset={RING_LENGTH * (1 - percent / 100)}
-          className="stroke-foreground"
+          className="stroke-state"
         />
       </svg>
       <span className="absolute inset-0 grid place-items-center text-xs font-semibold tabular-nums">
@@ -109,7 +109,7 @@ export function Ring({
 
 const GAUGE_LENGTH = Math.PI * 52;
 
-/** A half ring for one goal: a muted track and a foreground fill. */
+/** A half ring for one goal: a muted track and a state-color fill. */
 export function HalfGauge({
   percent,
   label,
@@ -134,7 +134,7 @@ export function HalfGauge({
           strokeLinecap="round"
           strokeDasharray={GAUGE_LENGTH}
           strokeDashoffset={GAUGE_LENGTH * (1 - percent / 100)}
-          className="stroke-foreground"
+          className="stroke-state"
         />
       </svg>
       <span className="absolute inset-x-0 bottom-0 text-center font-display text-2xl leading-none font-semibold tabular-nums">
