@@ -120,7 +120,7 @@ export function makeFeedEventId(now: number = Date.now()): string {
 }
 
 /** Local time with its UTC offset, for example `2026-10-20T21:14:03-07:00`. */
-export function feedEventTimestamp(now: number = Date.now()): string {
+function feedEventTimestamp(now: number = Date.now()): string {
   const date = new Date(now);
   const offset = -date.getTimezoneOffset();
   const pad = (value: number) => String(Math.floor(Math.abs(value))).padStart(2, "0");

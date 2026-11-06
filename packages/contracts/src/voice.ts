@@ -64,7 +64,7 @@ export class VoiceError extends Schema.TaggedError<VoiceError>()("VoiceError", {
 }
 
 /** Plain words for every failure, shown under the composer. */
-export function voiceErrorMessage(reason: VoiceErrorReason): string {
+function voiceErrorMessage(reason: VoiceErrorReason): string {
   switch (reason) {
     case "no_key":
       return "Voice is off. Add your free Groq key to turn it on.";
