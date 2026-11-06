@@ -166,6 +166,9 @@ impl DeepgramSpeech {
 }
 
 impl Cloud for DeepgramSpeech {
+    fn ready(&self) -> bool {
+        self.key.get().is_some()
+    }
     fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure> {
         const NAME: &str = "Deepgram";
         let key = self.key.get().ok_or_else(|| no_key(NAME))?;
@@ -230,6 +233,9 @@ impl GeminiSpeech {
 }
 
 impl Cloud for GeminiSpeech {
+    fn ready(&self) -> bool {
+        self.key.get().is_some()
+    }
     fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure> {
         const NAME: &str = "Gemini";
         let key = self.key.get().ok_or_else(|| no_key(NAME))?;
@@ -278,12 +284,22 @@ impl Cloud for GeminiSpeech {
 
 /// Speech providers in order. The first reply wins. When all fail, the first failure is
 /// reported, and `offline` lets the local model still try.
+/// shortcut: providers run one after another, so a Groq that stalls (not one that refuses)
+/// holds the backup until Groq's own timeout. Upgrade to a hedged start if stalls show up
+/// in the `speech: groq failed` log lines.
 pub struct CloudChain(pub Vec<(String, Arc<dyn Cloud>)>);
 
 impl Cloud for CloudChain {
     fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure> {
         let mut first: Option<CloudFailure> = None;
-        for (name, cloud) in &self.0 {
+        let ready: Vec<_> = self.0.iter().filter(|(_, c)| c.ready()).collect();
+        // With no key anywhere, the first provider still runs, so its "no key" message shows.
+        let members = if ready.is_empty() {
+            self.0.iter().take(1).collect()
+        } else {
+            ready
+        };
+        for (name, cloud) in members {
             match cloud.transcribe_cloud(audio) {
                 Ok(done) => {
                     if first.is_some() {
@@ -500,6 +516,36 @@ mod tests {
         ]);
         let failure = chain.transcribe_cloud(&audio()).unwrap_err();
         assert_eq!(failure.message, "first failed");
+    }
+
+    #[test]
+    fn a_provider_without_a_key_is_skipped_without_a_request() {
+        let server = Server::start(|_| Reply::json(500, "{}"));
+        let keyless = DeepgramSpeech::new(
+            &cfg(&server.base_url()),
+            ProviderKey::new("SCRIBE_TEST_UNSET_KEY", None),
+            dictionary(),
+        );
+        assert!(!keyless.ready());
+        let gemini = Server::start(|_| {
+            Reply::json(
+                200,
+                r#"{"candidates":[{"content":{"parts":[{"text":"served"}]}}]}"#,
+            )
+        });
+        let chain = CloudChain(vec![
+            ("deepgram".into(), Arc::new(keyless)),
+            (
+                "gemini".into(),
+                Arc::new(GeminiSpeech::new(
+                    &cfg(&gemini.base_url()),
+                    key("k"),
+                    dictionary(),
+                )),
+            ),
+        ]);
+        assert_eq!(chain.transcribe_cloud(&audio()).unwrap().text, "served");
+        assert_eq!(server.log.lock().unwrap().len(), 0);
     }
 
     #[test]

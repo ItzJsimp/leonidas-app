@@ -179,13 +179,14 @@ impl Engine {
     /// The text goes to history and the clipboard, never into the window in front.
     pub fn retry(&self) -> Result<Option<State>, EngineError> {
         let shared = &*self.0;
+        // Read the file before the lock, so a slow disk never blocks status or start.
+        let Some((path, audio)) = shared.failed.as_ref().and_then(|s| s.latest()) else {
+            return Ok(None);
+        };
         let mut inner = shared.inner.lock().unwrap();
         if inner.state != State::Ready {
             return Err(EngineError::InvalidState(inner.state));
         }
-        let Some((path, audio)) = shared.failed.as_ref().and_then(|s| s.latest()) else {
-            return Ok(None);
-        };
         let private = shared.transcriber.private_mode();
         Self::set_state(shared, &mut inner, State::Processing);
         drop(inner);

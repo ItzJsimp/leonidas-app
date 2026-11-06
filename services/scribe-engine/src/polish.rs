@@ -350,7 +350,7 @@ impl GroqPolisher {
     fn order(&self) -> Vec<(usize, String)> {
         let mut all: Vec<(usize, String)> = Vec::new();
         for (index, client) in self.clients().enumerate() {
-            if index > 0 && client.key().is_none() {
+            if client.key().is_none() {
                 continue;
             }
             for model in [&client.cfg.polish_model, &client.cfg.backup_polish_model] {

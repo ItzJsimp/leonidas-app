@@ -132,7 +132,9 @@ impl Default for GroqConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct BackupConfig {
-    /// Speech providers in order: `groq`, `deepgram`, `gemini`. The first reply wins.
+    /// Speech providers in order: `deepgram`, `groq`, `gemini`. The first reply wins. A provider
+    /// without a key is skipped. Deepgram is first: 222 ms p50 against 605 ms for Groq on 40 real
+    /// takes (2026-11-06), on its one-time credit.
     pub speech: Vec<String>,
     /// Polish vendors after the Groq models, in order: `gemini`.
     pub polish: Vec<String>,
@@ -151,7 +153,7 @@ pub struct BackupConfig {
 impl Default for BackupConfig {
     fn default() -> Self {
         Self {
-            speech: vec!["groq".into(), "deepgram".into(), "gemini".into()],
+            speech: vec!["deepgram".into(), "groq".into(), "gemini".into()],
             polish: vec!["gemini".into()],
             deepgram_base_url: "https://api.deepgram.com/v1".into(),
             deepgram_model: "nova-3".into(),

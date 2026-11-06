@@ -64,6 +64,8 @@ impl FailedStore {
 
     /// The newest saved recording, ready to send again.
     pub fn latest(&self) -> Option<(PathBuf, EncodedAudio)> {
+        // Never offer a take past MAX_AGE, even when no save has pruned it yet.
+        self.prune();
         let path = self.files().into_iter().next()?;
         let bytes = std::fs::read(&path).ok()?;
         let flac = path.extension().is_some_and(|e| e == "flac");
@@ -146,6 +148,21 @@ mod tests {
         );
         s.remove(&path);
         assert_eq!(s.count(), 1);
+    }
+
+    #[test]
+    fn a_take_past_max_age_is_never_offered() {
+        let s = store("age");
+        let path = s.save(&audio(1)).unwrap();
+        let old = SystemTime::now() - MAX_AGE - Duration::from_secs(60);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(old)
+            .unwrap();
+        assert!(s.latest().is_none());
+        assert_eq!(s.count(), 0);
     }
 
     #[test]

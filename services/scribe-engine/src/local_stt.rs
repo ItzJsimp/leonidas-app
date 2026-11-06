@@ -43,6 +43,10 @@ pub trait LocalModel: Send + Sync {
 
 pub trait Cloud: Send + Sync {
     fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure>;
+    /// False when the provider has no key, so a chain skips it without a request or a log line.
+    fn ready(&self) -> bool {
+        true
+    }
 }
 
 impl Cloud for GroqClient {
