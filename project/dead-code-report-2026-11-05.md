@@ -408,3 +408,17 @@ Prior record: [docs/operations/shared-browser-audit-exception.md](../docs/operat
 - **Catalog entries** in [pnpm-workspace.yaml](../pnpm-workspace.yaml): removal edits the workspace file and can change `pnpm-lock.yaml`. Do that in a separate, reviewed change.
 - **Mobile and relay:** this scan did not build or run `apps/mobile` or `infra/relay`. Expo and Cloudflare loaders can use exports by name.
 - **Not checked:** unused types (rule is off), unused class members, and the `knip:production` profile.
+
+## Corrections after the first cleanup slice
+
+A reference check on `origin/main` (2d9a120e87) found that the file ranking above was too eager. Do not delete these six scripts. Each is a tool that people run by hand, and live text names it:
+
+- `scripts/dev-health.mjs`: the error screen in `apps/web/index.html` tells users to run it.
+- `scripts/generate-aios-folders.ts`: it rebuilds `New-AiosFolders.ps1`, and a test names it.
+- `scripts/mock-feedback-relay.ts`: `feedbackRelay.ts` names it as the dev mock.
+- `scripts/extract-prompt-style-standard.ts`: it rebuilds a data file for `promptPrediction.ts`.
+- `scripts/trace-latency-report.ts` and `scripts/ponytail-commit-size.mjs`: read-only tools with usage lines.
+
+Knip also flagged `scripts/self-sign-macos.cjs` on `origin/main`. It is a false positive: `build-desktop-artifact.ts` passes it to electron-builder as `afterSign`. All seven are now knip entries (branch `chore/dead-code` in `C:/lcw/dead-code`).
+
+Deleted for real (commits `1fcacbb7a5` and `01d18f7cf1`): `EventInbox.tsx`, `PonytailCard.tsx`, `VoiceLogCard.tsx`, `GoalProgressCard.tsx`, `OpenRouterAdapterV2.schema.ts`, `LegacySidebar.tsx`, the Sidebar (legacy) switch, the `legacySidebarEnabled` setting key and `@formkit/auto-animate`. Net −4,841 lines.
