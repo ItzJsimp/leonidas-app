@@ -9,7 +9,7 @@
 param(
   [switch]$WaitForExit,
   [switch]$PrepareOnly,
-  [string]$Repository = 'ItzJsimp/leonidas-code'
+  [string]$Repository = 'ItzJsimp/leonidas-app'
 )
 $ErrorActionPreference = 'Stop'
 $app = Join-Path $env:LOCALAPPDATA 'Programs/t3code/Leonidas Code.exe'

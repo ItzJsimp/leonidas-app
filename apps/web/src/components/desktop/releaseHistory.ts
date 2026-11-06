@@ -1,6 +1,6 @@
 import { parseReleaseArticle } from "./releaseArticle";
 
-const RELEASES_URL = "https://api.github.com/repos/ItzJsimp/leonidas-code/releases";
+const RELEASES_URL = "https://api.github.com/repos/ItzJsimp/leonidas-app/releases";
 
 export interface ReleaseHistoryMeta {
   readonly commit?: string;
@@ -83,7 +83,7 @@ export function parseReleaseHistory(value: unknown): ReleaseHistoryEntry[] {
         notes: [...new Set(notes)],
         url:
           typeof row.html_url === "string" &&
-          row.html_url.startsWith("https://github.com/ItzJsimp/leonidas-code/releases/")
+          row.html_url.startsWith("https://github.com/ItzJsimp/leonidas-app/releases/")
             ? row.html_url
             : "",
         meta,

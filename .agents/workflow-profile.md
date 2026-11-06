@@ -22,7 +22,7 @@ The Idea to Ship commands read this file first. Rules come from [AGENTS.md](../A
 
 1. Commit on the current branch with explicit paths. A PR only when the user asks for one: plain conventional title, body from the `pr` skill (problem, fix, model and harness, before/after images for UI).
 2. User-visible change: patch notes and version with `leonidas-release`.
-3. Release: Gate 2 in this repo is the checks above. When they all pass, the agent merges `origin/main` and pushes to `main` by itself, then confirms the release is published.
+3. Release: Gate 2 in this repo is the checks above. When they pass, land with `pwsh scripts/Invoke-MergeQueue.ps1 -Branch task/<slug> -Task <slug> -Wait`. The queue runs the checks and pushes on green. Then confirm the release is published.
 
 ## Never
 

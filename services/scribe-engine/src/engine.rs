@@ -40,6 +40,8 @@ pub struct Transcription {
     pub text: String,
     pub engine: SttEngine,
     pub private: bool,
+    /// Who served it, as `provider/model`, for example `groq/whisper-large-v3-turbo`.
+    pub source: String,
 }
 
 pub trait Transcriber: Send + Sync {
@@ -53,6 +55,10 @@ pub trait Transcriber: Send + Sync {
 pub trait Polisher: Send + Sync {
     /// Never fails: on any error it returns the best text it has (at least `raw`).
     fn polish(&self, raw: &str) -> String;
+    /// The polished text and who served it (`provider/model`, `fast-path` or `none`).
+    fn polish_traced(&self, raw: &str) -> (String, String) {
+        (self.polish(raw), String::new())
+    }
     fn rewrite(&self, _text: &str, _instruction: &str) -> Result<String, String> {
         Err("Rewrite unavailable.".into())
     }
@@ -71,6 +77,9 @@ impl<T: Transcriber + ?Sized> Transcriber for Arc<T> {
 impl<T: Polisher + ?Sized> Polisher for Arc<T> {
     fn polish(&self, raw: &str) -> String {
         (**self).polish(raw)
+    }
+    fn polish_traced(&self, raw: &str) -> (String, String) {
+        (**self).polish_traced(raw)
     }
     fn rewrite(&self, text: &str, instruction: &str) -> Result<String, String> {
         (**self).rewrite(text, instruction)
@@ -118,6 +127,8 @@ struct Shared {
     rewriting: AtomicBool,
     /// Bumped by `cancel_rewrite`, so a cancelled rewrite never pastes.
     rewrite_gen: AtomicU64,
+    /// Audio of takes that every provider failed, for a retry. `None` keeps nothing.
+    failed: Option<crate::failed::FailedStore>,
 }
 
 /// Cheap to clone; all clones drive the same engine.
@@ -152,7 +163,48 @@ impl Engine {
             foreground: Box::new(String::new),
             rewriting: AtomicBool::new(false),
             rewrite_gen: AtomicU64::new(0),
+            failed: None,
         }))
+    }
+
+    /// Keep the audio of failed takes for `retry`. Call it before the first clone.
+    pub fn with_failed_store(mut self, store: crate::failed::FailedStore) -> Self {
+        Arc::get_mut(&mut self.0)
+            .expect("with_failed_store runs before the engine is shared")
+            .failed = Some(store);
+        self
+    }
+
+    /// Run the newest failed take again. Allowed in `ready` only. `Ok(None)`: nothing saved.
+    /// The text goes to history and the clipboard, never into the window in front.
+    pub fn retry(&self) -> Result<Option<State>, EngineError> {
+        let shared = &*self.0;
+        // Read the file before the lock, so a slow disk never blocks status or start.
+        let Some((path, audio)) = shared.failed.as_ref().and_then(|s| s.latest()) else {
+            return Ok(None);
+        };
+        let mut inner = shared.inner.lock().unwrap();
+        if inner.state != State::Ready {
+            return Err(EngineError::InvalidState(inner.state));
+        }
+        let private = shared.transcriber.private_mode();
+        Self::set_state(shared, &mut inner, State::Processing);
+        drop(inner);
+        let engine = self.clone();
+        std::thread::Builder::new()
+            .name("scribe-retry".into())
+            .spawn(move || {
+                engine.process(
+                    audio,
+                    false,
+                    Mode::Toggle,
+                    String::new(),
+                    private,
+                    Some(path),
+                )
+            })
+            .expect("spawn scribe-retry thread");
+        Ok(Some(State::Processing))
     }
 
     /// v1.2: set how the engine reads the app in front. Call it before the first clone.
@@ -276,6 +328,8 @@ impl Engine {
                                 raw_text: text.clone(),
                                 cleaned_text: result.clone(),
                                 preset: Some(preset.name),
+                                stt: String::new(),
+                                polish: String::new(),
                                 metrics: HistoryMetrics {
                                     transcribe_ms: 0,
                                     polish_ms: millis(started.elapsed()),
@@ -419,19 +473,36 @@ impl Engine {
         let engine = self.clone();
         std::thread::Builder::new()
             .name("scribe-process".into())
-            .spawn(move || engine.process(audio, paste, mode, app, private))
+            .spawn(move || engine.process(audio, paste, mode, app, private, None))
             .expect("spawn scribe-process thread");
         Ok(State::Processing)
     }
 
-    fn process(&self, audio: EncodedAudio, paste: bool, mode: Mode, app: String, private: bool) {
+    /// `retry_of`: the saved file this take came from. It is removed once the take succeeds.
+    fn process(
+        &self,
+        audio: EncodedAudio,
+        paste: bool,
+        mode: Mode,
+        app: String,
+        private: bool,
+        retry_of: Option<std::path::PathBuf>,
+    ) {
         let shared = &*self.0;
         let started = Instant::now();
+        let done = |text: Option<&str>| {
+            if let (Some(path), Some(store)) = (&retry_of, &shared.failed) {
+                if let Some(text) = text.filter(|t| !t.is_empty()) {
+                    shared.paster.copy(text);
+                }
+                store.remove(path);
+            }
+        };
         match shared.transcriber.transcribe(&audio) {
-            Ok(t) if t.text.trim().is_empty() => {}
+            Ok(t) if t.text.trim().is_empty() => done(None),
             Ok(t) => {
                 let transcribed = Instant::now();
-                let text = shared.polisher.polish(&t.text);
+                let (text, polished_by) = shared.polisher.polish_traced(&t.text);
                 let polished = Instant::now();
                 let pasted = paste && !text.is_empty() && shared.paster.paste(&text);
                 let at_ms = crate::contract::unix_ms_now();
@@ -441,6 +512,8 @@ impl Engine {
                         at: at.clone(),
                         mode: mode_name(mode).into(),
                         preset: None,
+                        stt: t.source.clone(),
+                        polish: polished_by,
                         app,
                         raw_text: t.text.clone(),
                         cleaned_text: text.clone(),
@@ -454,6 +527,7 @@ impl Engine {
                         at_ms,
                     })
                 });
+                done(Some(&text));
                 Self::emit(
                     shared,
                     Event::Transcript {
@@ -479,14 +553,26 @@ impl Engine {
                     None => {}
                 }
             }
-            Err(message) => Self::emit(
-                shared,
-                Event::Error {
-                    code: "stt_error".into(),
-                    message,
-                    at: now_iso(),
-                },
-            ),
+            Err(mut message) => {
+                // Keep the audio, so the words are not lost. A retry keeps its own file. A private
+                // take is never kept: a later retry with private mode off would upload it.
+                let kept = match (&shared.failed, &retry_of) {
+                    (Some(_), Some(_)) => true,
+                    (Some(store), None) if !private => store.save(&audio).is_ok(),
+                    _ => false,
+                };
+                if kept {
+                    message.push_str(" The audio is saved. Retry it in Scribe.");
+                }
+                Self::emit(
+                    shared,
+                    Event::Error {
+                        code: "stt_error".into(),
+                        message,
+                        at: now_iso(),
+                    },
+                )
+            }
         }
         let mut inner = shared.inner.lock().unwrap();
         Self::set_state(shared, &mut inner, State::Ready);
@@ -546,6 +632,7 @@ pub mod fakes {
                 text,
                 engine: SttEngine::Groq,
                 private: false,
+                source: "fake/stt".into(),
             })
         }
     }
@@ -820,6 +907,81 @@ mod tests {
         (engine, history, path)
     }
 
+    #[test]
+    fn a_take_every_provider_failed_is_kept_and_a_retry_saves_and_copies_it() {
+        struct Flaky(AtomicBool);
+        impl Transcriber for Flaky {
+            // Unknown privacy counts as private, and a private take is never kept.
+            fn private_mode(&self) -> bool {
+                false
+            }
+            fn transcribe(&self, _: &EncodedAudio) -> Result<Transcription, String> {
+                if self.0.swap(false, Ordering::SeqCst) {
+                    return Err("Could not reach Groq.".into());
+                }
+                Ok(Transcription {
+                    text: "hello again".into(),
+                    engine: SttEngine::Groq,
+                    private: false,
+                    source: "deepgram/nova-3".into(),
+                })
+            }
+        }
+        #[derive(Default)]
+        struct Copies(Mutex<Vec<String>>);
+        impl Paster for Arc<Copies> {
+            fn paste(&self, _: &str) -> bool {
+                false
+            }
+            fn copy(&self, text: &str) -> bool {
+                self.0.lock().unwrap().push(text.to_owned());
+                true
+            }
+        }
+        let dir = std::env::temp_dir().join(format!("scribe-eng-retry-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let history = Arc::new(History::open(&dir.join("history.jsonl")));
+        let copies = Arc::new(Copies::default());
+        let engine = Engine::new(
+            Box::new(FakeRecorder {
+                duration_ms: 1000,
+                ..Default::default()
+            }),
+            Box::new(Flaky(AtomicBool::new(true))),
+            Box::new(UpperPolish),
+            Box::new(copies.clone()),
+            250,
+            Some(history.clone()),
+        )
+        .with_failed_store(crate::failed::FailedStore::new(&dir.join("failed")));
+        let store = crate::failed::FailedStore::new(&dir.join("failed"));
+        assert_eq!(engine.retry(), Ok(None));
+        let rx = engine.subscribe();
+        engine.start(Mode::Toggle, None).unwrap();
+        engine.stop(true).unwrap();
+        match next_history_or_error(&rx) {
+            Event::Error { code, message, .. } => {
+                assert_eq!(code, "stt_error");
+                assert!(message.contains("Retry it in Scribe"), "{message}");
+            }
+            e => panic!("{e:?}"),
+        }
+        wait_ready(&engine);
+        assert_eq!(store.count(), 1);
+        assert_eq!(engine.retry(), Ok(Some(State::Processing)));
+        match next_history_or_error(&rx) {
+            Event::History { item } => {
+                assert_eq!(item.cleaned_text, "HELLO AGAIN");
+                assert_eq!(item.stt, "deepgram/nova-3");
+            }
+            e => panic!("{e:?}"),
+        }
+        wait_ready(&engine);
+        assert_eq!(store.count(), 0);
+        assert_eq!(*copies.0.lock().unwrap(), ["HELLO AGAIN"]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     fn next_history_or_error(rx: &Receiver<Event>) -> Event {
         loop {
             let e = rx.recv_timeout(Duration::from_secs(2)).expect("event");
@@ -848,6 +1010,8 @@ mod tests {
                 assert_eq!((item.words, item.pasted), (2, false));
                 assert_eq!(item.private, Some(true));
                 assert!(item.metrics.total_ms >= item.metrics.transcribe_ms);
+                // The serving speech provider is saved with the line.
+                assert_eq!(item.stt, "fake/stt");
             }
             e => panic!("{e:?}"),
         }

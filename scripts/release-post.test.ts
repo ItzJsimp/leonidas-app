@@ -27,28 +27,28 @@ describe("release post publishing", () => {
     const post = loadReleasePost(
       root,
       "release-posts/update.md",
-      "ItzJsimp/leonidas-code",
+      "ItzJsimp/leonidas-app",
       "a".repeat(40),
     );
     expect(post).toContain(
-      `https://raw.githubusercontent.com/ItzJsimp/leonidas-code/${"a".repeat(40)}/release-posts/board.webp`,
+      `https://raw.githubusercontent.com/ItzJsimp/leonidas-app/${"a".repeat(40)}/release-posts/board.webp`,
     );
     expect(post).toContain("## Tasks\nYour task moves to review.");
   });
   it("rejects path escapes, missing images and inaccessible image descriptions", () => {
     const root = fixture("# Update\n\nIntroduction.\n\n![](board.webp)");
     expect(() =>
-      loadReleasePost(root, "../secret.md", "ItzJsimp/leonidas-code", "a".repeat(40)),
+      loadReleasePost(root, "../secret.md", "ItzJsimp/leonidas-app", "a".repeat(40)),
     ).toThrow("inside release-posts");
     expect(() =>
-      loadReleasePost(root, "release-posts/update.md", "ItzJsimp/leonidas-code", "a".repeat(40)),
+      loadReleasePost(root, "release-posts/update.md", "ItzJsimp/leonidas-app", "a".repeat(40)),
     ).toThrow("alt text");
     NodeFS.writeFileSync(
       NodePath.join(root, "release-posts/update.md"),
       "# Update\n\nIntroduction.\n\n![Image](../../secret.png)",
     );
     expect(() =>
-      loadReleasePost(root, "release-posts/update.md", "ItzJsimp/leonidas-code", "a".repeat(40)),
+      loadReleasePost(root, "release-posts/update.md", "ItzJsimp/leonidas-app", "a".repeat(40)),
     ).toThrow("inside release-posts");
   });
 });

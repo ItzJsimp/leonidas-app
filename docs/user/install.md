@@ -34,10 +34,10 @@ for an independent server.
 
 There is no `t3` executable for Intel Macs (the desktop app is available). To
 run a server there, build it from source with Node.js 24 and `vp`
-([Install vp](https://github.com/ItzJsimp/leonidas-code#install-vp)):
+([Install vp](https://github.com/ItzJsimp/leonidas-app#install-vp)):
 
 ```bash
-git clone https://github.com/ItzJsimp/leonidas-code
+git clone https://github.com/ItzJsimp/leonidas-app
 cd leonidas-code && vp i && vp run build:desktop
 node apps/server/dist/bin.mjs
 ```
@@ -47,7 +47,7 @@ update it with `git pull` and a rebuild.
 
 ## Desktop app
 
-Download the latest installer from [GitHub Releases](https://github.com/ItzJsimp/leonidas-code/releases).
+Download the latest installer from [GitHub Releases](https://github.com/ItzJsimp/leonidas-app/releases).
 The Windows build is unsigned, so SmartScreen warns once on first install.
 Package-manager installs (winget, Homebrew, AUR) are not published for Leonidas.
 

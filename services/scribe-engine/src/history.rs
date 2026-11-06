@@ -18,6 +18,10 @@ pub struct NewItem {
     pub raw_text: String,
     pub cleaned_text: String,
     pub preset: Option<String>,
+    /// `provider/model` of speech-to-text. Empty when none ran (rewrite).
+    pub stt: String,
+    /// `provider/model` of polish, `fast-path` or `none`.
+    pub polish: String,
     pub metrics: HistoryMetrics,
     pub pasted: bool,
     pub private: bool,
@@ -78,6 +82,8 @@ impl History {
             metrics: new.metrics,
             pasted: new.pasted,
             private: Some(new.private),
+            stt: new.stt,
+            polish: new.polish,
         };
         let mut line = serde_json::to_string(&item).map_err(|e| e.to_string())?;
         line.push('\n');
@@ -179,6 +185,8 @@ mod tests {
             raw_text: text.to_lowercase(),
             cleaned_text: text.into(),
             preset: None,
+            stt: "groq/whisper-large-v3-turbo".into(),
+            polish: "groq/qwen/qwen3.8-27b".into(),
             metrics: HistoryMetrics {
                 transcribe_ms: 700,
                 polish_ms: 50,

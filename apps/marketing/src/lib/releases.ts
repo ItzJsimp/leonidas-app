@@ -1,4 +1,4 @@
-const REPO = "ItzJsimp/leonidas-code";
+const REPO = "ItzJsimp/leonidas-app";
 
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 export const NIGHTLY_RELEASES_URL = `${RELEASES_URL}?q=nightly&expanded=true`;

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   commandErrorMessage,
   dictateButton,
+  engineErrorView,
   homeShortcuts,
   liveLine,
   relativeTimeLabel,
@@ -77,6 +78,22 @@ describe("commandErrorMessage", () => {
     expect(commandErrorMessage({ reason: "zzz" })).toBe("Scribe could not do that. Try again.");
     expect(commandErrorMessage(null)).toBe("Scribe could not do that. Try again.");
     expect(commandErrorMessage(new Error("x"))).toBe("Scribe could not do that. Try again.");
+  });
+});
+
+describe("engineErrorView", () => {
+  it("offers a retry only for a failed take whose audio was saved", () => {
+    expect(
+      engineErrorView({ code: "stt_error", message: "Could not reach Groq. Retry it in Scribe." }),
+    ).toEqual({ title: "Dictation failed", retry: true });
+    expect(engineErrorView({ code: "stt_error", message: "Could not reach Groq." })).toEqual({
+      title: "Dictation failed",
+      retry: false,
+    });
+    expect(engineErrorView({ code: "mic_error", message: "No input device" })).toEqual({
+      title: "Microphone problem",
+      retry: false,
+    });
   });
 });
 

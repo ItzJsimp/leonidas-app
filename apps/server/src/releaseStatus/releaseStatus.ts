@@ -6,7 +6,7 @@ import type { ReleaseStatus } from "@t3tools/contracts";
 import { type GhJob, type GhRun, mapRuns, MAX_RUNS } from "./mapRuns.ts";
 
 // shortcut: repo and workflow are fixed, make them a setting when a second app ships this way.
-const REPO = process.env.LEONIDAS_RELEASE_REPO ?? "ItzJsimp/leonidas-code";
+const REPO = process.env.LEONIDAS_RELEASE_REPO ?? "ItzJsimp/leonidas-app";
 const WORKFLOW = "Team release";
 const FIELDS = "databaseId,status,conclusion,displayTitle,createdAt,updatedAt,headSha";
 

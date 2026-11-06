@@ -4,7 +4,7 @@
     Install and verify next-action and the core skills in the owner's AIOS and its existing projects.
 .DESCRIPTION
     Uses the skill shipped with Leonidas. Backs up changed skill files and
-    preserves user tasks and instructions. In the usual projects/leonidas-code
+    preserves user tasks and instructions. In the usual projects/leonidas-app
     layout, detects the parent AIOS; otherwise installs in this code project.
     Prints a verification result from this machine, never a remote-install claim.
 #>

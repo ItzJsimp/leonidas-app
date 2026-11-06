@@ -27,7 +27,7 @@ tasks:
 
 # Leonidas: project ledger
 
-- **Inputs:** Mob's modified T3 Code build, upstream `pingdotgg/t3code`, the fork `ItzJsimp/leonidas-code` (renamed from `ItzJsimp/t3code` 2026-10-10). The repo is this folder (`projects/leonidas-code/`, [ADR-0072](../../decisions/0072-code-projects-live-inside-the-aios-as-their-own-git-repos-with-a-workspace-layer.md)).
+- **Inputs:** Mob's modified T3 Code build, upstream `pingdotgg/t3code`, the fork `ItzJsimp/leonidas-app` (renamed from `ItzJsimp/t3code` 2026-10-10). The repo is this folder (`projects/leonidas-app/`, [ADR-0072](../../decisions/0072-code-projects-live-inside-the-aios-as-their-own-git-repos-with-a-workspace-layer.md)).
 - **Outputs:** one shared GitHub repo both machines build from; Windows installer per push; task board synced between both instances.
 - **Feedback:** the app's own update toast proves the pipeline; the task board proves sync when a task added on one machine shows on the other.
 

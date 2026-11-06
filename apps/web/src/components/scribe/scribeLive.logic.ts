@@ -50,7 +50,13 @@ export function reduceScribeLive(
         state: event.state,
         partial: event.state === "listening" ? snapshot.partial : "",
         lastTranscript: event.state === "listening" ? "" : snapshot.lastTranscript,
-        lastError: event.state === "mic_error" ? snapshot.lastError : null,
+        // A failed take returns the engine to ready. Keep its error, with the retry offer,
+        // until the next take starts.
+        lastError:
+          event.state === "mic_error" ||
+          (event.state === "ready" && snapshot.lastError?.code === "stt_error")
+            ? snapshot.lastError
+            : null,
       };
     case "partial":
       return { ...snapshot, partial: event.text };

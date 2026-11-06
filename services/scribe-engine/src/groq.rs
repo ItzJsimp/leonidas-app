@@ -45,6 +45,8 @@ type EnvLookup = Arc<dyn Fn() -> Option<String> + Send + Sync>;
 
 #[derive(Clone)]
 pub struct GroqClient {
+    /// Provider name for history, for example `groq` or `gemini`.
+    pub(crate) name: &'static str,
     pub(crate) cfg: GroqConfig,
     pub(crate) dictionary: Arc<SharedDictionary>,
     keys: Arc<dyn KeyStore>,
@@ -59,11 +61,30 @@ impl GroqClient {
         dictionary: Arc<SharedDictionary>,
     ) -> Self {
         Self {
+            name: "groq",
             cfg: cfg.clone(),
             dictionary,
             keys,
             agent: ureq::Agent::new_with_config(ureq::Agent::config_builder().build()),
             env_key: Arc::new(|| std::env::var("GROQ_API_KEY").ok()),
+        }
+    }
+
+    /// Another OpenAI-compatible vendor (for example Gemini) with its own key.
+    pub fn named(
+        name: &'static str,
+        cfg: &GroqConfig,
+        key: crate::backup::ProviderKey,
+        dictionary: Arc<SharedDictionary>,
+    ) -> Self {
+        let keys = key.store.unwrap_or_else(|| {
+            Arc::new(crate::credentials::MemoryKeyStore::default()) as Arc<dyn KeyStore>
+        });
+        let env_var = key.env_var;
+        Self {
+            name,
+            env_key: Arc::new(move || std::env::var(env_var).ok()),
+            ..Self::new(cfg, keys, dictionary)
         }
     }
 
@@ -231,22 +252,24 @@ impl Transcriber for GroqClient {
 
 impl GroqClient {
     pub fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure> {
-        let done = |text| {
+        let done = |text, model: &str| {
             Ok(Transcription {
                 text,
                 engine: SttEngine::Groq,
                 private: false,
+                source: format!("groq/{model}"),
             })
         };
         if audio.bytes.is_empty() {
-            return done(String::new());
+            return done(String::new(), &self.cfg.whisper_model);
         }
         if self.key().is_none() {
             return Err(CloudFailure::from_api(&ApiError::NoKey));
         }
         let dictionary = self.dictionary.current();
         let prompt = dictionary.vocabulary_prompt();
-        let mut result = self.upload(audio, &self.cfg.whisper_model, &prompt);
+        let mut model = &self.cfg.whisper_model;
+        let mut result = self.upload(audio, model, &prompt);
         // A timeout, a server error or a rate limit on one model: the sibling model has its own budget.
         if matches!(
             result,
@@ -254,10 +277,11 @@ impl GroqClient {
         ) && !self.cfg.whisper_model_backup.is_empty()
             && self.cfg.whisper_model_backup != self.cfg.whisper_model
         {
-            result = self.upload(audio, &self.cfg.whisper_model_backup, &prompt);
+            model = &self.cfg.whisper_model_backup;
+            result = self.upload(audio, model, &prompt);
         }
         match result {
-            Ok(body) => done(transcript_text(&body, &dictionary)),
+            Ok(body) => done(transcript_text(&body, &dictionary), model),
             Err(error) => Err(CloudFailure::from_api(&error)),
         }
     }
@@ -628,6 +652,7 @@ mod tests {
                 text: "hello there".into(),
                 engine: SttEngine::Groq,
                 private: false,
+                source: "groq/whisper-large-v3-turbo".into(),
             }
         );
         let log = server.log.lock().unwrap();

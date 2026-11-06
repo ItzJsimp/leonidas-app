@@ -169,31 +169,38 @@ describe("theme files", () => {
     },
   );
 
-  it("uses Obsidian surfaces and crimson action roles for the Leonidas dark palette", () => {
-    expectThemeColors(getStandardThemeColors("dark"), {
-      canvas: "#000000",
-      surface: "#15151b",
-      surfaceRaised: "#1d1d25",
-      surfaceOverlay: "#1d1d25",
-      toolbarControl: "#15151b",
-      accent: "#d92626",
-      messageAction: "#d92626",
-    });
+  // Jake picked Graphite on Doop canvas pNsLpULSWA (2026-11-06): neutral gray surfaces,
+  // a red action, a blue state and a quiet gray focus. Pin that intent, not copied hex.
+  it("uses neutral Graphite surfaces, a red action and a blue state for the Leonidas dark palette", () => {
+    const oklch = converter("oklch");
+    const colors = getStandardThemeColors("dark");
+    for (const role of [
+      "canvas",
+      "surface",
+      "surfaceRaised",
+      "sidebar",
+      "border",
+      "focus",
+    ] as const) {
+      expect(oklch(colors[role])!.c ?? 0).toBeLessThan(0.005);
+    }
+    expect(oklch(colors.canvas)!.l).toBeGreaterThan(0.1);
+    expect(oklch(colors.canvas)!.l).toBeLessThan(oklch(colors.sidebar)!.l);
+    expect(oklch(colors.messageAction)!.h).toBeLessThan(40);
+    expect(oklch(colors.accent)!.h).toBeGreaterThan(240);
+    expect(oklch(colors.accent)!.h).toBeLessThan(280);
   });
 
-  it("uses Linen Sand and Obsidian for the Leonidas canvas and sidebar", () => {
+  it("keeps Linen Sand in light and moves state off the action red", () => {
+    const oklch = converter("oklch");
+    const light = getStandardThemeColors("light");
     expectThemeColors(getStandardThemeColors("light"), {
       canvas: "#eee6d6",
       sidebar: "#e9e0cf",
-      accent: "#a8221b",
       messageAction: "#a8221b",
     });
-    expectThemeColors(getStandardThemeColors("dark"), {
-      canvas: "#000000",
-      sidebar: "#111116",
-      accent: "#d92626",
-      messageAction: "#d92626",
-    });
+    expect(oklch(light.accent)!.h).toBeGreaterThan(180);
+    expect(oklch(light.accent)!.h).toBeLessThan(240);
   });
 
   it("derives readable, distinctive vivid palettes from exact seeds", () => {
@@ -1140,7 +1147,9 @@ describe("context chip colors", () => {
   it("reads at 5:1 on the standard surfaces as index.css paints them", () => {
     const painted = {
       light: ["#eee6d6", "#f8f4ec", "#e9e0cf"],
-      dark: ["#000000", "#15151b", "#1d1d25"],
+      dark: (["canvas", "surface", "surfaceRaised"] as const).map(
+        (role) => getStandardThemeColors("dark")[role],
+      ),
     } as const;
     const properties = new Map<string, string>();
     vi.stubGlobal("window", { localStorage: { getItem: () => null } });

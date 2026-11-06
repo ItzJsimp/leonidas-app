@@ -75,7 +75,8 @@ const ICONS: Readonly<Record<string, LucideIcon>> = {
 
 const TARGET_CLASS =
   "relative inline-flex size-9 shrink-0 touch-hit items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none [-webkit-app-region:no-drag]";
-const ACTIVE_CLASS = "border-border bg-surface-raised text-foreground";
+// The current page takes the action color on a faint tint (DESIGN.md "Rail").
+const ACTIVE_CLASS = "border-transparent bg-primary/14 text-primary hover:text-primary";
 
 /** "99+" past 99, so the badge stays small. */
 export const badgeText = (count: number) => (count > 99 ? "99+" : String(count));

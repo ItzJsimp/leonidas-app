@@ -59,7 +59,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = "com.t3tools.t3code";
 // Leonidas fork: poll our own releases unless an override or CI sets another repository.
-const DEFAULT_UPDATE_REPOSITORY = "ItzJsimp/leonidas-code";
+const DEFAULT_UPDATE_REPOSITORY = "ItzJsimp/leonidas-app";
 const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
@@ -2963,8 +2963,6 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
         },
       ],
       ...(signed ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") } : {}),
-      // No-op unless LEONIDAS_MAC_SELF_SIGN_IDENTITY is set (see scripts/self-sign-macos.cjs).
-      ...(signed ? {} : { afterSign: path.join(repoRoot, "scripts/self-sign-macos.cjs") }),
       ...(macPasskeySigning
         ? {
             entitlements: macPasskeySigning.entitlementsPath,
@@ -2972,6 +2970,10 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
           }
         : {}),
     };
+    // electron-builder accepts afterSign only at the root. Inside `mac` its schema rejects the
+    // whole config ("configuration.mac should be one of these: null") and no Mac build runs.
+    // No-op unless LEONIDAS_MAC_SELF_SIGN_IDENTITY is set (see scripts/self-sign-macos.cjs).
+    if (!signed) buildConfig.afterSign = path.join(repoRoot, "scripts/self-sign-macos.cjs");
   }
 
   if (platform === "mac" && target === "dmg") {
@@ -4009,7 +4011,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       "Leonidas is an open-source desktop app for coding agents. Work with your existing agent subscriptions, review code changes, and run commands in your projects. Connect from desktop, web, or mobile to continue working remotely.",
     license: "MIT",
     // Required by the .deb control file.
-    homepage: "https://github.com/ItzJsimp/leonidas-code",
+    homepage: "https://github.com/ItzJsimp/leonidas-app",
     author: "Leonidas (fork of T3 Code by T3 Tools)",
     main: "apps/desktop/dist-electron/boot.cjs",
     build: yield* createBuildConfig(

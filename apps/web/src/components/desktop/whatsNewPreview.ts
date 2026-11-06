@@ -1,5 +1,5 @@
 const PREVIEW_EVENT = "leonidas:preview-whats-new";
-const LATEST_RELEASE_URL = "https://api.github.com/repos/ItzJsimp/leonidas-code/releases/latest";
+const LATEST_RELEASE_URL = "https://api.github.com/repos/ItzJsimp/leonidas-app/releases/latest";
 
 /** Settings button -> coordinator: open the popup with the latest published release's bullets. */
 export function requestWhatsNewPreview(): void {

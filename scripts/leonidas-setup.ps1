@@ -16,7 +16,7 @@
 param(
   [string]$AiosClaudeMd,
   [switch]$SkipApp,
-  [string]$Repository = "ItzJsimp/leonidas-code"
+  [string]$Repository = "ItzJsimp/leonidas-app"
 )
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot

@@ -9,7 +9,7 @@
 param(
   [string]$DeviceLabel = 'Local',
   [switch]$Register,
-  [string]$Repository = 'ItzJsimp/leonidas-code',
+  [string]$Repository = 'ItzJsimp/leonidas-app',
   [string]$StateDirectory = (Join-Path $HOME '.t3/userdata'),
   [string]$ReportDirectory = (Join-Path $env:LOCALAPPDATA 'LeonidasCodeUpdateHealth')
 )

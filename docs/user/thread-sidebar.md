@@ -284,9 +284,9 @@ several selected threads together. Choose **Wake thread** to bring a thread back
 ## Shared tasks
 
 On web and desktop, open **Tasks** in the sidebar utility bar to read the open
-GitHub Issues in `ItzJsimp/leonidas-code`. Filter by title, number, label or
+GitHub Issues in `ItzJsimp/leonidas-app`. Filter by title, number, label or
 assignee. Open an issue to edit it on GitHub, or choose **New task** to create one.
-Agents can add tasks with `gh issue create --repo ItzJsimp/leonidas-code`.
+Agents can add tasks with `gh issue create --repo ItzJsimp/leonidas-app`.
 
 The server needs GitHub CLI installed and authenticated with `gh auth login`,
 and a repository administrator must enable Issues. The board reads through your

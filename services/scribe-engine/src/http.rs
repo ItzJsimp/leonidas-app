@@ -211,6 +211,11 @@ fn route(mut request: Request, engine: &Engine, services: &Services) {
             Ok(command) => state_reply(request, engine.stop(command.paste)),
             Err(()) => error(request, 400, "bad_request"),
         },
+        ("/v1/retry", Method::Post) => match engine.retry() {
+            Ok(Some(state)) => json(request, 200, &StateReply::new(state)),
+            Ok(None) => error(request, 404, "nothing_to_retry"),
+            Err(EngineError::InvalidState(_)) => error(request, 409, "invalid_state"),
+        },
         ("/v1/credentials/groq", Method::Put) => {
             match body::<CredentialRequest>(&mut request) {
                 Ok(command) if !command.key.trim().is_empty() => {
@@ -231,7 +236,15 @@ fn route(mut request: Request, engine: &Engine, services: &Services) {
                 error(request, 500, "store_error");
             }
         }
-        ("/v1/status" | "/v1/start" | "/v1/stop" | "/v1/events" | "/v1/credentials/groq", _) => {
+        (
+            "/v1/status"
+            | "/v1/start"
+            | "/v1/stop"
+            | "/v1/retry"
+            | "/v1/events"
+            | "/v1/credentials/groq",
+            _,
+        ) => {
             error(request, 405, "method_not_allowed");
         }
         _ => error(request, 404, "not_found"),
@@ -503,6 +516,8 @@ mod tests {
                 history
                     .add(crate::history::NewItem {
                         preset: None,
+                        stt: String::new(),
+                        polish: String::new(),
                         at: crate::contract::iso_from_unix_ms(ms),
                         mode: mode.into(),
                         app: String::new(),
@@ -1160,6 +1175,26 @@ mod tests {
     }
 
     #[test]
+    fn retry_with_no_saved_take_is_404_nothing_to_retry() {
+        let engine = Engine::new(
+            Box::new(FakeRecorder::default()),
+            Box::new(FakeStt(Ok("hello".into()))),
+            Box::new(UpperPolish),
+            Box::new(Arc::new(FakePaster::default())),
+            250,
+            None,
+        );
+        let services = test_services(Arc::new(MemoryKeyStore::default()));
+        let server = TestServer(Some(
+            serve_with_ping(engine, services, 0, TEST_PING).unwrap(),
+        ));
+        server
+            .request("POST", "/v1/retry", "")
+            .error(404, "nothing_to_retry");
+        assert_eq!(server.request("GET", "/v1/retry", "").status, 405);
+    }
+
+    #[test]
     fn suggestions_come_from_history_and_a_reject_hides_one() {
         let dir = temp_dir("sugg");
         let history = Arc::new(crate::history::History::open(&dir.join("history.jsonl")));
@@ -1174,6 +1209,8 @@ mod tests {
             history
                 .add(crate::history::NewItem {
                     preset: None,
+                    stt: String::new(),
+                    polish: String::new(),
                     at: crate::contract::iso_from_unix_ms(ms),
                     mode: "hold".into(),
                     app: String::new(),

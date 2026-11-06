@@ -43,6 +43,10 @@ pub trait LocalModel: Send + Sync {
 
 pub trait Cloud: Send + Sync {
     fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure>;
+    /// False when the provider has no key, so a chain skips it without a request or a log line.
+    fn ready(&self) -> bool {
+        true
+    }
 }
 
 impl Cloud for GroqClient {
@@ -97,6 +101,7 @@ impl Router {
             text,
             engine: SttEngine::Local,
             private,
+            source: format!("local/{}", MODEL_FILE.trim_end_matches(".bin")),
         })
     }
 }
@@ -112,6 +117,7 @@ impl Transcriber for Router {
                 text: String::new(),
                 engine: SttEngine::Local,
                 private,
+                source: String::new(),
             });
         }
         match choose_backend(private) {
@@ -382,6 +388,7 @@ mod tests {
                 text: text.into(),
                 engine: SttEngine::Groq,
                 private: false,
+                source: "groq/fake".into(),
             })
         }
     }

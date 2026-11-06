@@ -419,6 +419,12 @@ export async function startMockScribeEngine(
       stopDictation(body.paste !== false);
       return send(res, 200, { state });
     }
+    if (path === "/v1/retry") {
+      // The mock never fails a take, so it has nothing saved to retry.
+      if (!allow("POST")) return;
+      if (state !== "ready") return fail(res, 409, "invalid_state");
+      return fail(res, 404, "nothing_to_retry");
+    }
     if (path === "/v1/credentials/groq") {
       if (!allow("PUT", "DELETE")) return;
       if (method === "PUT") {

@@ -296,9 +296,16 @@ jobs:
         run: vp run dist:desktop:artifact --platform mac --target dmg --arch arm64 --build-version "${{ steps.release.outputs.version }}" --skip-build
 
       # An Apple Silicon app with a broken signature opens as "damaged".
+      # release/ holds files only, so check the app inside the zip: it is the file the Mac updater installs.
       - name: Check the app signature
         run: |
-          APP=$(find release -maxdepth 3 -name '*.app' -type d | head -n 1)
+          ZIP=$(find release -maxdepth 1 -name '*-arm64.zip' | head -n 1)
+          [ -n "$ZIP" ] || { echo "::error::No Mac update zip in release/."; exit 1; }
+          CHECK="$RUNNER_TEMP/signature-check"
+          rm -rf "$CHECK" && mkdir -p "$CHECK"
+          ditto -x -k "$ZIP" "$CHECK"
+          APP=$(find "$CHECK" -maxdepth 2 -name '*.app' -type d | head -n 1)
+          [ -n "$APP" ] || { echo "::error::The Mac update zip holds no .app."; exit 1; }
           codesign --verify --deep --strict "$APP" || echo "::warning::$APP has no valid ad hoc signature; macOS may report it as damaged."
           if [ -n "${LEONIDAS_MAC_SELF_SIGN_IDENTITY:-}" ]; then
             REQ=$(codesign -d -r- "$APP" 2>&1 | grep 'designated =>' || true)

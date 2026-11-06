@@ -2,7 +2,7 @@
 
 Version plan from v0.35 on: [project-roadmap.json](../project-roadmap.json).
 
-- [x] Subscription token calibration ([v0.2.0](https://github.com/ItzJsimp/leonidas-code/releases/tag/v0.2.0)): session/weekly estimates pair local Claude/Codex tokens with provider quota percentages. Google AI Pro still needs a quota source.
+- [x] Subscription token calibration ([v0.2.0](https://github.com/ItzJsimp/leonidas-app/releases/tag/v0.2.0)): session/weekly estimates pair local Claude/Codex tokens with provider quota percentages. Google AI Pro still needs a quota source.
 - [x] Shared repo, based on a teammate's build (branch `mob-base`, now `main`)
 - [x] Push-to-update: every push to `main` builds the Windows installer and publishes a `0.x` release; the updater shows the toast
 - [x] Update toast proven across both machines (sound, OS notification, confirmation dialog)
