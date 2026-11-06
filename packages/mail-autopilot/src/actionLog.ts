@@ -13,7 +13,7 @@ export type Inverse =
  * `intent` is written before a mailbox call. `applied`, `failed` or `skipped` follows it (`ref` is the intent id).
  * `undone` follows an `applied` entry (`ref` is that entry's id).
  */
-export const LOG_STATUSES = ["intent", "applied", "failed", "skipped", "undone"] as const;
+const LOG_STATUSES = ["intent", "applied", "failed", "skipped", "undone"] as const;
 export type LogStatus = (typeof LOG_STATUSES)[number];
 
 export interface ActionLogEntry {
