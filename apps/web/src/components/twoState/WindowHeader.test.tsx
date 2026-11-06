@@ -25,7 +25,7 @@ describe("WindowHeader", () => {
       <WindowHeader title="Developer" tabs={TABS} active="prs" onSelect={() => {}} />,
     );
     expect(html).toContain('role="tablist"');
-    expect(html).toMatch(/aria-selected="true"[^>]*class="[^"]*border-foreground/);
+    expect(html).toMatch(/aria-selected="true"[^>]*class="[^"]*border-primary/);
     expect(html.match(/aria-selected="false"/g)).toHaveLength(1);
   });
 });

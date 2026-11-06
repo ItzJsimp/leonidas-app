@@ -265,6 +265,9 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --color-info: var(--info);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-ring: var(--ring);
+  --color-state: var(--state);
+  --color-state-foreground: var(--state-foreground);
+  --color-state-text: var(--state-text);
   --color-input: var(--contrast-input);
   --color-border: var(--contrast-border);
   --color-destructive: var(--destructive);
@@ -1168,6 +1171,11 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --border: #cfc2a8;
   --input: #8f8270;
   --ring: var(--primary);
+  /* State: on, checked, progress and live work. The theme's accent role, so
+     actions (--primary) and state can differ. See DESIGN.md "Color". */
+  --state: var(--app-theme-accent, var(--color-blue-600));
+  --state-foreground: var(--app-theme-accent-foreground, var(--color-white));
+  --state-text: color-mix(in oklch, var(--state) 80%, black);
   --destructive-foreground: var(--error-foreground);
   --info: var(--color-blue-500);
   --info-foreground: var(--color-blue-700);
@@ -1199,46 +1207,47 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
   @variant dark {
     color-scheme: dark;
-    /* Keep controls and floating surfaces close to the neutral-black canvas.
-       Borders and hover states provide separation without milky gray fills. */
-    --background: #000;
-    --surface-raised: #1d1d25;
-    --foreground: #f4f4f5;
-    --card: #15151b;
-    --card-foreground: #f4f4f5;
-    --popover: #1d1d25;
-    --popover-foreground: #f4f4f5;
-    --primary: #d92626;
-    --secondary: #1d1d25;
-    --secondary-foreground: #f4f4f5;
-    --muted: #15151b;
-    --muted-foreground: #a1a1aa;
-    --accent: rgb(217 38 38 / 14%);
+    /* Pre-mount fallback for the default Graphite theme (values in themePalettes.ts).
+       Tailwind neutral tokens keep it close without copying hex. */
+    --state-text: color-mix(in oklch, var(--state) 65%, white);
+    --background: var(--color-neutral-950);
+    --surface-raised: var(--color-neutral-900);
+    --foreground: var(--color-neutral-100);
+    --card: var(--color-neutral-900);
+    --card-foreground: var(--color-neutral-100);
+    --popover: var(--color-neutral-900);
+    --popover-foreground: var(--color-neutral-100);
+    --primary: var(--color-red-600);
+    --secondary: var(--color-neutral-900);
+    --secondary-foreground: var(--color-neutral-100);
+    --muted: var(--color-neutral-900);
+    --muted-foreground: var(--color-neutral-400);
+    --accent: var(--color-neutral-800);
     --accent-foreground: var(--color-neutral-100);
     /* A solid user turn, level with the selected sidebar row, so it stands off the black canvas. */
-    --message-surface: #1d1d25;
+    --message-surface: var(--color-neutral-900);
     --error: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
     --error-foreground: var(--color-red-400);
     --tool-error-icon: #fca5a5;
     --error-surface: #2b0f16;
-    --border: #2a2a35;
-    --input: #3a3a48;
-    --info-foreground: #00e5ff;
+    --border: var(--color-neutral-800);
+    --input: var(--color-neutral-800);
+    --info-foreground: var(--color-blue-400);
     --success-foreground: var(--color-emerald-400);
     --warning-foreground: var(--color-amber-400);
     --warning-surface: #23190a;
-    --update-foreground: #00e5ff;
+    --update-foreground: var(--color-blue-400);
     --update-surface: #07222a;
-    --sidebar: #111116;
-    --sidebar-foreground: #f4f4f5;
-    --sidebar-muted-foreground: #a1a1aa;
-    --sidebar-control-surface: #15151b;
-    --sidebar-row-hover: #15151b;
-    --sidebar-row-active: #1d1d25;
-    --sidebar-row-selected: #15151b;
+    --sidebar: var(--color-neutral-900);
+    --sidebar-foreground: var(--color-neutral-100);
+    --sidebar-muted-foreground: var(--color-neutral-400);
+    --sidebar-control-surface: var(--color-neutral-800);
+    --sidebar-row-hover: var(--color-neutral-800);
+    --sidebar-row-active: var(--color-neutral-800);
+    --sidebar-row-selected: var(--color-neutral-800);
     --sidebar-stage-fade: var(--card);
-    --terminal-cursor: #00e5ff;
-    --terminal-selection-background: rgb(0 229 255 / 25%);
+    --terminal-cursor: var(--color-blue-300);
+    --terminal-selection-background: color-mix(in srgb, var(--color-blue-400) 25%, transparent);
   }
 }
 
@@ -1265,23 +1274,23 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --sidebar-stage-fade: var(--sidebar);
 
   @variant dark {
-    --background: #000;
-    --foreground: #f4f4f5;
-    --card: #15151b;
+    --background: var(--color-neutral-950);
+    --foreground: var(--color-neutral-100);
+    --card: var(--color-neutral-900);
     --card-foreground: var(--foreground);
-    --accent: #200b0d;
-    --accent-foreground: #f4f4f5;
-    --muted: #15151b;
-    --muted-foreground: #a1a1aa;
-    --border: #2a2a35;
-    --input: #3a3a48;
-    --sidebar: #111116;
-    --sidebar-foreground: #f4f4f5;
-    --sidebar-muted-foreground: #a1a1aa;
-    --sidebar-control-surface: #15151b;
-    --sidebar-row-hover: #15151b;
-    --sidebar-row-active: #1d1d25;
-    --sidebar-row-selected: #15151b;
+    --accent: var(--color-neutral-800);
+    --accent-foreground: var(--color-neutral-100);
+    --muted: var(--color-neutral-900);
+    --muted-foreground: var(--color-neutral-400);
+    --border: var(--color-neutral-800);
+    --input: var(--color-neutral-800);
+    --sidebar: var(--color-neutral-900);
+    --sidebar-foreground: var(--color-neutral-100);
+    --sidebar-muted-foreground: var(--color-neutral-400);
+    --sidebar-control-surface: var(--color-neutral-800);
+    --sidebar-row-hover: var(--color-neutral-800);
+    --sidebar-row-active: var(--color-neutral-800);
+    --sidebar-row-selected: var(--color-neutral-800);
     --sidebar-border: var(--border);
     --sidebar-stage-fade: var(--card);
   }

@@ -1228,8 +1228,8 @@ export function resolveThreadStatusPill(input: {
   if (thread.runtime?.status === "running" || thread.runtime?.status === "waiting") {
     return {
       label: "Working",
-      colorClass: "text-sky-600 dark:text-sky-300/80",
-      dotClass: "bg-sky-500 dark:bg-sky-300/80",
+      colorClass: "text-state-text",
+      dotClass: "bg-state-text",
       pulse: true,
     };
   }
@@ -1241,8 +1241,8 @@ export function resolveThreadStatusPill(input: {
   ) {
     return {
       label: "Connecting",
-      colorClass: "text-sky-600 dark:text-sky-300/80",
-      dotClass: "bg-sky-500 dark:bg-sky-300/80",
+      colorClass: "text-state-text",
+      dotClass: "bg-state-text",
       pulse: true,
     };
   }

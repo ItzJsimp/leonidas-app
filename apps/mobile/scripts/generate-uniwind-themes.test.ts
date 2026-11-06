@@ -8,7 +8,20 @@ import {
   renderDefaultThemeVariablesJSON,
   renderUniwindThemesCSS,
 } from "./generate-uniwind-themes.mts";
+import {
+  LEONIDAS_DARK_THEME_COLORS,
+  LEONIDAS_LIGHT_THEME_COLORS,
+} from "@t3tools/shared/themePalettes";
 import { readDefaultMobileThemeVariables } from "../src/lib/mobileTheme.test-support";
+
+// Clerk pages use the default palette in every theme, read from the token file.
+const clerkPalette = (colors: typeof LEONIDAS_DARK_THEME_COLORS) => ({
+  "--color-clerk-page": colors.chrome,
+  "--color-clerk-foreground": colors.text,
+  "--color-clerk-foreground-muted": colors.mutedForeground,
+  "--color-clerk-border": colors.border,
+  "--color-clerk-danger": colors.errorForeground,
+});
 
 describe("generate mobile Uniwind themes", () => {
   it("keeps the committed outputs current", () => {
@@ -56,8 +69,8 @@ describe("generate mobile Uniwind themes", () => {
     expect(variables.dark).toEqual(readDefaultMobileThemeVariables("dark"));
     expect(variables.light["--color-screen"]).toBe("#eee6d6");
     expect(variables.light["--color-drawer"]).toBe("#e9e0cf");
-    expect(variables.dark["--color-screen"]).toBe("#000000");
-    expect(variables.dark["--color-drawer"]).toBe("#111116");
+    expect(variables.dark["--color-screen"]).toBe(LEONIDAS_DARK_THEME_COLORS.canvas);
+    expect(variables.dark["--color-drawer"]).toBe(LEONIDAS_DARK_THEME_COLORS.sidebar);
     expect(Object.keys(variables.light)).toEqual(Object.keys(variables.dark));
   });
 
@@ -84,13 +97,7 @@ describe("generate mobile Uniwind themes", () => {
           [...variables].filter(([variable]) => variable.startsWith("--color-clerk-")),
         ),
         name,
-      ).toEqual({
-        "--color-clerk-page": isDark ? "#0e0e12" : "#eae1cf",
-        "--color-clerk-foreground": isDark ? "#f4f4f5" : "#1f1a14",
-        "--color-clerk-foreground-muted": isDark ? "#a1a1aa" : "#5f5647",
-        "--color-clerk-border": isDark ? "#2a2a35" : "#cfc2a8",
-        "--color-clerk-danger": isDark ? "#ff8097" : "#7d1030",
-      });
+      ).toEqual(clerkPalette(isDark ? LEONIDAS_DARK_THEME_COLORS : LEONIDAS_LIGHT_THEME_COLORS));
     }
   });
 });

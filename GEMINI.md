@@ -15,7 +15,7 @@ This project lives inside its builder's AI operating system at `../../`. If `../
 1. **Never kill by pattern.** No `pkill -f`, `pgrep | kill`, or killing a PID matched by name or path; your own process carries the worktree path. Kill only a PID you captured at spawn, or your port's owner after confirming its cwd.
 2. **Never write to the live install.** `~/.t3/userdata` is the real database in use. Read or copy from it; never start a server against it or open it read-write.
 3. **Never bake in origins.** Do not set `VITE_HTTP_URL` or `VITE_WS_URL` for dev; it silently breaks remote browsers.
-4. **A push to `main` ships a release to both machines.** Commit locally; push only when the user says so.
+4. **One task, one worktree, one queue.** Never edit the main checkout. Start with `pwsh scripts/Start-AgentTask.ps1 -Task <slug>`: it claims the task and makes `C:/lcw/<slug>`. "taken" means another agent has it: pick another task. Land with `pwsh scripts/Invoke-MergeQueue.ps1 -Branch task/<slug> -Task <slug> -Wait`. It pushes to `main` only when the checks pass. A push to `main` ships a release (Jake, 2026-11-05: auto-ship when checks pass).
 5. **Scoped checks only:** `vp test run <files>`, scoped lint and typecheck. No repo-wide `vp check` or `-r` runs unless asked.
 6. **Performance gate:** every code change passes [`performance-gate`](./.agents/skills/performance-gate/SKILL.md) before "done". A perf claim needs a before and after number.
 7. **Task first:** find or create the task card before substantive work and close it with a verified note ([task-driven-work](./.agents/rules/task-driven-work.md)).
@@ -28,19 +28,21 @@ This project lives inside its builder's AI operating system at `../../`. If `../
 
 ## 3. Read when the task calls for it
 
-| Task                                                                                                     | Read                                                              |
-| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Any code change: principles, surfaces, dev servers, test data, verifying, PRs, docs, architecture, taste | [engineering](./.agents/rules/engineering.md)                     |
-| Pushing, branching, roadmap lanes, versions, release notes, dev copy                                     | [team-workflow](./.agents/rules/team-workflow.md)                 |
-| Starting or closing work, task cards                                                                     | [task-driven-work](./.agents/rules/task-driven-work.md)           |
-| Hooks, skills, config, or how Claude, Codex and the app layer together                                   | [harness-layers](./.agents/rules/harness-layers.md)               |
-| Delegating to another model                                                                              | [tiered-models](./.agents/rules/tiered-models.md)                 |
-| Reply format additions (pushed-to-main banner)                                                           | [output-standard](./.agents/rules/output-standard.md)             |
-| Module map, data sources, cheap verify loop                                                              | [agent-playbook](./agent-playbook.md)                             |
-| Traps already paid for                                                                                   | [project/agent-gotchas.md](./project/agent-gotchas.md)            |
-| Preparing a release                                                                                      | [leonidas-release](./.agents/skills/leonidas-release/SKILL.md)    |
-| UI verification                                                                                          | `test-t3-app` (web), `test-t3-mobile` (mobile) skills             |
-| Server code                                                                                              | `docs/internals/effect-services.md`, `.repos/effect-smol/LLMS.md` |
+| Task                                                                                                                  | Read                                                                   |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Any code change: principles, surfaces, dev servers, test data, verifying, PRs, docs, architecture, taste              | [engineering](./.agents/rules/engineering.md)                          |
+| Any UI task: screens, components, colors, theme, tokens, layout (design in Doop first)                                | [DESIGN.md](./DESIGN.md)                                               |
+| Pushing, branching, roadmap lanes, versions, release notes, dev copy                                                  | [team-workflow](./.agents/rules/team-workflow.md)                      |
+| Starting or closing work, task cards                                                                                  | [task-driven-work](./.agents/rules/task-driven-work.md)                |
+| Hooks, skills, config, or how Claude, Codex and the app layer together                                                | [harness-layers](./.agents/rules/harness-layers.md)                    |
+| Delegating to another model                                                                                           | [tiered-models](./.agents/rules/tiered-models.md)                      |
+| Reply format additions (pushed-to-main banner)                                                                        | [output-standard](./.agents/rules/output-standard.md)                  |
+| Module map, data sources, cheap verify loop, top 10 traps                                                             | [agent-playbook](./agent-playbook.md)                                  |
+| All other traps (install, Git, release, tests, Scribe, dev copy, laptop, phone, upstream ports, server HTTP API), why | [project/agent-gotchas.md](./project/agent-gotchas.md)                 |
+| Past session notes (newest 10 in agent-gotchas.md, older here)                                                        | [project/session-notes-archive.md](./project/session-notes-archive.md) |
+| Preparing a release                                                                                                   | [leonidas-release](./.agents/skills/leonidas-release/SKILL.md)         |
+| UI verification                                                                                                       | `test-t3-app` (web), `test-t3-mobile` (mobile) skills                  |
+| Server code                                                                                                           | `docs/internals/effect-services.md`, `.repos/effect-smol/LLMS.md`      |
 
 ## 4. Where things live
 
@@ -63,9 +65,7 @@ The brief both builders' agents read. Each builder's private notes live in their
 
 ## Output standard
 
-The app injects the reply shape (Top / Body / Dock) into every provider; its single source is `LEONIDAS_OUTPUT_STANDARD` in [outputStandard.ts](./packages/provider-core/src/server/outputStandard.ts). Do not restate it in instruction files. Repo-only additions (the pushed-to-main banner): [output-standard rule](./.agents/rules/output-standard.md).
-
-@.agents/rules/output-standard.md
+The app injects the reply shape (Top / Body / Dock) into every provider; its single source is `LEONIDAS_OUTPUT_STANDARD` in [outputStandard.ts](./packages/provider-core/src/server/outputStandard.ts). Do not restate it in instruction files. Repo-only additions (the pushed-to-main banner): [output-standard rule](./.agents/rules/output-standard.md). Read it on demand: the app already injects the same text, so this brief does not import it.
 
 ## Gotchas already paid for
 
