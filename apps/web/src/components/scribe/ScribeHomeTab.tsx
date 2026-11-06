@@ -69,6 +69,7 @@ function DictateCard({ environmentId, live }: ScribeTabProps) {
   const runStart = useAtomCommand(scribeStart, { reportFailure: false });
   const runStop = useAtomCommand(scribeStop, { reportFailure: false });
   const runRetry = useAtomCommand(scribeRetry, { reportFailure: false });
+  const canRetry = useAtomValue(scribeRetry.permissionAtom(environmentId));
   const canStart = useAtomValue(scribeStart.permissionAtom(environmentId));
   const canStop = useAtomValue(scribeStop.permissionAtom(environmentId));
   const [error, setError] = useState<string | null>(null);
@@ -145,7 +146,7 @@ function DictateCard({ environmentId, live }: ScribeTabProps) {
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={busy || !canStart}
+                  disabled={busy || !canRetry}
                   onClick={() => void retry()}
                 >
                   Retry
