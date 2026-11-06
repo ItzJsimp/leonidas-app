@@ -2070,6 +2070,24 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     ),
   );
 
+  it("draws the Leonidas helm, not the T3 logo, on both Mac installer backgrounds", () => {
+    const t3LogoPath = "M33.4509 93V47.56H15.5309V37H64.3309";
+    for (const channel of ["latest", "nightly"]) {
+      const svg = NodeFS.readFileSync(
+        NodePath.join(
+          import.meta.dirname,
+          `../apps/desktop/resources/dmg/dmg-background-${channel}.svg`,
+        ),
+        "utf8",
+      );
+      assert.notInclude(svg, t3LogoPath, channel);
+      assert.match(
+        svg,
+        /<image x="28" y="16" width="38" height="38" href="data:image\/png;base64,/,
+      );
+    }
+  });
+
   it.effect("fails clearly when the selected DMG background source is missing", () =>
     Effect.scoped(
       Effect.gen(function* () {
