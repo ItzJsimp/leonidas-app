@@ -6,7 +6,7 @@ import * as NodePath from "node:path";
 import { readFrontmatter } from "./frontmatter.ts";
 
 /** An Invite lives 7 days (ADR-0088). */
-export const INVITE_DAYS = 7;
+const INVITE_DAYS = 7;
 const MAX_INVITES = 200;
 
 export interface OrgInvite {

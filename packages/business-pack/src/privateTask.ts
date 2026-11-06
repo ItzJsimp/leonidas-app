@@ -8,7 +8,7 @@ import { readOrg } from "./org.ts";
 const SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
 /** What Home shows for a private task: the Area, never the real title. */
-export const maskedTitle = (areaName: string) => `Private task in ${areaName}`;
+const maskedTitle = (areaName: string) => `Private task in ${areaName}`;
 
 const oneLine = (value: string) => value.replace(/["\\]/g, "").replace(/\s+/g, " ").trim();
 

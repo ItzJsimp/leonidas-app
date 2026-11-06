@@ -42,7 +42,7 @@ export type OrgChange =
   | { readonly kind: "setRoleDef"; readonly role: RoleInput }
   | { readonly kind: "removeRoleDef"; readonly role: string };
 
-export const HOME_AREA = "home";
+const HOME_AREA = "home";
 const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
 const NAME = /^[A-Za-z][A-Za-z0-9 -]{0,23}$/;
@@ -291,7 +291,7 @@ export function setStatusLine(text: string, status: string): string {
 }
 
 /** A person starts as `invited` until they accept the Invite. An agent has no one to invite. */
-export const initialStatus = (member: NewMember): "invited" | "active" =>
+const initialStatus = (member: NewMember): "invited" | "active" =>
   member.kind === "person" ? "invited" : "active";
 
 /** A new member file in the record format of the template. */

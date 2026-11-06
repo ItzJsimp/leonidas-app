@@ -134,7 +134,7 @@ const oneOf = <T extends string>(levels: ReadonlyArray<T>, cell: string | undefi
  * The permission table of `org/roles.md`. A row that is damaged or asks for more than a custom
  * Role may have is skipped. The four that ship always exist and Owner is always the default row.
  */
-export function parseRoles(text: string): ReadonlyArray<OrgRole> {
+function parseRoles(text: string): ReadonlyArray<OrgRole> {
   const base = new Set(DEFAULT_ROLES.map((role) => role.name));
   const rows = new Map<string, OrgRole>();
   for (const row of readTable(text)) {

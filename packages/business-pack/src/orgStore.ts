@@ -64,7 +64,7 @@ function ulid(now: number): string {
 const iso = (now: number) => new Date(now).toISOString();
 
 /** A plain line that says what a change does. */
-export function describeChange(org: Org, change: OrgChange): string {
+function describeChange(org: Org, change: OrgChange): string {
   const name = (slug: string) => org.members.find((member) => member.slug === slug)?.name ?? slug;
   const area = (slug: string) =>
     org.areas.find((candidate) => candidate.slug === slug)?.name ?? slug;
