@@ -11,6 +11,7 @@ import { useThreadProjection } from "~/state/entities";
 
 import { type LiveArea, liveArea, shellAiosFiles } from "./liveArea";
 
+/** @public Test module mocks read this through importActual. */
 export const IDLE: LiveArea = { area: null, path: null, written: [] };
 
 const same = (a: LiveArea, b: LiveArea) =>

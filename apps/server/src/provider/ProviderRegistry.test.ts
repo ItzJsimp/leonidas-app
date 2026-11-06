@@ -210,7 +210,7 @@ function mockHandle(result: { stdout: string; stderr: string; code: number }) {
 
 // On Windows the spawner receives arguments already escaped for cmd.exe (`^"--version^"`).
 const plainArgs = (args: ReadonlyArray<string>): ReadonlyArray<string> =>
-  process.platform === "win32"
+  HostProcess.Platform.defaultValue() === "win32"
     ? args.map((arg) => arg.replace(/\^(.)/g, "$1").replace(/^"(.*)"$/, "$1"))
     : args;
 
@@ -3183,8 +3183,21 @@ it.layer(
             ),
           );
           let cursorSpawned = false;
+          const fileSystem = yield* FileSystem.FileSystem;
+          const testBaseDir = yield* fileSystem.makeTempDirectoryScoped({
+            prefix: "t3-provider-registry-defaults-",
+          });
           const scope = yield* Scope.make();
           yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void));
+          const serverConfig = yield* Layer.build(
+            ServerConfig.layerTest(process.cwd(), testBaseDir).pipe(
+              Layer.provide(
+                FileSystem.layerNoop({
+                  makeDirectory: () => Effect.void,
+                }),
+              ),
+            ),
+          ).pipe(Scope.provide(scope));
           const layerProviderRegistry = ProviderRegistry.layer.pipe(
             Layer.provideMerge(
               ProviderInstanceRegistryHydration.layer.pipe(Layer.provide(PortScanner.layerTest)),
@@ -3193,12 +3206,7 @@ it.layer(
             Layer.provideMerge(
               Layer.succeed(ServerSettingsModule.ServerSettingsService, serverSettings),
             ),
-            Layer.provideMerge(ServerSecretStore.layer),
-            Layer.provideMerge(
-              ServerConfig.layerTest(process.cwd(), {
-                prefix: "t3-provider-registry-",
-              }),
-            ),
+            Layer.provideMerge(Layer.succeedContext(serverConfig)),
             Layer.provideMerge(layerTestHttpClient),
             Layer.provideMerge(
               Layer.succeed(
@@ -3259,6 +3267,7 @@ it.layer(
               "cursor",
               "grok",
               "muse",
+              "ollama",
               "opencode",
               "openrouter",
               "pi",

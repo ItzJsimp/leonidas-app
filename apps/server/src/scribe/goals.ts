@@ -61,7 +61,7 @@ export const levelForXp = (xp: number): number => {
   return level;
 };
 
-export const rankFor = (level: number): string =>
+const rankFor = (level: number): string =>
   RANKS.filter(([from]) => from <= level).at(-1)?.[1] ?? "";
 
 interface Row {
@@ -174,14 +174,14 @@ const DEEP_QUEST: QuestDef = {
 };
 
 /** FNV-1a over the day text, so every user gets the same quests on the same day. */
-export const dayHash = (day: string): number => {
+const dayHash = (day: string): number => {
   let h = 0x811c9dc5;
   for (let i = 0; i < day.length; i += 1) h = Math.imul(h ^ day.charCodeAt(i), 0x01000193) >>> 0;
   return h;
 };
 
 /** 3 quests a day: always Go deep, plus 2 picked by the date. */
-export const questsFor = (day: string): ReadonlyArray<QuestDef> => {
+const questsFor = (day: string): ReadonlyArray<QuestDef> => {
   const h = dayHash(day);
   const first = QUEST_POOL[h % QUEST_POOL.length] as QuestDef;
   const rest = QUEST_POOL.filter((q) => q !== first);

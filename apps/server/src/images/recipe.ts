@@ -9,11 +9,11 @@
  * delete the original folder contents and the kept images stay. The copy in `kept/` is the
  * source of truth for "kept", so no extra state file exists.
  */
-import * as NodeFS from "node:fs/promises";
+import * as NodeFSP from "node:fs/promises";
 import * as NodePath from "node:path";
 
 export const IMAGES_FOLDER = "images";
-export const KEPT_FOLDER = "kept";
+const KEPT_FOLDER = "kept";
 
 export interface Recipe {
   readonly version: 1;
@@ -44,7 +44,7 @@ export function imageBaseName(date: Date, modelId: string, seed: number): string
 }
 
 const exists = (path: string) =>
-  NodeFS.access(path).then(
+  NodeFSP.access(path).then(
     () => true,
     () => false,
   );
@@ -67,13 +67,13 @@ export async function saveImageWithRecipe(input: {
   readonly base: string;
   readonly recipe: RecipeInput;
 }): Promise<{ readonly name: string; readonly pngPath: string; readonly recipePath: string }> {
-  await NodeFS.mkdir(input.dir, { recursive: true });
+  await NodeFSP.mkdir(input.dir, { recursive: true });
   const name = await freeBaseName(input.dir, input.base);
   const pngPath = NodePath.join(input.dir, `${name}.png`);
   const recipePath = NodePath.join(input.dir, `${name}.json`);
   const recipe: Recipe = { version: 1, ...input.recipe, file: `${name}.png` };
-  await NodeFS.writeFile(pngPath, input.bytes);
-  await NodeFS.writeFile(recipePath, `${JSON.stringify(recipe, null, 2)}\n`, "utf8");
+  await NodeFSP.writeFile(pngPath, input.bytes);
+  await NodeFSP.writeFile(recipePath, `${JSON.stringify(recipe, null, 2)}\n`, "utf8");
   return { name, pngPath, recipePath };
 }
 
@@ -117,7 +117,7 @@ export interface StoredImage {
 
 /** Reads the newest Recipes in the folder. A missing folder gives an empty list. */
 export async function readStoredImages(dir: string, limit: number): Promise<StoredImage[]> {
-  const names = await NodeFS.readdir(dir).catch(() => [] as string[]);
+  const names = await NodeFSP.readdir(dir).catch(() => [] as string[]);
   const newest = names
     .filter((name) => name.endsWith(".json"))
     .toSorted()
@@ -125,7 +125,7 @@ export async function readStoredImages(dir: string, limit: number): Promise<Stor
   const stored: StoredImage[] = [];
   for (const jsonName of newest) {
     if (stored.length >= limit) break;
-    const text = await NodeFS.readFile(NodePath.join(dir, jsonName), "utf8").catch(() => null);
+    const text = await NodeFSP.readFile(NodePath.join(dir, jsonName), "utf8").catch(() => null);
     const recipe = text === null ? null : parseRecipe(text);
     if (!recipe) continue;
     const name = jsonName.slice(0, -".json".length);
@@ -143,9 +143,9 @@ export async function readStoredImages(dir: string, limit: number): Promise<Stor
 export async function setKept(dir: string, name: string, kept: boolean): Promise<void> {
   const keptDir = NodePath.join(dir, KEPT_FOLDER);
   if (kept) {
-    await NodeFS.mkdir(keptDir, { recursive: true });
+    await NodeFSP.mkdir(keptDir, { recursive: true });
     for (const extension of [".png", ".json"]) {
-      await NodeFS.copyFile(
+      await NodeFSP.copyFile(
         NodePath.join(dir, `${name}${extension}`),
         NodePath.join(keptDir, `${name}${extension}`),
       );
@@ -153,6 +153,6 @@ export async function setKept(dir: string, name: string, kept: boolean): Promise
     return;
   }
   for (const extension of [".png", ".json"]) {
-    await NodeFS.rm(NodePath.join(keptDir, `${name}${extension}`), { force: true });
+    await NodeFSP.rm(NodePath.join(keptDir, `${name}${extension}`), { force: true });
   }
 }

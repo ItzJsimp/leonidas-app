@@ -38,16 +38,18 @@ describe("userErrorToastFields", () => {
   it("provider CLI missing: opens provider settings", () => {
     const fields = userErrorToastFields(nodeError("spawn codex ENOENT", "ENOENT"));
     expect(fields.description).toBe(
-      "Leonidas could not find the provider's command-line tool on this computer.",
+      "Leonidas could not find the AI program on this computer. Install it from the AI accounts page.",
     );
-    expect(fields.actionProps.children).toBe("Open provider settings");
+    expect(fields.actionProps.children).toBe("Install it");
     fields.actionProps.onClick();
     expect(navigate).toHaveBeenCalledWith("/settings/providers");
   });
 
   it("auth expired: opens sign-in", () => {
     const fields = userErrorToastFields(new Error("Not logged in. Please run /login."));
-    expect(fields.description).toBe("The provider sign-in expired or was removed.");
+    expect(fields.description).toBe(
+      "The sign-in expired or was removed. Sign in again to keep chatting.",
+    );
     expect(fields.actionProps.children).toBe("Sign in again");
     fields.actionProps.onClick();
     expect(navigate).toHaveBeenCalledWith("/settings/providers");
@@ -55,7 +57,9 @@ describe("userErrorToastFields", () => {
 
   it("quota hit: opens usage", () => {
     const fields = userErrorToastFields(new Error("You have hit your usage limit."));
-    expect(fields.description).toBe("This account used all of its allowance for now.");
+    expect(fields.description).toBe(
+      "It used all of its allowance for now. Wait and try again later, or pick another AI in the model menu.",
+    );
     expect(fields.actionProps.children).toBe("View usage");
   });
 

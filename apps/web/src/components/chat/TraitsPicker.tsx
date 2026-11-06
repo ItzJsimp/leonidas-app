@@ -370,7 +370,7 @@ export function useTraitsSelection({
   };
 }
 
-export const TraitsMenuContent = memo(function TraitsMenuContentImpl(
+const TraitsMenuContent = memo(function TraitsMenuContentImpl(
   props: TraitsMenuContentProps & TraitsPersistence,
 ) {
   const { reportedModelSelection } = props;

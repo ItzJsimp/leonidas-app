@@ -25,7 +25,7 @@ import { parse as parseYaml } from "yaml";
 import { appendFeedEvent } from "../events/feedFile.ts";
 
 /** Layout from ADR-0091. Every path stays inside `<root>/marketing`. */
-export const MARKETING_DIR = "marketing";
+const MARKETING_DIR = "marketing";
 
 export class MarketingError extends Error {
   override readonly name = "MarketingError";
@@ -179,7 +179,7 @@ export function readConnections(root: string): MarketingConnections | MarketingB
 }
 
 /** The exact content a ticket approves. Any change here voids the ticket. */
-export function contentHash(post: MarketingPost): string {
+function contentHash(post: MarketingPost): string {
   return NodeCrypto.createHash("sha256")
     .update(JSON.stringify([post.brand, post.channel, post.text, post.scheduledFor ?? null]))
     .digest("hex");
@@ -275,7 +275,7 @@ const signedText = (
   status: "approved" | "rejected",
 ) => [ticket.id, ticket.postId, ticket.act, ticket.contentHash, status].join("|");
 
-export function signDecision(
+function signDecision(
   key: Uint8Array,
   ticket: Pick<MarketingApprovalTicket, "id" | "postId" | "act" | "contentHash">,
   status: "approved" | "rejected",

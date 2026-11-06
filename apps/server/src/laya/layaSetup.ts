@@ -192,8 +192,6 @@ export async function wireLayaProject(input: {
   return { status: "ready", message: `Laya is on in ${folder}.`, missingPackages: [] };
 }
 
-export const layaSetupState = (): LayaSetupResult => current;
-
 const set = (next: LayaSetupResult): void => {
   current = next;
   if (next.status !== "working") finishedAt = Date.now();
@@ -237,7 +235,7 @@ export async function layaStatus(home?: string): Promise<LayaSetupResult> {
 
 /**
  * Starts the install in the background and returns at once. The web step polls
- * `layaSetupState`. Pip runs only when the caller passes `installPackages`.
+ * The web step reads the state. Pip runs only when the caller passes `installPackages`.
  */
 export function startLayaInstall(input: {
   readonly installPackages: boolean;

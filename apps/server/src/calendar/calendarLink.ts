@@ -1,6 +1,6 @@
 /** Checks for the calendar links a user pastes. A private calendar link is a secret: it is never logged or sent back. */
 
-export const MAX_LINK_LENGTH = 2048;
+const MAX_LINK_LENGTH = 2048;
 /** A year of busy calendar is well under this. It stops a link that points at a huge file. */
 export const MAX_CALENDAR_BYTES = 5 * 1024 * 1024;
 
@@ -41,7 +41,7 @@ export function maskCalendarLink(url: string): string {
   }
 }
 
-export const CALENDAR_COLORS = [
+const CALENDAR_COLORS = [
   "#4f8cff",
   "#34a853",
   "#e8710a",

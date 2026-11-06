@@ -5,7 +5,7 @@ import * as NodePath from "node:path";
 import { parseAreas, planJoin, type AreaEntry } from "./areas.ts";
 import { classifyFailure, remoteBaseOf, type Git } from "./git.ts";
 
-export const AREAS_FILE = "org/areas.md";
+const AREAS_FILE = "org/areas.md";
 export const AREAS_DIR = "areas";
 
 export type JoinState = "joined" | "present" | "locked" | "offline" | "failed";
@@ -15,7 +15,7 @@ export interface JoinResult {
   readonly detail: string;
 }
 
-export const areaDir = (root: string, slug: string) => NodePath.join(root, AREAS_DIR, slug);
+const areaDir = (root: string, slug: string) => NodePath.join(root, AREAS_DIR, slug);
 
 const isRepo = (dir: string) => NodeFS.existsSync(NodePath.join(dir, ".git"));
 

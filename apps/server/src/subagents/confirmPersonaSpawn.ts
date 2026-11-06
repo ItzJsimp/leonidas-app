@@ -29,7 +29,7 @@ const denied = (message: string) =>
  * How long one tool call waits for the card. An agent's tool client gives up at about 60 s, so
  * the call answers first. The card stays open and a retry with the same id joins it.
  */
-export const SPAWN_CALL_WAIT = Duration.seconds(45);
+const SPAWN_CALL_WAIT = Duration.seconds(45);
 
 /** What the card shows next to the model, so the user sees what they approve. */
 export interface SpawnCardDetails {
@@ -174,7 +174,7 @@ export const confirmPersonaSpawn = Effect.fn("confirmPersonaSpawn")(function* (i
 });
 
 /** The card label for a `delegate_task` that names no subagent. */
-export const DELEGATED_TASK_SPAWN_LABEL = "delegated task";
+const DELEGATED_TASK_SPAWN_LABEL = "delegated task";
 
 /**
  * The same gate for a plain `delegate_task` (no subagent): a confirm-tier

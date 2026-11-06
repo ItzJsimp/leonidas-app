@@ -1,6 +1,7 @@
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { EnvironmentId, ProjectId, ProviderInstanceId } from "@t3tools/contracts";
-import { assert, it } from "@effect/vitest";
+import * as NodeAssert from "node:assert/strict";
+import { it } from "vite-plus/test";
 
 import {
   buildShowcasePendingTasks,
@@ -35,8 +36,8 @@ const projects: ReadonlyArray<EnvironmentProject> = [
 it("builds sendable-looking pending tasks against real showcase projects", () => {
   const tasks = buildShowcasePendingTasks(projects, Date.parse("2026-07-16T09:00:00.000Z"));
 
-  assert.equal(tasks.length, SHOWCASE_PENDING_TASK_DEFINITIONS.length);
-  assert.deepStrictEqual(
+  NodeAssert.equal(tasks.length, SHOWCASE_PENDING_TASK_DEFINITIONS.length);
+  NodeAssert.deepStrictEqual(
     tasks.map((task) => ({
       environmentId: String(task.environmentId),
       projectId: task.creation ? String(task.creation.projectId) : undefined,
@@ -61,12 +62,12 @@ it("builds sendable-looking pending tasks against real showcase projects", () =>
       },
     ],
   );
-  assert.equal(
+  NodeAssert.equal(
     tasks.every((task) => task.modelSelection !== undefined),
     true,
   );
 });
 
 it("waits until every referenced project has hydrated", () => {
-  assert.equal(buildShowcasePendingTasks(projects.slice(0, 1), Date.now()).length, 1);
+  NodeAssert.strictEqual(buildShowcasePendingTasks(projects.slice(0, 1), Date.now()).length, 1);
 });

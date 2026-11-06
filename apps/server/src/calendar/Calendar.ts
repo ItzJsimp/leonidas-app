@@ -43,7 +43,7 @@ import {
 } from "./calendarLink.ts";
 import { countIcsEvents, expandIcs, findJoinUrl, looksLikeIcs, type IcsEvent } from "./ics.ts";
 
-export const CACHE_TTL_MS = 15 * 60_000;
+const CACHE_TTL_MS = 15 * 60_000;
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
 const MAX_WINDOW_MS = 400 * DAY;

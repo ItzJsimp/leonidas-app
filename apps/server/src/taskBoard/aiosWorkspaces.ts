@@ -8,7 +8,7 @@ import { findAiosRoot } from "./aiosCards.ts";
  * A Workspace is one AIOS root with a `workspace.json` (ADR-0080). Every Command view resolves
  * its root here, by workspace id, so one workspace never reads another's folder.
  */
-export const WORKSPACE_FILE = "workspace.json";
+const WORKSPACE_FILE = "workspace.json";
 const SCHEMA_VERSION = 1;
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
@@ -239,9 +239,4 @@ export function workspaceForPath(
     if (!best || keyFor(workspace.root).length > keyFor(best.root).length) best = workspace;
   }
   return best;
-}
-
-/** The default workspace root from the confirmed folder and env hints (non-Command readers). */
-export function defaultWorkspaceRoot(hints: ReadonlyArray<string | undefined>): string | null {
-  return resolveWorkspaceRoot(listAiosWorkspaces(hints), undefined);
 }

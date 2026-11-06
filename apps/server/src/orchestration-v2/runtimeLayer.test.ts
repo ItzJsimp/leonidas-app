@@ -4006,15 +4006,21 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
       assert.equal(millis((yield* runFor("early-wake")).workStartedAt), millis(now));
 
       yield* settle("early-wake", DateTime.add(now, { seconds: 1 }));
+      assert.equal(yield* Queue.take(startedRunIds), (yield* runFor("late-wake")).id);
+      assert.equal(millis((yield* runFor("late-wake")).workStartedAt), millis(now));
+
+      yield* settle("late-wake", DateTime.add(now, { seconds: 2 }));
       assert.equal(yield* Queue.take(startedRunIds), (yield* runFor("queued")).id);
       assert.isUndefined((yield* runFor("queued")).workStartedAt);
-
-      // The queued prompt starts long after it was requested; the wake after it
-      // counts from that start, not from the request.
+      yield* dispatch("after-queued-wake", true);
+      assert.isUndefined((yield* runFor("after-queued-wake")).workStartedAt);
       const queuedStartedAt = DateTime.add(now, { minutes: 10 });
       yield* settle("queued", queuedStartedAt);
-      assert.equal(yield* Queue.take(startedRunIds), (yield* runFor("late-wake")).id);
-      assert.equal(millis((yield* runFor("late-wake")).workStartedAt), millis(queuedStartedAt));
+      assert.equal(yield* Queue.take(startedRunIds), (yield* runFor("after-queued-wake")).id);
+      assert.equal(
+        millis((yield* runFor("after-queued-wake")).workStartedAt),
+        millis(queuedStartedAt),
+      );
     }),
   );
 

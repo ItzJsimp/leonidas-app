@@ -62,7 +62,7 @@ export function cloneOf(base: string, repo: string): string {
   return dir;
 }
 
-export const AREAS_TABLE = (rows: ReadonlyArray<readonly [string, string]>) =>
+const AREAS_TABLE = (rows: ReadonlyArray<readonly [string, string]>) =>
   [
     "# Areas",
     "",

@@ -46,7 +46,7 @@ export class GroqHttp extends Context.Service<
   { readonly fetch: (url: string, init: RequestInit) => Promise<Response> }
 >()("t3/scribe/VoiceDictation/GroqHttp") {}
 
-export const groqHttpLive = Layer.succeed(
+const groqHttpLive = Layer.succeed(
   GroqHttp,
   GroqHttp.of({ fetch: (url, init) => fetch(url, init) }),
 );

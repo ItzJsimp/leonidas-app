@@ -3,13 +3,15 @@
 // bugs (import cycles) that only appear in the production bundle: 0.24.0
 // shipped with one and nothing else noticed until the installed app died.
 // Run after the web build: node scripts/check-web-boot.mjs
-import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { createServer } from "node:http";
-import { extname, join, normalize } from "node:path";
-import { fileURLToPath } from "node:url";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeHttp from "node:http";
+import * as NodePath from "node:path";
+import * as NodeURL from "node:url";
+import * as NodeProcess from "node:process";
+const { extname } = NodePath;
 
-const dist = fileURLToPath(new URL("../apps/web/dist", import.meta.url));
+const dist = NodeURL.fileURLToPath(new URL("../apps/web/dist", import.meta.url));
 const CDP_PORT = 9341;
 const MIME = {
   ".html": "text/html",
@@ -23,7 +25,7 @@ const MIME = {
 
 function findBrowser() {
   const candidates = [
-    process.env.BOOT_CHECK_BROWSER,
+    NodeProcess.env.BOOT_CHECK_BROWSER,
     "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
     "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
     "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -31,33 +33,33 @@ function findBrowser() {
     "/usr/bin/chromium",
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   ];
-  return candidates.find((candidate) => candidate && existsSync(candidate));
+  return candidates.find((candidate) => candidate && NodeFS.existsSync(candidate));
 }
 
-if (!existsSync(join(dist, "index.html"))) {
+if (!NodeFS.existsSync(NodePath.join(dist, "index.html"))) {
   console.error(`boot check: ${dist} has no index.html. Build the web app first.`);
-  process.exit(2);
+  NodeProcess.exit(2);
 }
 const browser = findBrowser();
 if (!browser) {
   console.error("boot check: no Edge or Chrome found. Set BOOT_CHECK_BROWSER to its path.");
-  process.exit(2);
+  NodeProcess.exit(2);
 }
 
-const server = createServer((req, res) => {
-  const path = normalize(decodeURIComponent(new URL(req.url, "http://x").pathname));
-  let file = join(dist, path);
-  if (!file.startsWith(dist) || !existsSync(file) || path === "/" || path.endsWith("\\")) {
-    file = join(dist, "index.html");
+const server = NodeHttp.createServer((req, res) => {
+  const path = NodePath.normalize(decodeURIComponent(new URL(req.url, "http://x").pathname));
+  let file = NodePath.join(dist, path);
+  if (!file.startsWith(dist) || !NodeFS.existsSync(file) || path === "/" || path.endsWith("\\")) {
+    file = NodePath.join(dist, "index.html");
   }
   res.setHeader("content-type", MIME[extname(file)] ?? "application/octet-stream");
-  res.end(readFileSync(file));
+  res.end(NodeFS.readFileSync(file));
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const origin = `http://127.0.0.1:${server.address().port}/`;
 
-const profile = join(process.env.TEMP ?? "/tmp", `boot-check-${process.pid}`);
-const child = spawn(
+const profile = NodePath.join(NodeProcess.env.TEMP ?? "/tmp", `boot-check-${NodeProcess.pid}`);
+const child = NodeChildProcess.spawn(
   browser,
   [
     "--headless=new",
@@ -84,14 +86,14 @@ try {
 
   const socket = new WebSocket(tab.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
-    socket.onopen = resolve;
-    socket.onerror = reject;
+    socket.addEventListener("open", resolve, { once: true });
+    socket.addEventListener("error", reject, { once: true });
   });
   let nextId = 0;
   let bootProbeId = -1;
   const send = (method, params = {}) =>
     socket.send(JSON.stringify({ id: ++nextId, method, params }));
-  socket.onmessage = (event) => {
+  socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.id === bootProbeId) {
       if (message.result?.result?.value === true) failure ??= "The boot error screen is showing.";
@@ -104,7 +106,7 @@ try {
     if (message.method !== "Runtime.consoleAPICalled" || message.params.type !== "error") return;
     const text = message.params.args.map((arg) => arg.description ?? arg.value).join(" ");
     if (text.includes("failed to start")) failure ??= text;
-  };
+  });
   send("Runtime.enable");
   send("Page.enable");
   send("Page.navigate", { url: origin });
@@ -122,7 +124,7 @@ try {
 
 if (failure) {
   console.error(`Web bundle failed to boot:\n${failure.slice(0, 1500)}`);
-  process.exit(1);
+  NodeProcess.exit(1);
 }
 console.log("Web bundle booted without a startup error.");
-process.exit(0);
+NodeProcess.exit(0);

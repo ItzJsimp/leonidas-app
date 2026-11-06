@@ -20,21 +20,6 @@ export const DONE_COLUMN_PAGE = 10;
 /** Cards an open board column shows before "Show more"; keeps a 700-card board calm and light. */
 export const COLUMN_PAGE = 20;
 
-/** Dot colour per status, from semantic tokens only. */
-const STATUS_DOT_CLASS: Record<TaskBoardTaskStatus, string> = {
-  todo: "bg-muted-foreground/50",
-  in_progress: "bg-info",
-  review: "bg-warning",
-  blocked: "bg-destructive",
-  done: "bg-success",
-  parked: "bg-muted-foreground/30",
-  retired: "bg-muted-foreground/30",
-};
-
-export function statusDotClass(status: TaskBoardTaskStatus): string {
-  return STATUS_DOT_CLASS[status];
-}
-
 /** Statuses a card can be moved to from the board (the five columns). */
 const BOARD_STATUSES: ReadonlyArray<TaskBoardTaskStatus> = [
   "todo",

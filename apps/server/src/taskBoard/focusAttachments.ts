@@ -6,7 +6,7 @@ import * as NodePath from "node:path";
 import { FOCUS_FILE_MAX_BYTES, FOCUS_FILES_MAX, type FocusFileInput } from "@t3tools/contracts";
 
 /** Folder under `<AIOS>/memory/` that holds the files attached to notes. */
-export const FOCUS_FILES_DIR = "focus-files";
+const FOCUS_FILES_DIR = "focus-files";
 
 const IMAGE_TYPES: Readonly<Record<string, string>> = {
   ".png": "image/png",
@@ -45,7 +45,7 @@ export function mimeForName(name: string): string {
   return IMAGE_TYPES[extension] ?? OTHER_TYPES[extension] ?? "application/octet-stream";
 }
 
-export const isImageName = (name: string) => NodePath.extname(name).toLowerCase() in IMAGE_TYPES;
+const isImageName = (name: string) => NodePath.extname(name).toLowerCase() in IMAGE_TYPES;
 
 /**
  * Saves the files and returns one markdown line for each: `![name](focus-files/x.png)` for an

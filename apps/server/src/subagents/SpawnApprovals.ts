@@ -17,7 +17,7 @@ import {
   type SubagentSpawnRespondInput,
   type ThreadId,
 } from "@t3tools/contracts";
-import * as NodeFs from "node:fs";
+import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
 import * as Clock from "effect/Clock";
@@ -34,7 +34,7 @@ import * as SubscriptionRef from "effect/SubscriptionRef";
 /** "Allow for this thread" grants kept in memory before the oldest is dropped. */
 const MAX_THREAD_ALLOWANCES = 500;
 
-export const SPAWN_APPROVAL_TIMEOUT = Duration.minutes(15);
+const SPAWN_APPROVAL_TIMEOUT = Duration.minutes(15);
 
 /** `still_waiting`: the caller's own wait ended, but the card stays open for a later call with the same id. */
 export type SpawnApprovalOutcome =
@@ -134,8 +134,8 @@ export const makeSpawnApprovals = Effect.gen(function* () {
   const saveCounts = () => {
     if (statsFile === null) return;
     try {
-      NodeFs.mkdirSync(NodePath.dirname(statsFile), { recursive: true });
-      NodeFs.writeFileSync(statsFile, JSON.stringify(today), "utf8");
+      NodeFS.mkdirSync(NodePath.dirname(statsFile), { recursive: true });
+      NodeFS.writeFileSync(statsFile, JSON.stringify(today), "utf8");
     } catch {
       // ignore
     }
@@ -237,7 +237,7 @@ export const makeSpawnApprovals = Effect.gen(function* () {
         statsFile = file;
         const saved = yield* Effect.sync(() => {
           try {
-            return parseSavedCounts(NodeFs.readFileSync(file, "utf8"), day);
+            return parseSavedCounts(NodeFS.readFileSync(file, "utf8"), day);
           } catch {
             return null;
           }

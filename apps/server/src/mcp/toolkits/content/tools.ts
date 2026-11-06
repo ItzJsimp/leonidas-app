@@ -40,7 +40,7 @@ const Saved = Schema.Struct({
   detail: Schema.String,
 });
 
-export const ContentReadTool = Tool.make("content_read", {
+const ContentReadTool = Tool.make("content_read", {
   description:
     "Read the Content deals. Without deal: each deal with its video stages. With deal: the deal card (brief and terms), brand do-nots, every video with script and scorecard, and the voice bible. Read before you draft.",
   parameters: Schema.Struct({ deal: Schema.optional(ContentSlug) }),
@@ -71,7 +71,7 @@ export const ContentReadTool = Tool.make("content_read", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-export const ContentVideoCreateTool = Tool.make("content_video_create", {
+const ContentVideoCreateTool = Tool.make("content_video_create", {
   description: "Add a video idea to a deal. It starts in idea as the next numbered file.",
   parameters: Schema.Struct({
     deal: ContentSlug,
@@ -88,7 +88,7 @@ export const ContentVideoCreateTool = Tool.make("content_video_create", {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.OpenWorld, false);
 
-export const ContentScriptSaveTool = Tool.make("content_script_save", {
+const ContentScriptSaveTool = Tool.make("content_script_save", {
   description:
     "Save your script draft for a video in idea or scripting (VISUAL, SPOKEN and SFX lines), with the critic's hook score and the models used. The server counts spoken seconds, banned words and brand do-nots.",
   parameters: Schema.Struct({
@@ -111,7 +111,7 @@ export const ContentScriptSaveTool = Tool.make("content_script_save", {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.OpenWorld, false);
 
-export const ContentStageMoveTool = Tool.make("content_stage_move", {
+const ContentStageMoveTool = Tool.make("content_stage_move", {
   description:
     "Move a video from idea to scripting, or from scripting to script_review when the draft is ready. A banned word or brand do-not blocks script_review. Only a person approves.",
   parameters: Schema.Struct({
@@ -131,7 +131,7 @@ export const ContentStageMoveTool = Tool.make("content_stage_move", {
 
 const Line = (max: number) => Schema.String.check(Schema.isMaxLength(max));
 
-export const ContentDealProposeTool = Tool.make("content_deal_propose", {
+const ContentDealProposeTool = Tool.make("content_deal_propose", {
   description:
     "Propose a new deal you found, for example from an email. A person confirms it in the Content screen. It is refused when deal intake is manual. Fill only what the source says.",
   parameters: Schema.Struct({

@@ -18,7 +18,7 @@ class SkillPickRequestError extends Data.TaggedError("SkillPickRequestError")<{
 }> {}
 
 /** The whole pick must not keep a click waiting longer than this. */
-export const SKILL_PICK_TOTAL_MS = 12_000;
+const SKILL_PICK_TOTAL_MS = 12_000;
 /** One engine gets at most this long, so a slow free model cannot use the whole budget. */
 const PER_ENGINE_MS = 7_000;
 /** Below this much time left, trying another engine is pointless. */

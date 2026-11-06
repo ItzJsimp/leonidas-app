@@ -124,7 +124,7 @@ export function readCodexPonytailState(home: string): CodexPluginState {
 }
 
 /** Install the plugin for one Codex home. Never throws; a failed try repeats at next start. */
-export async function ensureCodexPonytail(input: {
+async function ensureCodexPonytail(input: {
   readonly binaryPath: string;
   readonly env: NodeJS.ProcessEnv;
 }): Promise<"installed" | "present" | "skipped" | "failed"> {

@@ -43,7 +43,7 @@ export interface Read<A> {
 }
 
 export const dealDir = (root: string, slug: string) => NodePath.join(root, DEALS_DIR, slug);
-export const videoPath = (root: string, deal: string, file: string) =>
+const videoPath = (root: string, deal: string, file: string) =>
   NodePath.join(dealDir(root, deal), `${file}.md`);
 const rel = (root: string, file: string) => NodePath.relative(root, file).replaceAll("\\", "/");
 
@@ -154,7 +154,7 @@ const says = (text: string, phrase: string) =>
   phrase.trim() !== "" &&
   new RegExp(`(?<![\\p{L}\\p{N}])${escape(phrase.trim())}(?![\\p{L}\\p{N}])`, "iu").test(text);
 
-export function spokenSeconds(script: string): number {
+function spokenSeconds(script: string): number {
   const words = script
     .split("\n")
     .map((line) => /^\s*(?:[-*]\s*)?SPOKEN:\s*(.*)$/i.exec(line)?.[1] ?? "")
@@ -170,7 +170,7 @@ export interface Rules {
 }
 
 /** The server counts length and rule hits itself; an agent cannot report a clean card it did not earn. */
-export function scorecard(
+function scorecard(
   script: string,
   rules: Rules,
   given: { hookScore?: number; targetSeconds?: number; writerModel?: string; criticModel?: string },
@@ -352,7 +352,7 @@ const yamlScalar = (value: string | number) =>
  * Sets top-level frontmatter keys in place; `null` removes one. Other lines and the body stay
  * byte for byte, so Git shows only the real change.
  */
-export function setFront(text: string, fields: Readonly<Record<string, FrontValue>>): string {
+function setFront(text: string, fields: Readonly<Record<string, FrontValue>>): string {
   const eol = eolOf(text);
   const match = /^---\n([\s\S]*?)(\n---[\s\S]*)$/.exec(text.replaceAll("\r\n", "\n"));
   if (!match) throw new ContentError("The file has no frontmatter.");

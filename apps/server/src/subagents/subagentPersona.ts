@@ -22,7 +22,7 @@
  * Merge for `extends`: the child's scalars and `tools` replace the base's;
  * `context` and `never` add to the base's; the child body follows the base.
  */
-import * as NodeFs from "node:fs";
+import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
 import { parse as parseYamlDocument } from "yaml";
@@ -154,11 +154,11 @@ export function parseSubagentSpec(source: string, expectedName: string): Subagen
 }
 
 /** Nearest `.agents/subagents/<name>.md` at or above `cwd`, or null. */
-export function findSubagentSpec(cwd: string, name: string): string | null {
+function findSubagentSpec(cwd: string, name: string): string | null {
   let directory = NodePath.resolve(cwd);
   for (;;) {
     const candidate = NodePath.join(directory, ".agents", "subagents", `${name}.md`);
-    if (NodeFs.existsSync(candidate)) return candidate;
+    if (NodeFS.existsSync(candidate)) return candidate;
     const parent = NodePath.dirname(directory);
     if (parent === directory) return null;
     directory = parent;
@@ -166,7 +166,7 @@ export function findSubagentSpec(cwd: string, name: string): string | null {
 }
 
 /** The folder that holds `.agents/` for a spec path. Context paths are relative to it. */
-export function specRoot(specPath: string): string {
+function specRoot(specPath: string): string {
   return NodePath.dirname(NodePath.dirname(NodePath.dirname(specPath)));
 }
 
@@ -198,7 +198,7 @@ export function resolveSubagentSpec(specPath: string): ResolvedSubagentSpec {
   let path: string | null = specPath;
   while (path !== null) {
     const spec = parseSubagentSpec(
-      NodeFs.readFileSync(path, "utf8"),
+      NodeFS.readFileSync(path, "utf8"),
       NodePath.basename(path, ".md"),
     );
     chain.push({ path, spec });
@@ -252,7 +252,7 @@ export function resolveSubagentSpec(specPath: string): ResolvedSubagentSpec {
   };
 }
 
-export function buildPersonaSystemPrompt(input: {
+function buildPersonaSystemPrompt(input: {
   readonly spec: Pick<ResolvedSubagentSpec, "body" | "never">;
   readonly contextFiles: ReadonlyArray<{ readonly path: string; readonly content: string }>;
 }): string {
@@ -279,13 +279,13 @@ export function loadSubagentPersona(cwd: string, name: string): LoadedSubagentPe
     throw new SubagentPersonaError(`Subagent "${name}" is off. Turn it on in the Subagents view.`);
   }
   const contextFiles = spec.context.map(({ path, absolutePath }) => {
-    if (!NodeFs.existsSync(absolutePath)) {
+    if (!NodeFS.existsSync(absolutePath)) {
       throw new SubagentPersonaError(`Context file "${path}" does not exist.`);
     }
-    if (NodeFs.statSync(absolutePath).size > MAX_CONTEXT_FILE_BYTES) {
+    if (NodeFS.statSync(absolutePath).size > MAX_CONTEXT_FILE_BYTES) {
       throw new SubagentPersonaError(`Context file "${path}" is over 200 KB.`);
     }
-    return { path, content: NodeFs.readFileSync(absolutePath, "utf8") };
+    return { path, content: NodeFS.readFileSync(absolutePath, "utf8") };
   });
   return { spec, specPath, systemPrompt: buildPersonaSystemPrompt({ spec, contextFiles }) };
 }

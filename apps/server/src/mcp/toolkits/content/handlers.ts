@@ -53,7 +53,7 @@ const write = (
     return { video, recorded: committed, detail };
   });
 
-export const handlers = {
+const handlers = {
   content_read: McpToolAccess.reads((input) =>
     Effect.map(
       onRoot((root, signingKey) => {

@@ -25,9 +25,6 @@ export type LayaScorer = (
   tails: ReadonlyArray<ThreadTail>,
 ) => Promise<ReadonlyArray<LayaScores> | null>;
 
-export const LAYA_MISSING_MESSAGE =
-  "Laya is not installed, so the sweep used only its built-in rules. Install Laya in Settings to sort more threads.";
-
 // Yes at 0.65 or more, no at 0.35 or less; between the two the model abstains (same band as the Laya MCP server).
 const YES_AT = 0.65;
 const NO_AT = 0.35;

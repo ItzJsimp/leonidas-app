@@ -5,6 +5,7 @@
  */
 import type { LocalModelsAdvice, LocalModelsAdviceItem } from "@t3tools/contracts";
 import * as NodeChildProcess from "node:child_process";
+import * as NodeProcess from "node:process";
 
 const MB = 1024 ** 2;
 /** Ignore programs that hold less than this much. */
@@ -36,7 +37,7 @@ export function hintFor(name: string): string | null {
 }
 
 /** The PowerShell script. It prints `vram|name|bytes|count` and `ram|name|bytes|count` lines. */
-export const ADVISOR_SCRIPT = `
+const ADVISOR_SCRIPT = `
 $ErrorActionPreference = 'SilentlyContinue'
 $names = @{}
 Get-Process | ForEach-Object { $names[[int]$_.Id] = $_.ProcessName }
@@ -84,7 +85,7 @@ export function parseAdvisorOutput(text: string): ReadonlyArray<LocalModelsAdvic
 
 /** Read the advisor data once. Windows only: other systems get an empty list. */
 export function readAdvice(now: () => number): Promise<LocalModelsAdvice> {
-  if (process.platform !== "win32") {
+  if (NodeProcess.platform !== "win32") {
     return Promise.resolve({ at: now(), supported: false, items: [] });
   }
   return new Promise((resolve) => {

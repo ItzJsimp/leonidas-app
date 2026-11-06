@@ -68,7 +68,7 @@ const messageMarker = (id: string) => `[message ${id}]`;
 const runMarker = (id: string) => `[run ${id}]`;
 
 /** A card lists every chat that worked on it; older records name only the newest one. */
-export const isLinked = (task: TaskBoardTask, threadId: string): boolean =>
+const isLinked = (task: TaskBoardTask, threadId: string): boolean =>
   task.threadIds?.includes(threadId) === true || task.claimedAgent?.threadId === threadId;
 
 /** The run fields the ledger reads; a bare id and status still log the outcome note. */

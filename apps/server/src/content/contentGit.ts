@@ -4,7 +4,7 @@ import { identityArgs, realGit, type Git } from "../areaSync/engine/git.ts";
 import { DEALS_DIR, parseFile, sections } from "./contentFiles.ts";
 
 /** The trailer that marks an agent draft: the "before" side of every edit pair. */
-export const BASELINE_TRAILER = "Script-Baseline: yes";
+const BASELINE_TRAILER = "Script-Baseline: yes";
 
 export const videoRel = (deal: string, file: string) => `${DEALS_DIR}/${deal}/${file}.md`;
 

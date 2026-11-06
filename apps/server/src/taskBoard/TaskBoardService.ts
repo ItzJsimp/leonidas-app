@@ -370,7 +370,7 @@ const decodeTeam = Schema.decodeUnknownSync(
  * The collaborators every project folder names in `leonidas.team.json`, merged by name. It is a
  * committed file, so adding a person to a project is one pull request.
  */
-export function readProjectTeams(projects: ReadonlyArray<Project>): Array<TaskBoardTeamMember> {
+function readProjectTeams(projects: ReadonlyArray<Project>): Array<TaskBoardTeamMember> {
   const byName = new Map<string, Set<string>>();
   for (const root of new Set(projects.map((project) => project.workspaceRoot))) {
     let members: ReadonlyArray<TaskBoardTeamMember>;

@@ -256,7 +256,7 @@ function redactProviderConfig(config: unknown): unknown {
  * A client only ever sees redacted driver credentials, so a save that sends the marker
  * back means "keep the saved value", as for the other secrets in this file.
  */
-export function restoreRedactedProviderConfigSecrets(
+function restoreRedactedProviderConfigSecrets(
   current: ServerSettings,
   next: ServerSettings,
 ): ServerSettings {

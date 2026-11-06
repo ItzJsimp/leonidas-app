@@ -5,22 +5,22 @@
 //   node scripts/perf-bench.mjs --root C:/lcw/perf-bench   full run against the bench worktree
 //   node scripts/perf-bench.mjs --only a,b                 run only the named steps
 //   node scripts/perf-bench.mjs --note "x"                 attach a note (for example the change under test)
-import { spawn, execFileSync } from "node:child_process";
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  rmSync,
-  statSync,
-} from "node:fs";
-import { createServer } from "node:net";
-import { cpus, tmpdir, totalmem } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeNet from "node:net";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+import * as NodeURL from "node:url";
+import * as NodeProcess from "node:process";
+const { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } =
+  NodeFS;
+const { createServer } = NodeNet;
+const { cpus, tmpdir, totalmem } = NodeOS;
+const { dirname, join, resolve } = NodePath;
+const { fileURLToPath } = NodeURL;
+const { spawn, execFileSync } = NodeChildProcess;
 
-const argv = process.argv.slice(2);
+const argv = NodeProcess.argv.slice(2);
 const flag = (name) => {
   const i = argv.indexOf(name);
   return i >= 0 ? argv[i + 1] : undefined;
@@ -31,7 +31,12 @@ const flag = (name) => {
 const scriptRepo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const store = join(scriptRepo, "perf", "benchmarks.jsonl");
 const repoRoot = resolve(flag("--root") ?? scriptRepo);
-const vp = join(repoRoot, "node_modules", ".bin", process.platform === "win32" ? "vp.cmd" : "vp");
+const vp = join(
+  repoRoot,
+  "node_modules",
+  ".bin",
+  NodeProcess.platform === "win32" ? "vp.cmd" : "vp",
+);
 const only = flag("--only")?.split(",");
 
 // Scoped test files: fast, stable, and covering hot paths. Add files here; keep names stable.
@@ -48,12 +53,12 @@ const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 function run(cmd, args, cwd, timeoutMs) {
   return new Promise((done) => {
     const started = performance.now();
-    const win = process.platform === "win32";
+    const win = NodeProcess.platform === "win32";
     // Windows .cmd shims need a shell; quote the command because the repo path has spaces.
     const child = spawn(win ? `"${cmd}"` : cmd, args, {
       cwd,
       shell: win,
-      env: { ...process.env, CI: "1", FORCE_COLOR: "0" },
+      env: { ...NodeProcess.env, CI: "1", FORCE_COLOR: "0" },
     });
     let out = "";
     child.stdout.on("data", (d) => (out += d));
@@ -111,7 +116,7 @@ async function testStep(dir, files) {
 /** Working set in MB of a PID plus all its descendants (Windows), or RSS of the PID elsewhere. */
 function treeMemoryMb(pid) {
   try {
-    if (process.platform !== "win32") {
+    if (NodeProcess.platform !== "win32") {
       const kb = execFileSync("ps", ["-o", "rss=", "-p", String(pid)], { encoding: "utf8" });
       return Math.round(Number(kb) / 1024);
     }
@@ -136,7 +141,7 @@ async function serverLiveStep() {
   const workspace = join(home, "workspace");
   mkdirSync(workspace);
   const entry = join(repoRoot, "apps/server/src/bin.ts");
-  const env = { ...process.env, T3CODE_HOME: home, T3CODE_NO_BROWSER: "1" };
+  const env = { ...NodeProcess.env, T3CODE_HOME: home, T3CODE_NO_BROWSER: "1" };
   const port = await new Promise((res, rej) => {
     const probe = createServer();
     probe.once("error", rej);
@@ -148,7 +153,7 @@ async function serverLiveStep() {
   const origin = `http://127.0.0.1:${port}`;
   const started = performance.now();
   const server = spawn(
-    process.execPath,
+    NodeProcess.execPath,
     [entry, "--base-dir", home, "--host", "127.0.0.1", "--port", String(port), "--no-browser"],
     { cwd: repoRoot, env },
   );
@@ -158,7 +163,7 @@ async function serverLiveStep() {
   const stop = () => {
     // Kill only the PID captured at spawn, with its child tree.
     if (server.exitCode !== null) return;
-    if (process.platform === "win32")
+    if (NodeProcess.platform === "win32")
       execFileSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" });
     else server.kill("SIGKILL");
   };
@@ -188,7 +193,7 @@ async function serverLiveStep() {
     const commandStart = performance.now();
     const cmd = await new Promise((res) => {
       const child = spawn(
-        process.execPath,
+        NodeProcess.execPath,
         [entry, "project", "add", workspace, "--base-dir", home],
         { cwd: repoRoot, env },
       );
@@ -278,7 +283,7 @@ const record = {
   commit: git("rev-parse", "--short", "HEAD"),
   branch: git("rev-parse", "--abbrev-ref", "HEAD"),
   dirty: git("status", "--porcelain", "--untracked-files=no") !== "",
-  node: process.version,
+  node: NodeProcess.version,
   machine: { cpus: cpus().length, memGb: Math.round(totalmem() / 2 ** 30) },
   note: flag("--note"),
   steps: {},
@@ -287,7 +292,7 @@ const record = {
 const totalStart = performance.now();
 for (const [name, fn] of steps) {
   if (only && !only.includes(name)) continue;
-  process.stdout.write(`${name} ... `);
+  NodeProcess.stdout.write(`${name} ... `);
   try {
     record.steps[name] = await fn();
   } catch (error) {

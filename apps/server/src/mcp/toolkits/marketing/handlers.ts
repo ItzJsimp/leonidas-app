@@ -48,7 +48,7 @@ const signingKey = approvalKey.pipe(
   Effect.mapError(() => failure("orchestration_error", "Could not read the approval key.")),
 );
 
-export const handlers = {
+const handlers = {
   marketing_brands: McpToolAccess.reads(() =>
     onRoot((root) => {
       const { records, bad } = MarketingFiles.readBrands(root);

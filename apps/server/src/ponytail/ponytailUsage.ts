@@ -149,7 +149,7 @@ export function summarizePonytail(
 }
 
 /** The plugin writes its ledger under XDG_CONFIG_HOME, else ~/.config, on every platform. */
-export const ponytailLedgerDir = (env: NodeJS.ProcessEnv = process.env): string =>
+const ponytailLedgerDir = (env: NodeJS.ProcessEnv = process.env): string =>
   NodePath.join(
     env.XDG_CONFIG_HOME || NodePath.join(NodeOS.homedir(), ".config"),
     "ponytail",

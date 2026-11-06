@@ -25,9 +25,6 @@ export const replanPrompt = (direction: Pick<AiosDirection, "goals" | "horizons"
     ? FIRST_PLAN_PROMPT
     : WEEKLY_REPLAN_PROMPT;
 
-export const isDirectionEmpty = (direction: Pick<AiosDirection, "goals" | "horizons">): boolean =>
-  direction.goals.length === 0 && direction.horizons.every((horizon) => horizon.items.length === 0);
-
 /** One plain sentence for the stale banner; null when the week block is fresh. */
 export const staleMessage = (
   direction: Pick<AiosDirection, "weekStale" | "weekAgeDays">,

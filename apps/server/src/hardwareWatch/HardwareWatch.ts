@@ -27,7 +27,6 @@ import {
   emptyAlertEngineState,
   evaluateAlerts,
   findTemperatureDrift,
-  isDiscreteGpu,
   metricInfo,
   sampleMetrics,
   type AlertEngineState,
@@ -189,6 +188,7 @@ const make = Effect.gen(function* () {
   const path = yield* Path.Path;
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const platform = yield* HostProcess.Platform;
+  const architecture = yield* HostProcess.Architecture;
   const environment = yield* HostProcess.Environment;
   const power = yield* HostPowerMonitor.HostPowerMonitor;
   // Deep sensors helpers run on demand from RPC handlers, so they carry the layer's services.
@@ -237,7 +237,7 @@ const make = Effect.gen(function* () {
   const host = (): HostBasics => ({
     platform,
     hostname: NodeOS.hostname(),
-    architecture: NodeOS.arch(),
+    architecture,
     osRelease: NodeOS.release(),
     cpuModel: NodeOS.cpus()[0]?.model.trim() ?? "Unknown CPU",
     threads: NodeOS.cpus().length,
@@ -797,6 +797,3 @@ const make = Effect.gen(function* () {
 });
 
 export const layer = Layer.effect(HardwareWatch, make);
-
-/** Keeps discrete GPU naming consistent between inventory and samples in the UI. */
-export { isDiscreteGpu };

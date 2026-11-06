@@ -24,7 +24,7 @@ const PAGE_RULES =
 
 const CanvasText = Schema.String.check(Schema.isMaxLength(2000));
 const CanvasCell = Schema.String.check(Schema.isMaxLength(80));
-export const CanvasTool = Tool.make("canvas", {
+const CanvasTool = Tool.make("canvas", {
   description:
     "Build an offline Leonidas canvas from structured sections: accessible pill tabs, KPI cards, an SVG flow, and tables. First read leonidas-canvas/SKILL.md. This returns HTML, not a published page. Check the HTML with html_preview at wide and narrow widths, then publish it with html_render before replying.",
   parameters: Schema.Struct({

@@ -1,4 +1,5 @@
 import type { OrchestratorMcpAcceptanceResult } from "@t3tools/contracts";
+import * as NodeProcess from "node:process";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -30,7 +31,7 @@ export class DelegatedTaskAcceptance extends Context.Service<
 // On Windows the command goes in through stdin: argument quoting would mangle
 // any command that holds quotes or spaces. `exit /b` carries the last exit code.
 const shellInvocation = (command: string) =>
-  process.platform === "win32"
+  NodeProcess.platform === "win32"
     ? {
         command: "cmd",
         args: ["/d", "/q"],
@@ -52,6 +53,7 @@ interface AcceptanceRow {
   readonly output_tail: string | null;
 }
 
+/** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const processes = yield* ProcessRunner.ProcessRunner;

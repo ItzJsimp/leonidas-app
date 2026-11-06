@@ -90,7 +90,7 @@ export const xDraftConnector: MarketingConnector = {
   },
 };
 
-export const CONNECTORS: ReadonlyArray<MarketingConnector> = [xDraftConnector];
+const CONNECTORS: ReadonlyArray<MarketingConnector> = [xDraftConnector];
 
 export interface SyncResult {
   readonly added: number;

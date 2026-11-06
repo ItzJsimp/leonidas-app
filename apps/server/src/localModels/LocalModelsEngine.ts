@@ -72,7 +72,7 @@ const normalizeMount = (value: string): string =>
   value.replace(/\\/g, "/").replace(/\/+$/, "").toUpperCase();
 
 /** The volume with the longest mount that is a prefix of the path. */
-export function volumeForPath(
+function volumeForPath(
   path: string | null,
   volumes: ReadonlyArray<CapacityVolume>,
 ): CapacityVolume | null {

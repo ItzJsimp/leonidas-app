@@ -60,6 +60,7 @@ function resolveColor(style: CSSStyleDeclaration, value: string): string {
   return style.getPropertyValue(match[1]!).trim() || match[2]!.trim();
 }
 
+/** @public Loaded by name through MemoryWindow's lazy module import. */
 export function BrainVisualizer({
   initialData,
   dataSourceUrl = "/data/brain.json",
@@ -609,5 +610,3 @@ export function BrainVisualizer({
     </div>
   );
 }
-
-export default BrainVisualizer;

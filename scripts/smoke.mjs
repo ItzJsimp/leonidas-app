@@ -9,21 +9,27 @@
 //                                             run a packaged server with the app's Electron as Node
 // Exit 0 = pass, 1 = fail. Prints one line per step with its time in ms.
 // The server always gets a fresh temp home, so it never touches ~/.t3/userdata.
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { createServer } from "node:net";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeNet from "node:net";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+import * as NodeURL from "node:url";
+import * as NodeProcess from "node:process";
+const { existsSync, mkdirSync, mkdtempSync, rmSync } = NodeFS;
+const { createServer } = NodeNet;
+const { tmpdir } = NodeOS;
+const { join, resolve } = NodePath;
+const { spawn, spawnSync } = NodeChildProcess;
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const argv = process.argv.slice(2);
+const repoRoot = NodePath.resolve(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)), "..");
+const argv = NodeProcess.argv.slice(2);
 const flag = (name) => {
   const index = argv.indexOf(name);
   return index >= 0 ? argv[index + 1] : undefined;
 };
 const entry = resolve(flag("--entry") ?? join(repoRoot, "apps/server/src/bin.ts"));
-const runtime = flag("--runtime") ? resolve(flag("--runtime")) : process.execPath;
+const runtime = flag("--runtime") ? resolve(flag("--runtime")) : NodeProcess.execPath;
 const BOOT_DEADLINE_MS = 90_000;
 const PROBE_TIMEOUT_MS = 5_000;
 const COMMAND_TIMEOUT_MS = 30_000;
@@ -51,13 +57,13 @@ function fail(reason) {
   console.error(`[smoke] FAIL: ${reason}`);
   if (serverLog) console.error(`[smoke] last server output:\n${serverLog.slice(-2_000)}`);
   cleanup();
-  process.exit(1);
+  NodeProcess.exit(1);
 }
 
 function cleanup() {
   // Kill only the PID captured at spawn, with its child tree.
   if (server?.pid && server.exitCode === null) {
-    if (process.platform === "win32") {
+    if (NodeProcess.platform === "win32") {
       spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" });
     } else {
       server.kill("SIGKILL");
@@ -70,7 +76,7 @@ function cleanup() {
 }
 
 const env = {
-  ...process.env,
+  ...NodeProcess.env,
   T3CODE_HOME: home,
   T3CODE_NO_BROWSER: "1",
   ELECTRON_RUN_AS_NODE: "1",
@@ -124,7 +130,7 @@ server = spawn(
 const keepLog = (d) => (serverLog = (serverLog + d).slice(-8_000));
 server.stdout.on("data", keepLog);
 server.stderr.on("data", keepLog);
-process.on("SIGINT", () => fail("interrupted"));
+NodeProcess.default.on("SIGINT", () => fail("interrupted"));
 
 await waitReady(origin);
 step(`server ready on ${origin}`, Date.now() - started);
