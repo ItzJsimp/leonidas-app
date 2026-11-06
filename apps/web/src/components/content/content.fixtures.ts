@@ -6,7 +6,7 @@ import type {
 } from "@t3tools/contracts";
 
 /** Made-up deals for tests and screenshots. No real brand or deal data. */
-export const video = (
+const video = (
   deal: string,
   n: number,
   title: string,

@@ -59,7 +59,7 @@ export function dayLabel(day: string, today: Date = new Date()): string {
 }
 
 /** A rewrite of selected text (contract v1.4): `rawText` is the selection, `cleanedText` the result. */
-export function isRewrite(item: ScribeHistoryItem): boolean {
+function isRewrite(item: ScribeHistoryItem): boolean {
   return item.mode === "rewrite";
 }
 
@@ -148,7 +148,7 @@ export function timeLabel(at: string): string {
  * A transcript this long passes 4 lines even at the widest layout (about 140 characters a
  * line), so it starts clamped with a Show more button. Shorter text never clamps.
  */
-export const CLAMP_CHARS = 560;
+const CLAMP_CHARS = 560;
 
 export function isLongTranscript(text: string): boolean {
   return text.length > CLAMP_CHARS;

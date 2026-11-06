@@ -27,7 +27,7 @@ function lineParts(line: string): { readonly kind: string | null; readonly text:
 }
 
 /** The script as rows. In reader mode only the spoken words show, in big text for the tripod. */
-export function ScriptLines(props: { readonly script: string; readonly reader: boolean }) {
+function ScriptLines(props: { readonly script: string; readonly reader: boolean }) {
   const lines = props.script
     .split("\n")
     .filter((line) => line.trim() !== "")

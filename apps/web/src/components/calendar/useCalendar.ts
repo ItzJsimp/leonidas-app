@@ -31,7 +31,7 @@ const subscribe = (listener: () => void) => {
 };
 
 /** Events between two times, plus the connected calendars. Re-reads after `bumpCalendars`. */
-export function useCalendarEvents(fromMs: number, toMs: number) {
+function useCalendarEvents(fromMs: number, toMs: number) {
   const environmentId = usePrimaryEnvironmentId();
   const query = useEnvironmentQuery(
     environmentId === null

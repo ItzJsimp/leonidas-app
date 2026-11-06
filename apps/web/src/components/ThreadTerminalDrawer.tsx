@@ -75,7 +75,6 @@ import {
 } from "./TerminalViewport";
 
 export {
-  clampDrawerHeight,
   TerminalViewport,
   type TerminalLaunchLocation,
   type TerminalViewportProps,

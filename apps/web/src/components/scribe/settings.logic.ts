@@ -4,7 +4,7 @@ type Sections = ScribeSettings["sections"];
 type Transcription = Sections["transcription"];
 
 /** The engine binds this when the settings carry no `rewrite` list (contract v1.4). */
-export const DEFAULT_REWRITE_KEY = "Ctrl + Shift + A";
+const DEFAULT_REWRITE_KEY = "Ctrl + Shift + A";
 
 /** The rewrite shortcuts. A missing list means the engine default; an empty list means none. */
 export function rewriteBindings(hotkeys: Sections["hotkeys"]): string[] {
@@ -183,7 +183,7 @@ export function checkGroqKey(
 }
 
 /** How long a copied key stays on the clipboard. */
-export const KEY_CLIPBOARD_MS = 30_000;
+const KEY_CLIPBOARD_MS = 30_000;
 
 /**
  * Copies the key, then empties the clipboard after `KEY_CLIPBOARD_MS`. The timer is not tied to the page,

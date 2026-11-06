@@ -34,7 +34,7 @@ export function TaskPresenceProvider(props: {
   return <PresenceContext value={map}>{props.children}</PresenceContext>;
 }
 
-export const useTaskPresence = (taskId: string): ReadonlyArray<TaskPresenceChat> =>
+const useTaskPresence = (taskId: string): ReadonlyArray<TaskPresenceChat> =>
   useContext(PresenceContext).get(taskId) ?? NO_CHATS;
 
 /** One chip per chat working on the card now. Renders nothing when none is. */

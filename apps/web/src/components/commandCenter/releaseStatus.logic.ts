@@ -12,8 +12,8 @@ export interface ReleaseEvent {
   readonly outcome: Exclude<ReleaseRunState, "running">;
 }
 
-export const FAST_POLL_MS = 15_000;
-export const SLOW_POLL_MS = 120_000;
+const FAST_POLL_MS = 15_000;
+const SLOW_POLL_MS = 120_000;
 
 export const runStates = (runs: ReadonlyArray<RunLike>): ReadonlyMap<number, ReleaseRunState> =>
   new Map(runs.map((r) => [r.id, r.state]));

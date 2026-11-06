@@ -41,7 +41,7 @@ export function clampToViewport(position: Point, widget: Size, viewport: Bounds)
 }
 
 /** Smallest size the user can drag the widget to. */
-export const FOCUS_MIN_SIZE: Size = { width: 260, height: 180 };
+const FOCUS_MIN_SIZE: Size = { width: 260, height: 180 };
 /** Width of the widget before the user resizes it. */
 export const FOCUS_DEFAULT_WIDTH = 320;
 

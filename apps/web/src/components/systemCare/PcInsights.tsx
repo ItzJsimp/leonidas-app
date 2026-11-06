@@ -69,7 +69,7 @@ export function ScoreRing(props: { health: HealthScore }) {
   );
 }
 
-export const PC_TABS = [
+const PC_TABS = [
   { id: "overview", label: "Overview", icon: GaugeIcon },
   { id: "parts", label: "Your parts", icon: LayoutGridIcon },
   { id: "history", label: "History", icon: SparklesIcon },

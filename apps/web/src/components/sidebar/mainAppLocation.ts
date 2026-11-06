@@ -10,7 +10,7 @@ export function isAppModalPage(pathname: string) {
 // Utility pages replace the sidebar utility row with a
 // Back button. Everything else is the main app. Legacy `/projects/<key>` links
 // redirect into settings, so they count too and are never remembered.
-export function isSidebarUtilityPage(pathname: string) {
+function isSidebarUtilityPage(pathname: string) {
   return (
     isAppModalPage(pathname) ||
     pathname.startsWith("/projects/") ||

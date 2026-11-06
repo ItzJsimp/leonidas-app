@@ -3,8 +3,8 @@ export const SPLIT_MIN_WIDTH = 1280;
 /** Below this width the rail moves into a drawer. */
 export const DRAWER_BELOW_WIDTH = 728;
 /** Each pane keeps at least this much width. */
-export const MIN_PANE_WIDTH = 360;
-export const RATIO_STEP = 0.02;
+const MIN_PANE_WIDTH = 360;
+const RATIO_STEP = 0.02;
 
 export type RouteKind = "thread" | "window";
 export type PaneLayout = { readonly mode: "split" | "single"; readonly show: "left" | "chat" };

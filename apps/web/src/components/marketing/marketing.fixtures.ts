@@ -25,7 +25,7 @@ export function fixturePost(n: number, overrides: Partial<MarketingPost> = {}): 
   };
 }
 
-export function fixtureTicket(
+function fixtureTicket(
   post: MarketingPost,
   n: number,
   overrides: Partial<MarketingApprovalTicket> = {},
@@ -44,7 +44,7 @@ export function fixtureTicket(
   };
 }
 
-export function fixtureMetric(
+function fixtureMetric(
   channel: MarketingMetricSnapshot["channel"],
   externalId: string,
   at: string,

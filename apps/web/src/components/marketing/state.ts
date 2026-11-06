@@ -14,7 +14,7 @@ import { usePrimaryEnvironmentId } from "../../state/environments";
 import { useEnvironmentQuery } from "../../state/query";
 import { useEnvironmentScope } from "../../state/session";
 
-export const marketingListQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+const marketingListQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
   label: "environment-data:marketing:list",
   tag: WS_METHODS.marketingList,
   staleTimeMs: 15_000,

@@ -1591,7 +1591,7 @@ export default function FilePreviewPanel({
 }
 
 const LargeTextViewer = lazy(() => import("./LargeTextViewer"));
-export function WorkspaceLargeTextPreview(props: {
+function WorkspaceLargeTextPreview(props: {
   environmentId: EnvironmentId;
   threadRef: ScopedThreadRef;
   absolutePath: string;

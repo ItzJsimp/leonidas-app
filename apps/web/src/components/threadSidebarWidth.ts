@@ -2,7 +2,7 @@ export const THREAD_SIDEBAR_WIDTH_STORAGE_KEY = "chat_thread_sidebar_width";
 // The project rail takes 40px, so the default adds it back for titles.
 const THREAD_SIDEBAR_DEFAULT_WIDTH = 18 * 16;
 export const THREAD_SIDEBAR_MIN_WIDTH = 16 * 16;
-export const THREAD_MAIN_CONTENT_MIN_WIDTH = 40 * 16;
+const THREAD_MAIN_CONTENT_MIN_WIDTH = 40 * 16;
 
 // The brand's measured width can raise the minimum so "Leonidas Code" never clips.
 export function resolveThreadSidebarMinimumWidth(brandWidth: number): number {
