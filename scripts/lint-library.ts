@@ -8,8 +8,8 @@ import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
 // Leonidas originals are MIT too (Jake, 2026-10-21).
-export const ALLOWED_LICENSES: ReadonlySet<string> = new Set(["MIT", "Apache-2.0"]);
-export const LEONIDAS_CREDIT = "Leonidas";
+const ALLOWED_LICENSES: ReadonlySet<string> = new Set(["MIT", "Apache-2.0"]);
+const LEONIDAS_CREDIT = "Leonidas";
 export const MANIFEST_PATH = ".agents/library.json";
 
 export interface LibraryItem {

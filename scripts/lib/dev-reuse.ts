@@ -59,7 +59,7 @@ export interface DevReuseProbes {
   readonly isPortListening: (port: number) => Promise<boolean>;
 }
 
-export const defaultDevReuseProbes: DevReuseProbes = {
+const defaultDevReuseProbes: DevReuseProbes = {
   isProcessAlive: (pid) => {
     try {
       process.kill(pid, 0);

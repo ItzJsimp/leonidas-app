@@ -11,7 +11,7 @@
  *
  * Entries are matched as prefixes so platform-specific siblings are covered.
  */
-export const DESKTOP_RUNTIME_EXTERNAL_PREFIXES = [
+const DESKTOP_RUNTIME_EXTERNAL_PREFIXES = [
   // Native addons and the wrappers that dlopen them by real path.
   "@napi-rs/keyring",
   "@crowecawcaw/xa11y",
@@ -25,7 +25,7 @@ export const DESKTOP_RUNTIME_EXTERNAL_PREFIXES = [
   "playwright-core",
 ] as const;
 
-export function isDesktopRuntimeExternalDependency(id: string): boolean {
+function isDesktopRuntimeExternalDependency(id: string): boolean {
   return DESKTOP_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix));
 }
 

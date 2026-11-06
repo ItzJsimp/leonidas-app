@@ -110,7 +110,7 @@ function makeItem(
   };
 }
 
-export function buildHistory(
+function buildHistory(
   seed: number,
   count: number,
   now = Effect.runSync(Clock.currentTimeMillis),

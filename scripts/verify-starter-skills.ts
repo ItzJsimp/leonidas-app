@@ -69,7 +69,7 @@ function checkSkillFile(text: string, folderName: string): string[] {
 }
 
 /** Skill folders under each root of an AIOS folder, with any problems found. */
-export async function listInstalledSkills(folder: string) {
+async function listInstalledSkills(folder: string) {
   const byName = new Map<string, { roots: string[]; problems: string[] }>();
   for (const root of SKILL_ROOTS) {
     const dir = path.join(folder, root);
