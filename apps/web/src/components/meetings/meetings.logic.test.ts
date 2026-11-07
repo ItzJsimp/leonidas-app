@@ -10,6 +10,10 @@ import {
   mergeSegments,
   parseMeetingDetail,
   parseMeetingList,
+  parseLive,
+  parseDetect,
+  parseDiscord,
+  liveTail,
 } from "./meetings.logic";
 
 const detail = parseMeetingDetail({
@@ -77,5 +81,37 @@ describe("meetings.logic", () => {
 
   it("builds the agent line from the folder", () => {
     expect(agentMention(detail)).toContain("in C:/meetings/m1");
+  });
+
+  it("reads the live view and clamps levels", () => {
+    const live = parseLive({
+      recording: true,
+      phase: "recording",
+      elapsedMs: 5000,
+      levels: { me: 2, them: -1 },
+      segments: [
+        { track: "them", t0: 1, text: "Hi" },
+        { speaker_key: "Me", t0: 2, text: "" },
+        { speaker_key: "Me", t0: 3, text: "Yes" },
+      ],
+      notices: ["Call audio is not recorded: no device", 7],
+    });
+    expect(live.levels).toEqual({ me: 1, them: 0 });
+    expect(liveTail(live, 1).map((s) => [s.speaker, s.text])).toEqual([["Me", "Yes"]]);
+    expect(live.notices).toHaveLength(1);
+    expect(parseLive(null).recording).toBe(false);
+  });
+
+  it("reads the detect and Discord replies without trusting their shape", () => {
+    expect(parseDetect({ app: "Discord" })).toBe("Discord");
+    expect(parseDetect({ app: null })).toBeNull();
+    expect(parseDiscord({ configured: true, connected: true, user: { username: "jake" } })).toEqual(
+      {
+        configured: true,
+        connected: true,
+        user: "jake",
+      },
+    );
+    expect(parseDiscord("x").connected).toBe(false);
   });
 });

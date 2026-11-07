@@ -219,3 +219,79 @@ export function meetingMarkdown(detail: MeetingDetail): string {
 export function agentMention(detail: MeetingDetail): string {
   return `Read the meeting "${detail.meeting.title}" (${formatWhen(detail.meeting.started)}) in ${detail.folder}`;
 }
+
+export interface MeetingLive {
+  readonly recording: boolean;
+  readonly phase: "recording" | "finishing" | "done" | null;
+  readonly elapsedMs: number;
+  readonly levels: { readonly me: number; readonly them: number };
+  readonly segments: readonly MeetingSegment[];
+  readonly pending: number;
+  readonly failed: number;
+  readonly notices: readonly string[];
+}
+
+const clamp01 = (value: unknown): number =>
+  typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
+
+export function parseLive(raw: unknown): MeetingLive {
+  const row = record(raw);
+  const levels = record(row.levels);
+  const phase =
+    row.phase === "recording" || row.phase === "finishing" || row.phase === "done"
+      ? row.phase
+      : null;
+  return {
+    recording: row.recording === true,
+    phase,
+    elapsedMs: typeof row.elapsedMs === "number" ? row.elapsedMs : 0,
+    levels: { me: clamp01(levels.me), them: clamp01(levels.them) },
+    segments: list(row.segments).flatMap((segment) => {
+      const item = record(segment);
+      const body = text(item.text).trim();
+      return body === ""
+        ? []
+        : [
+            {
+              speaker: text(item.speaker_key) || (item.track === "them" ? "Them" : "Me"),
+              t0: typeof item.t0 === "number" ? item.t0 : 0,
+              text: body,
+            },
+          ];
+    }),
+    pending: typeof row.pending === "number" ? row.pending : 0,
+    failed: typeof row.failed === "number" ? row.failed : 0,
+    notices: list(row.notices).filter((notice): notice is string => typeof notice === "string"),
+  };
+}
+
+/** The call app that uses the mic now, or null. */
+export function parseDetect(raw: unknown): string | null {
+  return textOrNull(record(raw).app);
+}
+
+export interface DiscordStatus {
+  readonly configured: boolean;
+  readonly connected: boolean;
+  readonly user: string | null;
+}
+
+export function parseDiscord(raw: unknown): DiscordStatus {
+  const row = record(raw);
+  const user = record(row.user);
+  return {
+    configured: row.configured === true,
+    connected: row.connected === true,
+    user: textOrNull(user.username) ?? textOrNull(user.name) ?? textOrNull(row.user),
+  };
+}
+
+/** The clock for a running meeting, from the engine's elapsed time. */
+export function elapsedLabel(elapsedMs: number): string {
+  return formatClock(elapsedMs / 1000);
+}
+
+/** The newest lines for the live view, so a long call does not grow the page. */
+export function liveTail(live: MeetingLive, count: number): readonly MeetingSegment[] {
+  return mergeSegments(live.segments).slice(-count);
+}

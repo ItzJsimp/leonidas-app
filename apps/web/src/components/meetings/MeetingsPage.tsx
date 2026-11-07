@@ -1,16 +1,9 @@
-import {
-  isAtomCommandInterrupted,
-  squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { PinIcon, SearchIcon, Trash2Icon, VideoIcon } from "lucide-react";
+import { PinIcon, Trash2Icon, VideoIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { usePrimaryEnvironmentId } from "~/state/environments";
-import { scribeMeetings } from "~/state/scribe";
-import { useAtomCommand } from "~/state/use-atom-command";
-import { commandErrorMessage } from "../scribe/home.logic";
 import { CopyButton } from "../scribe/ScribeParts";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -34,42 +27,10 @@ import {
   type MeetingDetail,
   type MeetingSummary,
 } from "./meetings.logic";
+import { MeetingAsk, MeetingsLive } from "./MeetingsLive";
+import { useMeetingsCall, type Call } from "./useMeetingsCall";
 
 const POLL_MS = 4000;
-
-type Call = (
-  method: "GET" | "POST" | "PATCH" | "DELETE",
-  path: string,
-  body?: unknown,
-) => Promise<
-  | { readonly ok: true; readonly value: unknown }
-  | { readonly ok: false; readonly message: string | null }
->;
-
-/** One engine meetings call. A failure carries the engine's plain sentence, or null when interrupted. */
-function useMeetingsCall(environmentId: EnvironmentId): Call {
-  const run = useAtomCommand(scribeMeetings, { reportFailure: false });
-  return useCallback<Call>(
-    async (method, path, body) => {
-      const result = await run({
-        environmentId,
-        input: body === undefined ? { method, path } : { method, path, body },
-      });
-      if (result._tag === "Success") return { ok: true, value: result.value };
-      if (isAtomCommandInterrupted(result)) return { ok: false, message: null };
-      const failure = squashAtomCommandFailure(result);
-      const message =
-        typeof failure === "object" && failure !== null && "message" in failure
-          ? (failure as { message: unknown }).message
-          : undefined;
-      return {
-        ok: false,
-        message: typeof message === "string" ? message : commandErrorMessage(failure),
-      };
-    },
-    [environmentId, run],
-  );
-}
 
 const fail = (title: string, message: string | null) => {
   if (message !== null) toastManager.add({ type: "error", title, description: message });
@@ -138,24 +99,18 @@ function MeetingsBody({ environmentId }: { readonly environmentId: EnvironmentId
   return (
     <>
       <WindowHeader title="Meetings" {...(items === null ? {} : { count: items.length })} />
+      <MeetingsLive environmentId={environmentId} call={call} onChanged={load} />
       <div className="flex min-h-0 flex-1 flex-col bg-background md:flex-row">
         <nav
           aria-label="Meetings"
           className="flex max-h-72 min-h-0 shrink-0 flex-col gap-2 border-b p-3 md:max-h-none md:w-80 md:border-r md:border-b-0"
         >
-          <div className="relative">
-            <SearchIcon
-              aria-hidden
-              className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground"
-            />
-            <Input
-              aria-label="Search meetings"
-              placeholder="Search title, app or person"
-              className="pl-8"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
+          <Input
+            aria-label="Search meetings"
+            placeholder="Search title, app or person"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
           <div className="min-h-0 flex-1 overflow-y-auto">
             {items === null && error === null ? (
               <div className="flex flex-col gap-2">
@@ -235,7 +190,7 @@ function MeetingRow(props: {
       aria-current={props.active ? "true" : undefined}
       onClick={props.onSelect}
       className={cn(
-        "flex w-full flex-col gap-0.5 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+        "flex w-full flex-col gap-0.5 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
         props.active && "bg-accent",
       )}
     >
@@ -431,6 +386,14 @@ function MeetingReader(props: {
           <NoteList title="Action items" lines={noteLines.actionItems} />
           <NoteList title="Open questions" lines={noteLines.openQuestions} />
         </>
+      ) : null}
+
+      {meeting.hasTranscript ? (
+        <MeetingAsk
+          call={call}
+          path={`${encodeURIComponent(summary.id)}/ask`}
+          label="Ask about this meeting"
+        />
       ) : null}
 
       <section aria-label="Transcript" className="flex flex-col gap-3">
