@@ -127,7 +127,8 @@ fn run() -> Result<(), String> {
             meetings: Arc::new(
                 scribe_engine::meetings::Meetings::new(config_dir.join("meetings"))
                     .with_speech(Arc::new(groq.clone()))
-                    .with_chat(Arc::new(groq.clone())),
+                    .with_chat(Arc::new(groq.clone()))
+                    .with_discord_keys(Arc::new(OsKeyStore::for_account("discord")?)),
             ),
         },
         cfg.port,

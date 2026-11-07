@@ -3,6 +3,8 @@
 //! idle RAM and cold start do not change.
 
 pub mod capture;
+pub mod detect;
+pub mod discord;
 pub mod notes;
 pub mod retranscribe;
 pub mod session;
@@ -12,7 +14,7 @@ pub mod store;
 use serde_json::{json, Value};
 use session::{Phase, Segmenter, Session, TrackOpener};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use store::{read_json, write_json, Patch, Store};
 
@@ -28,6 +30,18 @@ pub struct Meetings {
     opener: TrackOpener,
     /// The live or the last finished session. One meeting records at a time.
     active: Mutex<Option<Session>>,
+    /// The saved Discord app and token (OS keyring in the app).
+    discord_keys: Arc<dyn crate::credentials::KeyStore>,
+    /// Stops the Discord speaking-event reader of the live meeting.
+    discord_stop: Mutex<Option<Arc<AtomicBool>>>,
+}
+
+/// `PUT /v1/meetings/discord` body.
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct DiscordBody {
+    client_id: String,
+    client_secret: Option<String>,
 }
 
 /// A reply: HTTP status and a JSON body. `Value::Null` with 204 is an empty reply.
@@ -68,7 +82,14 @@ impl Meetings {
             chat: Arc::new(NoChat),
             opener: session::device_opener(),
             active: Mutex::new(None),
+            discord_keys: Arc::new(crate::credentials::MemoryKeyStore::default()),
+            discord_stop: Mutex::new(None),
         }
+    }
+
+    pub fn with_discord_keys(mut self, keys: Arc<dyn crate::credentials::KeyStore>) -> Self {
+        self.discord_keys = keys;
+        self
     }
 
     pub fn with_speech(mut self, speech: Arc<dyn Segmenter>) -> Self {
@@ -90,6 +111,13 @@ impl Meetings {
         body: &Value,
     ) -> Option<Box<dyn FnOnce() -> Reply + Send>> {
         let rest = path.strip_prefix("/v1/meetings/")?;
+        if method == "POST" && rest == "discord/connect" {
+            let keys = self.discord_keys.clone();
+            return Some(Box::new(move || match discord::connect(keys.as_ref()) {
+                Ok(status) => (200, status),
+                Err(e) => fail(409, "discord_error", &e),
+            }));
+        }
         let (id, action) = rest.split_once('/')?;
         if method != "POST" || action != "ask" {
             return None;
@@ -171,6 +199,16 @@ impl Meetings {
             },
             ("POST", ["stop"]) => self.stop(),
             ("GET", ["live"]) => self.live(),
+            ("GET", ["detect"]) => {
+                let apps = detect::active_calls();
+                (200, json!({ "app": apps.first(), "apps": apps }))
+            }
+            ("GET", ["discord"]) => (200, discord::status(self.discord_keys.as_ref())),
+            ("PUT", ["discord"]) => self.save_discord(normalize(body)),
+            ("DELETE", ["discord"]) => match self.discord_keys.delete() {
+                Ok(()) => (204, Value::Null),
+                Err(_) => fail(500, "store_error", "Cannot change the credential store."),
+            },
             ("GET", ["templates"]) => (
                 200,
                 json!({ "items": notes::TEMPLATES.iter().map(|t| json!({"id": t.id, "name": t.name})).collect::<Vec<_>>() }),
@@ -265,6 +303,9 @@ impl Meetings {
             },
         ) {
             Ok(session) => {
+                if app.as_deref() == Some("Discord") {
+                    self.start_discord(&dir);
+                }
                 *active = Some(session);
                 (200, json!({ "id": id }))
             }
@@ -286,6 +327,9 @@ impl Meetings {
             let _ = write_json(&session.dir.join("manifest.json"), &manifest);
         }
         session.request_stop();
+        if let Some(flag) = self.discord_stop.lock().unwrap().take() {
+            flag.store(true, Ordering::Release);
+        }
         (200, json!({ "id": session.id }))
     }
 
@@ -356,6 +400,53 @@ fn normalize(body: Value) -> Value {
         json!({})
     } else {
         body
+    }
+}
+
+impl Meetings {
+    fn save_discord(&self, body: Value) -> Reply {
+        let Ok(body) = serde_json::from_value::<DiscordBody>(body) else {
+            return fail(400, "bad_request", "Send a Client ID.");
+        };
+        let id = body.client_id.trim();
+        if id.len() < 15 || id.len() > 25 || !id.bytes().all(|b| b.is_ascii_digit()) {
+            return fail(
+                400,
+                "bad_client_id",
+                "A Discord Client ID is 17 to 20 digits. Copy it from step 2.",
+            );
+        }
+        let saved = discord::Saved {
+            client_id: id.to_owned(),
+            client_secret: body
+                .client_secret
+                .map(|s| s.trim().to_owned())
+                .filter(|s| !s.is_empty()),
+            ..discord::Saved::default()
+        };
+        match discord::save(self.discord_keys.as_ref(), &saved) {
+            Ok(()) => (200, discord::status(self.discord_keys.as_ref())),
+            Err(e) => fail(500, "store_error", &e),
+        }
+    }
+
+    /// Read Discord speaking events next to a Discord meeting, when Discord is connected.
+    fn start_discord(&self, dir: &Path) {
+        let connected =
+            discord::load(self.discord_keys.as_ref()).is_some_and(|s| s.access_token.is_some());
+        if !connected {
+            return;
+        }
+        let stop = Arc::new(AtomicBool::new(false));
+        *self.discord_stop.lock().unwrap() = Some(stop.clone());
+        let (dir, keys, started) = (
+            dir.to_path_buf(),
+            self.discord_keys.clone(),
+            std::time::Instant::now(),
+        );
+        let _ = std::thread::Builder::new()
+            .name("meeting-discord".into())
+            .spawn(move || discord::record(&dir, keys, stop, started));
     }
 }
 
@@ -536,7 +627,11 @@ fn label_speakers(dir: &Path, manifest: &Value, transcript: &mut Value) {
         .iter()
         .filter_map(|s| s["t1"].as_f64())
         .fold(0.0, f64::max) as f32;
-    let local = manifest["discord"]["local_user_id"].as_str();
+    let local = events
+        .iter()
+        .find(|e| e["event"] == "local")
+        .and_then(|e| e["user_id"].as_str())
+        .or(manifest["discord"]["local_user_id"].as_str());
     let discord = speakers::discord_intervals(&events, local, end);
     speakers::label(segments, &windows, &discord);
 }
@@ -574,6 +669,29 @@ mod tests {
             400
         );
         assert_eq!(m.handle("PUT", "/v1/meetings/m1", Value::Null).0, 405);
+        assert_eq!(
+            m.handle("GET", "/v1/meetings/discord", Value::Null).1["configured"],
+            false
+        );
+        assert_eq!(
+            m.handle("PUT", "/v1/meetings/discord", json!({"clientId": "abc"}))
+                .0,
+            400
+        );
+        let (status, saved) = m.handle(
+            "PUT",
+            "/v1/meetings/discord",
+            json!({"clientId": " 1234567890123456789 "}),
+        );
+        assert_eq!(
+            (status, &saved["clientId"]),
+            (200, &json!("1234567890123456789"))
+        );
+        assert_eq!(
+            m.handle("DELETE", "/v1/meetings/discord", Value::Null).0,
+            204
+        );
+        assert!(m.handle("GET", "/v1/meetings/detect", Value::Null).1["apps"].is_array());
         assert_eq!(m.handle("DELETE", "/v1/meetings/m1", Value::Null).0, 204);
         assert_eq!(m.handle("DELETE", "/v1/meetings/m1", Value::Null).0, 404);
     }
