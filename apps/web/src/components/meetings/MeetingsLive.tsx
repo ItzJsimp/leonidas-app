@@ -272,9 +272,10 @@ function DiscordSetup(props: { readonly environmentId: EnvironmentId; readonly c
     if (result.ok) setStatus(parseDiscord(result.value));
   }, [props.call]);
 
+  // Read the saved state on load so a finished setup shows as done before it is opened.
   useEffect(() => {
-    if (open) void refresh();
-  }, [open, refresh]);
+    void refresh();
+  }, [refresh]);
 
   const run = async (method: "PUT" | "POST" | "DELETE", path: string, body?: unknown) => {
     setWorking(true);
@@ -285,56 +286,69 @@ function DiscordSetup(props: { readonly environmentId: EnvironmentId; readonly c
     await refresh();
   };
 
+  const saved = status?.configured === true;
   return (
     <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className="cursor-pointer text-xs text-muted-foreground">
-        Show real names from Discord calls
-        {status?.connected === true ? ` (connected${status.user ? ` as ${status.user}` : ""})` : ""}
+        {status?.connected === true
+          ? `Discord names are on${status.user ? ` (connected as ${status.user})` : ""}`
+          : saved
+            ? "Discord keys are saved. Press Connect to finish."
+            : "Show real names from Discord calls"}
       </summary>
       <div className="mt-2 flex max-w-xl flex-col gap-2 text-sm">
-        <ol className="list-decimal pl-5 text-muted-foreground">
-          <li>Open the Discord developer portal and make a new application.</li>
-          <li>
-            Under OAuth2, add the redirect http://127.0.0.1 and copy the Client ID and secret.
-          </li>
-          <li>Paste them here, press Save, then press Connect and click Authorize in Discord.</li>
-        </ol>
-        <Input
-          aria-label="Discord client ID"
-          placeholder="Client ID"
-          value={clientId}
-          onChange={(event) => setClientId(event.target.value)}
-        />
-        <Input
-          aria-label="Discord client secret"
-          type="password"
-          placeholder="Client secret"
-          autoComplete="off"
-          value={clientSecret}
-          onChange={(event) => setClientSecret(event.target.value)}
-        />
+        {saved ? null : (
+          <>
+            <ol className="list-decimal pl-5 text-muted-foreground">
+              <li>Open the Discord developer portal and make a new application.</li>
+              <li>
+                Under OAuth2, add the redirect http://127.0.0.1 and copy the Client ID and secret.
+              </li>
+              <li>
+                Paste them here, press Save, then press Connect and click Authorize in Discord.
+              </li>
+            </ol>
+            <Input
+              aria-label="Discord client ID"
+              placeholder="Client ID"
+              value={clientId}
+              onChange={(event) => setClientId(event.target.value)}
+            />
+            <Input
+              aria-label="Discord client secret"
+              type="password"
+              placeholder="Client secret"
+              autoComplete="off"
+              value={clientSecret}
+              onChange={(event) => setClientSecret(event.target.value)}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="self-start"
+              disabled={working || clientId.trim() === ""}
+              onClick={() =>
+                void run("PUT", "discord", {
+                  clientId: clientId.trim(),
+                  ...(clientSecret === "" ? {} : { clientSecret }),
+                }).then(() => setClientSecret(""))
+              }
+            >
+              Save
+            </Button>
+          </>
+        )}
         <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={working || clientId.trim() === ""}
-            onClick={() =>
-              void run("PUT", "discord", {
-                clientId: clientId.trim(),
-                ...(clientSecret === "" ? {} : { clientSecret }),
-              }).then(() => setClientSecret(""))
-            }
-          >
-            Save
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={working || status?.configured !== true}
-            onClick={() => void run("POST", "discord/connect")}
-          >
-            {working ? "Waiting for Discord…" : "Connect"}
-          </Button>
+          {status?.connected === true ? null : (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={working || !saved}
+              onClick={() => void run("POST", "discord/connect")}
+            >
+              {working ? "Waiting for Discord…" : "Connect"}
+            </Button>
+          )}
           <Button
             size="sm"
             variant="ghost"

@@ -1,21 +1,26 @@
 import type { EnvironmentId } from "@t3tools/contracts";
-import { PinIcon, Trash2Icon, VideoIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CopyIcon, PinIcon, Trash2Icon, VideoIcon } from "lucide-react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { RightPanelResizeHandle } from "~/components/preview/RightPanelResizeHandle";
+import { RESIZABLE_WIDTH_PROPERTY, useResizableWidth } from "~/hooks/useResizableWidth";
 import { cn } from "~/lib/utils";
 import { usePrimaryEnvironmentId } from "~/state/environments";
-import { CopyButton } from "../scribe/ScribeParts";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
+import { showAnchoredCopyErrorToast, showAnchoredCopySuccessToast } from "../ui/anchoredCopyToast";
 import { Input } from "../ui/input";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Skeleton } from "../ui/skeleton";
 import { toastManager } from "../ui/toast";
 import { WindowHeader } from "../twoState/WindowHeader";
 import {
   agentMention,
   filterMeetings,
+  groupMeetings,
   formatClock,
+  formatDay,
   formatLength,
   formatWhen,
   isBusy,
@@ -70,6 +75,14 @@ function MeetingsBody({ environmentId }: { readonly environmentId: EnvironmentId
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  // Titles are cut at the default width, so the list can be dragged wider (saved between visits).
+  const list = useResizableWidth({
+    storageKey: "leonidas.meetings.listWidth",
+    defaultWidth: 320,
+    minWidth: 240,
+    maxWidth: 720,
+    edge: "right",
+  });
 
   const load = useCallback(async () => {
     const result = await call("GET", "");
@@ -94,6 +107,7 @@ function MeetingsBody({ environmentId }: { readonly environmentId: EnvironmentId
   }, [busy, load]);
 
   const shown = useMemo(() => filterMeetings(items ?? [], query), [items, query]);
+  const groups = useMemo(() => groupMeetings(shown), [shown]);
   const current = shown.find((item) => item.id === selected) ?? shown[0] ?? null;
 
   return (
@@ -103,7 +117,8 @@ function MeetingsBody({ environmentId }: { readonly environmentId: EnvironmentId
       <div className="flex min-h-0 flex-1 flex-col bg-background md:flex-row">
         <nav
           aria-label="Meetings"
-          className="flex max-h-72 min-h-0 shrink-0 flex-col gap-2 border-b p-3 md:max-h-none md:w-80 md:border-r md:border-b-0"
+          style={{ [RESIZABLE_WIDTH_PROPERTY]: `${list.width}px` } as CSSProperties}
+          className="relative flex max-h-72 min-h-0 shrink-0 flex-col gap-2 border-b bg-sidebar p-3 md:max-h-none md:w-[min(var(--resizable-width),calc(100%-20rem))] md:border-r md:border-b-0"
         >
           <Input
             aria-label="Search meetings"
@@ -111,7 +126,7 @@ function MeetingsBody({ environmentId }: { readonly environmentId: EnvironmentId
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
             {items === null && error === null ? (
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-14" />
@@ -130,21 +145,36 @@ function MeetingsBody({ environmentId }: { readonly environmentId: EnvironmentId
                 {query.trim() === "" ? "No meetings yet." : "No meeting matches that search."}
               </p>
             ) : (
-              <ul className="flex flex-col gap-1">
-                {shown.map((item) => (
-                  <li key={item.id}>
-                    <MeetingRow
-                      item={item}
-                      active={item.id === current?.id}
-                      onSelect={() => setSelected(item.id)}
-                    />
-                  </li>
-                ))}
-              </ul>
+              groups.map((group) => (
+                <section key={group.label} aria-label={group.label}>
+                  <h3 className="flex justify-between px-2.5 pt-3 pb-1 text-2xs font-medium text-muted-foreground">
+                    <span>{group.label}</span>
+                    <span>{group.items.length}</span>
+                  </h3>
+                  <ul className="flex flex-col gap-0.5">
+                    {group.items.map((item) => (
+                      <li key={item.id}>
+                        <MeetingRow
+                          item={item}
+                          active={item.id === current?.id}
+                          onSelect={() => setSelected(item.id)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))
             )}
           </div>
+          <RightPanelResizeHandle
+            handlers={list.handlers}
+            className="-right-1 left-auto hidden md:block"
+          />
         </nav>
-        <section aria-label="Meeting" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <section
+          aria-label="Meeting"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]"
+        >
           {current === null ? (
             <div className="p-4 sm:p-6">
               <Empty>
@@ -190,7 +220,7 @@ function MeetingRow(props: {
       aria-current={props.active ? "true" : undefined}
       onClick={props.onSelect}
       className={cn(
-        "flex w-full flex-col gap-0.5 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
+        "flex w-full flex-col gap-0.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
         props.active && "bg-accent",
       )}
     >
@@ -198,14 +228,24 @@ function MeetingRow(props: {
         <span className="min-w-0 flex-1 truncate">{item.title}</span>
         {item.pinned ? <PinIcon aria-label="Audio kept" className="size-3.5 shrink-0" /> : null}
       </span>
-      <span className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>{formatWhen(item.started)}</span>
-        <span>{formatLength(item.durationMs)}</span>
-        {status !== null ? (
-          <Badge variant={item.state === "failed" ? "destructive" : "outline"} size="sm">
-            {status}
-          </Badge>
-        ) : null}
+      <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span className="min-w-0 truncate">
+          {[
+            item.app ?? "",
+            item.people.length > 1 ? `${item.people.length} people` : (item.people[0] ?? ""),
+            formatLength(item.durationMs),
+          ]
+            .filter((part) => part !== "")
+            .join(" · ")}
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          {status !== null ? (
+            <Badge variant={item.state === "failed" ? "destructive" : "outline"} size="sm">
+              {status}
+            </Badge>
+          ) : null}
+          {formatDay(item.started)}
+        </span>
       </span>
     </button>
   );
@@ -222,6 +262,7 @@ function MeetingReader(props: {
   const [failed, setFailed] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [working, setWorking] = useState(false);
+  const [tab, setTab] = useState<"summary" | "transcript">("summary");
   // The list row changes when the engine finishes a step; read the full meeting again then.
   const version = `${summary.state}|${summary.notesState}|${summary.pinned}|${summary.hasTranscript}`;
   const latest = useRef(0);
@@ -266,21 +307,53 @@ function MeetingReader(props: {
     noteLines.summary.length + noteLines.decisions.length + noteLines.actionItems.length > 0;
 
   return (
-    <article className="mx-auto flex w-full max-w-[860px] flex-col gap-5 p-4 sm:p-6">
-      <header className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold text-balance">{meeting.title}</h2>
-        <p className="text-sm text-muted-foreground">
-          {[
-            formatWhen(meeting.started),
-            formatLength(meeting.durationMs),
-            meeting.app,
-            meeting.imported ? "From Python Scribe" : null,
-          ]
-            .filter((part) => part !== null && part !== "")
-            .join(" · ")}
-        </p>
+    <article className="mx-auto flex min-h-full w-full max-w-[860px] flex-col gap-4 px-5 py-5 sm:px-9">
+      <header className="flex flex-col gap-3">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-3xl leading-tight font-semibold text-balance">
+              {meeting.title}
+            </h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {[
+                formatWhen(meeting.started),
+                formatLength(meeting.durationMs),
+                meeting.app,
+                meeting.imported ? "From Python Scribe" : null,
+              ]
+                .filter((part) => part !== null && part !== "")
+                .join(" · ")}
+            </p>
+          </div>
+          {detail !== null ? (
+            <CopyMenu
+              items={[
+                { label: "Copy as Markdown", text: meetingMarkdown(detail) },
+                { label: "Copy line for an agent", text: agentMention(detail) },
+                ...(detail.folder !== ""
+                  ? [{ label: "Copy folder path", text: detail.folder }]
+                  : []),
+              ]}
+            />
+          ) : null}
+        </div>
         {meeting.people.length > 0 ? (
-          <p className="text-sm text-muted-foreground">{meeting.people.join(", ")}</p>
+          <ul aria-label="People" className="flex flex-wrap gap-1.5">
+            {meeting.people.map((person) => (
+              <li
+                key={person}
+                className="inline-flex h-6 items-center gap-1.5 rounded-full bg-muted pr-2 pl-0.5 text-xs"
+              >
+                <span
+                  aria-hidden
+                  className="grid size-[18px] place-items-center rounded-full bg-input text-3xs font-semibold"
+                >
+                  {person.slice(0, 1).toUpperCase()}
+                </span>
+                {person}
+              </li>
+            ))}
+          </ul>
         ) : null}
       </header>
 
@@ -296,15 +369,6 @@ function MeetingReader(props: {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        {detail !== null ? (
-          <>
-            <ShareButton text={meetingMarkdown(detail)} label="Copy as Markdown" />
-            <ShareButton text={agentMention(detail)} label="Copy line for an agent" />
-            {detail.folder !== "" ? (
-              <ShareButton text={detail.folder} label="Copy folder path" />
-            ) : null}
-          </>
-        ) : null}
         {canTranscribe ? (
           <Button
             size="sm"
@@ -322,19 +386,6 @@ function MeetingReader(props: {
             onClick={() => void act("Could not write notes", "POST", "/summary", {})}
           >
             {hasNotes ? "Write notes again" : "Write notes"}
-          </Button>
-        ) : null}
-        {meeting.hasAudio ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={working}
-            aria-pressed={meeting.pinned}
-            onClick={() =>
-              void act("Could not change that", "PATCH", "", { pinned: !meeting.pinned })
-            }
-          >
-            {meeting.pinned ? "Audio kept" : "Keep audio"}
           </Button>
         ) : null}
         {confirmDelete ? (
@@ -363,11 +414,6 @@ function MeetingReader(props: {
           </Button>
         )}
       </div>
-      {meeting.hasAudio && !meeting.pinned && meeting.audioDeletesAt !== null ? (
-        <p className="text-xs text-muted-foreground">
-          The audio is deleted on {formatWhen(meeting.audioDeletesAt)}. The transcript stays.
-        </p>
-      ) : null}
 
       {meeting.notesState === "working" ? (
         <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -379,58 +425,149 @@ function MeetingReader(props: {
         </p>
       ) : null}
 
-      {noteLines !== null ? (
-        <>
-          <NoteList title="Summary" lines={noteLines.summary} />
-          <NoteList title="Decisions" lines={noteLines.decisions} />
-          <NoteList title="Action items" lines={noteLines.actionItems} />
-          <NoteList title="Open questions" lines={noteLines.openQuestions} />
-        </>
-      ) : null}
+      <div role="tablist" aria-label="Meeting content" className="mt-1 flex gap-4.5 border-b">
+        {(["summary", "transcript"] as const).map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`meeting-tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls={`meeting-panel-${id}`}
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => setTab(id)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                setTab(id === "summary" ? "transcript" : "summary");
+                event.preventDefault();
+              }
+            }}
+            className={cn(
+              "-mb-px border-b-2 py-2 text-sm font-medium capitalize transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
+              tab === id
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {id}
+          </button>
+        ))}
+      </div>
 
-      {meeting.hasTranscript ? (
-        <MeetingAsk
-          call={call}
-          path={`${encodeURIComponent(summary.id)}/ask`}
-          label="Ask about this meeting"
-        />
-      ) : null}
-
-      <section aria-label="Transcript" className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold">Transcript</h3>
-        {detail === null && failed === null ? (
-          <Skeleton className="h-24" />
-        ) : segments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {meeting.state === "recording" || meeting.state === "processing"
-              ? "This meeting is still recording. The live text shows above."
-              : meeting.hasAudio
-                ? "This meeting has no transcript yet. Press Transcribe to make one."
-                : "This meeting has no transcript and no audio."}
-          </p>
-        ) : (
-          segments.map((segment, index) => (
-            <p key={`${index}-${segment.t0}`} className="text-sm leading-relaxed">
-              <span className="font-medium">{segment.speaker}</span>{" "}
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {formatClock(segment.t0)}
-              </span>
-              <br />
-              {segment.text}
+      {tab === "summary" ? (
+        <div
+          role="tabpanel"
+          id="meeting-panel-summary"
+          aria-labelledby="meeting-tab-summary"
+          className="flex flex-col gap-5"
+        >
+          {noteLines !== null && hasNotes ? (
+            <>
+              <NoteList title="Summary" lines={noteLines.summary} />
+              <NoteList title="Decisions" lines={noteLines.decisions} />
+              <NoteList title="Action items" lines={noteLines.actionItems} />
+              <NoteList title="Open questions" lines={noteLines.openQuestions} />
+            </>
+          ) : meeting.notesState === "working" ? null : (
+            <p className="text-sm text-muted-foreground">
+              {meeting.hasTranscript
+                ? "No notes yet. Press Write notes to make a summary."
+                : "Notes appear here after the meeting has a transcript."}
             </p>
-          ))
-        )}
-      </section>
+          )}
+          {meeting.hasTranscript ? (
+            <MeetingAsk
+              call={call}
+              path={`${encodeURIComponent(summary.id)}/ask`}
+              label="Ask about this meeting"
+            />
+          ) : null}
+        </div>
+      ) : (
+        <div
+          role="tabpanel"
+          id="meeting-panel-transcript"
+          aria-labelledby="meeting-tab-transcript"
+          className="flex flex-col gap-3"
+        >
+          {detail === null && failed === null ? (
+            <Skeleton className="h-24" />
+          ) : segments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {meeting.state === "recording" || meeting.state === "processing"
+                ? "This meeting is still recording. The live text shows above."
+                : meeting.hasAudio
+                  ? "This meeting has no transcript yet. Press Transcribe to make one."
+                  : "This meeting has no transcript and no audio."}
+            </p>
+          ) : (
+            segments.map((segment, index) => (
+              <p key={`${index}-${segment.t0}`} className="text-sm leading-relaxed">
+                <span className="font-medium">{segment.speaker}</span>{" "}
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {formatClock(segment.t0)}
+                </span>
+                <br />
+                {segment.text}
+              </p>
+            ))
+          )}
+        </div>
+      )}
+      {meeting.hasAudio ? (
+        <footer className="mt-auto flex items-center gap-2 border-t pt-3 text-xs text-muted-foreground">
+          <span className="min-w-0 flex-1">
+            {meeting.pinned
+              ? "The audio is kept. The transcript stays."
+              : meeting.audioDeletesAt !== null
+                ? `The audio is deleted on ${formatWhen(meeting.audioDeletesAt)}. The transcript stays.`
+                : "The audio is saved with this meeting."}
+          </span>
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={working}
+            aria-pressed={meeting.pinned}
+            onClick={() =>
+              void act("Could not change that", "PATCH", "", { pinned: !meeting.pinned })
+            }
+          >
+            {meeting.pinned ? "Audio kept" : "Keep audio"}
+          </Button>
+        </footer>
+      ) : null}
     </article>
   );
 }
 
-function ShareButton(props: { readonly text: string; readonly label: string }) {
+function CopyMenu(props: {
+  readonly items: readonly { readonly label: string; readonly text: string }[];
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const copy = (text: string) =>
+    void navigator.clipboard.writeText(text).then(
+      () => showAnchoredCopySuccessToast(ref),
+      (error: unknown) =>
+        showAnchoredCopyErrorToast(ref, error instanceof Error ? error : new Error(String(error))),
+    );
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-      <CopyButton text={props.text} label={props.label} />
-      {props.label}
-    </span>
+    <Menu>
+      <MenuTrigger
+        render={
+          <Button ref={ref} size="sm" variant="outline">
+            <CopyIcon aria-hidden />
+            Copy
+          </Button>
+        }
+      />
+      <MenuPopup align="start">
+        {props.items.map((item) => (
+          <MenuItem key={item.label} onClick={() => copy(item.text)}>
+            {item.label}
+          </MenuItem>
+        ))}
+      </MenuPopup>
+    </Menu>
   );
 }
 
@@ -438,7 +575,9 @@ function NoteList(props: { readonly title: string; readonly lines: readonly stri
   if (props.lines.length === 0) return null;
   return (
     <section aria-label={props.title} className="flex flex-col gap-1.5">
-      <h3 className="text-sm font-semibold">{props.title}</h3>
+      <h3 className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+        {props.title}
+      </h3>
       <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
         {props.lines.map((line, index) => (
           <li key={`${index}-${line}`}>{line}</li>

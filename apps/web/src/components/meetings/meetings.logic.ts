@@ -158,6 +158,39 @@ export function formatWhen(started: string): string {
   });
 }
 
+const WEEK_MS = 7 * 86_400_000;
+
+/** List heading for a meeting: "This week", else its month (with the year when it is not this year). */
+export function groupLabel(started: string, now: Date): string {
+  const time = Date.parse(started);
+  if (Number.isNaN(time)) return "Earlier";
+  if (now.getTime() - time < WEEK_MS) return "This week";
+  const date = new Date(time);
+  const month = date.toLocaleString(undefined, { month: "long" });
+  return date.getFullYear() === now.getFullYear() ? month : `${month} ${date.getFullYear()}`;
+}
+
+/** Runs of the list (newest first) that share a heading. */
+export function groupMeetings(
+  items: readonly MeetingSummary[],
+  now: Date = new Date(),
+): readonly { readonly label: string; readonly items: readonly MeetingSummary[] }[] {
+  const groups: { label: string; items: MeetingSummary[] }[] = [];
+  for (const item of items) {
+    const label = groupLabel(item.started, now);
+    const last = groups[groups.length - 1];
+    if (last?.label === label) last.items.push(item);
+    else groups.push({ label, items: [item] });
+  }
+  return groups;
+}
+
+export function formatDay(started: string): string {
+  const time = Date.parse(started);
+  if (Number.isNaN(time)) return "";
+  return new Date(time).toLocaleString(undefined, { month: "short", day: "numeric" });
+}
+
 export function filterMeetings(
   items: readonly MeetingSummary[],
   query: string,

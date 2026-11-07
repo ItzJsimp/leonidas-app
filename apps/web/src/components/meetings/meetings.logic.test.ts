@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   agentMention,
   filterMeetings,
+  groupMeetings,
   formatClock,
   formatLength,
   isBusy,
@@ -113,5 +114,32 @@ describe("meetings.logic", () => {
       },
     );
     expect(parseDiscord("x").connected).toBe(false);
+  });
+});
+
+describe("groupMeetings", () => {
+  const now = new Date("2026-11-07T12:00:00");
+  const item = (id: string, started: string) =>
+    ({ id, started }) as unknown as Parameters<typeof groupMeetings>[0][number];
+
+  it("groups the last week, then each month, in list order", () => {
+    const groups = groupMeetings(
+      [
+        item("a", "2026-11-05T10:00:00"),
+        item("b", "2026-10-21T10:00:00"),
+        item("c", "2026-10-02T10:00:00"),
+        item("d", "2025-12-01T10:00:00"),
+      ],
+      now,
+    );
+    expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
+      ["This week", ["a"]],
+      ["October", ["b", "c"]],
+      ["December 2025", ["d"]],
+    ]);
+  });
+
+  it("puts a meeting with no valid date under Earlier", () => {
+    expect(groupMeetings([item("x", "nope")], now)[0]?.label).toBe("Earlier");
   });
 });
