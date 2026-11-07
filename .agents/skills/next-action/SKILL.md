@@ -1,174 +1,88 @@
 ---
 name: next-action
-description: "Pick the best next tasks from the task folder for the current operator, project, energy and mode. Use when asked what to work on, what is next, or to pick the next action."
+description: "Grill the user on time, energy and goal, rank the top 5 tasks from the project's task cards, then work the pick in chat, as a fresh-chat prompt, or by delegation. Use when asked what to work on or what is next."
 category: flow
 scope: structural
 distribution: core
+license: MIT
 ---
 
-# Next Action: Context-Aware Task Discovery & Routing Engine
+# Next Action
 
-Find the real task store for the current project and operator, conduct quick interactive intake, rank the top 5 concrete actions, and route each to its optimal execution path (in-chat execution, fresh session prompt via prompt-composer, or autonomous subagents).
+Read the project's task cards, grill the operator about the session, rank the top 5 tasks, then start the pick right away. Works in any project that has a `tasks/` folder.
 
-Works in any AIOS (any Leonidas AIOS) or standalone project repository (such as `leonidas-code`).
+The operator should never have to think about what to do next. Ask sharp questions, show real tasks, and then act.
 
----
-
-## Phase 1: Context & Store Resolution
-
-Run the bundled resolver with `--rank`:
+## 1. Read the pool first (facts before questions)
 
 ```bash
-python <skill-folder>/scripts/resolve_tasks.py --workspace <workspace> --rank
+python <skill-folder>/scripts/resolve_tasks.py --workspace <workspace> --rank --limit 12
 ```
 
-### Discovery & Project Awareness
+- The script finds the task store, detects the project and operator, and returns the ranked pool with `route`, `why`, `done_when` and `blocked_by`.
+- Read the pool before you ask anything. Every question in step 2 must use what is in the pool.
+- `status: not_found`: say so in one line, offer to create the first task card with `task-management`, and stop.
+- Python missing: list `tasks/*.md` and read the front matter by hand.
 
-1. **Project Detection**: Detects whether the active session is running inside a specific project (e.g. `leonidas-code`, `leonidas-scribe`, etc.) or in an AIOS root.
-   - For `leonidas-code` (standalone clone or within an AIOS `projects/leonidas-code` directory): prioritizes tasks belonging to `leonidas-code`.
-   - Resolves generated project views, handles symlinks, and falls back to parent AIOS task stores if symlinks are unlinked or in separate checkouts.
-2. **Operator Awareness**: Automatically identifies the active user:
-   - **Operator lane**: Prioritizes tasks whose `lane` or `owner` matches the active user, plus unassigned project work (`lane: agent`, `lane: leonidas`), and hides other people's personal lanes.
-3. **Cache & Fallback**: Validates cached store path in `.agents/next-action.json`. If Python is unavailable, uses the documented filesystem fallback.
+## 2. Grill round 1: the session (one call, 3 questions)
 
----
+Load [grilling](../grilling/SKILL.md) and ask in its round format with the structured question tool (Claude: `AskUserQuestion`). Do not invent a tool name. If the tool is missing, load it with ToolSearch `select:AskUserQuestion`. If that fails, a `deny` entry in the Claude `settings.json` hides it: tell the operator, and ask in chat only until it is fixed. One call, all three questions together:
 
-## Phase 2: Interactive Quick Intake (2 to 4 Questions)
+1. **Time and energy.** Options: a quick slot (under 30 min, low energy), a focused block (1 to 2 hours), a deep block (2+ hours, high energy). Recommend the one that fits the time of day and the pool.
+2. **Kind of win.** Build options from the pool, not from a generic list. Examples: ship something (ready build tasks), settle decisions (`grill` lane cards), clear the review backlog (`Awaiting Review`), do the manual steps (`human` lane). Offer only kinds that exist in the pool. Recommend the kind with the most `Critical` or `High` cards.
+3. **Project focus.** Only when the pool spans 2 or more projects. Options: the 2 or 3 projects with the most top-ranked cards, plus the current project. Skip it when the pool has one project.
 
-If the user already provided preferences in their prompt (e.g. "next action, skip", "what should I work on next, high energy", or specific domain constraints), **skip intake completely** and proceed straight to ranking.
+Skip rules:
 
-Otherwise, prompt the user with interactive modal questions using the `ask_question` tool:
+- The operator already gave an answer in the prompt (`next action, 1 hour, quick wins`): skip that question.
+- The operator says `just pick` or `skip`: skip all questions and rank with defaults. Never offer "skip" as an option. The operator must ask for it.
 
-### Question 1: Energy Level (With Quick Skip All)
+Map answers to flags: time and energy to `--energy low|medium|high`, kind of win to `--focus code|arch|review|all`, project to `--project <slug>`.
 
-- **Question**: `"What is your current energy level for this session?"`
-- **Options**:
-  1. `(Recommended) Skip all & pick best match for me`
-  2. `High Energy (Deep work, complex architecture, large feature build)`
-  3. `Medium Energy (Focused slice, refactor, targeted bug fix, docs)`
-  4. `Low Energy (Quick wins, chores, review backlog, small polish)`
-- `is_multi_select`: false
-
-> **CRITICAL SKIP RULE**:
-> If the user selects Option 1 (`(Recommended) Skip all & pick best match for me`), **immediately stop asking questions**. Do NOT show Question 2 or Question 3. Proceed directly to ranking with AI-recommended defaults.
-
-### Question 2: Scope & Focus Area (Only if Question 1 was NOT skipped)
-
-- **Question**: `"Which area would you like to focus on?"`
-- **Options**:
-  1. `(Recommended) Best ready task in current project`
-  2. `Core Code & Features (Implementation, bug fixes, UI/UX)`
-  3. `Architecture & System Design (Prototypes, specifications, planning)`
-  4. `Cleanup, Testing & Docs (Test suite, tech debt, documentation)`
-- `is_multi_select`: false
-
-### Question 3: Execution Preference (Optional / Filter)
-
-- **Question**: `"How would you prefer to tackle the work?"`
-- **Options**:
-  1. `(Recommended) Show top options with execution recommendations`
-  2. `In-Chat Execution (Work on it right here in this session)`
-  3. `Prompt Composer (Generate a prompt to spin up a new focused chat)`
-  4. `Subagent Delegation (Launch parallel background subagents)`
-- `is_multi_select`: false
-
----
-
-## Phase 3: Rank & Present Top 5 Tasks
-
-Run the resolver with the selected parameters:
+## 3. Rank and show the top 5
 
 ```bash
-python <skill-folder>/scripts/resolve_tasks.py --workspace <workspace> --rank --energy <low|medium|high|all> --focus <code|arch|review|all>
+python <skill-folder>/scripts/resolve_tasks.py --workspace <workspace> --rank --energy <e> --focus <f> --project <p>
 ```
 
-Render the top 5 tasks in structured GitHub Markdown:
+Show the 5 tasks in one `leo:table` block: rank, linked task title, priority, effort, route badge, and a `why now` of 12 words or fewer. Add one line below: the 3 settings you used.
 
-```markdown
-# Next Actions for [User] · [Project]
+Check the top task before you show it: read its card, confirm `Done when` is testable and nothing in `blocked_by` is open. Replace a task that fails this check with the next one.
 
-**Context:** Project: `[project]` | Operator: `[User]` | Energy: `[Level]` | Focus: `[Domain]`
+## 4. Grill round 2: pick and route (one call, 2 questions)
 
-Here are the top 5 tasks ranked by priority and fit:
+1. **Which task.** Options: tasks 1 to 4, task 1 first and marked `(Recommended)`. The tool adds "Other" for task 5.
+2. **How to run it.** Options:
+   - Use the route I flagged for my pick (Recommended)
+   - Work it here in this chat
+   - Give me a prompt for a fresh chat
+   - Delegate it to a subagent
 
-### 1. [[Task Title]](file:///<absolute-path-to-task>)
+Route badges from the script:
 
-- **Priority:** High · **Effort:** Low · **Type:** Quick Win · **Lane:** [lane]
-- **Why Now:** [1-2 sentences on impact and why this is ready now]
-- **Recommended Route:** `🟢 In-Chat Execution` ("Bang it out right here")
-  - _Why:_ Compact scope, clear finish line, and instant test verification in this session.
+| Badge             | Route             | Meaning                                                       |
+| ----------------- | ----------------- | ------------------------------------------------------------- |
+| 🟢 In-Chat        | `in-chat`         | Small, clear finish line. Work here.                          |
+| 🔵 New Chat       | `prompt-composer` | Large or multi-file. Fresh context is better.                 |
+| 🟣 Subagent-Ready | `subagent`        | Autonomous card with start point and checks.                  |
+| 🟠 Grill First    | `grill`           | Decisions are open. Run `grilling` on the card first.         |
+| ⚪ Human Steps    | `human`           | Needs the operator's accounts or hands. Walk them through it. |
+| 🟡 Review         | `review`          | Work is done. Check it against `Done when`.                   |
 
-### 2. [[Task Title]](file:///<absolute-path-to-task>)
+## 5. Act on the pick
 
-- **Priority:** High · **Effort:** High · **Type:** Deep Work · **Lane:** [lane]
-- **Why Now:** [1-2 sentences on architectural necessity]
-- **Recommended Route:** `🔵 New Chat (Prompt Composer)` ("Spin up a new focused chat")
-  - _Why:_ Deep multi-file changes requiring fresh context window and dedicated extended reasoning.
+Start in the same turn. Set the card status to `In progress` first.
 
-### 3. [[Task Title]](file:///<absolute-path-to-task>)
+- **In-chat:** pick the method from the task type, not by habit. Code: `idea-to-ship` or `build` (tests first). Decisions: `grilling` on the card, then write the decisions into it. Docs and admin: do the work and check `Done when`. Review: `review-two-axis` or read the diff against `Done when`.
+- **Fresh chat:** run `... --draft-prompt <N>`, improve it with `prompt-composer`, and show it in a fenced block. In Leonidas Code, also open it with `t3_thread_launch` (`message` = the prompt, `workspaceStrategy` = `root`). The operator chose this route, so this counts as the explicit ask for a new thread.
+- **Delegate:** follow the project's subagent rule. Ask for approval if the rule requires it. Send `delegate_task` with the card path, objective, file limits and `Done when`. Check the diff and run the checks yourself before you report done. See [verify delegated work](references/hermes-plate-verify.md).
+- **Grill first or human:** run the `grilling` skill on the card (it keeps its own capture file). For `human` cards, give numbered steps of 2 minutes or less and the exact link or command for each. Use `wizard` for long flows.
 
-- **Priority:** Medium · **Effort:** Medium · **Type:** Strategic · **Lane:** [lane]
-- **Why Now:** [1-2 sentences]
-- **Recommended Route:** `🟣 Subagent-Ready` ("Delegate to Subagent")
-  - _Why:_ Independent modular verification slice that background agents can run concurrently.
+Finish with the proof gate in [proof-gates](references/proof-gates.md): update the card (`Done`, `Awaiting Review` or `Blocked`) with the real check result, stage only files from this task, and commit.
 
-[Tasks 4 and 5 in same format...]
+## Done when
 
----
-
-### Next Steps:
-
-- **Execute in this chat:** Reply `1` (or `Execute #1`) to begin immediately.
-- **Spin up new chat:** Reply `Prompt #2` to get a production-ready, model-calibrated prompt via `prompt-composer`.
-- **Spawn subagents:** Reply `Delegate #3` (or `Delegate [3, 4]`) to launch background workers.
-```
-
----
-
-## Phase 4: Execution Pathways
-
-Based on the user's choice:
-
-### 1. In-Chat Execution (`Execute #N`)
-
-- Authorized immediately when chosen.
-- Set task status to `In Progress` if tracked in a task ledger.
-- Execute in disciplined test-first slices (TDD).
-- Run project test/build commands to verify.
-- Commit changes following `safe-parallel-commit` protocol.
-
-### 2. Prompt Composer (`Prompt #N`)
-
-- When the user wants to spin up a new dedicated chat/session, invoke the `prompt-composer` skill.
-- Run `python <skill-folder>/scripts/resolve_tasks.py --workspace <workspace> --draft-prompt <N>` or compose the model-calibrated instruction block:
-
-```markdown
-<task>
-[Task Title]
-</task>
-
-<context>
-- Project: [project]
-- Task Card: [file path]
-- Objective: [Why now & key requirements]
-- Start Here: [Start file or entry point]
-</context>
-
-<rules>
-- Maintain code integrity and execute test-first slices.
-- Verify changes against project standards and ensure clean git status.
-- DO NOT edit unrelated files outside this task scope.
-</rules>
-
-<verification>
-[Test command or binary observable criteria from Done When]
-</verification>
-```
-
-### 3. Subagent Delegation (`Delegate #N` or `Delegate [N, M]`)
-
-- When the user chooses delegation or a task is flagged `🟣 Subagent-Ready`:
-  - In Leonidas Code / T3 harness: call `delegate_task` with structured brief.
-  - In Antigravity native: call `invoke_subagent`.
-  - Pass the exact task file, objective, boundaries, and acceptance tests.
-  - When subagents complete, summarize verified evidence and report back to the user.
+- Round 1 and round 2 were asked with the question tool, unless the operator asked to skip.
+- The operator saw 5 real tasks from the cards, not a generic list.
+- The pick is running, drafted as a prompt, or delegated, and its card status shows it.
+- No task was started without the operator's pick.

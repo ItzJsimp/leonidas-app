@@ -185,9 +185,15 @@ export function canReuseCodexContextUsage(previous: ModelSelection, next: ModelS
   );
 }
 
+// OpenAI keeps a prompt cache entry for 30 minutes by default. The 12h life is
+// opt-in per request (prompt_cache_options.ttl) and Codex does not report it, so
+// the estimate stays at the documented default.
+const CODEX_PROMPT_CACHE_TTL_MS = 30 * 60_000;
+
 export function codexProviderTurnTokenUsage(
   tokenUsage: CodexSchema.V2ThreadTokenUsageUpdatedNotification["tokenUsage"],
   updatedAt: string,
+  promptCacheAnchorAt?: string,
 ) {
   return {
     usedTokens: Math.max(0, tokenUsage.last.totalTokens),
@@ -196,6 +202,8 @@ export function codexProviderTurnTokenUsage(
     cachedInputTokens: Math.max(0, tokenUsage.last.cachedInputTokens),
     outputTokens: Math.max(0, tokenUsage.last.outputTokens),
     reasoningOutputTokens: Math.max(0, tokenUsage.last.reasoningOutputTokens),
+    promptCacheTtlMs: CODEX_PROMPT_CACHE_TTL_MS,
+    ...(promptCacheAnchorAt === undefined ? {} : { promptCacheAnchorAt }),
     updatedAt,
   };
 }
@@ -4365,6 +4373,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 tokenUsage: codexProviderTurnTokenUsage(
                   payload.tokenUsage,
                   DateTime.formatIso(now),
+                  DateTime.formatIso(context.startedAt),
                 ),
                 turnTokenUsage: snapshotCodexTurnTokenUsage(
                   usageStateForThread(payload.threadId),
