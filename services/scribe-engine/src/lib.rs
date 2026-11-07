@@ -18,6 +18,7 @@ pub mod hotkeys;
 pub mod http;
 pub mod hud;
 pub mod local_stt;
+pub mod meetings;
 pub mod paste;
 pub mod polish;
 pub mod rewrite;
