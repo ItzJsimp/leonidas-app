@@ -126,7 +126,8 @@ fn run() -> Result<(), String> {
             rejects: Arc::new(Rejects::open(&config_dir.join("suggestions-rejected.json"))),
             meetings: Arc::new(
                 scribe_engine::meetings::Meetings::new(config_dir.join("meetings"))
-                    .with_speech(Arc::new(groq.clone())),
+                    .with_speech(Arc::new(groq.clone()))
+                    .with_chat(Arc::new(groq.clone())),
             ),
         },
         cfg.port,

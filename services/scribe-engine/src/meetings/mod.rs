@@ -3,6 +3,7 @@
 //! idle RAM and cold start do not change.
 
 pub mod capture;
+pub mod notes;
 pub mod session;
 pub mod speakers;
 pub mod store;
@@ -22,6 +23,7 @@ pub struct Meetings {
     store: Store,
     last_sweep_ms: AtomicI64,
     speech: Arc<dyn Segmenter>,
+    chat: Arc<dyn notes::Chat>,
     opener: TrackOpener,
     /// The live or the last finished session. One meeting records at a time.
     active: Mutex<Option<Session>>,
@@ -62,6 +64,7 @@ impl Meetings {
             store: Store::new(root),
             last_sweep_ms: AtomicI64::new(i64::MIN),
             speech: Arc::new(NoSpeech),
+            chat: Arc::new(NoChat),
             opener: session::device_opener(),
             active: Mutex::new(None),
         }
@@ -70,6 +73,62 @@ impl Meetings {
     pub fn with_speech(mut self, speech: Arc<dyn Segmenter>) -> Self {
         self.speech = speech;
         self
+    }
+
+    pub fn with_chat(mut self, chat: Arc<dyn notes::Chat>) -> Self {
+        self.chat = chat;
+        self
+    }
+
+    /// Slow routes (Ask) that must not hold the single HTTP thread. `http.rs` runs the job on
+    /// its own thread and sends the reply from there.
+    pub fn deferred(
+        &self,
+        method: &str,
+        path: &str,
+        body: &Value,
+    ) -> Option<Box<dyn FnOnce() -> Reply + Send>> {
+        let rest = path.strip_prefix("/v1/meetings/")?;
+        let (id, action) = rest.split_once('/')?;
+        if method != "POST" || action != "ask" {
+            return None;
+        }
+        let question = body["question"]
+            .as_str()
+            .map(str::trim)
+            .unwrap_or_default()
+            .to_owned();
+        if question.is_empty() || question.len() > 2_000 {
+            return Some(Box::new(|| {
+                fail(400, "bad_request", "Type a question first.")
+            }));
+        }
+        let segments: Vec<Value> = if id == "live" {
+            match self.active.lock().unwrap().as_ref() {
+                Some(s) => s.live.lock().unwrap().segments.clone(),
+                None => {
+                    return Some(Box::new(|| {
+                        fail(409, "not_recording", "No meeting is recording.")
+                    }))
+                }
+            }
+        } else {
+            match self.store.get(id) {
+                Some(m) => m["transcript"].as_array().cloned().unwrap_or_default(),
+                None => {
+                    return Some(Box::new(|| {
+                        fail(404, "not_found", "No meeting with this id.")
+                    }))
+                }
+            }
+        };
+        let chat = self.chat.clone();
+        Some(Box::new(move || {
+            match notes::ask(chat.as_ref(), &segments, &question) {
+                Ok(answer) => (200, json!({ "answer": answer })),
+                Err(e) => fail(502, "provider_error", &e),
+            }
+        }))
     }
 
     pub fn with_opener(mut self, opener: TrackOpener) -> Self {
@@ -111,6 +170,14 @@ impl Meetings {
             },
             ("POST", ["stop"]) => self.stop(),
             ("GET", ["live"]) => self.live(),
+            ("GET", ["templates"]) => (
+                200,
+                json!({ "items": notes::TEMPLATES.iter().map(|t| json!({"id": t.id, "name": t.name})).collect::<Vec<_>>() }),
+            ),
+            ("POST", [id, "summary"]) => {
+                let template = body["template"].as_str().map(str::to_owned);
+                self.summarize(id, template)
+            }
             ("GET", [id]) => match self.store.get(id) {
                 Some(meeting) => (200, meeting),
                 None => fail(404, "not_found", "No meeting with this id."),
@@ -187,7 +254,13 @@ impl Meetings {
             dir.clone(),
             &self.opener,
             self.speech.clone(),
-            Box::new(finish),
+            {
+                let chat = self.chat.clone();
+                Box::new(move |dir: &Path| {
+                    finish(dir);
+                    spawn_notes(dir.to_path_buf(), chat);
+                })
+            },
         ) {
             Ok(session) => {
                 *active = Some(session);
@@ -255,6 +328,7 @@ impl Meetings {
             let name = entry.file_name().to_string_lossy().into_owned();
             if Some(&name) != active.as_ref() && session::recover(&entry.path()) {
                 finish(&entry.path());
+                spawn_notes(entry.path(), self.chat.clone());
             }
         }
     }
@@ -281,6 +355,78 @@ fn normalize(body: Value) -> Value {
     } else {
         body
     }
+}
+
+/// `POST /v1/meetings/{id}/summary`: write the notes again, with a new template if given.
+impl Meetings {
+    fn summarize(&self, id: &str, template: Option<String>) -> Reply {
+        if self.is_active(id) {
+            return fail(
+                409,
+                "recording",
+                "Notes are written when the meeting stops.",
+            );
+        }
+        if let Some(t) = &template {
+            if !notes::TEMPLATES.iter().any(|x| x.id == t) {
+                return fail(400, "bad_request", "Unknown template.");
+            }
+        }
+        if self.store.locate(id).is_none() {
+            return fail(404, "not_found", "No meeting with this id.");
+        }
+        let dir = match self.store.writable(id) {
+            Ok(dir) => dir,
+            Err(e) => return fail(500, "store_error", &e),
+        };
+        if let (Some(t), Some(mut manifest)) = (template, read_json(&dir.join("manifest.json"))) {
+            manifest["template_id"] = Value::from(t);
+            let _ = write_json(&dir.join("manifest.json"), &manifest);
+        }
+        spawn_notes(dir, self.chat.clone());
+        (202, json!({ "notesState": "working" }))
+    }
+}
+
+/// Write `note.json` on a background thread. The manifest's `notes_state` shows progress:
+/// `working`, `done` or `failed` (with `notes_error`).
+fn spawn_notes(dir: PathBuf, chat: Arc<dyn notes::Chat>) {
+    let set = |dir: &Path, state: &str, error: Option<&str>| {
+        if let Some(mut m) = read_json(&dir.join("manifest.json")) {
+            m["notes_state"] = Value::from(state);
+            m["notes_error"] = error.map_or(Value::Null, Value::from);
+            let _ = write_json(&dir.join("manifest.json"), &m);
+        }
+    };
+    set(&dir, "working", None);
+    let _ = std::thread::Builder::new()
+        .name("meeting-notes".into())
+        .spawn(move || {
+            let manifest = read_json(&dir.join("manifest.json")).unwrap_or_default();
+            let transcript = read_json(&dir.join("transcript.json")).unwrap_or_else(|| json!([]));
+            let segments = transcript.as_array().cloned().unwrap_or_default();
+            let template = manifest["template_id"].as_str().unwrap_or("default");
+            let title = manifest["title"].as_str().unwrap_or("Meeting");
+            match notes::generate(chat.as_ref(), &segments, template, title) {
+                Ok(note) => {
+                    let _ = write_json(&dir.join("note.json"), &note);
+                    set(&dir, "done", None);
+                }
+                Err(e) => set(&dir, "failed", Some(&e)),
+            }
+        });
+}
+
+/// Used until the app gives a chat provider.
+struct NoChat;
+
+impl notes::Chat for NoChat {
+    fn chat(&self, _: &str, _: &str, _: &str, _: bool) -> Result<String, notes::ChatError> {
+        Err(notes::ChatError::Failed(
+            "No chat provider is set up.".into(),
+        ))
+    }
+    fn wait(&self) {}
 }
 
 /// After the transcript is written: participants and state.
@@ -425,5 +571,28 @@ mod tests {
         assert_ne!(again["id"].as_str().unwrap(), id);
         m.handle("POST", "/v1/meetings/stop", Value::Null);
         wait_done(&m);
+    }
+}
+
+/// Lists the Groq models this key can use: `cargo test groq_models -- --ignored --nocapture`.
+#[cfg(test)]
+mod real_groq {
+    #[test]
+    #[ignore]
+    fn groq_models() {
+        use crate::credentials::KeyStore;
+        let key = std::env::var("GROQ_API_KEY")
+            .ok()
+            .or_else(|| crate::credentials::OsKeyStore::new().unwrap().get())
+            .expect("a Groq key");
+        let mut reply = ureq::get("https://api.groq.com/openai/v1/models")
+            .header("Authorization", format!("Bearer {key}"))
+            .call()
+            .unwrap();
+        let body: serde_json::Value =
+            serde_json::from_str(&reply.body_mut().read_to_string().unwrap()).unwrap();
+        for m in body["data"].as_array().unwrap() {
+            println!("{} ctx={}", m["id"], m["context_window"]);
+        }
     }
 }

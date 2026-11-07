@@ -266,6 +266,15 @@ fn meetings_route(mut request: Request, services: &Services, path: &str) {
             Err(()) => return error(request, 400, "bad_request"),
         },
     };
+    if let Some(job) = services.meetings.deferred(&method, path, &body) {
+        let _ = thread::Builder::new()
+            .name("meetings-ask".into())
+            .spawn(move || {
+                let (status, value) = job();
+                json(request, status, &value);
+            });
+        return;
+    }
     let (status, value) = services.meetings.handle(&method, path, body);
     if status == 204 {
         empty(request);

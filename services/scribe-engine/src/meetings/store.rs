@@ -146,6 +146,9 @@ impl Store {
             "hasTranscript": has_transcript,
             "hasAudio": has_audio,
             "audioDeletesAt": audio_deletes_at,
+            "notesState": manifest["notes_state"],
+            "notesError": manifest["notes_error"],
+            "template": manifest["template_id"].as_str().unwrap_or("default"),
         }))
     }
 
