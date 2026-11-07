@@ -30,6 +30,8 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.scribeStop]: AuthOrchestrationOperateScope,
   [WS_METHODS.scribeRetry]: AuthOrchestrationOperateScope,
   [WS_METHODS.scribeDeleteHistory]: AuthOrchestrationOperateScope,
+  [WS_METHODS.scribeMeetings]: AuthOrchestrationOperateScope,
+  [WS_METHODS.scribeMeetingsDiscord]: AuthSettingsWriteScope,
   [WS_METHODS.scribePutDictionary]: AuthOrchestrationOperateScope,
   [WS_METHODS.scribeRejectSuggestion]: AuthOrchestrationOperateScope,
   [WS_METHODS.scribePatchSettings]: AuthSettingsWriteScope,

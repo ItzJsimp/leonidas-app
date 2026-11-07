@@ -314,6 +314,19 @@ export type ScribeSetGroqKeyInput = typeof ScribeSetGroqKeyInput.Type;
 export const ScribeGroqKey = Schema.Struct({ key: Schema.String });
 export type ScribeGroqKey = typeof ScribeGroqKey.Type;
 
+/**
+ * Meetings (engine contract v1.6): one proxy call to `/v1/meetings/<path>` on the engine.
+ * The server checks the path; the reply is the engine JSON, typed in the web app.
+ */
+export const ScribeMeetingsInput = Schema.Struct({
+  method: Schema.Literals(["GET", "POST", "PATCH", "PUT", "DELETE"]),
+  /** Under `/v1/meetings`, for example `""`, `live`, `<id>/ask`. */
+  path: Schema.String.check(Schema.isMaxLength(200)),
+  body: Schema.optional(Schema.Unknown),
+});
+export type ScribeMeetingsInput = typeof ScribeMeetingsInput.Type;
+export const ScribeMeetingsResult = Schema.Unknown;
+
 export const ScribeEngineErrorReason = Schema.Literals([
   "offline",
   "timeout",
@@ -328,5 +341,9 @@ export type ScribeEngineErrorReason = typeof ScribeEngineErrorReason.Type;
 
 export class ScribeEngineError extends Schema.TaggedError<ScribeEngineError>()(
   "ScribeEngineError",
-  { reason: ScribeEngineErrorReason },
+  {
+    reason: ScribeEngineErrorReason,
+    /** A plain sentence from the engine for the user (meetings routes). */
+    message: Schema.optional(Schema.String),
+  },
 ) {}

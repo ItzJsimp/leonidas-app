@@ -82,6 +82,8 @@ const RPC_AGGREGATES = {
   [WS_METHODS.serverSetAcpRegistryProvider]: "server",
   [WS_METHODS.serverDisableAcpRegistryProvider]: "server",
   [WS_METHODS.scribeGetStatus]: "scribe",
+  [WS_METHODS.scribeMeetings]: "scribe",
+  [WS_METHODS.scribeMeetingsDiscord]: "scribe",
   [WS_METHODS.voiceLogMemoryReview]: "scribe",
   [WS_METHODS.voiceLogMemoryApprove]: "scribe",
   [WS_METHODS.scribeListHistory]: "scribe",

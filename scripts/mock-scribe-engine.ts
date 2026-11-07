@@ -378,6 +378,25 @@ export async function startMockScribeEngine(
       req.on("error", () => resolve(null));
     });
 
+  const mockMeeting = {
+    id: "2026-11-07-0900-meeting",
+    title: "Mock call",
+    started: "2026-11-07T09:00:00.000Z",
+    ended: "2026-11-07T09:05:00.000Z",
+    durationMs: 300_000,
+    state: "done",
+    app: "Discord",
+    people: ["Me", "Speaker 1"],
+    pinned: false,
+    imported: false,
+    hasTranscript: true,
+    hasAudio: true,
+    audioDeletesAt: "2026-12-07T09:05:00.000Z",
+    notesState: "done",
+    notesError: null,
+    transcribeError: null,
+    template: "default",
+  };
   const handle = async (req: MockRequest, res: MockResponse) => {
     if (req.headers.origin !== undefined || req.headers.host !== `127.0.0.1:${boundPort}`) {
       return fail(res, 403, "forbidden");
@@ -424,6 +443,24 @@ export async function startMockScribeEngine(
       if (!allow("POST")) return;
       if (state !== "ready") return fail(res, 409, "invalid_state");
       return fail(res, 404, "nothing_to_retry");
+    }
+    // Meetings (contract v1.6): one saved meeting, enough for the server bridge and web dev.
+    if (path === "/v1/meetings") {
+      if (!allow("GET")) return;
+      return send(res, 200, { items: [mockMeeting] });
+    }
+    if (path === `/v1/meetings/${mockMeeting.id}`) {
+      if (!allow("GET")) return;
+      return send(res, 200, {
+        ...mockMeeting,
+        transcript: [{ speaker_key: "Me", t0: 0, t1: 2, text: "Hello." }],
+        note: { title: mockMeeting.title, summary: ["A short test call."] },
+      });
+    }
+    if (path.startsWith("/v1/meetings/")) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "not_found", message: "No meeting with this id." }));
+      return;
     }
     if (path === "/v1/credentials/groq") {
       if (!allow("PUT", "DELETE")) return;

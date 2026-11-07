@@ -599,6 +599,8 @@ import {
   ScribeCommandResult,
   ScribeDeleteHistoryInput,
   ScribeDeleteHistoryResult,
+  ScribeMeetingsInput,
+  ScribeMeetingsResult,
   ScribeDevices,
   ScribeDictionary,
   ScribeEngineError,
@@ -645,6 +647,8 @@ export const WS_METHODS = {
   voiceLogMemoryApprove: "voiceLogMemory.approve",
   scribeListHistory: "scribe.listHistory",
   scribeDeleteHistory: "scribe.deleteHistory",
+  scribeMeetings: "scribe.meetings",
+  scribeMeetingsDiscord: "scribe.meetingsDiscord",
   scribeGetInsights: "scribe.getInsights",
   scribeGetGoals: "scribe.getGoals",
   scribeGetDictionary: "scribe.getDictionary",
@@ -2852,6 +2856,19 @@ const WsScribeSetGroqKeyRpc = Rpc.make(WS_METHODS.scribeSetGroqKey, {
   error: ScribeRpcError,
 });
 
+const WsScribeMeetingsRpc = Rpc.make(WS_METHODS.scribeMeetings, {
+  payload: ScribeMeetingsInput,
+  success: ScribeMeetingsResult,
+  error: ScribeRpcError,
+});
+
+/** Saving or connecting the Discord app: a settings change, like the Groq key. */
+const WsScribeMeetingsDiscordRpc = Rpc.make(WS_METHODS.scribeMeetingsDiscord, {
+  payload: ScribeMeetingsInput,
+  success: ScribeMeetingsResult,
+  error: ScribeRpcError,
+});
+
 const WsScribeClearGroqKeyRpc = Rpc.make(WS_METHODS.scribeClearGroqKey, {
   payload: Schema.Struct({}),
   success: Schema.Struct({}),
@@ -3308,6 +3325,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsVoiceLogMemoryApproveRpc,
   WsScribeListHistoryRpc,
   WsScribeDeleteHistoryRpc,
+  WsScribeMeetingsRpc,
+  WsScribeMeetingsDiscordRpc,
   WsScribeGetInsightsRpc,
   WsScribeGetGoalsRpc,
   WsScribeGetDictionaryRpc,

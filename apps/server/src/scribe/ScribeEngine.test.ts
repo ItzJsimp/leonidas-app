@@ -254,3 +254,31 @@ it("reads the engine port from the environment, loopback only", () => {
     "http://127.0.0.1:8766",
   );
 });
+
+it.effect("proxies meetings calls and keeps the engine message", () =>
+  Effect.gen(function* () {
+    const engine = yield* withMock();
+    const list = (yield* engine.meetings({ method: "GET", path: "" })) as {
+      items: Array<{ id: string }>;
+    };
+    expect(list.items[0]?.id).toBe("2026-11-07-0900-meeting");
+    const error = yield* Effect.flip(
+      Effect.asVoid(engine.meetings({ method: "GET", path: "nope" })),
+    );
+    expect([error.reason, error.message]).toEqual(["not_found", "No meeting with this id."]);
+  }),
+);
+
+it("only lets meetings paths through, and Discord writes only with the settings call", () => {
+  const ok = (method: "GET" | "PUT" | "POST", path: string, settings: boolean) =>
+    ScribeEngine.meetingsPathAllowed({ method, path }, settings);
+  expect(ok("GET", "", false)).toBe(true);
+  expect(ok("POST", "2026-11-07-0900-meeting/ask", false)).toBe(true);
+  expect(ok("GET", "discord", false)).toBe(true);
+  expect(ok("PUT", "discord", false)).toBe(false);
+  expect(ok("PUT", "discord", true)).toBe(true);
+  expect(ok("POST", "discord/connect", true)).toBe(true);
+  expect(ok("GET", "../history", false)).toBe(false);
+  expect(ok("GET", "a/b/c/d", false)).toBe(false);
+  expect(ok("GET", "live", true)).toBe(false);
+});

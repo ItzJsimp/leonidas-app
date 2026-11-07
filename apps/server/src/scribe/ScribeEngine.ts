@@ -1,6 +1,7 @@
 import {
   ScribeCommandResult,
   type ScribeDeleteHistoryInput,
+  type ScribeMeetingsInput,
   ScribeDeleteHistoryResult,
   ScribeDictionary,
   ScribeEngineError,
@@ -72,6 +73,12 @@ export class ScribeEngine extends Context.Service<
     /** The key goes to the engine's OS credential store. It is never returned. */
     readonly setGroqKey: (input: ScribeSetGroqKeyInput) => Effect.Effect<void, ScribeEngineError>;
     readonly clearGroqKey: Effect.Effect<void, ScribeEngineError>;
+    /** Meetings routes except the Discord app settings. */
+    readonly meetings: (input: ScribeMeetingsInput) => Effect.Effect<unknown, ScribeEngineError>;
+    /** Save, remove or connect the Discord app (settings scope). */
+    readonly meetingsDiscord: (
+      input: ScribeMeetingsInput,
+    ) => Effect.Effect<unknown, ScribeEngineError>;
     /** Engine events plus `connection` events. Reconnects every second while the engine is down. */
     readonly events: Stream.Stream<ScribeLiveEvent>;
   }
@@ -105,6 +112,22 @@ export const parseEventLine = (line: string): ScribeLiveEvent | null => {
   const decoded = decodeWireEvent(line.slice(5).trim());
   return decoded._tag === "Some" ? decoded.value : null;
 };
+
+const MEETINGS_PATH = /^(?:[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+){0,2})?$/;
+
+/**
+ * Only `/v1/meetings` paths reach the engine. Writing the Discord app (`discord` with PUT or
+ * DELETE, and `discord/connect`) is allowed only through the settings-scope call.
+ */
+export const meetingsPathAllowed = (input: ScribeMeetingsInput, settings: boolean): boolean => {
+  if (!MEETINGS_PATH.test(input.path)) return false;
+  const discordWrite =
+    input.path === "discord/connect" || (input.path === "discord" && input.method !== "GET");
+  return settings ? discordWrite : !discordWrite;
+};
+
+const meetingsSlow = (input: ScribeMeetingsInput) =>
+  input.path.endsWith("/ask") || input.path === "discord/connect";
 
 const isEvent = (event: ScribeLiveEvent | null): event is ScribeLiveEvent => event !== null;
 
@@ -227,6 +250,56 @@ export const makeWith = (options: {
       null,
     );
 
+    /** Engine meetings call. Keeps the engine's plain `message` on errors. */
+    const meetingsCall = (input: ScribeMeetingsInput) =>
+      Effect.gen(function* () {
+        const url = `${baseUrl}/v1/meetings${input.path === "" ? "" : `/${input.path}`}`;
+        const request = HttpClientRequest.make(input.method)(url);
+        const response = yield* http.execute(
+          input.body === undefined
+            ? request
+            : HttpClientRequest.bodyJsonUnsafe(request, input.body),
+        );
+        if (response.status === 204) return null;
+        const body = yield* response.json.pipe(Effect.orElseSucceed(() => null));
+        if (response.status >= 400) {
+          const message =
+            body !== null && typeof body === "object" && "message" in body
+              ? String((body as { message: unknown }).message)
+              : undefined;
+          return yield* new ScribeEngineError({
+            reason: reasonForStatus(response.status),
+            ...(message === undefined ? {} : { message }),
+          });
+        }
+        return body;
+      }).pipe(
+        Effect.provideService(FetchHttpClient.RequestInit, {
+          redirect: "manual",
+          cache: "no-store",
+        }),
+        Effect.scoped,
+        // Ask can wait out a provider rate limit; Discord connect waits for the user's click.
+        Effect.timeout(meetingsSlow(input) ? "200 seconds" : "5 seconds"),
+        Effect.mapError((error) =>
+          error._tag === "ScribeEngineError"
+            ? error
+            : new ScribeEngineError({
+                reason: error._tag === "TimeoutError" ? "timeout" : "offline",
+              }),
+        ),
+      );
+
+    const meetings = (input: ScribeMeetingsInput) =>
+      meetingsPathAllowed(input, false)
+        ? meetingsCall(input)
+        : Effect.fail(new ScribeEngineError({ reason: "bad_request" }));
+
+    const meetingsDiscord = (input: ScribeMeetingsInput) =>
+      meetingsPathAllowed(input, true)
+        ? meetingsCall(input)
+        : Effect.fail(new ScribeEngineError({ reason: "bad_request" }));
+
     const connection = (connected: boolean) =>
       Effect.map(DateTime.now, (now): ScribeLiveEvent => ({
         type: "connection",
@@ -294,6 +367,8 @@ export const makeWith = (options: {
       listDevices,
       setGroqKey,
       clearGroqKey,
+      meetings,
+      meetingsDiscord,
       events,
     });
   });
