@@ -1,4 +1,6 @@
-# Scribe engine contract (v1.5)
+# Scribe engine contract (v1.6)
+
+v1.6 (2026-11-07, Meetings): meeting recording, transcripts, speakers, notes and Ask. See the Meetings section at the end. Additive: nothing older changes.
 
 v1.5 (2026-11-06, Batch 4 parity): history items add optional `stt` and `polish`, strings. `stt` is the speech provider and model that served the take, as `provider/model` (for example `groq/whisper-large-v3-turbo`, `deepgram/nova-3`, `local/ggml-base.en-q5_1`). `polish` is `provider/model`, `fast-path` or `none`. A missing field means unknown (older lines and rewrites). `POST /v1/retry` runs the newest saved failed dictation again (see Retry).
 
@@ -236,3 +238,54 @@ Hotkey to recording under 50 ms. Idle RAM under 30 MB. CI fails the build on a m
 The `hotkeys` settings section includes `rewrite` bindings. History items can have
 `mode: "rewrite"` and an optional `preset` name. The engine reads
 `presets.rewrite` as an array of `{name, instruction}` objects.
+
+# v1.6 Meetings (additive)
+
+Meetings record the mic and the system audio (WASAPI loopback) as two tracks, transcribe them live on the Groq free tier, split the other speakers, and write notes from a template. Nothing runs until a meeting starts. Everything stays in `<config dir>/meetings/<id>/`.
+
+Meetings errors add a plain `message` for the user: `{"error":"<code>","message":"..."}`.
+
+## Storage
+
+- Main root: `<config dir>/meetings/`. Import root: `<config dir>/meetings/python-import/` (the copied Python Scribe meetings), read only. A main folder wins over an import folder with the same id.
+- An edit to an imported meeting (rename, Keep audio, transcribe, notes) first copies its JSON files to the main root. Import files never change. Audio is read where it is.
+- Folder files, in the Python schema: `manifest.json`, `transcript.json` (segments `{speaker_key, track, t0, t1, text}`), `note.json` (`title`, `summary`, `decisions[{t,text}]`, `action_items[{owner,task,t}]`, `open_questions`), `chunks.jsonl` (one line per transcribed chunk), `me/seg-NNNNN.flac` and `them/seg-NNNNN.flac` (16 kHz mono, about 25 s), `them-voice.json` (voice features), `speaking.jsonl` (Discord events).
+- Audio in the main root is deleted 30 days after the meeting ends unless `pinned` (Keep audio). Transcripts and notes stay. Import audio is never deleted.
+- A meeting left in `recording` by a crash is rebuilt from `chunks.jsonl` on the next list.
+
+## Commands
+
+| Route                                                      | Body                                                | Reply                                                                                                                                          |
+| ---------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/meetings`                                         |                                                     | `{"items":[summary]}` newest first                                                                                                             |
+| `GET /v1/meetings/{id}`                                    |                                                     | summary plus `manifest`, `transcript`, `note`, `folder`                                                                                        |
+| `PATCH /v1/meetings/{id}`                                  | `{"title"?, "pinned"?, "speakers"?: {"old":"new"}}` | the meeting                                                                                                                                    |
+| `DELETE /v1/meetings/{id}`                                 |                                                     | 204. An imported meeting gets a hidden tombstone. 409 `recording` while it records                                                             |
+| `POST /v1/meetings/start`                                  | `{"title"?, "app"?, "template"?}`                   | `{"id"}`. 409 `already_recording`, 409 `mic_error`                                                                                             |
+| `POST /v1/meetings/stop`                                   |                                                     | `{"id"}`. 409 `not_recording`                                                                                                                  |
+| `GET /v1/meetings/live`                                    |                                                     | `{"recording","phase":"recording"\|"finishing"\|"done"\|null,"id","elapsedMs","levels":{"me","them"},"segments","pending","failed","notices"}` |
+| `POST /v1/meetings/{id}/ask`, `POST /v1/meetings/live/ask` | `{"question"}`                                      | `{"answer"}`. 502 `provider_error`                                                                                                             |
+| `POST /v1/meetings/{id}/summary`                           | `{"template"?}`                                     | 202 `{"notesState":"working"}`                                                                                                                 |
+| `POST /v1/meetings/{id}/transcribe`                        |                                                     | 202 `{"state":"transcribing"}`. 409 `no_audio`                                                                                                 |
+| `GET /v1/meetings/templates`                               |                                                     | `{"items":[{"id","name"}]}`: `default`, `client-call`, `one-on-one`, `brainstorm`                                                              |
+| `GET /v1/meetings/detect`                                  |                                                     | `{"app":"Discord"\|null,"apps":[...]}`: call apps that use the mic now                                                                         |
+| `GET /v1/meetings/discord`                                 |                                                     | `{"configured","connected","clientId"?,"user"?}`. Never a secret or token                                                                      |
+| `PUT /v1/meetings/discord`                                 | `{"clientId","clientSecret"?}`                      | the Discord status. 400 `bad_client_id`                                                                                                        |
+| `DELETE /v1/meetings/discord`                              |                                                     | 204                                                                                                                                            |
+| `POST /v1/meetings/discord/connect`                        |                                                     | the Discord status after the user clicks Authorize in Discord (up to 180 s). 409 `discord_error`                                               |
+
+A summary row: `id`, `title` (note title, else manifest title), `started`, `ended`, `durationMs`, `state` (`recording`, `processing`, `transcribing`, `done`, `failed`), `app`, `people`, `pinned`, `imported`, `hasTranscript`, `hasAudio`, `audioDeletesAt`, `notesState` (`working`, `done`, `failed`), `notesError`, `transcribeError`, `template`.
+
+Ask and Discord connect run on their own thread, so they never hold the HTTP thread. Notes and transcribe run in the background; poll the meeting.
+
+## Speakers
+
+The mic track is `Me`. System-audio segments get Discord names when Discord is connected (speaking events, most overlap wins), else a local voice split (`Speaker 1`, `Speaker 2`; spectral shape plus pitch, 1 s windows). One voice stays `Them`. Names can be changed with `PATCH`.
+
+## Providers
+
+Speech: Groq Whisper (`whisperModel`, then `whisperModelBackup` on a rate limit). Notes and Ask: Groq `openai/gpt-oss-120b`, then `openai/gpt-oss-20b`. A long transcript is condensed in parts first (free tier: about 8k tokens a minute). All free tier; no new account.
+
+## Indicator
+
+While a meeting records, the HUD pill shows a red dot and "Recording meeting", also with the Leonidas window closed. The app shows its own indicator from `GET /v1/meetings/live`.
