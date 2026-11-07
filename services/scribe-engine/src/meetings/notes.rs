@@ -309,7 +309,7 @@ pub(crate) mod tests {
     fn short_transcript_gives_a_clean_note() {
         let chat = FakeChat::new(&[
             "429",
-            r#"Sure: {"title": "Plan — week", "summary": ["a"], "decisions": [{"t": "61", "text": "ship"}],
+            r#"Sure: {"title": "Plan \u2014 week", "summary": ["a"], "decisions": [{"t": "61", "text": "ship"}],
                "action_items": [{"owner": "Jake", "task": "send", "t": 5}], "open_questions": [], "extra": 1}"#,
         ]);
         let note = generate(&chat, &[seg(61.0, "Me", "we ship")], "default", "Meeting").unwrap();

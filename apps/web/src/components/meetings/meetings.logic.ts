@@ -46,7 +46,7 @@ const textOrNull = (value: unknown): string | null =>
   typeof value === "string" && value !== "" ? value : null;
 const list = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
 
-export function parseSummary(raw: unknown): MeetingSummary | null {
+function parseSummary(raw: unknown): MeetingSummary | null {
   const row = record(raw);
   const id = text(row.id);
   if (id === "") return null;
