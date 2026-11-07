@@ -289,7 +289,7 @@ where
     )
 }
 
-fn mono_frames<T: Sample>(input: &[T], channels: usize) -> impl Iterator<Item = f32> + '_
+pub(crate) fn mono_frames<T: Sample>(input: &[T], channels: usize) -> impl Iterator<Item = f32> + '_
 where
     f32: FromSample<T>,
 {
@@ -341,7 +341,7 @@ fn to_i16(sample: f32) -> i16 {
     (sample.clamp(-1.0, 1.0) * 32768.0).round() as i16
 }
 
-fn encode(input: &[f32], rate: u32) -> Result<EncodedAudio, String> {
+pub(crate) fn encode(input: &[f32], rate: u32) -> Result<EncodedAudio, String> {
     if rate == 0 {
         return Err("Invalid input sample rate".into());
     }

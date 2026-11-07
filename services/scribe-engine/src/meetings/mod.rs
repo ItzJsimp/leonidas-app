@@ -2,6 +2,7 @@
 //! write notes, and keep it on disk. Nothing here runs until a meeting starts, so dictation
 //! idle RAM and cold start do not change.
 
+pub mod capture;
 pub mod store;
 
 use serde_json::{json, Value};
