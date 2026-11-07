@@ -8,6 +8,7 @@ const BASE = [
   "command-center",
   "chat",
   "scribe",
+  "meetings",
   "inbox",
   "today",
   "tasks",
@@ -22,7 +23,7 @@ const BASE = [
 ];
 
 describe("railItems", () => {
-  it("shows 14 main icons by default, in order", () => {
+  it("shows 15 main icons by default, in order", () => {
     const { main } = railItems({ business: false, builder: false, scribe: true });
     expect(ids(main)).toEqual(BASE);
   });
@@ -40,12 +41,14 @@ describe("railItems", () => {
   it("shows both extras, Team first", () => {
     const { main } = railItems({ business: true, builder: true, scribe: true });
     expect(ids(main)).toEqual([...BASE, "team", "developer"]);
-    expect(main).toHaveLength(16);
+    expect(main).toHaveLength(17);
   });
 
   it("hides the Scribe icon when the server is not Windows", () => {
     const { main } = railItems({ business: true, builder: true, scribe: false });
-    expect(ids(main)).toEqual(BASE.filter((id) => id !== "scribe").concat("team", "developer"));
+    expect(ids(main)).toEqual(
+      BASE.filter((id) => id !== "scribe" && id !== "meetings").concat("team", "developer"),
+    );
   });
 
   it("always has Usage then Settings at the bottom", () => {

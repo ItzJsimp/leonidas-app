@@ -2,6 +2,7 @@ export type RailTo =
   | "/command-center"
   | "/"
   | "/scribe"
+  | "/meetings"
   | "/inbox"
   | "/today"
   | "/tasks"
@@ -52,6 +53,7 @@ const BEFORE_EXTRAS: readonly RailItem[] = [
     tooltip: "Leonidas Chat: talk with Leonidas and run agents",
   },
   item("scribe", "Scribe", "/scribe", "talk and have it typed for you"),
+  item("meetings", "Meetings", "/meetings", "record, read and share your calls"),
   item("inbox", "Notifications", "/inbox", "what needs you and what finished"),
   item("today", "Today", "/today", "your priorities, schedule and briefing"),
   item("tasks", "Tasks", "/tasks", "what to do and what is in progress"),
@@ -83,7 +85,9 @@ export function railItems(input: {
 }) {
   return {
     main: [
-      ...BEFORE_EXTRAS.filter((entry) => input.scribe || entry.id !== "scribe"),
+      ...BEFORE_EXTRAS.filter(
+        (entry) => input.scribe || (entry.id !== "scribe" && entry.id !== "meetings"),
+      ),
       ...(input.business ? [TEAM] : []),
       ...(input.builder ? [DEVELOPER] : []),
     ],

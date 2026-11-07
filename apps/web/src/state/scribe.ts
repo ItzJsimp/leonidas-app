@@ -123,3 +123,15 @@ export const scribeClearGroqKey = createEnvironmentRpcCommand(connectionAtomRunt
   label: "environment-data:scribe:clear-groq-key",
   tag: WS_METHODS.scribeClearGroqKey,
 });
+
+/** One call to the engine's meetings routes (list, read, edit, share, transcribe). */
+export const scribeMeetings = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:scribe:meetings",
+  tag: WS_METHODS.scribeMeetings,
+});
+
+/** Saving or connecting the Discord app, which the plain meetings call may not do. */
+export const scribeMeetingsDiscord = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:scribe:meetings-discord",
+  tag: WS_METHODS.scribeMeetingsDiscord,
+});

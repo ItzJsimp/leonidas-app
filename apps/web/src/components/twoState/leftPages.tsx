@@ -12,6 +12,7 @@ const named = <K extends string>(
 
 /** Rail pages the split can keep on the left while a chat is open. Each one reads no route params. */
 const PAGES: Readonly<Record<string, ComponentType>> = {
+  "/meetings": named(() => import("~/components/meetings/MeetingsPage"), "MeetingsPage"),
   "/inbox": named(() => import("~/components/windows/inbox/InboxWindow"), "InboxWindow"),
   "/today": named(() => import("~/components/windows/today/TodayWindow"), "TodayWindow"),
   "/tasks": named(() => import("~/components/taskBoard/TasksPage"), "TasksPage"),
