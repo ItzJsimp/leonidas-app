@@ -402,9 +402,11 @@ function MeetingReader(props: {
           <Skeleton className="h-24" />
         ) : segments.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {meeting.hasAudio
-              ? "This meeting has no transcript yet. Press Transcribe to make one."
-              : "This meeting has no transcript and no audio."}
+            {meeting.state === "recording" || meeting.state === "processing"
+              ? "This meeting is still recording. The live text shows above."
+              : meeting.hasAudio
+                ? "This meeting has no transcript yet. Press Transcribe to make one."
+                : "This meeting has no transcript and no audio."}
           </p>
         ) : (
           segments.map((segment, index) => (

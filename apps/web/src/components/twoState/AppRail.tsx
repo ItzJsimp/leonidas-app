@@ -18,7 +18,7 @@ import {
   SunIcon,
   TerminalSquareIcon,
   UsersIcon,
-  VideoIcon,
+  MicIcon,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -57,7 +57,7 @@ const ICONS: Readonly<Record<string, LucideIcon>> = {
   "command-center": LayoutDashboardIcon,
   chat: MessageSquareIcon,
   scribe: AudioLinesIcon,
-  meetings: VideoIcon,
+  meetings: MicIcon,
   inbox: BellIcon,
   today: SunIcon,
   tasks: ListChecksIcon,
