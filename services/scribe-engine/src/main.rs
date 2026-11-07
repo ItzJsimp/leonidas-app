@@ -115,6 +115,12 @@ fn run() -> Result<(), String> {
         &config_dir.join("failed"),
     ));
 
+    let meetings = Arc::new(
+        scribe_engine::meetings::Meetings::new(config_dir.join("meetings"))
+            .with_speech(Arc::new(groq.clone()))
+            .with_chat(Arc::new(groq.clone()))
+            .with_discord_keys(Arc::new(OsKeyStore::for_account("discord")?)),
+    );
     let server = http::serve(
         engine.clone(),
         http::Services {
@@ -124,12 +130,7 @@ fn run() -> Result<(), String> {
             dictionary,
             devices: Arc::new(scribe_engine::audio::input_devices),
             rejects: Arc::new(Rejects::open(&config_dir.join("suggestions-rejected.json"))),
-            meetings: Arc::new(
-                scribe_engine::meetings::Meetings::new(config_dir.join("meetings"))
-                    .with_speech(Arc::new(groq.clone()))
-                    .with_chat(Arc::new(groq.clone()))
-                    .with_discord_keys(Arc::new(OsKeyStore::for_account("discord")?)),
-            ),
+            meetings: meetings.clone(),
         },
         cfg.port,
     )?;
@@ -190,9 +191,15 @@ fn run() -> Result<(), String> {
     // Dictation works without the pill: a HUD failure is logged, not fatal.
     let _hud = if cfg.hud.enabled {
         let trigger = engine.clone();
-        Hud::spawn(engine.subscribe(), level, move || trigger.last_trigger_at())
-            .inspect_err(|e| eprintln!("hud disabled: {e}"))
-            .ok()
+        Hud::spawn(
+            engine.subscribe(),
+            level,
+            meetings.recording_flag(),
+            move || trigger.last_trigger_at(),
+        )
+        .inspect(|hud| meetings.on_recording_change(Box::new(hud.notifier())))
+        .inspect_err(|e| eprintln!("hud disabled: {e}"))
+        .ok()
     } else {
         None
     };

@@ -32,6 +32,10 @@ pub struct Meetings {
     active: Mutex<Option<Session>>,
     /// The saved Discord app and token (OS keyring in the app).
     discord_keys: Arc<dyn crate::credentials::KeyStore>,
+    /// True while a meeting records. The HUD pill reads it.
+    recording_flag: Arc<AtomicBool>,
+    /// Called after `recording_flag` changes (wakes the HUD).
+    notify: Mutex<Option<Box<dyn Fn() + Send + Sync>>>,
     /// Stops the Discord speaking-event reader of the live meeting.
     discord_stop: Mutex<Option<Arc<AtomicBool>>>,
 }
@@ -84,6 +88,23 @@ impl Meetings {
             active: Mutex::new(None),
             discord_keys: Arc::new(crate::credentials::MemoryKeyStore::default()),
             discord_stop: Mutex::new(None),
+            recording_flag: Arc::default(),
+            notify: Mutex::new(None),
+        }
+    }
+
+    pub fn recording_flag(&self) -> Arc<AtomicBool> {
+        self.recording_flag.clone()
+    }
+
+    pub fn on_recording_change(&self, notify: Box<dyn Fn() + Send + Sync>) {
+        *self.notify.lock().unwrap() = Some(notify);
+    }
+
+    fn set_recording(&self, on: bool) {
+        self.recording_flag.store(on, Ordering::Release);
+        if let Some(notify) = self.notify.lock().unwrap().as_ref() {
+            notify();
         }
     }
 
@@ -307,6 +328,7 @@ impl Meetings {
                     self.start_discord(&dir);
                 }
                 *active = Some(session);
+                self.set_recording(true);
                 (200, json!({ "id": id }))
             }
             Err(e) => {
@@ -327,6 +349,7 @@ impl Meetings {
             let _ = write_json(&session.dir.join("manifest.json"), &manifest);
         }
         session.request_stop();
+        self.set_recording(false);
         if let Some(flag) = self.discord_stop.lock().unwrap().take() {
             flag.store(true, Ordering::Release);
         }

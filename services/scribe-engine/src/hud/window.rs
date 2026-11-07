@@ -40,10 +40,20 @@ pub struct Hud {
 }
 
 impl Hud {
+    /// Wakes the pill so it reads the meeting flag again.
+    pub fn notifier(&self) -> impl Fn() + Send + Sync + 'static {
+        let hwnd = self.hwnd;
+        move || unsafe {
+            PostMessageW(hwnd as HWND, WM_HUD_EVENT, 0, 0);
+        }
+    }
+
     /// `trigger_at` returns the hotkey time of the current recording, for `hotkey_to_pill_ms`.
+    /// `meeting` is true while a meeting records; call `notifier()` after it changes.
     pub fn spawn(
         events: Receiver<Event>,
         level: Level,
+        meeting: Arc<std::sync::atomic::AtomicBool>,
         trigger_at: impl Fn() -> Option<Instant> + Send + 'static,
     ) -> Result<Self, String> {
         let queue: Arc<Mutex<VecDeque<Event>>> = Arc::default();
@@ -55,7 +65,7 @@ impl Hud {
                 .spawn(move || match create_window() {
                     Ok(hwnd) => {
                         let _ = ready_tx.send(Ok(hwnd as usize));
-                        run(hwnd, &queue, &level, &trigger_at);
+                        run(hwnd, &queue, &level, &meeting, &trigger_at);
                         unsafe { DestroyWindow(hwnd) };
                     }
                     Err(e) => {
@@ -314,6 +324,7 @@ fn run(
     hwnd: HWND,
     queue: &Mutex<VecDeque<Event>>,
     level: &AtomicU32,
+    meeting: &std::sync::atomic::AtomicBool,
     trigger_at: &dyn Fn() -> Option<Instant>,
 ) {
     let mut f = Frame {
@@ -348,6 +359,7 @@ fn run(
                     }
                     f.model.on_event(event, now);
                 }
+                f.model.set_meeting(meeting.load(Ordering::Acquire));
                 frame(hwnd, &mut f, level, trigger_at);
             }
             WM_TIMER if msg.wParam == FRAME_TIMER => {
@@ -469,6 +481,11 @@ fn frame(hwnd: HWND, f: &mut Frame, level: &AtomicU32, trigger_at: &dyn Fn() -> 
             );
         }
     }
+    // The meeting pill does not move: no frame timer for an hour-long call.
+    if view == View::Meeting && f.timer {
+        unsafe { KillTimer(hwnd, FRAME_TIMER) };
+        f.timer = false;
+    }
     f.shown = view;
 }
 
@@ -562,7 +579,7 @@ mod tests {
     #[ignore]
     fn window_shows_on_listening_and_hides_on_ready() {
         let (tx, rx) = mpsc::channel();
-        let hud = Hud::spawn(rx, Level::default(), || None).unwrap();
+        let hud = Hud::spawn(rx, Level::default(), Arc::default(), || None).unwrap();
         assert!(!hud.is_visible());
         tx.send(state(State::Listening)).unwrap();
         assert!(wait_for(&hud, true), "pill did not show");

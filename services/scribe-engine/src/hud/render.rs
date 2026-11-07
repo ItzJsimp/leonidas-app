@@ -59,6 +59,7 @@ pub fn render(
         View::Transcribing => Some("Transcribing"),
         View::Done => Some("Done"),
         View::Error(message) => Some(message.as_str()),
+        View::Meeting => Some("Recording meeting"),
     };
     let mask = label.and_then(|l| text.mask(l, (TEXT_PX * s).round() as u32));
     let content = match view {
@@ -131,6 +132,7 @@ pub fn render(
             pb.line_to(ix, cy + 4.1 * s);
             stroke(&mut pixmap, pb, (255, 255, 255, 255), 2.0 * s);
         }
+        View::Meeting => fill_circle(&mut pixmap, ix, cy, 5.5 * s, RED),
         View::Hidden => {}
     }
     if let Some(mask) = mask {
@@ -260,6 +262,7 @@ mod tests {
             View::Transcribing,
             View::Done,
             View::Error("No network".into()),
+            View::Meeting,
         ];
         for view in &views {
             let p = render(view, &[0.5; 20], 0.3, 1.0, &BoxText).unwrap();

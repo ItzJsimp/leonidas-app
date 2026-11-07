@@ -25,6 +25,8 @@ pub enum View {
     Transcribing,
     Done,
     Error(String),
+    /// A meeting records: a red dot and "Recording meeting", until it stops.
+    Meeting,
 }
 
 /// Engine events plus a clock in, the view to draw out. No window and no engine lock.
@@ -33,6 +35,8 @@ pub struct HudModel {
     view: View,
     /// The view hides at this time (`Done` and `Error` only).
     until: Option<Instant>,
+    /// A meeting records: the pill shows `Meeting` instead of hiding.
+    meeting: bool,
 }
 
 impl Default for HudModel {
@@ -40,6 +44,7 @@ impl Default for HudModel {
         Self {
             view: View::Hidden,
             until: None,
+            meeting: false,
         }
     }
 }
@@ -47,6 +52,16 @@ impl Default for HudModel {
 impl HudModel {
     pub fn view(&self) -> &View {
         &self.view
+    }
+
+    /// A meeting started or stopped. Dictation views still win while they last.
+    pub fn set_meeting(&mut self, on: bool) {
+        self.meeting = on;
+        match (on, &self.view) {
+            (true, View::Hidden) => self.set(View::Meeting, None),
+            (false, View::Meeting) => self.set(View::Hidden, None),
+            _ => {}
+        }
     }
 
     pub fn on_event(&mut self, event: &Event, now: Instant) {
@@ -59,6 +74,7 @@ impl HudModel {
                     View::Transcribing => self.set(View::Done, Some(now + DONE_FOR)),
                     // Cancelled, or shorter than the minimum length: nothing to report.
                     View::Recording => self.set(View::Hidden, None),
+                    View::Meeting => {}
                     _ => {}
                 },
                 State::MicError => {
@@ -96,6 +112,11 @@ impl HudModel {
     }
 
     fn set(&mut self, view: View, until: Option<Instant>) {
+        let view = if view == View::Hidden && self.meeting {
+            View::Meeting
+        } else {
+            view
+        };
         self.view = view;
         self.until = until;
     }
@@ -208,6 +229,25 @@ mod model {
         assert!(text.ends_with('…'));
         m.on_event(&error("  "), t);
         assert_eq!(m.view(), &View::Error("Something went wrong".into()));
+    }
+
+    #[test]
+    fn a_meeting_keeps_the_pill_and_dictation_returns_to_it() {
+        let t = Instant::now();
+        let mut m = HudModel::default();
+        m.set_meeting(true);
+        assert_eq!(m.view(), &View::Meeting);
+        m.on_event(&state(State::Listening), t);
+        assert_eq!(m.view(), &View::Recording);
+        m.on_event(&transcript(), t);
+        assert!(m.tick(t + DONE_FOR));
+        assert_eq!(
+            m.view(),
+            &View::Meeting,
+            "back to the meeting pill, not hidden"
+        );
+        m.set_meeting(false);
+        assert_eq!(m.view(), &View::Hidden);
     }
 
     #[test]
