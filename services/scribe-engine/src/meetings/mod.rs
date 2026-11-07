@@ -4,6 +4,7 @@
 
 pub mod capture;
 pub mod notes;
+pub mod retranscribe;
 pub mod session;
 pub mod speakers;
 pub mod store;
@@ -174,6 +175,7 @@ impl Meetings {
                 200,
                 json!({ "items": notes::TEMPLATES.iter().map(|t| json!({"id": t.id, "name": t.name})).collect::<Vec<_>>() }),
             ),
+            ("POST", [id, "transcribe"]) => self.retranscribe(id),
             ("POST", [id, "summary"]) => {
                 let template = body["template"].as_str().map(str::to_owned);
                 self.summarize(id, template)
@@ -388,6 +390,65 @@ impl Meetings {
     }
 }
 
+impl Meetings {
+    /// `POST /v1/meetings/{id}/transcribe`: transcribe saved audio again, on a background
+    /// thread. The manifest `state` is `transcribing`, then `done` or `failed`.
+    fn retranscribe(&self, id: &str) -> Reply {
+        if self.is_active(id) {
+            return fail(409, "recording", "Stop the meeting first.");
+        }
+        if self.store.locate(id).is_none() {
+            return fail(404, "not_found", "No meeting with this id.");
+        }
+        let audio = self.store.audio_dirs(id);
+        if !audio
+            .iter()
+            .any(|d| d.ends_with("me") || d.ends_with("them"))
+        {
+            return fail(
+                409,
+                "no_audio",
+                "This meeting has no saved audio to transcribe.",
+            );
+        }
+        let dir = match self.store.writable(id) {
+            Ok(dir) => dir,
+            Err(e) => return fail(500, "store_error", &e),
+        };
+        let set_state = |dir: &Path, state: &str, error: Option<String>| {
+            if let Some(mut m) = read_json(&dir.join("manifest.json")) {
+                m["state"] = Value::from(state);
+                m["transcribe_error"] = error.map_or(Value::Null, Value::from);
+                let _ = write_json(&dir.join("manifest.json"), &m);
+            }
+        };
+        set_state(&dir, "transcribing", None);
+        let (speech, chat) = (self.speech.clone(), self.chat.clone());
+        let spawned = std::thread::Builder::new()
+            .name("meeting-retranscribe".into())
+            .spawn(
+                move || match retranscribe::run(&dir, &audio, speech.as_ref()) {
+                    Ok(failed) => {
+                        finish(&dir);
+                        if failed > 0 {
+                            set_state(
+                                &dir,
+                                "done",
+                                Some(format!("{failed} parts could not be transcribed.")),
+                            );
+                        }
+                        spawn_notes(dir, chat);
+                    }
+                    Err(e) => set_state(&dir, "failed", Some(e)),
+                },
+            );
+        match spawned {
+            Ok(_) => (202, json!({ "state": "transcribing" })),
+            Err(e) => fail(500, "thread_error", &e.to_string()),
+        }
+    }
+}
+
 /// Write `note.json` on a background thread. The manifest's `notes_state` shows progress:
 /// `working`, `done` or `failed` (with `notes_error`).
 fn spawn_notes(dir: PathBuf, chat: Arc<dyn notes::Chat>) {
@@ -566,6 +627,30 @@ mod tests {
         assert_eq!(meeting["app"], "Discord");
         assert_eq!(meeting["people"], json!(["Me", "Them"]));
         assert_eq!(meeting["transcript"].as_array().unwrap().len(), 2);
+        // Transcribe again from the saved FLAC chunks.
+        let (status, _) = m.handle(
+            "POST",
+            &format!("/v1/meetings/{id}/transcribe"),
+            Value::Null,
+        );
+        assert_eq!(status, 202);
+        let mut state = Value::Null;
+        for _ in 0..100 {
+            state = m
+                .handle("GET", &format!("/v1/meetings/{id}"), Value::Null)
+                .1["state"]
+                .clone();
+            if state == "done" {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        assert_eq!(state, "done");
+        assert_eq!(
+            m.handle("POST", "/v1/meetings/nope/transcribe", Value::Null)
+                .0,
+            404
+        );
         // A second meeting in the same minute gets its own id.
         let (_, again) = m.handle("POST", "/v1/meetings/start", Value::Null);
         assert_ne!(again["id"].as_str().unwrap(), id);

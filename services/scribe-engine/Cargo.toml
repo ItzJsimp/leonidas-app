@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 cpal = "0.18.2"
+claxon = "0.4.3"
 flacenc = { version = "0.5.1", default-features = false }
 keyring = "4.2.0"
 serde = { version = "1", features = ["derive"] }
