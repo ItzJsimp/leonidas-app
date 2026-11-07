@@ -371,6 +371,7 @@ describe("welcome agent terminal setup", () => {
     expect(state.write).not.toHaveBeenCalled();
     expect(state.close).not.toHaveBeenCalled();
     await click("Continue without an AI");
+    await click("Skip basics");
     await click("Skip voice");
     await click("Skip level");
     await click("Skip skills");
@@ -498,6 +499,7 @@ describe("welcome agent terminal setup", () => {
     expect(hasViewport()).toBe(false);
     expect(state.close).not.toHaveBeenCalled();
     await click("Continue without an AI");
+    await click("Skip basics");
     await click("Skip voice");
     await click("Skip level");
     await click("Skip skills");
