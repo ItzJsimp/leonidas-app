@@ -46,6 +46,9 @@ const item = (
 const under = (pathname: string, base: string) =>
   pathname === base || pathname.startsWith(`${base}/`);
 
+/** Tabs that belong to a business workspace. A person can show them anyway, one switch each. */
+export const BUSINESS_TAB_IDS = ["content", "deals", "team"] as const;
+
 const BEFORE_EXTRAS: readonly RailItem[] = [
   item("command-center", "Command Center", "/command-center", "your work and what needs you"),
   {
@@ -76,19 +79,24 @@ const BOTTOM: readonly RailItem[] = [
   item("settings", "Settings", "/settings", "change how Leonidas works", ["/system-care"]),
 ];
 
-/** The rail icons. Team shows for a business workspace and Developer for a builder. */
+/** The rail icons. Marketing, Content and Team show for a business workspace and Developer for a builder. */
 export function railItems(input: {
   readonly business: boolean;
   readonly builder: boolean;
+  /** Business tab ids this person chose to show in a personal workspace. */
+  readonly showAnyway?: readonly string[];
   /** The Scribe engine runs on Windows only. The server host decides, not this browser. */
   readonly scribe: boolean;
 }) {
+  const shows = (id: string) => input.business || input.showAnyway?.includes(id) === true;
   return {
     main: [
       ...BEFORE_EXTRAS.filter(
-        (entry) => input.scribe || (entry.id !== "scribe" && entry.id !== "meetings"),
+        (entry) =>
+          (input.scribe || (entry.id !== "scribe" && entry.id !== "meetings")) &&
+          (!(BUSINESS_TAB_IDS as readonly string[]).includes(entry.id) || shows(entry.id)),
       ),
-      ...(input.business ? [TEAM] : []),
+      ...(shows("team") ? [TEAM] : []),
       ...(input.builder ? [DEVELOPER] : []),
     ],
     bottom: BOTTOM,

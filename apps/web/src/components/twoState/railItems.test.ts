@@ -15,39 +15,70 @@ const BASE = [
   "projects",
   "memory",
   "library",
-  "content",
-  "deals",
   "images",
   "files",
   "subagents",
 ];
+const MARKETING_AND_CONTENT = ["content", "deals"];
+// A business workspace puts Marketing and Content between Library and Images, as before.
+const withBusiness = (base: string[]) => {
+  const at = base.indexOf("images");
+  return [...base.slice(0, at), ...MARKETING_AND_CONTENT, ...base.slice(at)];
+};
 
 describe("railItems", () => {
-  it("shows 15 main icons by default, in order", () => {
+  it("hides Marketing, Content, Team and Developer in a personal workspace without builder mode", () => {
     const { main } = railItems({ business: false, builder: false, scribe: true });
     expect(ids(main)).toEqual(BASE);
   });
 
-  it("adds Team after Subagents for a business workspace", () => {
+  it("shows Marketing, Content and Team in a business workspace", () => {
     const { main } = railItems({ business: true, builder: false, scribe: true });
-    expect(ids(main)).toEqual([...BASE, "team"]);
+    expect(ids(main)).toEqual([...withBusiness(BASE), "team"]);
   });
 
-  it("adds Developer for a builder", () => {
-    const { main } = railItems({ business: false, builder: true, scribe: true });
-    expect(ids(main)).toEqual([...BASE, "developer"]);
+  it("shows Developer only with builder mode on", () => {
+    const on = railItems({ business: false, builder: true, scribe: true }).main;
+    const off = railItems({ business: false, builder: false, scribe: true }).main;
+    expect(ids(on)).toEqual([...BASE, "developer"]);
+    expect(ids(off)).not.toContain("developer");
   });
 
-  it("shows both extras, Team first", () => {
+  it("shows everything, Team before Developer, for business with builder mode", () => {
     const { main } = railItems({ business: true, builder: true, scribe: true });
-    expect(ids(main)).toEqual([...BASE, "team", "developer"]);
+    expect(ids(main)).toEqual([...withBusiness(BASE), "team", "developer"]);
     expect(main).toHaveLength(17);
   });
 
-  it("hides the Scribe icon when the server is not Windows", () => {
+  it("brings back only the tabs chosen with show-anyway in a personal workspace", () => {
+    const one = railItems({ business: false, builder: false, showAnyway: ["deals"], scribe: true });
+    expect(ids(one.main)).toEqual([...BASE.slice(0, 10), "deals", ...BASE.slice(10)]);
+    const all = railItems({
+      business: false,
+      builder: false,
+      showAnyway: ["content", "deals", "team"],
+      scribe: true,
+    });
+    expect(ids(all.main)).toEqual([...withBusiness(BASE), "team"]);
+  });
+
+  it("does not let show-anyway turn on Developer", () => {
+    const { main } = railItems({
+      business: false,
+      builder: false,
+      showAnyway: ["developer"],
+      scribe: true,
+    });
+    expect(ids(main)).not.toContain("developer");
+  });
+
+  it("hides the Scribe and Meetings icons when the server is not Windows", () => {
     const { main } = railItems({ business: true, builder: true, scribe: false });
     expect(ids(main)).toEqual(
-      BASE.filter((id) => id !== "scribe" && id !== "meetings").concat("team", "developer"),
+      withBusiness(BASE.filter((id) => id !== "scribe" && id !== "meetings")).concat(
+        "team",
+        "developer",
+      ),
     );
   });
 
