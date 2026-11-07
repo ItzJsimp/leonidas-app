@@ -79,6 +79,15 @@ if (-not $NoWorktree) {
         Write-Error "Claim released: git worktree add $worktree -b $branch failed: $($err.Trim())"
         exit 1
     }
+    # In a builder's AIOS (two folders above this checkout), link the AIOS skills this project uses into the new
+    # worktree, git-excluded. A worktree holds only committed skills otherwise. A failure never blocks the claim.
+    try {
+        $aios = Split-Path (Split-Path (Split-Path $common))
+        $linker = Join-Path $worktree 'scripts/Sync-DefaultSkills.ps1'
+        if ($aios -and (Test-Path -LiteralPath (Join-Path $aios 'AGENTS.md')) -and (Test-Path -LiteralPath (Join-Path $aios 'projects')) -and (Test-Path -LiteralPath $linker)) {
+            & $linker -RepoPath $aios -SourceRoot $aios -ProjectPath $worktree -SkillsOnly *>$null
+        }
+    } catch { Write-Warning "AIOS skills were not linked into ${worktree}: $($_.Exception.Message)" }
 }
 "claimed: $Task by $Owner in $worktree on $branch"
 exit 0

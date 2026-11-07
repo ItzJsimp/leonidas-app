@@ -11,7 +11,8 @@
 param(
     [string]$RepoPath = (Join-Path $PSScriptRoot '..'),
     [string]$SourceRoot = (Join-Path $PSScriptRoot '..'),
-    [string]$ProjectPath
+    [string]$ProjectPath,
+    [switch]$SkillsOnly   # link skills only and leave the project's own next-action copy alone (used for a new worktree)
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -49,6 +50,7 @@ function Copy-DefaultSkill([string]$Destination, [string]$Backup) {
     }
 }
 foreach ($target in $targets | Select-Object -Unique) {
+    if ($SkillsOnly) { continue }
     $destination = Join-Path $target '.agents/skills/next-action'
     $backup = Join-Path $target ('.aios-backups/next-action-' + (Get-Date -Format 'yyyyMMdd-HHmmss-ffff'))
     Copy-DefaultSkill $destination $backup
@@ -72,6 +74,24 @@ $coreSkills = @('session-handoff', 'chat-sync', 'chat-closeout', 'recap', 'daily
 $canonCore = @($coreSkills | Where-Object { Test-Path -LiteralPath (Join-Path $repo ".agents/skills/$_/SKILL.md") })
 $absentCore = @($coreSkills | Where-Object { $_ -notin $canonCore })
 if ($absentCore) { Write-Warning "Core skills missing from ${repo}: $($absentCore -join ', ')" }
+# Project skills: AIOS-only skills one project needs. <AIOS>/.agents/project-skills.json maps a project folder name
+# to skill names, for example {"my-app": ["doop"]}. A linked worktree uses the name of the checkout that owns its
+# git folder. Same link rules as core. Without the file or an entry, ADR-0038 discovery shows a project only the
+# skills it commits itself. A name the canon lacks is skipped.
+$projectSkills = @{}
+$projectSkillsFile = Join-Path $repo '.agents/project-skills.json'
+if (Test-Path -LiteralPath $projectSkillsFile) { $projectSkills = Get-Content -LiteralPath $projectSkillsFile -Raw | ConvertFrom-Json -AsHashtable }
+$canonAll = @($canonCore) + @($projectSkills.Values | ForEach-Object { $_ } | Select-Object -Unique |
+    Where-Object { $_ -notin $canonCore -and (Test-Path -LiteralPath (Join-Path $repo ".agents/skills/$_/SKILL.md")) })
+function Get-ProjectKey([string]$Target) {
+    # A linked worktree has a .git file; its project is the checkout that owns the git folder.
+    if (Test-Path -LiteralPath (Join-Path $Target '.git') -PathType Leaf) {
+        $common = "$(git -C $Target rev-parse --path-format=absolute --git-common-dir 2>$null)".Trim()
+        if ($LASTEXITCODE -eq 0 -and $common -and (Split-Path $common -Leaf) -eq '.git') { return Split-Path (Split-Path $common) -Leaf }
+    }
+    Split-Path $Target -Leaf
+}
+function Test-SkillFor([string]$Name, [string]$Target) { $Name -in $coreSkills -or $Name -in $projectSkills[(Get-ProjectKey $Target)] }
 $linked = 0
 function New-SkillLink([string]$Link, [string]$Destination) {
     if ($IsWindows) { New-Item -ItemType Junction -Path $Link -Target $Destination | Out-Null }
@@ -79,14 +99,16 @@ function New-SkillLink([string]$Link, [string]$Destination) {
 }
 function Add-LocalExclude([string]$Workspace, [string]$Relative) {
     # Links stay out of git: a local exclude in the nearest repository from the workspace up to the AIOS root.
+    # A linked worktree has a .git file, so ask git where its exclude file is. Split-Path returns '' above a drive root.
     $gitRoot = $Workspace
-    while (-not (Test-Path -LiteralPath (Join-Path $gitRoot '.git') -PathType Container)) {
+    while (-not (Test-Path -LiteralPath (Join-Path $gitRoot '.git'))) {
         $parent = Split-Path $gitRoot
-        if ($gitRoot -eq $repo -or $parent -eq $gitRoot) { return }
+        if ($gitRoot -eq $repo -or -not $parent -or $parent -eq $gitRoot) { return }
         $gitRoot = $parent
     }
-    New-Item -ItemType Directory -Path (Join-Path $gitRoot '.git/info') -Force | Out-Null
-    $exclude = Join-Path $gitRoot '.git/info/exclude'
+    $exclude = if (Test-Path -LiteralPath (Join-Path $gitRoot '.git') -PathType Container) { Join-Path $gitRoot '.git/info/exclude' }
+               else { "$(git -C $gitRoot rev-parse --path-format=absolute --git-path info/exclude)".Trim() }
+    New-Item -ItemType Directory -Path (Split-Path $exclude) -Force | Out-Null
     $pattern = '/' + [IO.Path]::GetRelativePath($gitRoot, (Join-Path $Workspace $Relative)).Replace('\', '/') + '/'
     $raw = if (Test-Path -LiteralPath $exclude) { [IO.File]::ReadAllText($exclude) } else { '' }
     if ($raw -split "`r?`n" -notcontains $pattern) { [IO.File]::AppendAllText($exclude, $(if ($raw -and -not $raw.EndsWith("`n")) { "`n" }) + $pattern + "`n") }
@@ -98,10 +120,10 @@ function Remove-EmptySkillDir([string]$Path) {
         Remove-Item -LiteralPath $Path -Force
     }
 }
-# Shared skills: a skill committed in the Leonidas clone is the one copy; the AIOS gets a junction to it
+# Shared skills: a skill committed in the Leonidas Code clone is the one copy; the AIOS gets a junction to it
 # (Share-SkillToLeonidasCode.ps1 moves a skill there). This recreates missing junctions after a pull or on a new machine.
 $sharedLinked = 0
-$sharedRoot = Join-Path $repo 'projects/leonidas-app/.agents/skills'
+$sharedRoot = Join-Path $repo 'projects/leonidas-code/.agents/skills'
 if (-not $ProjectPath -and (Test-Path -LiteralPath $sharedRoot)) {
     foreach ($dir in Get-ChildItem -LiteralPath $sharedRoot -Directory | Where-Object { -not $_.LinkType -and (Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md')) }) {
         $aiosLink = Join-Path $repo ".agents/skills/$($dir.Name)"
@@ -112,8 +134,8 @@ if (-not $ProjectPath -and (Test-Path -LiteralPath $sharedRoot)) {
             $PSCmdlet.ShouldProcess($aiosLink, 'Remove cache-only folder blocking a shared skill link')) {
             Remove-Item -LiteralPath $aiosLink -Recurse -Force; $item = $null
         }
-        if (-not $item -and $PSCmdlet.ShouldProcess($aiosLink, 'Link shared skill from Leonidas')) { New-SkillLink $aiosLink $dir.FullName; $sharedLinked++ }
-        # Skills that started in Leonidas are not in .agents/skills/.gitignore; keep their links out of AIOS git too.
+        if (-not $item -and $PSCmdlet.ShouldProcess($aiosLink, 'Link shared skill from Leonidas Code')) { New-SkillLink $aiosLink $dir.FullName; $sharedLinked++ }
+        # Skills that started in Leonidas Code are not in .agents/skills/.gitignore; keep their links out of AIOS git too.
         if (-not $WhatIfPreference -and (Get-Item -LiteralPath $aiosLink -Force -ErrorAction SilentlyContinue).LinkType) { Add-LocalExclude $repo ".agents/skills/$($dir.Name)" }
         $adapter = Join-Path $repo ".claude/skills/$($dir.Name)"
         $adapterRoot = Get-Item -LiteralPath (Join-Path $repo '.claude/skills') -Force -ErrorAction SilentlyContinue
@@ -123,9 +145,10 @@ if (-not $ProjectPath -and (Test-Path -LiteralPath $sharedRoot)) {
         }
     }
 }
-foreach ($name in $canonCore) {
+foreach ($name in $canonAll) {
     $canon = Join-Path $repo ".agents/skills/$name"
     foreach ($target in $targets | Select-Object -Unique) {
+        if (-not (Test-SkillFor $name $target)) { continue }
         $link = Join-Path $target ".agents/skills/$name"
         if ($target -ne $repo) {
             Remove-EmptySkillDir $link
@@ -156,11 +179,11 @@ foreach ($name in $canonCore) {
 }
 if (-not $WhatIfPreference) {
     foreach ($target in $targets | Select-Object -Unique) {
-        foreach ($name in $canonCore) {
-            $probe = Join-Path $target ".claude/skills/$name/SKILL.md"
+        foreach ($name in $canonAll | Where-Object { Test-SkillFor $_ $target }) {
+            $probe =Join-Path $target ".claude/skills/$name/SKILL.md"
             if (-not (Test-Path -LiteralPath $probe)) { throw "Core skill not discoverable to Claude: $probe" }
         }
     }
 }Write-Host "[OK] Updated $updated default skill files across $($targets.Count) workspace(s)."
 Write-Host "[OK] Core skills: $linked link(s) created across $($targets.Count) workspace(s)."
-Write-Host "[OK] Shared skills: $sharedLinked link(s) created from Leonidas."
+Write-Host "[OK] Shared skills: $sharedLinked link(s) created from Leonidas Code."
