@@ -4,6 +4,7 @@
 
 pub mod capture;
 pub mod session;
+pub mod speakers;
 pub mod store;
 
 use serde_json::{json, Value};
@@ -287,7 +288,9 @@ fn finish(dir: &Path) {
     let Some(mut manifest) = read_json(&dir.join("manifest.json")) else {
         return;
     };
-    let transcript = read_json(&dir.join("transcript.json")).unwrap_or_else(|| json!([]));
+    let mut transcript = read_json(&dir.join("transcript.json")).unwrap_or_else(|| json!([]));
+    label_speakers(dir, &manifest, &mut transcript);
+    let _ = write_json(&dir.join("transcript.json"), &transcript);
     let mut names: Vec<String> = Vec::new();
     for seg in transcript.as_array().into_iter().flatten() {
         for name in seg["speaker_key"].as_str().unwrap_or_default().split(" + ") {
@@ -307,6 +310,28 @@ fn finish(dir: &Path) {
     }
     manifest["state"] = Value::from("done");
     let _ = write_json(&dir.join("manifest.json"), &manifest);
+}
+
+/// Discord names from `speaking.jsonl`, else the voice split from `them-voice.json`.
+fn label_speakers(dir: &Path, manifest: &Value, transcript: &mut Value) {
+    let Some(segments) = transcript.as_array_mut() else {
+        return;
+    };
+    let windows = read_json(&dir.join("them-voice.json"))
+        .map(|v| speakers::windows_from_json(&v))
+        .unwrap_or_default();
+    let events: Vec<Value> = std::fs::read_to_string(dir.join("speaking.jsonl"))
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .collect();
+    let end = segments
+        .iter()
+        .filter_map(|s| s["t1"].as_f64())
+        .fold(0.0, f64::max) as f32;
+    let local = manifest["discord"]["local_user_id"].as_str();
+    let discord = speakers::discord_intervals(&events, local, end);
+    speakers::label(segments, &windows, &discord);
 }
 
 #[cfg(test)]

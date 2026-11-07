@@ -188,6 +188,7 @@ fn run(
     let started = Instant::now();
     let mut tracks: Vec<Track> = std::iter::once(me).chain(them).collect();
     let mut next_index = [1u32; 2];
+    let mut voice = Vec::new();
     loop {
         let stopping = stop.load(Ordering::Acquire);
         if !stopping {
@@ -205,6 +206,9 @@ fn run(
                 next_index[slot] += 1;
                 if let Err(e) = write_chunk(&dir, chunk.kind, index, &chunk.audio) {
                     note(&live, format!("Cannot save audio: {e}"));
+                }
+                if chunk.kind == TrackKind::Them && !chunk.silent {
+                    voice.extend(super::speakers::voice_windows(&chunk.audio.pcm, chunk.t0));
                 }
                 if !chunk.silent {
                     live.lock().unwrap().pending += 1;
@@ -229,6 +233,11 @@ fn run(
     drop(tracks);
     live.lock().unwrap().phase = Phase::Finishing;
     drop(sender);
+    let _ = write_json(
+        &dir.join("them-voice.json"),
+        &super::speakers::windows_to_json(&voice),
+    );
+    drop(voice);
     let _ = worker.join();
     let transcript = assemble(&dir);
     let _ = write_json(&dir.join("transcript.json"), &Value::Array(transcript));
