@@ -47,6 +47,8 @@ pub struct Services {
     pub dictionary: Arc<SharedDictionary>,
     pub devices: Arc<DeviceLister>,
     pub rejects: Arc<Rejects>,
+    /// v1.5 meetings routes.
+    pub meetings: Arc<crate::meetings::Meetings>,
 }
 
 /// Lists the input devices; tests pass a fake.
@@ -181,6 +183,9 @@ fn route(mut request: Request, engine: &Engine, services: &Services) {
     if path == "/v1/settings" {
         return settings_route(request, services);
     }
+    if crate::meetings::Meetings::owns(path) {
+        return meetings_route(request, services, path);
+    }
     if path == "/v1/devices" {
         if request.method() != &Method::Get {
             return error(request, 405, "method_not_allowed");
@@ -249,6 +254,41 @@ fn route(mut request: Request, engine: &Engine, services: &Services) {
         }
         _ => error(request, 404, "not_found"),
     }
+}
+
+/// v1.5: every `/v1/meetings` route. The meetings module answers; this only moves bytes.
+fn meetings_route(mut request: Request, services: &Services, path: &str) {
+    let method = request.method().as_str().to_owned();
+    let body = match method.as_str() {
+        "GET" | "DELETE" => serde_json::Value::Null,
+        _ => match raw_body(&mut request) {
+            Ok(value) => value,
+            Err(()) => return error(request, 400, "bad_request"),
+        },
+    };
+    let (status, value) = services.meetings.handle(&method, path, body);
+    if status == 204 {
+        empty(request);
+    } else {
+        json(request, status, &value);
+    }
+}
+
+/// A JSON body, or `Null` when the body is empty.
+fn raw_body(request: &mut Request) -> Result<serde_json::Value, ()> {
+    let mut bytes = Vec::new();
+    request
+        .as_reader()
+        .take((MAX_BODY + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|_| ())?;
+    if bytes.len() > MAX_BODY {
+        return Err(());
+    }
+    if bytes.iter().all(u8::is_ascii_whitespace) {
+        return Ok(serde_json::Value::Null);
+    }
+    serde_json::from_slice(&bytes).map_err(|_| ())
 }
 
 /// v1.2: `GET /v1/history` and `DELETE /v1/history/{id}`.
@@ -483,6 +523,10 @@ mod tests {
             dictionary: Arc::new(SharedDictionary::new(std::path::PathBuf::from("none.json"))),
             devices: Arc::new(|| Ok(Vec::new())),
             rejects: Arc::new(Rejects::open(std::path::Path::new("none-rejects.json"))),
+            // A folder that never exists: the meetings list is empty and nothing is written.
+            meetings: Arc::new(crate::meetings::Meetings::new(
+                std::env::temp_dir().join("scribe-http-no-meetings"),
+            )),
         }
     }
 
@@ -1172,6 +1216,22 @@ mod tests {
         TestServer::with_services(services)
             .request("GET", "/v1/devices", "")
             .error(500, "mic_error");
+    }
+
+    #[test]
+    fn meetings_routes_go_through_http() {
+        let server = TestServer::new();
+        let reply = server.request("GET", "/v1/meetings", "");
+        assert_eq!(reply.status, 200);
+        assert_eq!(reply.body, json!({"items": []}));
+        let missing = server.request("GET", "/v1/meetings/missing", "");
+        assert_eq!(
+            (missing.status, &missing.body["error"]),
+            (404, &json!("not_found"))
+        );
+        server
+            .request("PATCH", "/v1/meetings/missing", "not json")
+            .error(400, "bad_request");
     }
 
     #[test]

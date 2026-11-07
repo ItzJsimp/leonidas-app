@@ -124,6 +124,9 @@ fn run() -> Result<(), String> {
             dictionary,
             devices: Arc::new(scribe_engine::audio::input_devices),
             rejects: Arc::new(Rejects::open(&config_dir.join("suggestions-rejected.json"))),
+            meetings: Arc::new(scribe_engine::meetings::Meetings::new(
+                config_dir.join("meetings"),
+            )),
         },
         cfg.port,
     )?;
