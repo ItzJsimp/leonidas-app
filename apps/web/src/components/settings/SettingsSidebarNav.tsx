@@ -52,7 +52,6 @@ import {
   SidebarMenuItem,
   SidebarInput,
 } from "../ui/sidebar";
-import { SidebarUpdatePill } from "../sidebar/SidebarUpdatePill";
 import { openStuck, STUCK_ENABLED } from "../community/stuckStore";
 import { openReleaseHistoryDialog } from "../desktop/ReleaseHistoryDialog";
 import { FEEDBACK_ENABLED } from "../feedback/feedbackRelay";
@@ -500,11 +499,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
           <T3ConnectSidebarSignIn />
         </Suspense>
         <div className="flex items-center gap-1">
-          <div className="min-w-0 flex-1">
-            <SidebarMenu className="flex-row flex-wrap items-center">
-              <SidebarUpdatePill />
-            </SidebarMenu>
-          </div>
+          <div className="min-w-0 flex-1" />
           <Suspense fallback={null}>
             <T3ConnectSidebarAvatar />
           </Suspense>

@@ -78,6 +78,7 @@ import { IS_NIGHTLY_BUILD, NightlyMobileBetaRow } from "../NightlyMobileBeta";
 import { CliCommandSettingsRow } from "./CliCommandSettingsRow";
 import { DictationTriggerSettings } from "./DictationTriggerSettings";
 import { VoiceSettingsRow } from "./VoiceSettingsRow";
+import { ShowTabsSection } from "./ShowTabsSection";
 import { WallpaperSettings } from "./WallpaperSettings";
 import {
   canCheckForUpdate,
@@ -1698,6 +1699,8 @@ export function AppearanceSettingsPanel() {
           }
         />
       </SettingsSection>
+
+      <ShowTabsSection />
 
       <SettingsSection id="motion" title="Motion">
         <SettingsRow

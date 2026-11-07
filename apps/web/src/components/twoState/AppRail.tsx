@@ -23,8 +23,6 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { APP_VERSION_LABEL } from "~/branding";
-import { openReleaseHistoryDialog } from "~/components/desktop/ReleaseHistoryDialog";
 import { SidebarUpdatePill } from "~/components/sidebar/SidebarUpdatePill";
 import { Popover, PopoverPopup, PopoverTrigger } from "~/components/ui/popover";
 import { SidebarMenu } from "~/components/ui/sidebar";
@@ -50,6 +48,7 @@ import {
   type RailItem,
 } from "./railItems";
 import { Tip } from "./Tip";
+import { useRailShowAnyway } from "./useRailShowAnyway";
 import { useTwoStateStore } from "./twoStateStore";
 import { useTwoStateCounts } from "./useTwoStateData";
 
@@ -87,6 +86,7 @@ export const badgeText = (count: number) => (count > 99 ? "99+" : String(count))
 export function AppRail({ expanded = false }: { readonly expanded?: boolean }) {
   const { active } = useActiveAiosWorkspace();
   const [setup] = useLocalStorage(SETUP_STATE_STORAGE_KEY, EMPTY_SETUP_STATE, SetupStateSchema);
+  const { shown: showAnyway } = useRailShowAnyway(active?.id);
   const lastThread = useTwoStateStore((state) => state.lastThread);
   // Same number as the Needs you tile and card: the badge counts what needs you.
   const unread = useTwoStateCounts().needsYou;
@@ -107,6 +107,7 @@ export function AppRail({ expanded = false }: { readonly expanded?: boolean }) {
   const { main, bottom } = railItems({
     business: active?.type === "business",
     builder: setup.coder === true,
+    showAnyway,
     scribe: scribeSupported,
   });
   const current = activeRailId(pathname, onChat);
@@ -132,22 +133,6 @@ export function AppRail({ expanded = false }: { readonly expanded?: boolean }) {
       )}
     >
       <WorkspaceAvatar />
-      {/* The version sits top left on every screen. Tap for what changed in each update. */}
-      <Tip text="Version of Leonidas. See what changed in each update.">
-        <button
-          type="button"
-          aria-label={`Leonidas v${APP_VERSION_LABEL} · what changed`}
-          onClick={openReleaseHistoryDialog}
-          className={cn(
-            "min-w-0 rounded-md text-muted-foreground tabular-nums outline-hidden ring-ring hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset [-webkit-app-region:no-drag]",
-            expanded
-              ? "me-10 min-h-11 shrink-0 px-2.5 text-left text-sm"
-              : "max-w-full truncate px-0.5 text-3xs leading-11",
-          )}
-        >
-          {expanded ? `v${APP_VERSION_LABEL} · what changed` : `v${APP_VERSION_LABEL}`}
-        </button>
-      </Tip>
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>

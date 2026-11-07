@@ -1,4 +1,4 @@
-import { PackageIcon, PuzzleIcon, ScrollTextIcon, SparklesIcon } from "lucide-react";
+import { PackageIcon, ScrollTextIcon, SparklesIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Input } from "~/components/ui/input";
@@ -22,7 +22,6 @@ const TABS: readonly WindowTab[] = [
   { id: "reply-styles", label: "Reply styles" },
   { id: "rules", label: "Rules" },
   { id: "packs", label: "Packs" },
-  { id: "mods", label: "Mods" },
 ];
 
 const ignoreScopeChange = () => {};
@@ -47,14 +46,6 @@ export function LibraryWindow() {
             );
           case "packs":
             return <Packs />;
-          case "mods":
-            return (
-              <WindowEmpty
-                icon={PuzzleIcon}
-                title="No mods yet"
-                line="Mods are coming. They add new cards and tools to Leonidas."
-              />
-            );
           default:
             return <Skills />;
         }
