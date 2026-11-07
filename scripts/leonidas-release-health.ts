@@ -36,10 +36,13 @@ export function parseMacManifest(yaml: string) {
   const files = [...yaml.matchAll(/^ {2}- url: (\S+)\n {4}sha512: (\S+)\n {4}size: (\d+)$/gm)].map(
     (match) => ({ url: match[1]!, sha512: match[2]!, size: Number(match[3]) }),
   );
-  const zip = files.find((file) => file.url === `Leonidas-Code-${version}-arm64.zip`);
+  // The file name was Leonidas-Code-<v> before the app rename and is Leonidas-<v> now.
+  const zip = files.find((file) =>
+    new RegExp(`^Leonidas(-Code)?-${version}-arm64\\.zip$`).test(file.url),
+  );
   if (!version || !zip || !/^[A-Za-z0-9+/]{86}==$/.test(zip.sha512))
     throw new Error("Invalid Mac updater manifest");
-  return { version, zip, dmgUrl: `Leonidas-Code-${version}-arm64.dmg` };
+  return { version, zip, dmgUrl: zip.url.replace(/\.zip$/, ".dmg") };
 }
 
 async function main() {

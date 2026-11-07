@@ -35,6 +35,9 @@ describe("Release delivery checks", () => {
     const mac = parseMacManifest(yaml);
     expect(mac.zip).toEqual({ url: "Leonidas-Code-0.2.2-arm64.zip", sha512: sha, size: 123 });
     expect(mac.dmgUrl).toBe("Leonidas-Code-0.2.2-arm64.dmg");
+    expect(parseMacManifest(yaml.replace(/Leonidas-Code-/g, "Leonidas-")).dmgUrl).toBe(
+      "Leonidas-0.2.2-arm64.dmg",
+    );
     expect(() => parseMacManifest(yaml.replace(/arm64\.zip/g, "x64.zip"))).toThrow();
     expect(() => parseMacManifest(yaml.replace("version: 0.2.2", "release: 0.2.2"))).toThrow();
   });
