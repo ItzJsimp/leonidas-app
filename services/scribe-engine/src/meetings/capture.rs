@@ -310,3 +310,29 @@ mod tests {
         assert!(dir.join("me").join("seg-00001.flac").is_file());
     }
 }
+
+/// Opens the real mic and loopback for 2 s: `cargo test real_devices -- --ignored --nocapture`.
+#[cfg(test)]
+mod real {
+    use super::*;
+
+    #[test]
+    #[ignore]
+    fn real_devices() {
+        let me = Track::open(TrackKind::Me).unwrap();
+        let them = Track::open(TrackKind::Them).unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        them.pad_to(2.0);
+        for t in [&me, &them] {
+            let n = t.buffer.lock().unwrap().len();
+            println!(
+                "{:?}: rate {} samples {} level {:.3}",
+                t.kind,
+                t.rate,
+                n,
+                t.take_level()
+            );
+            assert!(n as f32 >= 1.5 * t.rate as f32);
+        }
+    }
+}

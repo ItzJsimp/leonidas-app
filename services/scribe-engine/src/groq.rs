@@ -287,6 +287,69 @@ impl GroqClient {
     }
 }
 
+/// One Whisper segment of a meeting chunk, times in seconds from the chunk start.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpeechSegment {
+    pub t0: f32,
+    pub t1: f32,
+    pub text: String,
+}
+
+/// Whisper marks a segment as probably not speech above this.
+const NO_SPEECH_CEILING: f64 = 0.6;
+/// Segments less sure than this are usually invented text.
+const SEGMENT_LOGPROB_FLOOR: f64 = -1.0;
+
+impl GroqClient {
+    /// Meetings: the timed segments of one chunk. The sibling model takes over on a rate
+    /// limit, a timeout or a server error, as for dictation.
+    pub fn transcribe_segments(&self, audio: &EncodedAudio) -> Result<Vec<SpeechSegment>, String> {
+        if audio.bytes.is_empty() {
+            return Ok(Vec::new());
+        }
+        let prompt = self.dictionary.current().vocabulary_prompt();
+        let mut result = self.upload(audio, &self.cfg.whisper_model, &prompt);
+        if matches!(
+            result,
+            Err(ApiError::Timeout | ApiError::Status(429 | 500..=599))
+        ) && !self.cfg.whisper_model_backup.is_empty()
+            && self.cfg.whisper_model_backup != self.cfg.whisper_model
+        {
+            result = self.upload(audio, &self.cfg.whisper_model_backup, &prompt);
+        }
+        let body = result.map_err(|e| CloudFailure::from_api(&e).message)?;
+        Ok(speech_segments(&body))
+    }
+}
+
+fn speech_segments(body: &Value) -> Vec<SpeechSegment> {
+    let list = body["segments"].as_array().cloned().unwrap_or_default();
+    if list.is_empty() {
+        let text = body["text"].as_str().unwrap_or_default().trim().to_owned();
+        return if text.is_empty() {
+            Vec::new()
+        } else {
+            vec![SpeechSegment {
+                t0: 0.0,
+                t1: 0.0,
+                text,
+            }]
+        };
+    }
+    list.iter()
+        .filter(|s| s["no_speech_prob"].as_f64().unwrap_or(0.0) <= NO_SPEECH_CEILING)
+        .filter(|s| s["avg_logprob"].as_f64().unwrap_or(0.0) >= SEGMENT_LOGPROB_FLOOR)
+        .filter_map(|s| {
+            let text = s["text"].as_str()?.trim().to_owned();
+            (!text.is_empty()).then(|| SpeechSegment {
+                t0: s["start"].as_f64().unwrap_or(0.0) as f32,
+                t1: s["end"].as_f64().unwrap_or(0.0) as f32,
+                text,
+            })
+        })
+        .collect()
+}
+
 // ---------------------------------------------------------------------------------------------
 // Whisper output cleanup (hallucination handling, ported from Python Scribe)
 // ---------------------------------------------------------------------------------------------
@@ -598,6 +661,25 @@ mod tests {
     use crate::credentials::MemoryKeyStore;
     use serde_json::json;
     use std::path::PathBuf;
+
+    #[test]
+    fn meeting_segments_keep_times_and_drop_unsure_ones() {
+        let body = json!({"segments": [
+            {"start": 0.0, "end": 2.5, "text": " Hello there.", "avg_logprob": -0.2, "no_speech_prob": 0.01},
+            {"start": 2.5, "end": 3.0, "text": " Thank you.", "avg_logprob": -0.3, "no_speech_prob": 0.9},
+            {"start": 3.0, "end": 4.0, "text": " zzz", "avg_logprob": -1.4, "no_speech_prob": 0.1}
+        ]});
+        assert_eq!(
+            speech_segments(&body),
+            vec![SpeechSegment {
+                t0: 0.0,
+                t1: 2.5,
+                text: "Hello there.".into()
+            }]
+        );
+        assert_eq!(speech_segments(&json!({"text": " hi "}))[0].text, "hi");
+        assert!(speech_segments(&json!({"text": ""})).is_empty());
+    }
 
     pub(crate) fn temp_dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("scribe-s4-{}-{name}", std::process::id()));
