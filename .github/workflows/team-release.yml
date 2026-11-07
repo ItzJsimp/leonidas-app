@@ -107,7 +107,7 @@ jobs:
 
           1. Download `Leonidas-Setup.exe` and run it.
           2. If Windows shows "Windows protected your PC", click **More info**, then **Run anyway**. This happens one time only, because the installer is not signed yet.
-          3. Open Leonidas Code. Setup takes about 5 minutes. Updates install by themselves.
+          3. Open Leonidas. Setup takes about 5 minutes. Updates install by themselves.
           GUIDE
 
       - name: Locate dependency cache
