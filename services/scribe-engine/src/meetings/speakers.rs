@@ -22,7 +22,11 @@ const BANDS: [f32; 7] = [120.0, 240.0, 438.0, 849.0, 1697.0, 3394.0, 6118.0];
 const SAME_VOICE: f32 = 0.08;
 const ITERATIONS: usize = 15;
 
-pub type Features = [f32; BANDS.len() + 2];
+/// Pitch counts this much against the unit-length spectral part. Real voices (David and Zira
+/// in the smoke test) did not split on spectrum alone.
+const PITCH_WEIGHT: f32 = 1.5;
+
+pub type Features = [f32; BANDS.len() + 3];
 
 /// Voice features for each speaking 1 s window: `(start seconds, features)`.
 pub fn voice_windows(pcm16k: &[f32], t0: f32) -> Vec<(f32, Features)> {
@@ -52,15 +56,51 @@ fn features(window: &[f32], rate: f32) -> Option<Features> {
         .filter(|p| (p[0] >= 0.0) != (p[1] >= 0.0))
         .count() as f32
         / window.len() as f32;
-    let mut out: Features = [0.0; BANDS.len() + 2];
+    let mut out: Features = [0.0; BANDS.len() + 3];
     out[0] = centroid;
     out[1] = crossings;
-    out[2..].copy_from_slice(&rel);
+    out[2..BANDS.len() + 2].copy_from_slice(&rel);
     let norm = out.iter().map(|v| v * v).sum::<f32>().sqrt();
     if norm > 0.0 {
         out.iter_mut().for_each(|v| *v /= norm);
     }
+    out[BANDS.len() + 2] = PITCH_WEIGHT * pitch(window, rate).unwrap_or(0.5);
     Some(out)
+}
+
+/// Median voice pitch of the window, mapped from 70..400 Hz to 0..1. `None` when unvoiced.
+/// Normalized autocorrelation on 32 ms frames, 10 per second.
+fn pitch(window: &[f32], rate: f32) -> Option<f32> {
+    const FRAME: usize = 512;
+    let (min_lag, max_lag) = ((rate / 400.0) as usize, (rate / 70.0) as usize);
+    let mut found: Vec<f32> = window
+        .chunks(window.len() / 10)
+        .filter(|c| c.len() >= FRAME)
+        .filter_map(|c| {
+            let x = &c[..FRAME];
+            let r0: f32 = x.iter().map(|v| v * v).sum();
+            if r0 <= 1e-9 {
+                return None;
+            }
+            let (lag, score) = (min_lag..=max_lag.min(FRAME - 1))
+                .map(|lag| {
+                    let r: f32 = x[..FRAME - lag]
+                        .iter()
+                        .zip(&x[lag..])
+                        .map(|(a, b)| a * b)
+                        .sum();
+                    (lag, r / r0)
+                })
+                .max_by(|a, b| a.1.total_cmp(&b.1))?;
+            (score > 0.4).then_some(rate / lag as f32)
+        })
+        .collect();
+    if found.is_empty() {
+        return None;
+    }
+    found.sort_by(f32::total_cmp);
+    let f0 = found[found.len() / 2];
+    Some(((f0 / 70.0).log2() / (400.0f32 / 70.0).log2()).clamp(0.0, 1.0))
 }
 
 /// Mean power after an RBJ band-pass biquad (about one octave wide).
@@ -96,17 +136,29 @@ pub fn cluster(windows: &[(f32, Features)], k: usize) -> Vec<usize> {
     if points.is_empty() {
         return Vec::new();
     }
-    let mut centers: Vec<Features> = vec![*points[0]];
-    while centers.len() < k {
-        let far = points
-            .iter()
-            .max_by(|a, b| {
-                let da = centers.iter().map(|c| dist(a, c)).fold(f32::MAX, f32::min);
-                let db = centers.iter().map(|c| dist(b, c)).fold(f32::MAX, f32::min);
-                da.total_cmp(&db)
-            })
-            .unwrap();
-        centers.push(**far);
+    // Start from the low and high quarter along the feature that varies most (usually
+    // pitch). Farthest-first, as in Python, made one odd window a "voice" on real audio.
+    let centers_for = |idx: &[usize]| -> Features {
+        let mut c: Features = Default::default();
+        for &i in idx {
+            c.iter_mut().zip(points[i]).for_each(|(a, b)| *a += b);
+        }
+        c.iter_mut().for_each(|v| *v /= idx.len().max(1) as f32);
+        c
+    };
+    let variance = |d: usize| {
+        let mean = points.iter().map(|p| p[d]).sum::<f32>() / points.len() as f32;
+        points.iter().map(|p| (p[d] - mean).powi(2)).sum::<f32>()
+    };
+    let axis = (0..points[0].len())
+        .max_by(|&a, &b| variance(a).total_cmp(&variance(b)))
+        .unwrap();
+    let mut order: Vec<usize> = (0..points.len()).collect();
+    order.sort_by(|&a, &b| points[a][axis].total_cmp(&points[b][axis]));
+    let quarter = (points.len() / 4).max(1);
+    let mut centers: Vec<Features> = vec![centers_for(&order[..quarter])];
+    if k > 1 {
+        centers.push(centers_for(&order[order.len() - quarter..]));
     }
     let mut labels = vec![0usize; points.len()];
     for _ in 0..ITERATIONS {
@@ -129,17 +181,25 @@ pub fn cluster(windows: &[(f32, Features)], k: usize) -> Vec<usize> {
             }
         }
     }
-    if centers.len() == 2 && dist(&centers[0], &centers[1]) < SAME_VOICE {
+    let smaller = labels
+        .iter()
+        .filter(|l| **l == 1)
+        .count()
+        .min(labels.iter().filter(|l| **l == 0).count());
+    // A "voice" in under 10 % of the windows is noise, not a person.
+    if centers.len() == 2
+        && (dist(&centers[0], &centers[1]) < SAME_VOICE || smaller * 10 < labels.len())
+    {
         return vec![0; points.len()];
     }
-    let mut order: Vec<usize> = Vec::new();
+    let mut first: Vec<usize> = Vec::new();
     labels
         .iter()
-        .map(|l| match order.iter().position(|o| o == l) {
+        .map(|l| match first.iter().position(|o| o == l) {
             Some(i) => i,
             None => {
-                order.push(*l);
-                order.len() - 1
+                first.push(*l);
+                first.len() - 1
             }
         })
         .collect()
@@ -360,5 +420,59 @@ mod tests {
         assert_eq!(back.len(), 2);
         assert_eq!(back[0].0, 5.0);
         assert!((back[1].1[3] - windows[1].1[3]).abs() < 1e-6);
+    }
+}
+
+/// Tuning on a real recording: `SMOKE_DIR=<meeting dir> cargo test real_split -- --ignored --nocapture`.
+/// The smoke test plays David (male) and Zira (female); the score is the share of "Them"
+/// segments whose voice label matches the speaker of that line.
+#[cfg(test)]
+mod real {
+    use super::*;
+
+    #[test]
+    #[ignore]
+    fn real_split() {
+        let dir = std::path::PathBuf::from(std::env::var("SMOKE_DIR").unwrap());
+        let dirs = vec![dir.join("me"), dir.join("them")];
+        let (pcm, rate) = crate::meetings::retranscribe::read_track_pub(
+            &dirs,
+            crate::meetings::capture::TrackKind::Them,
+        );
+        assert_eq!(rate, 16_000);
+        let windows = voice_windows(&pcm, 0.0);
+        let transcript = crate::meetings::store::read_json(&dir.join("transcript.json")).unwrap();
+        let david = ["David", "price", "decided", "launch", "Great", "Okay"];
+        let mut segs: Vec<Value> = transcript
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|s| s["track"] == "them")
+            .map(|s| {
+                let mut s = s.clone();
+                s["speaker_key"] = Value::from(THEM);
+                s
+            })
+            .collect();
+        label(&mut segs, &windows, &BTreeMap::new());
+        let mut pairs: BTreeMap<(bool, String), usize> = BTreeMap::new();
+        for s in &segs {
+            let is_david = david
+                .iter()
+                .any(|w| s["text"].as_str().unwrap().contains(w));
+            let got = s["speaker_key"].as_str().unwrap().to_owned();
+            *pairs.entry((is_david, got.clone())).or_default() += 1;
+            println!(
+                "{:>6} {:<10} {} {}",
+                s["t0"],
+                got,
+                if is_david { "D" } else { "Z" },
+                s["text"]
+            );
+        }
+        let get = |d: bool, l: &str| pairs.get(&(d, l.to_owned())).copied().unwrap_or(0);
+        let agree = (get(true, "Speaker 1") + get(false, "Speaker 2"))
+            .max(get(true, "Speaker 2") + get(false, "Speaker 1"));
+        println!("windows {} agree {agree}/{}", windows.len(), segs.len());
     }
 }

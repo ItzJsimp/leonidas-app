@@ -10,6 +10,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Every `seg-*.flac` of one track, in order, decoded to f32 at the file's rate.
+#[cfg(test)]
+pub(crate) fn read_track_pub(dirs: &[PathBuf], kind: TrackKind) -> (Vec<f32>, u32) {
+    read_track(dirs, kind).unwrap()
+}
+
 fn read_track(dirs: &[PathBuf], kind: TrackKind) -> Result<(Vec<f32>, u32), String> {
     let Some(dir) = dirs.iter().find(|d| d.ends_with(kind.dir())) else {
         return Ok((Vec::new(), 16_000));
