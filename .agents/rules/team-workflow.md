@@ -22,7 +22,7 @@ The plan lives in [project-roadmap.json](../../project-roadmap.json): one milest
 - **Every push to `main` ships to both machines** via `.github/workflows/team-release.yml`. The merge queue (item 3) is the only push path: it runs the checks and pushes on green, with no extra ask (Jake, 2026-11-05). Docs-only pushes skip the build.
 - Tell Jake before editing `team-release.yml`; it is the only workflow that runs.
 - The repo is **public**. Never commit keys, tokens, `.env`, personal paths or local launchers (use `.git/info/exclude`).
-- Keep upstream-file edits small; prefer new files so `git merge upstream/main` stays cheap. Soft fork since 2026-10-18: no full upstream merges. Review upstream fixes every 2 weeks and cherry-pick one at a time ([ledger](../../project/upstream-ledger.md)).
+- Keep upstream-file edits small; prefer new files so `git merge upstream/main` stays cheap. T3 Code comes in by real merges: five staged merges now (`v0.1.1`, `v0.1.3`, `v0.1.6`, `v0.1.7`, tip), then every 7 days. Run each stage with the `upstream-review` skill and one "go" from Jake. Never hand-port a whole feature. A single hotfix may be cherry-picked after the predecessor check in that skill. Plan: the AIOS ADR-0096.
 - **Versions:** plain semver, `0.MINOR.PATCH` in development. `feat:` advances minor, fixes patch. User-visible `feat:`/`fix:` need a `Release-Note:` trailer per [leonidas-release](../skills/leonidas-release/SKILL.md) (plain words, verb first, 8-18 words).
 - Existing `1.0.x` installs migrate once with the latest `0.x` installer; `scripts/leonidas-update.ps1 -WaitForExit` verifies it.
 
