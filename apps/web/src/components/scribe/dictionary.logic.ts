@@ -33,13 +33,6 @@ export function addReplacement(
   return { ok: true, dictionary: { ...dictionary, replacements } };
 }
 
-export function removeReplacement(dictionary: ScribeDictionary, wrong: string): ScribeDictionary {
-  return {
-    ...dictionary,
-    replacements: dictionary.replacements.filter((item) => item.wrong !== wrong),
-  };
-}
-
 export function addVocabulary(dictionary: ScribeDictionary, word: string): DictionaryEdit {
   const term = word.trim();
   if (!term) return { ok: false, message: "Type a word first." };
@@ -53,22 +46,6 @@ export function addVocabulary(dictionary: ScribeDictionary, word: string): Dicti
     };
   }
   return { ok: true, dictionary: { ...dictionary, vocabulary: [...dictionary.vocabulary, term] } };
-}
-
-export function removeVocabulary(dictionary: ScribeDictionary, word: string): ScribeDictionary {
-  return { ...dictionary, vocabulary: dictionary.vocabulary.filter((item) => item !== word) };
-}
-
-export function filterReplacements(
-  replacements: readonly Replacement[],
-  query: string,
-): readonly Replacement[] {
-  const needle = lower(query);
-  if (!needle) return replacements;
-  return replacements.filter(
-    (item) =>
-      item.wrong.toLowerCase().includes(needle) || item.correct.toLowerCase().includes(needle),
-  );
 }
 
 export function filterVocabulary(vocabulary: readonly string[], query: string): readonly string[] {
@@ -100,4 +77,127 @@ export function dictionaryErrorMessage(reason: string | null): string {
   return (
     (reason === null ? undefined : SAVE_ERRORS[reason]) ?? "Scribe could not do that. Try again."
   );
+}
+
+/** One right spelling and every misheard spelling Scribe turns into it. */
+export interface FixGroup {
+  readonly correct: string;
+  readonly spellings: readonly string[];
+  /** A rule whose wrong spelling is the right one. The engine ignores case, so it fixes capitals and guards a longer phrase. */
+  readonly sameWord: boolean;
+}
+
+/** A word with this many spellings or more gets its own filter. */
+export const MANY_SPELLINGS = 5;
+
+/** Word fixes grouped by the right spelling, so 183 rules read as the 84 words they fix. */
+export function groupFixes(replacements: readonly Replacement[]): FixGroup[] {
+  const groups = new Map<string, string[]>();
+  for (const rule of replacements) {
+    const list = groups.get(rule.correct) ?? [];
+    list.push(rule.wrong);
+    groups.set(rule.correct, list);
+  }
+  return [...groups].map(([correct, spellings]) => ({
+    correct,
+    spellings,
+    sameWord: spellings.some((wrong) => lower(wrong) === lower(correct)),
+  }));
+}
+
+export type FixView = "all" | "many";
+export type FixSort = "spellings" | "name";
+
+/** Search matches the right spelling or any misheard one. "many" keeps words with 5 or more spellings. */
+export function viewFixes(
+  groups: readonly FixGroup[],
+  query: string,
+  view: FixView,
+  sort: FixSort,
+): FixGroup[] {
+  const needle = lower(query);
+  return groups
+    .filter(
+      (group) =>
+        (view === "all" || group.spellings.length >= MANY_SPELLINGS) &&
+        (!needle ||
+          group.correct.toLowerCase().includes(needle) ||
+          group.spellings.some((wrong) => wrong.toLowerCase().includes(needle))),
+    )
+    .toSorted((a, b) =>
+      sort === "name"
+        ? a.correct.localeCompare(b.correct, undefined, { sensitivity: "base" })
+        : b.spellings.length - a.spellings.length ||
+          a.correct.localeCompare(b.correct, undefined, { sensitivity: "base" }),
+    );
+}
+
+/** Removes every rule whose misheard spelling is in `wrongs`. */
+export function removeSpellings(
+  dictionary: ScribeDictionary,
+  wrongs: Iterable<string>,
+): ScribeDictionary {
+  const gone = new Set(wrongs);
+  return {
+    ...dictionary,
+    replacements: dictionary.replacements.filter((rule) => !gone.has(rule.wrong)),
+  };
+}
+
+/** Puts removed rules back. A rule the list has again in the meantime stays as it is now. */
+export function restoreSpellings(
+  dictionary: ScribeDictionary,
+  rules: readonly Replacement[],
+): ScribeDictionary {
+  const have = new Set(dictionary.replacements.map((rule) => lower(rule.wrong)));
+  return {
+    ...dictionary,
+    replacements: [
+      ...dictionary.replacements,
+      ...rules.filter((rule) => !have.has(lower(rule.wrong))),
+    ],
+  };
+}
+
+export function removeWords(
+  dictionary: ScribeDictionary,
+  words: Iterable<string>,
+): ScribeDictionary {
+  const gone = new Set(words);
+  return { ...dictionary, vocabulary: dictionary.vocabulary.filter((word) => !gone.has(word)) };
+}
+
+export function restoreWords(
+  dictionary: ScribeDictionary,
+  words: readonly string[],
+): ScribeDictionary {
+  const have = new Set(dictionary.vocabulary.map(lower));
+  return {
+    ...dictionary,
+    vocabulary: [...dictionary.vocabulary, ...words.filter((word) => !have.has(lower(word)))],
+  };
+}
+
+/** The speech model reads words to know as one hint of at most this many characters. */
+export const HINT_CHARS = 800;
+
+/**
+ * How much of the speech hint your words fill, the way the engine builds it
+ * (`dictionary.rs` vocabulary_prompt): no repeats, no commas, each word counts its length plus 2.
+ */
+export function hintUsage(vocabulary: readonly string[]): {
+  readonly used: number;
+  readonly skipped: number;
+} {
+  const seen = new Set(["vocabulary"]);
+  let used = 0;
+  let index = 0;
+  for (; index < vocabulary.length; index++) {
+    const term = vocabulary[index]!.trim();
+    if (!term || term.includes(",") || seen.has(term.toLowerCase())) continue;
+    if (used + term.length + 2 > HINT_CHARS) break;
+    seen.add(term.toLowerCase());
+    used += term.length + 2;
+  }
+  return { used, skipped: vocabulary.length - index };
 }

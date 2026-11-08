@@ -8,10 +8,9 @@ import {
   hasNoStats,
   levelModel,
   needsRefresh,
-  nextAchievement,
+  nextUnlocks,
   percentOf,
   unlockedCount,
-  waitChange,
   weekChange,
   weekHeadline,
   weekdayLabel,
@@ -62,13 +61,6 @@ describe("week headline", () => {
 describe("speed", () => {
   it("shows seconds with one decimal", () => {
     expect(formatSeconds(1423)).toBe("1.4 s");
-  });
-
-  it("compares the typical wait with last week", () => {
-    expect(waitChange(1400, 1600)).toEqual({ text: "0.2 s faster", better: true });
-    expect(waitChange(1900, 1600)).toEqual({ text: "0.3 s slower", better: false });
-    expect(waitChange(1600, 1620)?.text).toBe("same as last week");
-    expect(waitChange(0, 1600)).toBeNull();
   });
 });
 
@@ -171,8 +163,8 @@ describe("level and achievements", () => {
 
   it("counts unlocked ones and finds the nearest locked one", () => {
     expect(unlockedCount(goals().achievements)).toBe(1);
-    expect(nextAchievement(goals().achievements)?.id).toBe("c");
-    expect(nextAchievement(goals().achievements.slice(0, 1))).toBeNull();
+    expect(nextUnlocks(goals().achievements, 3)[0]?.id).toBe("c");
+    expect(nextUnlocks(goals().achievements.slice(0, 1), 3)).toEqual([]);
   });
 });
 

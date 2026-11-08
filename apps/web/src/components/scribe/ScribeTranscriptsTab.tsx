@@ -13,23 +13,30 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import { Input } from "../ui/input";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Skeleton } from "../ui/skeleton";
+import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { toastManager } from "../ui/toast";
 import { commandErrorReason } from "./home.logic";
-import { CopyButton } from "./ScribeParts";
+import { CopyButton, IconButton } from "./ScribeParts";
 import type { ScribeTabProps } from "./ScribePage";
 import {
+  ANY_APP,
   DAYS_PER_PAGE,
+  appOptions,
   dayLabel,
   daySummary,
   groupByDay,
   isLongTranscript,
   mergeTranscripts,
   moreDaysLabel,
+  foldRewrites,
   rewriteLabel,
+  takeFilter,
   timeLabel,
   visibleDayItems,
   type DayGroup,
+  type TakeKind,
 } from "./transcripts.logic";
 
 const FIRST_PAGE = 200;
@@ -52,6 +59,8 @@ export function ScribeTranscriptsTab({ environmentId, live }: ScribeTabProps) {
   const [openDays, setOpenDays] = useState<ReadonlySet<string>>(new Set());
   const [collapsedDays, setCollapsedDays] = useState<ReadonlySet<string>>(new Set());
   const [showRaw, setShowRaw] = useState(false);
+  const [kind, setKind] = useState<TakeKind>("all");
+  const [app, setApp] = useState<string>(ANY_APP);
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [deleted, setDeleted] = useState<ReadonlySet<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
@@ -139,7 +148,13 @@ export function ScribeTranscriptsTab({ environmentId, live }: ScribeTabProps) {
     return () => clearInterval(timer);
   }, []);
 
-  const groups = useMemo(() => groupByDay(items, query, pending), [items, query, pending]);
+  // A rewrite of a fresh dictation carries that dictation inside its card, so it shows once.
+  const folded = useMemo(() => foldRewrites(items), [items]);
+  const apps = useMemo(() => appOptions(items), [items]);
+  const groups = useMemo(() => {
+    const hidden = kind === "dictations" ? pending : new Set([...pending, ...folded.sources]);
+    return groupByDay(items, query, hidden, takeFilter(kind, app));
+  }, [items, query, pending, folded, kind, app]);
 
   const timers = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; toast: string }>());
   const commitDelete = useCallback(
@@ -270,12 +285,45 @@ export function ScribeTranscriptsTab({ environmentId, live }: ScribeTabProps) {
             }}
           />
         </div>
+        <ToggleGroup
+          aria-label="Show"
+          className="*:pointer-coarse:min-h-11"
+          value={[kind]}
+          onValueChange={(next) => {
+            const value = next[0];
+            if (value === "all" || value === "dictations" || value === "rewrites") setKind(value);
+          }}
+        >
+          <Toggle value="all">All</Toggle>
+          <Toggle value="dictations">Dictations</Toggle>
+          <Toggle value="rewrites">Rewrites</Toggle>
+        </ToggleGroup>
+        <Select
+          modal={false}
+          value={app}
+          onValueChange={(value: string | null) => setApp(value ?? ANY_APP)}
+        >
+          <SelectTrigger aria-label="App" className="w-44" size="sm">
+            <SelectValue>
+              {app === ANY_APP ? "Any app" : (apps.find((a) => a.key === app)?.label ?? app)}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectPopup>
+            <SelectItem value={ANY_APP}>Any app</SelectItem>
+            {apps.map((option) => (
+              <SelectItem key={option.key} value={option.key}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
         <Button
-          variant="outline"
+          variant="ghost"
+          size="sm"
           aria-pressed={showRaw}
           onClick={() => setShowRaw((current) => !current)}
         >
-          {showRaw ? "Show cleaned text" : "Show original"}
+          {showRaw ? "Show cleaned text" : "Show what you said"}
         </Button>
       </div>
 
@@ -286,7 +334,9 @@ export function ScribeTranscriptsTab({ environmentId, live }: ScribeTabProps) {
               ? "Searching your older dictations…"
               : moreFailed
                 ? "Could not search your older dictations."
-                : `No match for “${query.trim()}”. Try other words, or clear the search.`}
+                : searching
+                  ? `No match for “${query.trim()}”. Try other words, or clear the search.`
+                  : "Nothing matches these filters. Pick All or Any app to see more."}
           </p>
           {moreFailed ? (
             <Button size="sm" variant="outline" onClick={() => void loadOlder()}>
@@ -299,9 +349,11 @@ export function ScribeTranscriptsTab({ environmentId, live }: ScribeTabProps) {
             onClick={() => {
               setQuery("");
               queryRef.current = "";
+              setKind("all");
+              setApp(ANY_APP);
             }}
           >
-            Clear search
+            {searching ? "Clear search" : "Clear filters"}
           </Button>
         </div>
       ) : (
@@ -314,6 +366,7 @@ export function ScribeTranscriptsTab({ environmentId, live }: ScribeTabProps) {
               collapsed={collapsedDays.has(group.day)}
               open={openDays.has(group.day)}
               showRaw={showRaw}
+              folded={folded.rewrites}
               onToggleCollapsed={() => setCollapsedDays((current) => toggle(current, group.day))}
               onOpen={() => setOpenDays((current) => toggle(current, group.day))}
               onDelete={startDelete}
@@ -349,6 +402,7 @@ function DaySection(props: {
   readonly collapsed: boolean;
   readonly open: boolean;
   readonly showRaw: boolean;
+  readonly folded: ReadonlySet<string>;
   readonly onToggleCollapsed: () => void;
   readonly onOpen: () => void;
   readonly onDelete: (id: string) => void;
@@ -358,12 +412,15 @@ function DaySection(props: {
   const count = group.items.length;
   const label = dayLabel(group.day, props.today);
   return (
-    <section aria-label={label} className="flex flex-col gap-2">
+    <section
+      aria-label={label}
+      className="flex flex-col overflow-hidden rounded-lg border border-border bg-card"
+    >
       <button
         type="button"
         aria-expanded={!props.collapsed}
         onClick={props.onToggleCollapsed}
-        className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md px-1 py-1 text-left outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3.5 py-2.5 text-left outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         {props.collapsed ? (
           <ChevronRightIcon aria-hidden className="size-4" />
@@ -376,20 +433,21 @@ function DaySection(props: {
         </span>
       </button>
       {props.collapsed ? null : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col divide-y divide-border border-t border-border">
           {rows.map((item) => (
             <TranscriptCard
               key={item.id}
               item={item}
               showRaw={props.showRaw}
+              fromDictation={props.folded.has(item.id)}
               onDelete={props.onDelete}
             />
           ))}
         </ul>
       )}
       {props.collapsed || count <= rows.length ? null : (
-        <Button variant="ghost" size="sm" className="self-center" onClick={props.onOpen}>
-          Show all {count.toLocaleString("en-US")} from {label}
+        <Button variant="ghost" size="sm" className="m-1.5 self-start" onClick={props.onOpen}>
+          Show all {count.toLocaleString("en-US")}
         </Button>
       )}
     </section>
@@ -399,6 +457,7 @@ function DaySection(props: {
 function TranscriptCard(props: {
   readonly item: ScribeHistoryItem;
   readonly showRaw: boolean;
+  readonly fromDictation?: boolean;
   readonly onDelete: (id: string) => void;
 }) {
   const { item } = props;
@@ -410,14 +469,16 @@ function TranscriptCard(props: {
   const long = isLongTranscript(text);
   const [expanded, setExpanded] = useState(false);
   const meta = [
-    timeLabel(item.at),
-    item.app.trim(),
+    item.app.replaceAll(".exe", "").trim(),
     `${item.words} ${item.words === 1 ? "word" : "words"}`,
   ]
     .filter(Boolean)
     .join(" · ");
   return (
-    <li className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
+    <li className="flex items-start gap-3 px-3.5 py-3">
+      <span className="w-16 shrink-0 pt-0.5 text-xs text-muted-foreground tabular-nums">
+        {timeLabel(item.at)}
+      </span>
       <div className="min-w-0 flex-1">
         <p className={cn("text-sm whitespace-pre-wrap", long && !expanded && "line-clamp-4")}>
           {text}
@@ -434,8 +495,10 @@ function TranscriptCard(props: {
           </Button>
         ) : null}
         {rewrite !== null && item.rawText.trim() ? (
-          <div className="mt-2 rounded-md bg-muted/50 px-2.5 py-2">
-            <p className="text-xs font-medium text-muted-foreground">Original</p>
+          <div className="mt-2 border-s-2 border-input ps-2.5">
+            <p className="text-xs font-medium text-muted-foreground">
+              {props.fromDictation ? "What you said" : "Original"}
+            </p>
             <p className="mt-0.5 line-clamp-4 text-sm whitespace-pre-wrap text-muted-foreground">
               {item.rawText}
             </p>
@@ -443,7 +506,7 @@ function TranscriptCard(props: {
         ) : null}
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           {rewrite !== null ? (
-            <Badge variant="info" size="sm">
+            <Badge variant="secondary" size="sm">
               {rewrite}
             </Badge>
           ) : null}
@@ -451,14 +514,9 @@ function TranscriptCard(props: {
         </div>
       </div>
       <CopyButton text={text} label={`Copy ${noun}`} />
-      <Button
-        size="icon-sm"
-        variant="ghost"
-        aria-label={`Delete ${noun}`}
-        onClick={() => props.onDelete(item.id)}
-      >
+      <IconButton label={`Delete ${noun}`} onClick={() => props.onDelete(item.id)}>
         <Trash2Icon aria-hidden />
-      </Button>
+      </IconButton>
     </li>
   );
 }

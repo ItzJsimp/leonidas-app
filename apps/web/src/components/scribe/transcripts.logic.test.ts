@@ -15,6 +15,10 @@ import {
   spokenWords,
   timeLabel,
   visibleDayItems,
+  ANY_APP,
+  appOptions,
+  foldRewrites,
+  takeFilter,
 } from "./transcripts.logic";
 
 const item = (id: string, at: string, rawText: string, cleanedText: string): ScribeHistoryItem => ({
@@ -183,5 +187,59 @@ describe("isLongTranscript", () => {
   it("clamps only text that runs past 4 lines on a wide screen", () => {
     expect(isLongTranscript("word ".repeat(100).trim())).toBe(false);
     expect(isLongTranscript("word ".repeat(120))).toBe(true);
+  });
+});
+
+describe("foldRewrites and takeFilter", () => {
+  const take = (
+    id: string,
+    at: string,
+    over: Partial<ScribeHistoryItem> = {},
+  ): ScribeHistoryItem => ({
+    id,
+    at,
+    mode: "hold",
+    app: "Leonidas Code.exe",
+    rawText: "um so the side panel cannot drag",
+    cleanedText: "The side panel cannot drag.",
+    words: 5,
+    metrics: { transcribeMs: 1, polishMs: 1, totalMs: 2 },
+    pasted: true,
+    ...over,
+  });
+  const dictation = take("d1", "2026-11-07T14:50:00Z");
+  const rewrite = take("r1", "2026-11-07T14:53:00Z", {
+    mode: "rewrite",
+    rawText: "The side panel cannot drag.",
+    cleanedText: "The side panel cannot be dragged.",
+    preset: "Clarity",
+  });
+
+  it("folds a fresh dictation into the rewrite of it", () => {
+    const folded = foldRewrites([rewrite, dictation]);
+    expect([...folded.sources]).toEqual(["d1"]);
+    expect([...folded.rewrites]).toEqual(["r1"]);
+  });
+
+  it("does not fold an older dictation or a different text", () => {
+    const old = take("d2", "2026-11-07T13:00:00Z");
+    expect(foldRewrites([rewrite, old]).sources.size).toBe(0);
+    const other = take("d3", "2026-11-07T14:52:00Z", { cleanedText: "Something else." });
+    expect(foldRewrites([rewrite, other]).sources.size).toBe(0);
+  });
+
+  it("filters by type and by app across name cases", () => {
+    const imported = take("d4", "2026-11-07T10:00:00Z", { app: "leonidas code" });
+    const discord = take("d5", "2026-11-07T10:01:00Z", { app: "Discord.exe" });
+    const all = [rewrite, dictation, imported, discord];
+    expect(all.filter(takeFilter("rewrites", ANY_APP)).map((i) => i.id)).toEqual(["r1"]);
+    expect(all.filter(takeFilter("dictations", "leonidas code")).map((i) => i.id)).toEqual([
+      "d1",
+      "d4",
+    ]);
+    expect(appOptions(all)).toEqual([
+      { key: "leonidas code", label: "Leonidas Code", count: 3 },
+      { key: "discord", label: "Discord", count: 1 },
+    ]);
   });
 });

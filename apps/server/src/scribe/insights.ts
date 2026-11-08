@@ -25,6 +25,9 @@ const mostCommon = (map: ReadonlyMap<string, number>, limit?: number) =>
 
 const sum = (values: ReadonlyArray<number>) => values.reduce((a, b) => a + b, 0);
 
+/** "leonidas code" (Python import) and "Leonidas Code.exe" (engine) are one app. The UI capitalizes. */
+const appKey = (app: string) => app.replaceAll(".exe", "").trim().toLowerCase();
+
 /** `items` come newest first, as the engine lists them. */
 export function computeInsights(
   items: ReadonlyArray<ScribeHistoryItem>,
@@ -60,7 +63,7 @@ export function computeInsights(
     if (firstDay === null || day < firstDay) firstDay = day;
     if (lastDay === null || day > lastDay) lastDay = day;
     bump(byMode, item.mode);
-    const app = item.app.replaceAll(".exe", "");
+    const app = appKey(item.app);
     if (app) {
       bump(byApp, app);
       const apps = appByDay.get(day) ?? new Map<string, number>();
@@ -72,8 +75,11 @@ export function computeInsights(
       const list = totalsByDay.get(day) ?? [];
       list.push(item.metrics.totalMs);
       totalsByDay.set(day, list);
-      stts.push(item.metrics.transcribeMs);
-      polishes.push(item.metrics.polishMs);
+      // Python imports saved a total but no split. Their zeros would pull the medians to 0 s.
+      if (item.metrics.transcribeMs > 0) {
+        stts.push(item.metrics.transcribeMs);
+        polishes.push(item.metrics.polishMs);
+      }
     }
   }
 

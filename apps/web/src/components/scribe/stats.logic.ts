@@ -29,21 +29,8 @@ export function weekHeadline(insights: ScribeInsights): string {
   const change = weekChange(words, prevWords);
   const parts = [`This week you spoke ${formatCount(words)} words`];
   if (change) parts.push(change);
-  const tail = topApp ? `, mostly in ${topApp}` : "";
+  const tail = topApp ? `, mostly in ${appLabel(topApp)}` : "";
   return `${parts.join(", ")}${tail}.`;
-}
-
-/** How the typical wait moved since last week, or null when either week has no samples. */
-export function waitChange(
-  p50: number,
-  prevP50: number,
-): { readonly text: string; readonly better: boolean } | null {
-  if (p50 <= 0 || prevP50 <= 0) return null;
-  const diff = Math.round(Math.abs(prevP50 - p50) / 100) / 10;
-  if (diff === 0) return { text: "same as last week", better: false };
-  return p50 < prevP50
-    ? { text: `${diff.toFixed(1)} s faster`, better: true }
-    : { text: `${diff.toFixed(1)} s slower`, better: false };
 }
 
 /** Local `YYYY-MM-DD` to a short weekday. Parsed as UTC so the zone never shifts the day. */
@@ -52,15 +39,6 @@ export function weekdayLabel(day: string): string {
   return Number.isNaN(parsed.getTime())
     ? day
     : parsed.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" });
-}
-
-/** `2026-07-20` to "20 Jul". Parsed as UTC so the zone never shifts the day. */
-export function shortDate(day: string | null): string {
-  if (day === null) return "";
-  const parsed = new Date(`${day}T00:00:00Z`);
-  return Number.isNaN(parsed.getTime())
-    ? day
-    : parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 /** Bar heights as whole percents of the busiest day. A day with words keeps at least 4 so it shows. */
@@ -114,17 +92,21 @@ export function unlockedCount(achievements: ScribeGoals["achievements"]): number
   return achievements.filter((a) => a.unlocked).length;
 }
 
-/** Every achievement keeps the engine's order; this is only the nearest locked one, for a hint. */
-export function nextAchievement(
-  achievements: ScribeGoals["achievements"],
-): ScribeGoals["achievements"][number] | null {
-  const locked = achievements.filter((a) => !a.unlocked);
-  if (locked.length === 0) return null;
-  return locked.reduce((best, a) => (a.have / a.need > best.have / best.need ? a : best));
+/** The server merges app names in lower case. Show them with capitals: "leonidas code" to "Leonidas Code". */
+export function appLabel(key: string): string {
+  return key.replace(/(^|\s)\p{L}/gu, (letter) => letter.toUpperCase());
 }
 
-/** A phone shows this many achievements until "Show all" is pressed. */
-export const ACHIEVEMENTS_ON_PHONE = 6;
+/** The locked achievements nearest to done, closest first. */
+export function nextUnlocks(
+  achievements: ScribeGoals["achievements"],
+  limit: number,
+): ScribeGoals["achievements"] {
+  return achievements
+    .filter((a) => !a.unlocked)
+    .toSorted((a, b) => b.have / Math.max(1, b.need) - a.have / Math.max(1, a.need))
+    .slice(0, limit);
+}
 
 /**
  * Whether a stats tab must refetch for the newest saved dictation. `shown` keeps the id each

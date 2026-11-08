@@ -86,11 +86,12 @@ export function groupByDay(
   items: readonly ScribeHistoryItem[],
   query: string,
   hidden: ReadonlySet<string>,
+  keep: (item: ScribeHistoryItem) => boolean = () => true,
 ): DayGroup[] {
   const needle = query.trim().toLowerCase();
   const groups = new Map<string, { items: ScribeHistoryItem[]; words: number; rewrites: number }>();
   for (const item of items) {
-    if (hidden.has(item.id)) continue;
+    if (hidden.has(item.id) || !keep(item)) continue;
     if (
       needle &&
       !item.cleanedText.toLowerCase().includes(needle) &&
@@ -152,4 +153,76 @@ const CLAMP_CHARS = 560;
 
 export function isLongTranscript(text: string): boolean {
   return text.length > CLAMP_CHARS;
+}
+
+export type TakeKind = "all" | "dictations" | "rewrites";
+
+/** The app filter value that keeps every app. */
+export const ANY_APP = "";
+
+/** "Leonidas Code.exe" and "leonidas code" are one app. */
+export function appKey(app: string): string {
+  return app.replaceAll(".exe", "").trim().toLowerCase();
+}
+
+/** Keeps a take that matches the type chip and the app menu. */
+export function takeFilter(kind: TakeKind, app: string): (item: ScribeHistoryItem) => boolean {
+  return (item) =>
+    (kind === "all" || (kind === "rewrites") === isRewrite(item)) &&
+    (app === ANY_APP || appKey(item.app) === app);
+}
+
+/** The apps in the loaded takes, most used first, with the name as the engine spells it. */
+export function appOptions(
+  items: readonly ScribeHistoryItem[],
+): Array<{ readonly key: string; readonly label: string; readonly count: number }> {
+  const apps = new Map<string, { label: string; count: number }>();
+  for (const item of items) {
+    const key = appKey(item.app);
+    if (!key) continue;
+    const label = item.app.replaceAll(".exe", "").trim();
+    const entry = apps.get(key) ?? { label, count: 0 };
+    entry.count += 1;
+    // A spelling with capitals is how the app names itself. Prefer it over a lower-case import.
+    if (label !== key) entry.label = label;
+    apps.set(key, entry);
+  }
+  return [...apps].map(([key, entry]) => ({ key, ...entry })).toSorted((a, b) => b.count - a.count);
+}
+
+/** A rewrite of a fresh dictation: the dictation's text is the rewrite's selection. */
+const FOLD_WINDOW_MS = 30 * 60_000;
+
+/**
+ * Rewrites whose selection is a dictation saved up to 30 minutes before. That dictation shows
+ * inside the rewrite card, so the list does not show the same words twice.
+ */
+export function foldRewrites(items: readonly ScribeHistoryItem[]): {
+  readonly sources: ReadonlySet<string>;
+  readonly rewrites: ReadonlySet<string>;
+} {
+  const sources = new Set<string>();
+  const rewrites = new Set<string>();
+  // One pass to index dictations by text, so a search over thousands of rows stays linear.
+  const byText = new Map<string, ScribeHistoryItem[]>();
+  for (const item of items) {
+    if (isRewrite(item)) continue;
+    const text = item.cleanedText.trim();
+    byText.set(text, [...(byText.get(text) ?? []), item]);
+  }
+  for (const rewrite of items) {
+    if (!isRewrite(rewrite)) continue;
+    const selection = rewrite.rawText.trim();
+    const at = Date.parse(rewrite.at);
+    if (!selection || Number.isNaN(at)) continue;
+    const source = byText.get(selection)?.find((item) => {
+      const time = Date.parse(item.at);
+      return !sources.has(item.id) && time <= at && at - time <= FOLD_WINDOW_MS;
+    });
+    if (source) {
+      sources.add(source.id);
+      rewrites.add(rewrite.id);
+    }
+  }
+  return { sources, rewrites };
 }

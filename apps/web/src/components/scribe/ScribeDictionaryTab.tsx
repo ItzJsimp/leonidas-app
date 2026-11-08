@@ -3,9 +3,10 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import type { ScribeDictionary } from "@t3tools/contracts";
-import { CheckIcon, Trash2Icon, XIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { CheckIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { cn } from "~/lib/utils";
 import { useEnvironmentQuery } from "~/state/query";
 import {
   scribeDictionaryQuery,
@@ -15,27 +16,36 @@ import {
 } from "~/state/scribe";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
-import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { toastManager } from "../ui/toast";
 import {
+  HINT_CHARS,
   acceptSuggestion,
   addReplacement,
   addVocabulary,
   dictionaryErrorMessage,
-  filterReplacements,
   filterVocabulary,
-  removeReplacement,
-  removeVocabulary,
+  groupFixes,
+  hintUsage,
+  removeSpellings,
+  removeWords,
+  restoreSpellings,
+  restoreWords,
   suggestionWhy,
   type DictionaryEdit,
 } from "./dictionary.logic";
 import { commandErrorReason } from "./home.logic";
+import { IconButton } from "./ScribeParts";
 import type { ScribeTabProps } from "./ScribePage";
+import { Meter } from "./StatsParts";
+import { formatCount, percentOf } from "./stats.logic";
 import { WordSyncRow } from "./WordSyncRow";
+import { EmptyLine, FixesPane, SelectionBar, plural, toggled } from "./DictionaryList";
 
 type Pane = "fixes" | "words" | "suggestions";
+type Replacement = ScribeDictionary["replacements"][number];
 
 export function ScribeDictionaryTab({ environmentId, live }: ScribeTabProps) {
   const dictionaryQuery = useEnvironmentQuery(scribeDictionaryQuery({ environmentId, input: {} }));
@@ -95,8 +105,24 @@ export function ScribeDictionaryTab({ environmentId, live }: ScribeTabProps) {
   useEffect(() => {
     latest.current = dictionary;
   });
-  const undo = (edit: (current: ScribeDictionary) => DictionaryEdit) => {
-    if (latest.current !== null) void apply(edit(latest.current));
+  const undoable = async (
+    next: ScribeDictionary,
+    title: string,
+    back: (current: ScribeDictionary) => ScribeDictionary,
+  ) => {
+    if (!(await save(next))) return false;
+    toastManager.add({
+      type: "info",
+      title,
+      timeout: 6000,
+      actionProps: {
+        children: "Undo",
+        onClick: () => {
+          if (latest.current !== null) void save(back(latest.current));
+        },
+      },
+    });
+    return true;
   };
 
   const rejectSuggestion = async (wrong: string) => {
@@ -131,45 +157,32 @@ export function ScribeDictionaryTab({ environmentId, live }: ScribeTabProps) {
     return <DictionarySkeleton />;
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        Word fixes replace a word Scribe gets wrong. Words to know help Scribe hear names and
-        special terms.
-      </p>
-      <ToggleGroup
-        aria-label="Word list sections"
-        className="w-full *:flex-1 *:pointer-coarse:min-h-11 sm:w-auto sm:*:min-w-32"
-        value={[pane]}
-        onValueChange={(next) => {
-          const value = next[0];
-          if (value === "fixes" || value === "words" || value === "suggestions") setPane(value);
-        }}
-      >
-        <Toggle value="fixes">{`Word fixes ${dictionary.replacements.length}`}</Toggle>
-        <Toggle value="words">{`Words to know ${dictionary.vocabulary.length}`}</Toggle>
-        <Toggle value="suggestions">
-          {suggestions.length > 0 ? `Suggestions ${suggestions.length}` : "Suggestions"}
-        </Toggle>
-      </ToggleGroup>
+  const removeRules = (rules: readonly Replacement[]) =>
+    undoable(
+      removeSpellings(
+        dictionary,
+        rules.map((rule) => rule.wrong),
+      ),
+      rules.length === 1
+        ? `Word fix removed: “${rules[0]!.wrong}” to “${rules[0]!.correct}”`
+        : `Removed ${plural(rules.length, "spelling", "spellings")}`,
+      (current) => restoreSpellings(current, rules),
+    );
 
+  return (
+    <div className="flex flex-col gap-5">
+      <SectionTiles
+        pane={pane}
+        onPane={setPane}
+        dictionary={dictionary}
+        suggestions={suggestionsQuery.data === null ? null : suggestions.length}
+      />
       {pane === "fixes" ? (
         <FixesPane
           dictionary={dictionary}
           busy={busy}
           onAdd={(wrong, correct) => apply(addReplacement(dictionary, wrong, correct))}
-          onRemove={async (rule) => {
-            if (!(await save(removeReplacement(dictionary, rule.wrong)))) return;
-            toastManager.add({
-              type: "info",
-              title: `Word fix removed: “${rule.wrong}” → “${rule.correct}”`,
-              timeout: 6000,
-              actionProps: {
-                children: "Undo",
-                onClick: () => undo((current) => addReplacement(current, rule.wrong, rule.correct)),
-              },
-            });
-          }}
+          onRemove={removeRules}
         />
       ) : null}
       {pane === "words" ? (
@@ -177,18 +190,15 @@ export function ScribeDictionaryTab({ environmentId, live }: ScribeTabProps) {
           dictionary={dictionary}
           busy={busy}
           onAdd={(word) => apply(addVocabulary(dictionary, word))}
-          onRemove={async (word) => {
-            if (!(await save(removeVocabulary(dictionary, word)))) return;
-            toastManager.add({
-              type: "info",
-              title: `Removed “${word}”`,
-              timeout: 6000,
-              actionProps: {
-                children: "Undo",
-                onClick: () => undo((current) => addVocabulary(current, word)),
-              },
-            });
-          }}
+          onRemove={(words) =>
+            undoable(
+              removeWords(dictionary, words),
+              words.length === 1
+                ? `Removed “${words[0]}”`
+                : `Removed ${plural(words.length, "word", "words")}`,
+              (current) => restoreWords(current, words),
+            )
+          }
         />
       ) : null}
       {pane === "suggestions" ? (
@@ -202,7 +212,7 @@ export function ScribeDictionaryTab({ environmentId, live }: ScribeTabProps) {
             if (await apply(acceptSuggestion(dictionary, item))) {
               toastManager.add({
                 type: "success",
-                title: `Word fix added: “${item.wrong}” → “${item.correct}”`,
+                title: `Word fix added: “${item.wrong}” to “${item.correct}”`,
               });
             }
           }}
@@ -214,104 +224,89 @@ export function ScribeDictionaryTab({ environmentId, live }: ScribeTabProps) {
   );
 }
 
-function FixesPane(props: {
+/** Three cards that switch the section and say what each count means. */
+function SectionTiles(props: {
+  readonly pane: Pane;
+  readonly onPane: (pane: Pane) => void;
   readonly dictionary: ScribeDictionary;
-  readonly busy: boolean;
-  readonly onAdd: (wrong: string, correct: string) => Promise<boolean>;
-  readonly onRemove: (rule: ScribeDictionary["replacements"][number]) => Promise<void>;
+  readonly suggestions: number | null;
 }) {
-  const [wrong, setWrong] = useState("");
-  const [correct, setCorrect] = useState("");
-  const [query, setQuery] = useState("");
-  const rows = useMemo(
-    () => filterReplacements(props.dictionary.replacements, query),
-    [props.dictionary.replacements, query],
-  );
-  const submit = async () => {
-    if (props.busy) return;
-    if (await props.onAdd(wrong, correct)) {
-      setWrong("");
-      setCorrect("");
-    }
-  };
+  const words = groupFixes(props.dictionary.replacements).length;
+  const spellings = props.dictionary.replacements.length;
+  const vocabulary = props.dictionary.vocabulary.length;
+  const hint = hintUsage(props.dictionary.vocabulary);
   return (
-    <div className="flex flex-col gap-3">
-      <form
-        className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
+    <div role="group" aria-label="Word list sections" className="grid gap-3 sm:grid-cols-3">
+      <Tile
+        pressed={props.pane === "fixes"}
+        onPress={() => props.onPane("fixes")}
+        label="Word fixes"
+        value={plural(words, "word", "words")}
       >
-        <div className="min-w-48 flex-1">
-          <Input
-            aria-label="Wrong word"
-            placeholder="Wrong word (for example cooper netties)"
-            value={wrong}
-            onChange={(event) => setWrong(event.target.value)}
-          />
-        </div>
-        {/* On a phone the fields stack, and an arrow alone on a line reads as a stray mark. */}
-        <span aria-hidden className="text-muted-foreground max-sm:hidden">
-          →
-        </span>
-        <div className="min-w-48 flex-1">
-          <Input
-            aria-label="Right spelling"
-            placeholder="Right spelling (for example Kubernetes)"
-            value={correct}
-            onChange={(event) => setCorrect(event.target.value)}
-          />
-        </div>
-        <Button type="submit" disabled={props.busy}>
-          Add word fix
-        </Button>
-      </form>
-      {props.dictionary.replacements.length === 0 ? (
-        <EmptyLine
-          title="No word fixes yet"
-          body="Add a wrong word and its right spelling above."
-        />
-      ) : (
-        <>
-          <Input
-            type="search"
-            aria-label="Search word fixes"
-            placeholder="Search word fixes"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          {rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No word fix matches “{query.trim()}”.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {rows.map((rule) => (
-                <li
-                  key={rule.wrong}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
-                >
-                  <p className="min-w-0 flex-1 text-sm">
-                    <span className="text-muted-foreground">{rule.wrong}</span>
-                    <span aria-hidden> → </span>
-                    <span className="sr-only"> becomes </span>
-                    <span className="font-medium">{rule.correct}</span>
-                  </p>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label={`Remove word fix ${rule.wrong}`}
-                    disabled={props.busy}
-                    onClick={() => void props.onRemove(rule)}
-                  >
-                    <Trash2Icon aria-hidden />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
+        {words === 0
+          ? "Add a word Scribe gets wrong. Scribe then fixes it every time, after it hears you."
+          : `Scribe fixes ${plural(spellings, "misheard spelling", "misheard spellings")} of ${words === 1 ? "it" : "them"}, after it hears you.`}
+      </Tile>
+      <Tile
+        pressed={props.pane === "words"}
+        onPress={() => props.onPane("words")}
+        label="Words to know"
+        value={plural(vocabulary, "word", "words")}
+        meter={percentOf(hint.used, HINT_CHARS)}
+      >
+        {hint.skipped > 0
+          ? `The hint is full: Scribe skips your last ${plural(hint.skipped, "word", "words")}.`
+          : `Hints the speech model reads first: ${formatCount(hint.used)} of ${formatCount(HINT_CHARS)} characters.`}
+      </Tile>
+      <Tile
+        pressed={props.pane === "suggestions"}
+        onPress={() => props.onPane("suggestions")}
+        label="Suggestions"
+        value={
+          props.suggestions === null
+            ? "Checking"
+            : props.suggestions === 0
+              ? "None"
+              : `${formatCount(props.suggestions)} to review`
+        }
+      >
+        Spellings the clean up changed the same way 2 or more times.
+      </Tile>
     </div>
+  );
+}
+
+function Tile(props: {
+  readonly pressed: boolean;
+  readonly onPress: () => void;
+  readonly label: string;
+  readonly value: string;
+  readonly meter?: number;
+  readonly children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={props.pressed}
+      onClick={props.onPress}
+      className={cn(
+        "flex flex-col items-start rounded-lg border bg-card px-4 py-3 text-left outline-none transition-[background-color,border-color] duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        props.pressed
+          ? "border-state bg-state/8 ring-1 ring-state"
+          : "border-border hover:bg-accent/40",
+      )}
+    >
+      <span className="text-xs text-muted-foreground">{props.label}</span>
+      <span className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums">
+        {props.value}
+      </span>
+      {props.meter === undefined ? null : (
+        <span className="mt-2 mb-1 w-full">
+          <Meter percent={props.meter} />
+        </span>
+      )}
+      <span className="mt-1 text-xs text-pretty text-muted-foreground">{props.children}</span>
+    </button>
   );
 }
 
@@ -319,14 +314,16 @@ function WordsPane(props: {
   readonly dictionary: ScribeDictionary;
   readonly busy: boolean;
   readonly onAdd: (word: string) => Promise<boolean>;
-  readonly onRemove: (word: string) => Promise<void>;
+  readonly onRemove: (words: readonly string[]) => Promise<boolean>;
 }) {
   const [word, setWord] = useState("");
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const rows = useMemo(
     () => filterVocabulary(props.dictionary.vocabulary, query),
     [props.dictionary.vocabulary, query],
   );
+  const picked = props.dictionary.vocabulary.filter((item) => selected.has(item));
   const submit = async () => {
     if (props.busy) return;
     if (await props.onAdd(word)) setWord("");
@@ -349,9 +346,14 @@ function WordsPane(props: {
           />
         </div>
         <Button type="submit" disabled={props.busy}>
+          <PlusIcon aria-hidden />
           Add word
         </Button>
       </form>
+      <p className="text-xs text-pretty text-muted-foreground">
+        Scribe sends these words to the speech model as a hint, so it hears them right. Names and
+        rare terms help most. Common words such as “prompt” only use up space.
+      </p>
       {props.dictionary.vocabulary.length === 0 ? (
         <EmptyLine
           title="No words yet"
@@ -366,29 +368,56 @@ function WordsPane(props: {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          {rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No word matches “{query.trim()}”.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {rows.map((item) => (
-                <li
-                  key={item}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
-                >
-                  <p className="min-w-0 flex-1 text-sm">{item}</p>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label={`Remove ${item}`}
-                    disabled={props.busy}
-                    onClick={() => void props.onRemove(item)}
+          <section className="overflow-hidden rounded-lg border border-border bg-card">
+            <SelectionBar
+              total={rows.length}
+              selected={picked.length}
+              what={picked.length === 1 ? "1 word" : `${formatCount(picked.length)} words`}
+              deleteLabel={`Delete ${plural(picked.length, "word", "words")}`}
+              busy={props.busy}
+              onAll={(on) => setSelected(on ? new Set(rows) : new Set())}
+              onDelete={async () => {
+                if (await props.onRemove(picked)) setSelected(new Set());
+              }}
+              onClear={() => setSelected(new Set())}
+            >
+              <span className="text-xs text-muted-foreground">
+                {plural(props.dictionary.vocabulary.length, "word", "words")}, in the order Scribe
+                reads them
+              </span>
+            </SelectionBar>
+            {rows.length === 0 ? (
+              <p className="border-t border-border px-3.5 py-3 text-sm text-muted-foreground">
+                No word matches “{query.trim()}”.
+              </p>
+            ) : (
+              <ul className="grid border-t border-border sm:grid-cols-2">
+                {rows.map((item) => (
+                  <li
+                    key={item}
+                    className={cn(
+                      "flex items-center gap-3 border-b border-border px-3.5 py-1.5",
+                      selected.has(item) && "bg-state/8",
+                    )}
                   >
-                    <Trash2Icon aria-hidden />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
+                    <Checkbox
+                      aria-label={`Select ${item}`}
+                      checked={selected.has(item)}
+                      onCheckedChange={() => setSelected((current) => toggled(current, item))}
+                    />
+                    <span className="min-w-0 flex-1 text-sm wrap-anywhere">{item}</span>
+                    <IconButton
+                      label={`Delete ${item}`}
+                      disabled={props.busy}
+                      onClick={() => void props.onRemove([item])}
+                    >
+                      <Trash2Icon aria-hidden />
+                    </IconButton>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </>
       )}
     </div>
@@ -418,9 +447,9 @@ function SuggestionsPane(props: {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="min-w-48 flex-1 text-sm text-muted-foreground">
-          Scribe noticed these fixes and can learn them. Accept to add a word fix. Reject to never
-          see it again.
+        <p className="min-w-48 flex-1 text-sm text-pretty text-muted-foreground">
+          After Scribe writes your words, its clean up sometimes changes the same spelling the same
+          way. Accept one to make it a word fix. Reject it to never see it again.
         </p>
         <Button variant="outline" size="sm" onClick={props.onRefresh}>
           Check again
@@ -432,12 +461,9 @@ function SuggestionsPane(props: {
           body="Scribe adds a suggestion here when its clean up fixes the same words in 2 or more dictations."
         />
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {props.items.map((item) => (
-            <li
-              key={item.wrong}
-              className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
-            >
+            <li key={item.wrong} className="flex items-center gap-3 px-3.5 py-2.5">
               <div className="min-w-0 flex-1">
                 <p className="text-sm">
                   <span className="text-muted-foreground">“{item.wrong}”</span>
@@ -445,26 +471,22 @@ function SuggestionsPane(props: {
                   <span className="sr-only"> becomes </span>
                   <span className="font-medium">“{item.correct}”</span>
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">{suggestionWhy(item.count)}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{suggestionWhy(item.count)}</p>
               </div>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label={`Accept ${item.wrong}`}
+              <IconButton
+                label={`Accept: always change “${item.wrong}” to “${item.correct}”`}
                 disabled={props.busy}
                 onClick={() => void props.onAccept(item)}
               >
                 <CheckIcon aria-hidden />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label={`Reject ${item.wrong}`}
+              </IconButton>
+              <IconButton
+                label={`Reject “${item.wrong}”`}
                 disabled={props.busy}
                 onClick={() => props.onReject(item)}
               >
                 <XIcon aria-hidden />
-              </Button>
+              </IconButton>
             </li>
           ))}
         </ul>
@@ -473,19 +495,14 @@ function SuggestionsPane(props: {
   );
 }
 
-function EmptyLine(props: { readonly title: string; readonly body: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-border p-4 text-sm">
-      <p className="font-medium">{props.title}</p>
-      <p className="text-muted-foreground">{props.body}</p>
-    </div>
-  );
-}
-
 function DictionarySkeleton() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading word list">
-      <Skeleton className="h-9 w-72" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[0, 1, 2].map((key) => (
+          <Skeleton key={key} className="h-24" />
+        ))}
+      </div>
       <Skeleton className="h-9 w-full" />
       {[0, 1, 2].map((key) => (
         <div key={key} className="flex flex-col gap-2 rounded-lg border border-border p-3">

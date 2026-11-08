@@ -4,13 +4,16 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import type { ScribeHistoryItem } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
+import { Link } from "@tanstack/react-router";
 import { MicIcon, SquareIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
 import { useEnvironmentQuery } from "~/state/query";
 import {
+  scribeGoalsQuery,
   scribeHistoryQuery,
+  scribeInsightsQuery,
   scribeRetry,
   scribeSettingsQuery,
   scribeStart,
@@ -33,11 +36,21 @@ import { CopyButton, KeyCaps } from "./ScribeParts";
 import type { ScribeTabProps } from "./ScribePage";
 import { mergeRecent } from "./scribeLive.logic";
 import { rewriteLabel } from "./transcripts.logic";
+import { Meter, useRefreshOnDictation } from "./StatsParts";
+import { STATS_INPUT, formatCount, formatSeconds, percentOf } from "./stats.logic";
+
+/** Home shows the newest few. Transcripts holds the rest. */
+const RECENT_ON_HOME = 5;
 
 export function ScribeHomeTab({ environmentId, live }: ScribeTabProps) {
-  const history = useEnvironmentQuery(scribeHistoryQuery({ environmentId, input: { limit: 20 } }));
+  const history = useEnvironmentQuery(
+    scribeHistoryQuery({ environmentId, input: { limit: RECENT_ON_HOME } }),
+  );
   const loaded = history.data?.items;
-  const items = useMemo(() => mergeRecent(live.saved, loaded ?? []), [live.saved, loaded]);
+  const items = useMemo(
+    () => mergeRecent(live.saved, loaded ?? []).slice(0, RECENT_ON_HOME),
+    [live.saved, loaded],
+  );
   const previousConnected = useRef(live.connected);
   const historyFailed = history.error !== null;
   const { refresh } = history;
@@ -48,11 +61,21 @@ export function ScribeHomeTab({ environmentId, live }: ScribeTabProps) {
   return (
     <div className="flex flex-col gap-6">
       <DictateCard environmentId={environmentId} live={live} />
+      {live.connected === false ? null : <TodayStrip environmentId={environmentId} live={live} />}
       {live.connected === false ? null : (
         <section aria-labelledby="scribe-recent" className="flex flex-col gap-2">
-          <h2 id="scribe-recent" className="text-base font-semibold">
-            Recent
-          </h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="scribe-recent" className="text-base font-semibold">
+              Recent
+            </h2>
+            <Button
+              size="sm"
+              variant="ghost"
+              render={<Link to="/scribe" search={{ tab: "transcripts" }} />}
+            >
+              See all in Transcripts
+            </Button>
+          </div>
           <RecentList
             items={items}
             loading={history.data === null && history.error === null}
@@ -61,6 +84,82 @@ export function ScribeHomeTab({ environmentId, live }: ScribeTabProps) {
           />
         </section>
       )}
+    </div>
+  );
+}
+
+/** Four numbers for today. Words use the spoken count, the same as the Progress tab. */
+function TodayStrip({ environmentId, live }: ScribeTabProps) {
+  const goalsQuery = useEnvironmentQuery(scribeGoalsQuery({ environmentId, input: STATS_INPUT }));
+  const insightsQuery = useEnvironmentQuery(
+    scribeInsightsQuery({ environmentId, input: STATS_INPUT }),
+  );
+  useRefreshOnDictation(`home-goals:${environmentId}`, live, goalsQuery.refresh);
+  useRefreshOnDictation(`home-insights:${environmentId}`, live, insightsQuery.refresh);
+  const goals = goalsQuery.data;
+  const insights = insightsQuery.data;
+  // The strip is extra. When the numbers fail, Home still works without it.
+  if (goalsQuery.error !== null || insightsQuery.error !== null) return null;
+  if (goals === null || insights === null) {
+    return (
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-[2fr_1fr_1fr_1fr]" aria-busy="true">
+        {[0, 1, 2, 3].map((key) => (
+          <Skeleton key={key} className="h-[5.5rem]" />
+        ))}
+      </div>
+    );
+  }
+  const goal = goals.today.goal;
+  return (
+    <dl aria-label="Today" className="grid grid-cols-2 gap-3 md:grid-cols-[2fr_1fr_1fr_1fr]">
+      <TodayCell
+        label="Words today"
+        value={formatCount(insights.todayWords)}
+        unit={`of ${formatCount(goal)} goal`}
+        className="col-span-2 md:col-span-1"
+      >
+        <Meter percent={percentOf(insights.todayWords, goal)} />
+      </TodayCell>
+      <TodayCell label="Dictations" value={formatCount(goals.today.dictations)}>
+        today
+      </TodayCell>
+      <TodayCell
+        label="Typical wait"
+        value={insights.latencySamples > 0 ? formatSeconds(insights.p50) : "None yet"}
+      >
+        from stop to text
+      </TodayCell>
+      <TodayCell label="Streak" value={`${goals.streak} ${goals.streak === 1 ? "day" : "days"}`}>
+        best {goals.bestStreak}
+      </TodayCell>
+    </dl>
+  );
+}
+
+function TodayCell(props: {
+  readonly label: string;
+  readonly value: string;
+  readonly unit?: string;
+  readonly className?: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-col rounded-lg border border-border bg-card px-4 py-3",
+        props.className,
+      )}
+    >
+      <dt className="text-xs text-muted-foreground">{props.label}</dt>
+      <dd className="mt-0.5 flex items-baseline gap-2">
+        <span className="truncate text-2xl font-semibold tracking-tight tabular-nums">
+          {props.value}
+        </span>
+        {props.unit ? (
+          <span className="truncate text-sm text-muted-foreground tabular-nums">{props.unit}</span>
+        ) : null}
+      </dd>
+      <dd className="mt-1.5 text-xs text-muted-foreground">{props.children}</dd>
     </div>
   );
 }
@@ -238,19 +337,16 @@ function RecentList(props: {
     );
   }
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
       {props.items.map((item) => {
         const rewrite = rewriteLabel(item);
         return (
-          <li
-            key={item.id}
-            className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
-          >
+          <li key={item.id} className="flex items-start gap-3 px-3.5 py-3">
             <div className="min-w-0 flex-1">
-              <p className="line-clamp-3 text-sm">{item.cleanedText}</p>
+              <p className="line-clamp-2 text-sm">{item.cleanedText}</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                 {rewrite !== null ? (
-                  <Badge variant="info" size="sm">
+                  <Badge variant="secondary" size="sm">
                     {rewrite}
                   </Badge>
                 ) : null}

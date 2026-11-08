@@ -71,6 +71,22 @@ describe("computeInsights", () => {
     expect(out.byMode).toEqual([]);
   });
 
+  it("merges one app across name cases and skips rows with no speech timing", () => {
+    const out = computeInsights(
+      [
+        item("2026-10-26T10:00:00Z", { app: "Leonidas Code.exe" }),
+        item("2026-10-26T09:00:00Z", {
+          app: "leonidas code",
+          metrics: { transcribeMs: 0, polishMs: 0, totalMs: 900 },
+        }),
+      ],
+      NOW,
+      "UTC",
+    );
+    expect(out.byApp).toEqual([{ key: "leonidas code", count: 2 }]);
+    expect(out).toMatchObject({ latencySamples: 2, sttP50: 100, polishP50: 50 });
+  });
+
   it("does not count rewrite words or latency, but counts the item", () => {
     const out = computeInsights(
       [
