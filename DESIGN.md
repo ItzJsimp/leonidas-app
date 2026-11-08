@@ -22,18 +22,19 @@ Every UI change in this app follows this file. Values live in one token file; th
 
 The default dark theme is **Graphite** (Jake's pick, 2026-11-06): the T3 Original dark values, lifted halfway toward the public "T3 Soft" theme. Light mode keeps Linen Sand paper.
 
-| Role (token file)                 | CSS / Tailwind                                     | Job                                                                                           |
-| --------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `canvas`, `chrome`, `toolbar`     | `bg-background`                                    | The window floor                                                                              |
-| `sidebar`                         | `bg-sidebar`                                       | Thread list and settings nav. One visible step above the canvas (1.06:1 or more)              |
-| `surface`                         | `bg-card`                                          | Cards and panels                                                                              |
-| `surfaceRaised`, `surfaceOverlay` | `bg-surface-raised`, `bg-popover`                  | Hover, menus, dialogs. Step up one level per layer                                            |
-| `border`, `input`                 | `border-border`, `border-input`                    | Hairlines and field edges                                                                     |
-| `text`, `textMuted`               | `text-foreground`, `text-muted-foreground`         | Body text and secondary text (4.5:1 or more)                                                  |
-| `messageAction`                   | `bg-primary`, `text-primary`, `border-primary`     | **Act:** send button, main buttons, active tab underline, active rail icon                    |
-| `accent`                          | `bg-state`, `text-state-text`, `stroke-state`      | **State:** switches on, checked boxes, progress rings and bars, Working and Connecting labels |
-| `focus`                           | `ring-ring`                                        | Focus outline. Quiet gray, never red or blue                                                  |
-| `error*`, `warning*`, `update*`   | `text-error-foreground`, `bg-warning` and siblings | Error rose, warning amber, update blue                                                        |
+| Role (token file)                  | CSS / Tailwind                                     | Job                                                                                            |
+| ---------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `canvas`, `chrome`, `toolbar`      | `bg-background`                                    | The window floor                                                                               |
+| `sidebar`                          | `bg-sidebar`                                       | Thread list and settings nav. One visible step above the canvas (1.06:1 or more)               |
+| `surface`                          | `bg-card`                                          | Cards and panels                                                                               |
+| `surfaceRaised`, `surfaceOverlay`  | `bg-surface-raised`, `bg-popover`                  | Hover, menus, dialogs. Step up one level per layer                                             |
+| `border`, `input`                  | `border-border`, `border-input`                    | Hairlines and field edges                                                                      |
+| `text`, `textMuted`                | `text-foreground`, `text-muted-foreground`         | Body text and secondary text (4.5:1 or more)                                                   |
+| `messageAction`                    | `bg-primary`, `text-primary`, `border-primary`     | **Act:** send button, main buttons, active tab underline, active rail icon                     |
+| `accent`                           | `bg-state`, `text-state-text`, `stroke-state`      | **State:** switches on, checked boxes, progress rings and bars, Working and Connecting labels  |
+| `focus`                            | `ring-ring`                                        | Focus outline. Quiet gray, never red or blue                                                   |
+| `series-1`, `series-2` (index.css) | `bg-series-1`, `text-series-2`                     | **Kind:** categories in timelines and charts (teal, violet), plus gray. Pair each with a shape |
+| `error*`, `warning*`, `update*`    | `text-error-foreground`, `bg-warning` and siblings | Error rose, warning amber, update blue                                                         |
 
 Rules:
 
@@ -108,7 +109,7 @@ One shared component for every "long list plus detail" tab: Decisions, Logs, Wik
 
 ## Rail groups
 
-The rail groups tabs by job. Each tab has one job. Today's rail items live in [`railItems.ts`](./apps/web/src/components/twoState/railItems.ts); this table is the target.
+The rail groups tabs by job. Each tab has one job. [`railItems.ts`](./apps/web/src/components/twoState/railItems.ts) gives each item its group, in this order. The renames marked "was" are still targets.
 
 | Group         | Tab                             | Its one job                                            |
 | ------------- | ------------------------------- | ------------------------------------------------------ |
@@ -122,7 +123,8 @@ The rail groups tabs by job. Each tab has one job. Today's rail items live in [`
 | Brain         | Skills (was Library)            | Open, edit, create and switch skills                   |
 | Brain         | Agents (Subagents plus Helpers) | Build your agent team, see every run                   |
 | Brain         | Automations                     | See and control everything that runs alone             |
-| Create        | Scribe                          | Dictation, rewrite, meetings                           |
+| Create        | Scribe                          | Dictation and rewrite                                  |
+| Create        | Meetings                        | Record, read and share calls                           |
 | Create        | Images                          | Make pictures locally                                  |
 | Create        | Attachments (was Files)         | Every upload and agent output                          |
 | Business only | Team, Marketing, Content        | Business workspace tabs                                |
@@ -130,6 +132,10 @@ The rail groups tabs by job. Each tab has one job. Today's rail items live in [`
 | Bottom        | Usage, Settings                 |                                                        |
 
 Labels are one plain word. Business tabs follow the workspace template flag; Developer follows the builder flag.
+
+- **Expanded (default):** group names and labels. The header is the workspace picker (picture tile, name, Personal or Business chip) with the collapse icon beside it.
+- **Collapsed:** icons only, a thin divider between groups. The workspace picture sits on top, the expand icon under it, then a divider.
+- The app remembers the state. Every tab stays visible: a long business rail scrolls, it does not fold.
 
 ## Doop workflow
 

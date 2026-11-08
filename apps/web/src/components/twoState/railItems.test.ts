@@ -4,27 +4,26 @@ import { activeRailId, badgeAnnouncement, railItems, railLinkLabel } from "./rai
 
 const ids = (items: ReadonlyArray<{ readonly id: string }>) => items.map((item) => item.id);
 
+// Jake's flat groups (2026-11-07): Home, Work, Brain, Create.
 const BASE = [
   "command-center",
-  "chat",
-  "scribe",
-  "meetings",
-  "inbox",
   "today",
+  "inbox",
+  "chat",
   "tasks",
   "projects",
   "memory",
   "library",
+  "subagents",
+  "automations",
+  "scribe",
+  "meetings",
   "images",
   "files",
-  "subagents",
 ];
-const MARKETING_AND_CONTENT = ["content", "deals"];
-// A business workspace puts Marketing and Content between Library and Images, as before.
-const withBusiness = (base: string[]) => {
-  const at = base.indexOf("images");
-  return [...base.slice(0, at), ...MARKETING_AND_CONTENT, ...base.slice(at)];
-};
+// A business workspace adds its own group after Create: Marketing, Content, Team.
+const BUSINESS = ["content", "deals", "team"];
+const withBusiness = (base: string[]) => [...base, ...BUSINESS.slice(0, 2)];
 
 describe("railItems", () => {
   it("hides Marketing, Content, Team and Developer in a personal workspace without builder mode", () => {
@@ -47,12 +46,12 @@ describe("railItems", () => {
   it("shows everything, Team before Developer, for business with builder mode", () => {
     const { main } = railItems({ business: true, builder: true, scribe: true });
     expect(ids(main)).toEqual([...withBusiness(BASE), "team", "developer"]);
-    expect(main).toHaveLength(17);
+    expect(main).toHaveLength(18);
   });
 
   it("brings back only the tabs chosen with show-anyway in a personal workspace", () => {
     const one = railItems({ business: false, builder: false, showAnyway: ["deals"], scribe: true });
-    expect(ids(one.main)).toEqual([...BASE.slice(0, 10), "deals", ...BASE.slice(10)]);
+    expect(ids(one.main)).toEqual([...BASE, "deals"]);
     const all = railItems({
       business: false,
       builder: false,
@@ -80,6 +79,12 @@ describe("railItems", () => {
         "developer",
       ),
     );
+  });
+
+  it("keeps each group together, in the order Home, Work, Brain, Create, Business, Builder", () => {
+    const { main } = railItems({ business: true, builder: true, scribe: true });
+    const groups = main.map((item) => item.group).filter((g, i, all) => g !== all[i - 1]);
+    expect(groups).toEqual(["home", "work", "brain", "create", "business", "builder"]);
   });
 
   it("always has Usage then Settings at the bottom", () => {
@@ -150,7 +155,8 @@ describe("activeRailId", () => {
     expect(activeRailId("/developer", false)).toBe("developer");
   });
   it("marks Settings on This PC and on every settings page", () => {
-    expect(activeRailId("/system-care", false)).toBe("settings");
+    expect(activeRailId("/system-care", false)).toBe("automations");
+    expect(activeRailId("/automations", false)).toBe("automations");
     expect(activeRailId("/settings/appearance", false)).toBe("settings");
     expect(activeRailId("/settings/open-source-licenses", false)).toBe("settings");
   });

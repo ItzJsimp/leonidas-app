@@ -1,10 +1,9 @@
 import type { SidebarThreadSortOrder } from "@t3tools/contracts";
-import { SlidersHorizontalIcon } from "lucide-react";
+import type { RefObject } from "react";
 
-import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
+import { Popover, PopoverPopup } from "../ui/popover";
 import { Switch } from "../ui/switch";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
-import { SidebarHeaderIconButton } from "./SidebarThreadHeader";
 import { DEFAULT_SIDEBAR_VIEW, type SidebarView } from "./sidebarView.logic";
 import { useSidebarViewStore } from "./sidebarViewStore";
 
@@ -47,8 +46,22 @@ const SHOW_ROWS: ReadonlyArray<readonly [keyof SidebarView & `show${string}`, st
   ["showTime", "Time"],
 ];
 
-/** The View button: four small choices that change the chat list in place. */
+const GROUP_LABELS: Readonly<Record<SidebarView["groupBy"], string>> = {
+  date: "By date",
+  status: "By status",
+  project: "By project",
+  classic: "Manual",
+};
+
+/** The current grouping, as the More menu shows it next to View options. */
+export const viewOptionsLabel = (groupBy: SidebarView["groupBy"]) => GROUP_LABELS[groupBy];
+
+/** View options: four small choices that change the chat list in place. The More menu opens it. */
 export function SidebarViewMenu(props: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The search field: the panel opens under it. */
+  anchor: RefObject<HTMLDivElement | null>;
   sortOrder: SidebarThreadSortOrder;
   onSortOrderChange: (order: SidebarThreadSortOrder) => void;
 }) {
@@ -59,11 +72,14 @@ export function SidebarViewMenu(props: {
     JSON.stringify(view) === JSON.stringify(DEFAULT_SIDEBAR_VIEW) &&
     props.sortOrder === "updated_at";
   return (
-    <Popover>
-      <PopoverTrigger render={<SidebarHeaderIconButton label="View options" />}>
-        <SlidersHorizontalIcon className="size-4" />
-      </PopoverTrigger>
-      <PopoverPopup align="end" padding="none" className="w-60">
+    <Popover open={props.open} onOpenChange={props.onOpenChange}>
+      <PopoverPopup
+        anchor={props.anchor}
+        align="end"
+        padding="none"
+        className="w-60"
+        aria-label="View options"
+      >
         <div className="flex flex-col gap-2.5 p-3">
           <Segmented
             label="Group by"

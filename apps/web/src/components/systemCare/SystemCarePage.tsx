@@ -188,7 +188,8 @@ function LimitRow(props: {
   );
 }
 
-export function SystemCarePage() {
+/** `embedded` drops the page frame, so the Automations tab can show it as its Machine view. */
+export function SystemCarePage({ embedded = false }: { readonly embedded?: boolean } = {}) {
   const [tab, setTab] = useState<PcTab>("overview");
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const live = useSystemCareLive();
@@ -249,7 +250,7 @@ export function SystemCarePage() {
   })).filter((entry) => entry.rows.length > 0);
 
   return (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
+    <PageFrame embedded={embedded}>
       <div className="scrollbar-gutter-both flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background">
         <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 p-4 sm:p-6">
           <section className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/12 via-card to-card p-6">
@@ -703,6 +704,16 @@ export function SystemCarePage() {
           ) : null}
         </div>
       </div>
+    </PageFrame>
+  );
+}
+
+function PageFrame(props: { readonly embedded: boolean; readonly children: ReactNode }) {
+  return props.embedded ? (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{props.children}</div>
+  ) : (
+    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
+      {props.children}
     </SidebarInset>
   );
 }

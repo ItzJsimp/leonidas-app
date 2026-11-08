@@ -53,6 +53,12 @@ vi.mock("./useLiveArea", async () => {
   return { IDLE, useLiveArea: () => IDLE };
 });
 vi.mock("./useViewportWidth", () => ({ useViewportWidth: () => 1440 }));
+// jsdom has no matchMedia. The pane asks it whether this is a short touch screen.
+vi.stubGlobal("matchMedia", () => ({
+  matches: false,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+}));
 vi.mock("./SlotOutlet", () => ({ HomeCardsOutlet: () => null }));
 
 import { ChatPane } from "./ChatPane";

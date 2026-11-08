@@ -115,6 +115,7 @@ function resolveCurrentAppName(pathname: string): string {
   if (pathname === "/brain" || pathname.startsWith("/brain/")) return "Brain";
   if (pathname === "/tasks" || pathname.startsWith("/tasks/")) return "Tasks";
   if (pathname === "/system-care" || pathname.startsWith("/system-care/")) return "Device Health";
+  if (pathname === "/automations") return "Automations";
   if (pathname.startsWith("/settings")) return "Settings";
   if (pathname === "/usage" || pathname.startsWith("/usage/")) return "Usage";
   if (pathname === "/pull-requests" || pathname.startsWith("/pull-requests/"))

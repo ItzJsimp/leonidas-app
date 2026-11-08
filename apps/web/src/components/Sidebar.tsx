@@ -77,7 +77,6 @@ import {
   FolderIcon,
   GitBranchIcon,
   TriangleAlertIcon,
-  ListFilterIcon,
   MessageCircleQuestionIcon,
   PinIcon,
   PinOffIcon,
@@ -288,24 +287,20 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxPopup,
-  ComboboxTrigger,
   useComboboxFilter,
 } from "./ui/combobox";
 import { SidebarContent, SidebarGroup, useSidebar } from "./ui/sidebar";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
-import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
+import { SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
 import { SidebarProjectRail } from "./sidebar/SidebarProjectRail";
 import { scopeToWorkspace } from "./workspace/aiosWorkspace.logic";
 import { useActiveAiosWorkspace } from "./workspace/useActiveAiosWorkspace";
-import { WorkspaceSwitcher } from "./workspace/WorkspaceSwitcher";
 import {
   projectHasCustomIcon,
   SidebarProjectIconEditor,
   type SidebarProjectIconMode,
   useProjectIconSave,
 } from "./sidebar/SidebarProjectIconEditor";
-import { SidebarViewMenu } from "./sidebar/SidebarViewMenu";
-import { ThreadSweepButton } from "./threadSweep/ThreadSweepDialog";
 import { groupSidebarThreads, sidebarStatusLane } from "./sidebar/sidebarView.logic";
 import { useSidebarViewStore } from "./sidebar/sidebarViewStore";
 import { useArchiveMerge } from "./sidebar/useArchiveMerge";
@@ -5485,7 +5480,6 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
       {embedded ? null : (
         <>
           <SidebarChromeHeader isElectron={isElectron} />
-          <WorkspaceSwitcher />
         </>
       )}
       <div className="flex min-h-0 flex-1">
@@ -5519,20 +5513,25 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
                 <SidebarThreadHeader
                   searchFieldRef={headerSearchRef}
                   hasProjects={projectGroups.length > 0}
-                  reviewButton={
-                    <ThreadSweepButton
-                      environmentId={primaryEnvironmentId}
-                      cwd={projects[0]?.workspaceRoot ?? null}
-                    />
+                  sweep={{
+                    environmentId: primaryEnvironmentId,
+                    cwd: projects[0]?.workspaceRoot ?? null,
+                  }}
+                  sortOrder={threadSortOrder}
+                  onSortOrderChange={(sidebarThreadSortOrder) =>
+                    void updateClientSettings({ sidebarThreadSortOrder })
                   }
-                  viewMenu={
-                    <SidebarViewMenu
-                      sortOrder={threadSortOrder}
-                      onSortOrderChange={(sidebarThreadSortOrder) =>
-                        void updateClientSettings({ sidebarThreadSortOrder })
-                      }
-                    />
+                  projectScopeLabel={
+                    scopedProjectGroups.length === 0
+                      ? "All projects"
+                      : scopedProjectGroups.length === 1
+                        ? scopedProjectGroups[0]!.displayName
+                        : `${scopedProjectGroups.length} projects`
                   }
+                  onOpenProjectScope={() => {
+                    suppressNextScopeChangeRef.current = false;
+                    dispatchProjectScopeMenu({ type: "open-changed", open: true });
+                  }}
                   projectScope={
                     <Combobox
                       items={projectScopeItems}
@@ -5570,37 +5569,6 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
                         }
                       }}
                     >
-                      <ComboboxTrigger
-                        render={
-                          <SidebarHeaderIconButton
-                            label={
-                              scopedProjectGroups.length > 0
-                                ? `Filter chats by project: ${scopedProjectGroups.map((project) => project.displayName).join(", ")}`
-                                : "Filter chats by project"
-                            }
-                          />
-                        }
-                      >
-                        {scopedProjectGroups.length > 1 ? (
-                          <span className="flex shrink-0 -space-x-1.5">
-                            {scopedProjectGroups.slice(0, 2).map((project) => (
-                              <ProjectFavicon
-                                key={project.projectKey}
-                                project={project}
-                                className="size-3.5"
-                              />
-                            ))}
-                          </span>
-                        ) : scopedProjectGroups[0] ? (
-                          // Wrapped so the button's direct-child svg color rule cannot override
-                          // a project's own icon color.
-                          <span className="flex shrink-0">
-                            <ProjectFavicon project={scopedProjectGroups[0]} className="size-4" />
-                          </span>
-                        ) : (
-                          <ListFilterIcon className="size-4" />
-                        )}
-                      </ComboboxTrigger>
                       <ComboboxPopup
                         align="start"
                         // Anchored to the search field, not the 28px trigger: the

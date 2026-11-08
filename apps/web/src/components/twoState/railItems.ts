@@ -13,14 +13,28 @@ export type RailTo =
   | "/content"
   | "/images"
   | "/files"
+  | "/automations"
   | "/subagents"
   | "/team"
   | "/developer"
   | "/usage"
   | "/settings";
 
+/** The flat rail groups, in order (DESIGN.md "Rail groups"). */
+export type RailGroup = "home" | "work" | "brain" | "create" | "business" | "builder";
+
+export const RAIL_GROUP_LABELS: Readonly<Record<RailGroup, string>> = {
+  home: "Home",
+  work: "Work",
+  brain: "Brain",
+  create: "Create",
+  business: "Business",
+  builder: "Builder",
+};
+
 export interface RailItem {
   readonly id: string;
+  readonly group: RailGroup;
   readonly label: string;
   /** The name, a colon, and one plain line of what the icon opens. */
   readonly tooltip: string;
@@ -30,12 +44,14 @@ export interface RailItem {
 }
 
 const item = (
+  group: RailGroup,
   id: string,
   label: string,
   to: RailTo,
   line: string,
   alsoActiveOn?: readonly string[],
 ): RailItem => ({
+  group,
   id,
   label,
   to,
@@ -46,40 +62,47 @@ const item = (
 const under = (pathname: string, base: string) =>
   pathname === base || pathname.startsWith(`${base}/`);
 
-/** Tabs that belong to a business workspace. A person can show them anyway, one switch each. */
-export const BUSINESS_TAB_IDS = ["content", "deals", "team"] as const;
-
-const BEFORE_EXTRAS: readonly RailItem[] = [
-  item("command-center", "Command Center", "/command-center", "your work and what needs you"),
+/** Business tabs (Marketing, Content, Team) show for a business workspace or one switch each. */
+const MAIN: readonly RailItem[] = [
+  item(
+    "home",
+    "command-center",
+    "Command Center",
+    "/command-center",
+    "your work and what needs you",
+  ),
+  item("home", "today", "Today", "/today", "your priorities, schedule and briefing"),
+  item("home", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
   {
-    ...item("chat", "Leonidas Chat", "/", "talk with Leonidas"),
+    ...item("work", "chat", "Leonidas Chat", "/", "talk with Leonidas"),
     tooltip: "Leonidas Chat: talk with Leonidas and run agents",
   },
-  item("scribe", "Scribe", "/scribe", "talk and have it typed for you"),
-  item("meetings", "Meetings", "/meetings", "record, read and share your calls"),
-  item("inbox", "Notifications", "/inbox", "what needs you and what finished"),
-  item("today", "Today", "/today", "your priorities, schedule and briefing"),
-  item("tasks", "Tasks", "/tasks", "what to do and what is in progress"),
-  item("projects", "Projects", "/projects", "the projects you work on"),
-  item("memory", "Memory", "/memory", "what Leonidas knows and remembers", ["/brain"]),
-  item("library", "Library", "/library", "skills, helpers, reply styles and rules"),
-  item("content", "Marketing", "/marketing", "posts and campaigns"),
-  item("deals", "Content", "/content", "deals, scripts and what to film"),
-  item("images", "Images", "/images", "make and keep pictures"),
-  item("files", "Files", "/files", "every attachment, screenshot and upload"),
-  item("subagents", "Subagents", "/subagents", "helpers your chats run, live and past"),
+  item("work", "tasks", "Tasks", "/tasks", "what to do and what is in progress"),
+  item("work", "projects", "Projects", "/projects", "the projects you work on"),
+  item("brain", "memory", "Memory", "/memory", "what Leonidas knows and remembers", ["/brain"]),
+  item("brain", "library", "Library", "/library", "skills, helpers, reply styles and rules"),
+  item("brain", "subagents", "Subagents", "/subagents", "helpers your chats run, live and past"),
+  item("brain", "automations", "Automations", "/automations", "everything that runs by itself", [
+    "/system-care",
+  ]),
+  item("create", "scribe", "Scribe", "/scribe", "talk and have it typed for you"),
+  item("create", "meetings", "Meetings", "/meetings", "record, read and share your calls"),
+  item("create", "images", "Images", "/images", "make and keep pictures"),
+  item("create", "files", "Files", "/files", "every attachment, screenshot and upload"),
+  item("business", "content", "Marketing", "/marketing", "posts and campaigns"),
+  item("business", "deals", "Content", "/content", "deals, scripts and what to film"),
+  item("business", "team", "Team", "/team", "members, roles and areas"),
+  item("builder", "developer", "Developer", "/developer", "Git, pull requests and terminals", [
+    "/git",
+    "/pull-requests",
+  ]),
 ];
-const TEAM = item("team", "Team", "/team", "members, roles and areas");
-const DEVELOPER = item("developer", "Developer", "/developer", "Git, pull requests and terminals", [
-  "/git",
-  "/pull-requests",
-]);
 const BOTTOM: readonly RailItem[] = [
-  item("usage", "Usage", "/usage", "how much of your plan you have used"),
-  item("settings", "Settings", "/settings", "change how Leonidas works", ["/system-care"]),
+  item("home", "usage", "Usage", "/usage", "how much of your plan you have used"),
+  item("home", "settings", "Settings", "/settings", "change how Leonidas works"),
 ];
 
-/** The rail icons. Marketing, Content and Team show for a business workspace and Developer for a builder. */
+/** The rail icons, grouped in order. Marketing, Content and Team show for a business workspace and Developer for a builder. */
 export function railItems(input: {
   readonly business: boolean;
   readonly builder: boolean;
@@ -90,15 +113,12 @@ export function railItems(input: {
 }) {
   const shows = (id: string) => input.business || input.showAnyway?.includes(id) === true;
   return {
-    main: [
-      ...BEFORE_EXTRAS.filter(
-        (entry) =>
-          (input.scribe || (entry.id !== "scribe" && entry.id !== "meetings")) &&
-          (!(BUSINESS_TAB_IDS as readonly string[]).includes(entry.id) || shows(entry.id)),
-      ),
-      ...(shows("team") ? [TEAM] : []),
-      ...(input.builder ? [DEVELOPER] : []),
-    ],
+    main: MAIN.filter(
+      (entry) =>
+        (input.scribe || (entry.id !== "scribe" && entry.id !== "meetings")) &&
+        (entry.group !== "business" || shows(entry.id)) &&
+        (entry.group !== "builder" || input.builder),
+    ),
     bottom: BOTTOM,
   };
 }
@@ -118,8 +138,13 @@ export function activeRailId(pathname: string, onChat: boolean): string | null {
 /** What the polite live region says when the Inbox count changes. Empty on the first load. */
 export function badgeAnnouncement(previous: number | null, next: number | null): string {
   if (previous === null || next === null || previous === next) return "";
-  if (next === 0) return "Nothing needs you";
-  return `${next} ${next === 1 ? "needs" : "need"} you`;
+  return needsYouLine(next);
+}
+
+/** "Nothing needs you" or "N need you", in correct grammar. */
+export function needsYouLine(count: number): string {
+  if (count <= 0) return "Nothing needs you";
+  return `${count} ${count === 1 ? "needs" : "need"} you`;
 }
 
 /** A rail link's name: the page, plus how many need you when its badge shows. */
