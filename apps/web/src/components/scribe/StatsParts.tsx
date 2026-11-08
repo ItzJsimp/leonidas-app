@@ -67,13 +67,13 @@ export function Clip(props: { readonly text: string; readonly className?: string
 /**
  * A thin progress bar. With a label it is read aloud with the value. Without one it is hidden
  * from screen readers, because the text beside it already says the same.
- * Primary is for today's words and level progress only. Everything else is neutral.
+ * State blue is for progress toward a goal. Neutral is for counts that only compare.
  */
 export function Meter(props: {
   readonly percent: number;
   readonly label?: string;
   readonly size?: "sm" | "md";
-  readonly tone?: "primary" | "neutral";
+  readonly tone?: "state" | "neutral";
 }) {
   const a11y =
     props.label === undefined
@@ -97,7 +97,7 @@ export function Meter(props: {
       <div
         className={cn(
           "h-full rounded-full",
-          props.tone === "neutral" ? "bg-muted-foreground/70" : "bg-primary",
+          props.tone === "neutral" ? "bg-muted-foreground/70" : "bg-state",
         )}
         style={{ width: `${props.percent}%` }}
       />

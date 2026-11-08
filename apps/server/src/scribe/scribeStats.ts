@@ -15,7 +15,8 @@ import { computeGoals } from "./goals.ts";
 import { computeInsights } from "./insights.ts";
 
 /** Stats stop reading here: 10 engine pages, about 1 s on a local engine. */
-export const MAX_STATS_ITEMS = 5_000;
+// 5,815 rows read in about 45 ms (9 MB) on 2026-11-07. A 5,000 cap cut off the oldest week.
+export const MAX_STATS_ITEMS = 20_000;
 const PAGE_SIZE = 500;
 
 interface StatsEngine {
@@ -62,7 +63,7 @@ export const cachedHistory = (listHistory: StatsEngine["listHistory"]) => {
     }
     const read = yield* readAllHistory(listHistory);
     cached = { at: now, read };
-    // Free up to 5,000 rows when the window ends. A later call reads again anyway.
+    // Free the rows when the window ends. A later call reads again anyway.
     yield* Effect.forkDetach(
       Effect.sleep(HISTORY_CACHE_MS).pipe(
         Effect.andThen(

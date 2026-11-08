@@ -771,7 +771,7 @@ export const parityFixture: {
         count: 9,
       },
       {
-        key: "Codex",
+        key: "codex", // Python kept the case. The app now merges names without case.
         count: 8,
       },
       {

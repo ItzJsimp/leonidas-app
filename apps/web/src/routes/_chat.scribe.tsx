@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 
-import { ScribePage, isScribeTabId, type ScribeTabId } from "../components/scribe/ScribePage";
+import { ScribePage, scribeTabFromSearch, type ScribeTabId } from "../components/scribe/ScribePage";
 
 export interface ScribeSearch {
   readonly tab?: ScribeTabId;
@@ -18,8 +18,10 @@ function ScribeRoute() {
 }
 
 export const Route = createFileRoute("/_chat/scribe")({
-  validateSearch: (raw: Record<string, unknown>): ScribeSearch =>
-    isScribeTabId(raw.tab) ? { tab: raw.tab } : {},
+  validateSearch: (raw: Record<string, unknown>): ScribeSearch => {
+    const tab = scribeTabFromSearch(raw.tab);
+    return tab ? { tab } : {};
+  },
   beforeLoad: async ({ context }) => {
     if (
       context.authGateState.status !== "authenticated" &&

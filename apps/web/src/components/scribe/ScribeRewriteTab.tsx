@@ -33,6 +33,7 @@ import { Textarea } from "../ui/textarea";
 import { toastManager } from "../ui/toast";
 import { commandErrorReason } from "./home.logic";
 import {
+  PRESET_SAMPLES,
   DEFAULT_REWRITE_PRESETS,
   MAX_DESCRIPTION,
   MAX_REWRITE_PRESETS,
@@ -45,7 +46,7 @@ import {
   type PresetErrors,
   type RewritePreset,
 } from "./rewrite.logic";
-import { KeyCaps } from "./ScribeParts";
+import { KeyCaps, IconButton } from "./ScribeParts";
 import type { ScribeTabProps } from "./ScribePage";
 import { rewriteBindings, settingsErrorMessage } from "./settings.logic";
 
@@ -421,38 +422,29 @@ function PresetRow(props: {
             <ChevronRightIcon aria-hidden className="size-4 shrink-0 self-center" />
           )}
         </button>
-        <Button
+        <IconButton
           id={`${row.id}-up`}
-          size="icon-sm"
-          variant="ghost"
-          aria-label={`Move ${name} up`}
+          label={`Move ${name} up`}
           disabled={props.busy || index === 0}
           onClick={() => props.onMove(-1)}
         >
           <ArrowUpIcon aria-hidden />
-        </Button>
-        <Button
+        </IconButton>
+        <IconButton
           id={`${row.id}-down`}
-          size="icon-sm"
-          variant="ghost"
-          aria-label={`Move ${name} down`}
+          label={`Move ${name} down`}
           disabled={props.busy || props.last}
           onClick={() => props.onMove(1)}
         >
           <ArrowDownIcon aria-hidden />
-        </Button>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label={`Delete ${name}`}
-          disabled={props.busy}
-          onClick={props.onDelete}
-        >
+        </IconButton>
+        <IconButton label={`Delete ${name}`} disabled={props.busy} onClick={props.onDelete}>
           <Trash2Icon aria-hidden />
-        </Button>
+        </IconButton>
       </div>
       {props.open ? (
         <div id={panel} className="flex flex-col gap-4 border-t border-border/60 p-4">
+          <PresetSample name={row.name} instruction={row.instruction} />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`${row.id}-name`}>Name</Label>
             <Input
@@ -500,5 +492,29 @@ function PresetRow(props: {
         </div>
       ) : null}
     </li>
+  );
+}
+
+/** A built-in preset shows its job on a sample. An edited instruction no longer matches it, so it hides. */
+function PresetSample(props: { readonly name: string; readonly instruction: string }) {
+  const name = props.name.trim();
+  const builtIn = DEFAULT_REWRITE_PRESETS.find((preset) => preset.name === name);
+  const sample = PRESET_SAMPLES[name];
+  if (!builtIn || !sample || builtIn.instruction.trim() !== props.instruction.trim()) return null;
+  return (
+    <figure className="grid gap-3 sm:grid-cols-2">
+      <div className="flex flex-col gap-1">
+        <figcaption className="text-xs font-medium text-muted-foreground">You say</figcaption>
+        <p className="rounded-md bg-background px-3 py-2 text-sm text-pretty text-muted-foreground">
+          {sample.before}
+        </p>
+      </div>
+      <div className="flex flex-col gap-1">
+        <p className="text-xs font-medium text-muted-foreground">{name} gives</p>
+        <p className="rounded-md border-s-2 border-state bg-background px-3 py-2 text-sm text-pretty">
+          {sample.after}
+        </p>
+      </div>
+    </figure>
   );
 }

@@ -2,15 +2,20 @@ import type { ScribeDictionary } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  HINT_CHARS,
   VOCABULARY_CAP,
   acceptSuggestion,
   dictionaryErrorMessage,
   addReplacement,
   addVocabulary,
-  filterReplacements,
   filterVocabulary,
-  removeReplacement,
-  removeVocabulary,
+  groupFixes,
+  hintUsage,
+  removeSpellings,
+  removeWords,
+  restoreSpellings,
+  restoreWords,
+  viewFixes,
   suggestionWhy,
 } from "./dictionary.logic";
 
@@ -50,13 +55,6 @@ describe("addReplacement", () => {
   });
 });
 
-describe("removeReplacement", () => {
-  it("removes by wrong word and leaves the rest", () => {
-    expect(removeReplacement(dict, "btw").replacements).toEqual([]);
-    expect(removeReplacement(dict, "nope")).toEqual(dict);
-  });
-});
-
 describe("vocabulary", () => {
   it("adds a trimmed word and refuses a duplicate in any case", () => {
     const added = addVocabulary(dict, "  Leonidas ");
@@ -75,17 +73,10 @@ describe("vocabulary", () => {
       message: "Your word list is full (800 words). Remove one to add another.",
     });
   });
-
-  it("removes one word", () => {
-    expect(removeVocabulary(dict, "Gersi").vocabulary).toEqual([]);
-  });
 });
 
 describe("filters and suggestions", () => {
-  it("filters rules on either side and words on the word, ignoring case", () => {
-    expect(filterReplacements(dict.replacements, "WAY")).toHaveLength(1);
-    expect(filterReplacements(dict.replacements, "zzz")).toHaveLength(0);
-    expect(filterReplacements(dict.replacements, "  ")).toHaveLength(1);
+  it("filters words on the word, ignoring case", () => {
     expect(filterVocabulary(dict.vocabulary, "ger")).toEqual(["Gersi"]);
   });
 
@@ -110,5 +101,61 @@ describe("dictionaryErrorMessage", () => {
       "Scribe engine is not running. Start it from the tray, or install it.",
     );
     expect(dictionaryErrorMessage(null)).toBe("Scribe could not do that. Try again.");
+  });
+});
+
+describe("grouped word fixes", () => {
+  const dictionary: ScribeDictionary = {
+    replacements: [
+      { wrong: "Cloud", correct: "Claude" },
+      { wrong: "Clawd", correct: "Claude" },
+      { wrong: "Clawde", correct: "Claude" },
+      { wrong: "Clawed", correct: "Claude" },
+      { wrong: "Claw", correct: "Claude" },
+      { wrong: "AOS", correct: "AIOS" },
+      { wrong: "Google Cloud", correct: "Google Cloud" },
+    ],
+    vocabulary: ["Leonidas", "leonidas", "Groq"],
+  };
+
+  it("groups 7 rules into 3 words and marks a same-word rule", () => {
+    const groups = groupFixes(dictionary.replacements);
+    expect(groups.map((g) => [g.correct, g.spellings.length, g.sameWord])).toEqual([
+      ["Claude", 5, false],
+      ["AIOS", 1, false],
+      ["Google Cloud", 1, true],
+    ]);
+  });
+
+  it("filters by spelling, keeps words with 5 or more spellings and sorts", () => {
+    const groups = groupFixes(dictionary.replacements);
+    expect(viewFixes(groups, "clawd", "all", "spellings").map((g) => g.correct)).toEqual([
+      "Claude",
+    ]);
+    expect(viewFixes(groups, "", "many", "spellings").map((g) => g.correct)).toEqual(["Claude"]);
+    expect(viewFixes(groups, "", "all", "name").map((g) => g.correct)).toEqual([
+      "AIOS",
+      "Claude",
+      "Google Cloud",
+    ]);
+  });
+
+  it("removes spellings in bulk and puts them back", () => {
+    const removed = removeSpellings(dictionary, ["Cloud", "Claw"]);
+    expect(removed.replacements).toHaveLength(5);
+    const back = restoreSpellings(removed, [
+      { wrong: "Cloud", correct: "Claude" },
+      { wrong: "Claw", correct: "Claude" },
+    ]);
+    expect(back.replacements).toHaveLength(7);
+    expect(restoreWords(removeWords(dictionary, ["Groq"]), ["Groq"]).vocabulary).toContain("Groq");
+  });
+
+  it("measures the speech hint like the engine", () => {
+    expect(hintUsage(dictionary.vocabulary)).toEqual({ used: 16, skipped: 0 });
+    const long = Array.from({ length: 100 }, (_, i) => `Word${String(i).padStart(4, "0")}`);
+    const usage = hintUsage(long);
+    expect(usage.used).toBeLessThanOrEqual(HINT_CHARS);
+    expect(usage.skipped).toBe(100 - Math.floor(HINT_CHARS / 10));
   });
 });

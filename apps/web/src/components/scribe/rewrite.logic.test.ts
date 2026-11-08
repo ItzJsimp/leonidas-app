@@ -7,6 +7,7 @@ import {
   cleanPresets,
   hasPresetErrors,
   movePreset,
+  PRESET_SAMPLES,
   readRewritePresets,
   samePresets,
   validatePresets,
@@ -18,15 +19,21 @@ describe("DEFAULT_REWRITE_PRESETS", () => {
       "Clarity",
       "Shorter",
       "Friendly",
-      "AI message",
-      "Add detail",
-      "Note to AI",
+      "Prompt",
     ]);
     for (const preset of DEFAULT_REWRITE_PRESETS) {
       expect(preset.instruction.trim().length).toBeGreaterThan(40);
       expect(preset.instruction).not.toMatch(/AIOS|Em-Dash|em dash|—/);
     }
     expect(hasPresetErrors(validatePresets(DEFAULT_REWRITE_PRESETS))).toBe(false);
+  });
+
+  it("has a before and after sample for every built-in preset", () => {
+    for (const preset of DEFAULT_REWRITE_PRESETS) {
+      const sample = PRESET_SAMPLES[preset.name];
+      expect(sample?.before.length).toBeGreaterThan(sample?.after.length ?? 0);
+      expect(`${sample?.before} ${sample?.after}`).not.toMatch(/—/);
+    }
   });
 });
 
