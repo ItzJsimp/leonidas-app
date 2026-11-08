@@ -10,6 +10,7 @@ import { ContentToolkit } from "./toolkits/content/tools.ts";
 import { DeviceToolkit } from "./toolkits/device/tools.ts";
 import { EnvironmentToolkit } from "./toolkits/environment/tools.ts";
 import { HtmlToolkit } from "./toolkits/html/tools.ts";
+import { InsightToolkit } from "./toolkits/insight/tools.ts";
 import { LocalVmScreenshotToolkit, LocalVmStandardToolkit } from "./toolkits/localVm/tools.ts";
 import { MarketingToolkit } from "./toolkits/marketing/tools.ts";
 import { OrchestratorToolkit } from "./toolkits/orchestrator/tools.ts";
@@ -26,6 +27,7 @@ const toolkits = [
   DeviceToolkit,
   EnvironmentToolkit,
   HtmlToolkit,
+  InsightToolkit,
   LocalVmStandardToolkit,
   LocalVmScreenshotToolkit,
   MarketingToolkit,

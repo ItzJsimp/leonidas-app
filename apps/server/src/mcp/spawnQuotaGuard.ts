@@ -8,7 +8,7 @@
 import type { ServerProvider, ServerProviderUsageWindow } from "@t3tools/contracts";
 
 /** Windows that have not reset yet; a window past its reset time reads as empty. */
-const liveWindows = (
+export const liveWindows = (
   provider: ServerProvider,
   nowMs: number,
 ): ReadonlyArray<ServerProviderUsageWindow> =>
@@ -16,12 +16,12 @@ const liveWindows = (
     (window) => window.resetsAt === undefined || Date.parse(window.resetsAt) > nowMs,
   );
 
-const peakPercent = (provider: ServerProvider, nowMs: number): number | null => {
+export const peakPercent = (provider: ServerProvider, nowMs: number): number | null => {
   const windows = liveWindows(provider, nowMs);
   return windows.length === 0 ? null : Math.max(...windows.map((window) => window.usedPercent));
 };
 
-const accountName = (provider: ServerProvider): string =>
+export const accountName = (provider: ServerProvider): string =>
   provider.displayName ?? provider.auth.label ?? provider.instanceId;
 
 /** The refusal message for a spawn on `target`, or null when the account has room. */

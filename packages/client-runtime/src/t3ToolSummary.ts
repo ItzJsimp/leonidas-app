@@ -330,6 +330,24 @@ export function summarizeT3ToolCalls(
     case "project-clone":
       label = phrase("Cloned", "clone", quantity(countEntities(entityIds("cwd")), "project"));
       break;
+    case "memory-search":
+      label = phrase("Looked up", "look up", `your memory ${times}`);
+      break;
+    case "usage-status":
+      label = phrase("Checked", "check", `account usage ${times}`);
+      break;
+    case "hardware-status":
+      label = phrase("Checked", "check", `computer health ${times}`);
+      break;
+    case "review-diff":
+      label = phrase("Read", "read", `code changes ${times}`);
+      break;
+    case "perf-report":
+      label = phrase("Read", "read", `run speed ${times}`);
+      break;
+    case "release-status":
+      label = phrase("Checked", "check", `the release ${times}`);
+      break;
     case "environment-read":
       label = phrase("Checked", "check", `computer settings ${times}`);
       break;

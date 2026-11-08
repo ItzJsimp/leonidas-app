@@ -8,6 +8,7 @@ import { McpServer } from "effect/ai";
 import { DeviceService } from "../device/DeviceService.ts";
 import { GitVcsDriver } from "../vcs/GitVcsDriver.ts";
 import { GitWorkflowService } from "../git/GitWorkflowService.ts";
+import { HardwareWatch } from "../hardwareWatch/HardwareWatch.ts";
 import { LocalVmService } from "../localVm/LocalVmService.ts";
 import { ManagedProjectFolders } from "../project/ManagedProjectFolders.ts";
 import { ModelBenchmarks } from "../benchmarks/ModelBenchmarks.ts";
@@ -19,6 +20,7 @@ import { ProjectService } from "../project/ProjectService.ts";
 import { ProjectSetupScriptRunner } from "../project/ProjectSetupScriptRunner.ts";
 import { ProviderAdapterRegistryV2 } from "../orchestration-v2/ProviderAdapterRegistry.ts";
 import { ProviderRegistry } from "./ProviderRegistry.ts";
+import { ReviewService } from "../review/ReviewService.ts";
 import { SavedItemExecution } from "../savedItems/SavedItemExecution.ts";
 import { SavedItemService } from "../savedItems/SavedItemService.ts";
 import { ScheduledTaskService } from "../scheduledTasks/ScheduledTaskService.ts";
@@ -46,6 +48,7 @@ const toolHandlerServices = Layer.mergeAll(
   Layer.mock(DeviceService)({}),
   Layer.mock(GitVcsDriver)({}),
   Layer.mock(GitWorkflowService)({}),
+  Layer.mock(HardwareWatch)({}),
   Layer.mock(LocalVmService)({}),
   Layer.mock(ManagedProjectFolders)({ namedProjectsRoot: "" }),
   Layer.mock(ModelBenchmarks)({}),
@@ -57,6 +60,7 @@ const toolHandlerServices = Layer.mergeAll(
   Layer.mock(ProjectSetupScriptRunner)({}),
   Layer.mock(ProviderAdapterRegistryV2)({}),
   Layer.mock(ProviderRegistry)({}),
+  Layer.mock(ReviewService)({}),
   Layer.mock(SavedItemExecution)({}),
   Layer.mock(SavedItemService)({}),
   Layer.mock(ScheduledTaskService)({}),

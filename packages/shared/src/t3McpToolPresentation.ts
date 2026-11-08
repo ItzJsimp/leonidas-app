@@ -79,7 +79,13 @@ export type T3McpToolSummaryAction =
   | "board-task-list"
   | "board-task-get"
   | "board-task-update"
-  | "board-task-create";
+  | "board-task-create"
+  | "memory-search"
+  | "usage-status"
+  | "release-status"
+  | "hardware-status"
+  | "review-diff"
+  | "perf-report";
 
 export interface T3McpToolDefinition {
   readonly displayName: string;
@@ -404,6 +410,13 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   leo_thread_send_attachments: tool(["Send", "Sending", "Sent", "attachments"], "attachment-send"),
   leo_html_preview: tool(["Preview", "Previewing", "Previewed", "an HTML page"], "html-preview"),
   leo_html_render: tool(["Render", "Rendering", "Rendered", "an HTML page"], "html-render"),
+  leo_aios_memory_search: tool(["Search", "Searching", "Searched", "your memory"], "memory-search"),
+  leo_aios_memory_read: tool(["Read", "Reading", "Read", "a memory entry"], "memory-search"),
+  leo_usage_status: tool(["Check", "Checking", "Checked", "account usage"], "usage-status"),
+  leo_release_status: tool(["Check", "Checking", "Checked", "the release"], "release-status"),
+  leo_hardware_status: tool(["Check", "Checking", "Checked", "computer health"], "hardware-status"),
+  leo_review_diff_get: tool(["Read", "Reading", "Read", "code changes"], "review-diff"),
+  leo_perf_turn_report: tool(["Read", "Reading", "Read", "run speed"], "perf-report"),
   leo_canvas: tool(["Build", "Building", "Built", "a canvas"], "html-render"),
 };
 
