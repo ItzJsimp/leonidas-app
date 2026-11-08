@@ -170,18 +170,16 @@ function SourceStatusBadge({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium",
         tone === "neutral" && "border-border/70 bg-muted/45 text-muted-foreground",
-        tone === "default" && "border-success/25 bg-success/10 text-success-foreground",
-        tone === "warning" && "border-warning/30 bg-warning/10 text-warning-foreground",
-        tone === "danger" && "border-destructive/30 bg-destructive/10 text-destructive",
+        tone === "default" && "border-state bg-state text-state-foreground",
+        tone === "warning" && "border-warning bg-warning text-background",
+        tone === "danger" && "border-error bg-error text-primary-foreground",
       )}
     >
       <span
         className={cn(
           "size-1.5 rounded-full",
           tone === "neutral" && "bg-muted-foreground/55",
-          tone === "default" && "bg-success",
-          tone === "warning" && "bg-warning",
-          tone === "danger" && "bg-destructive",
+          tone !== "neutral" && "bg-current",
         )}
       />
       {label} {presentation?.label ?? status}
@@ -1067,7 +1065,7 @@ export function LeonidasAppPanel({ environmentId }: { environmentId: Environment
                 valueClassName={
                   snapshot.power.thermalState === "serious" ||
                   snapshot.power.thermalState === "critical"
-                    ? "text-destructive"
+                    ? "text-error-foreground"
                     : undefined
                 }
               />

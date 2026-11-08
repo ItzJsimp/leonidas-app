@@ -1,5 +1,6 @@
-import type { HardwareHistoryRange, HardwareLimit } from "@t3tools/contracts";
+import type { HardwareHistoryRange } from "@t3tools/contracts";
 import { isDiscreteGpu, metricInfo, sampleMetrics } from "@t3tools/shared/hardwareWatch";
+import * as DateTime from "effect/DateTime";
 import { ClipboardCopyIcon } from "lucide-react";
 import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 
@@ -8,7 +9,17 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { SidebarInset } from "../ui/sidebar";
+import {
+  Select,
+  SelectGroup,
+  SelectGroupLabel,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Switch } from "../ui/switch";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { SettingsScopeProvider } from "../settings/SettingsScopeContext";
 import { TelemetryExportSettings } from "../settings/TelemetryExportSettings";
@@ -21,19 +32,9 @@ import {
   SystemFactsCard,
   TopAppsCard,
 } from "./PcStatusCards";
-import {
-  AreaChart,
-  Card,
-  Chip,
-  Gauge,
-  LEVEL_TEXT,
-  LimitBar,
-  Segmented,
-  Stepper,
-  Trend,
-  worstLevel,
-  type Level,
-} from "./SystemCareCharts";
+import { chartMax, GaugeCard, LimitRow, readings, SummaryCard } from "./MachineCards";
+import { MachineTimeline, type TimelineLane, type TimelineMark } from "./MachineTimeline";
+import { AreaChart, Card, worstLevel, type Level } from "./SystemCareCharts";
 import {
   HEALTH_LABEL,
   METRIC_GROUPS,
@@ -58,6 +59,7 @@ import {
   useSystemCareLive,
   useSystemCareStatus,
 } from "./useSystemCare";
+import { useTraceDiagnostics } from "./useTraceDiagnostics";
 
 const LeonidasAppPanel = lazy(() =>
   import("./LeonidasAppPanel").then((module) => ({ default: module.LeonidasAppPanel })),
@@ -87,107 +89,6 @@ function PcTelemetryExport() {
   );
 }
 
-const RANGE_OPTIONS = (["1h", "24h", "7d", "90d"] as const).map((value) => ({
-  value,
-  label: value,
-}));
-
-/** A friendly top for a chart axis: 100 for percentages, a rounded-up value otherwise. */
-function chartMax(unit: string, values: ReadonlyArray<number | null>): number {
-  if (unit === "%") return 100;
-  const peak = Math.max(1, ...values.filter((value): value is number => value !== null));
-  const magnitude = 10 ** Math.floor(Math.log10(peak));
-  return Math.ceil((peak * 1.15) / magnitude) * magnitude;
-}
-
-function GaugeCard(props: {
-  title: string;
-  value: number | null;
-  level: Level;
-  lines: ReadonlyArray<string>;
-  trend: ReadonlyArray<number | null>;
-  extra?: ReactNode;
-}) {
-  return (
-    <Card>
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {props.title}
-      </div>
-      <div className="mt-3 flex items-center gap-4">
-        <Gauge value={props.value} level={props.level}>
-          <span className={cn("text-2xl font-semibold tabular-nums", LEVEL_TEXT[props.level])}>
-            {props.value === null ? "-" : `${Math.round(props.value)}%`}
-          </span>
-        </Gauge>
-        <ul className="min-w-0 flex-1 space-y-1 text-sm text-muted-foreground">
-          {props.lines.map((line) => (
-            <li key={line} className="truncate">
-              {line}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="mt-3">
-        <Trend values={props.trend} level={props.level} />
-      </div>
-      {props.extra ? <div className="mt-3">{props.extra}</div> : null}
-    </Card>
-  );
-}
-
-function LimitRow(props: {
-  limit: HardwareLimit;
-  current: number | null;
-  onSave: (warn: number | null, critical: number | null) => void;
-}) {
-  const { limit } = props;
-  return (
-    <li className="grid grid-cols-1 items-center gap-x-4 gap-y-2 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,14rem)_auto]">
-      <div className="min-w-0">
-        <div className="truncate text-sm font-medium">{limit.label}</div>
-        <div className="text-xs text-muted-foreground">
-          {limit.source === "user"
-            ? "Your setting"
-            : limit.source === "spec"
-              ? "From the part's own rating"
-              : "Standard setting"}
-          {limit.source === "user" ? (
-            <button
-              type="button"
-              className="ml-2 underline underline-offset-2 hover:text-foreground"
-              onClick={() => props.onSave(null, null)}
-            >
-              Reset
-            </button>
-          ) : null}
-        </div>
-      </div>
-      <LimitBar
-        warn={limit.warn}
-        critical={limit.critical}
-        unit={limit.unit}
-        current={props.current}
-      />
-      <div className="flex items-center gap-2">
-        <Stepper
-          label="Warn"
-          tone="warning"
-          unit={limit.unit}
-          value={limit.warn}
-          onChange={(next) => props.onSave(Math.min(next, limit.critical - 1), limit.critical)}
-        />
-        <Stepper
-          label="Critical"
-          tone="critical"
-          unit={limit.unit}
-          value={limit.critical}
-          onChange={(next) => props.onSave(limit.warn, Math.max(next, limit.warn + 1))}
-        />
-      </div>
-    </li>
-  );
-}
-
 /** `embedded` drops the page frame, so the Automations tab can show it as its Machine view. */
 export function SystemCarePage({ embedded = false }: { readonly embedded?: boolean } = {}) {
   const [tab, setTab] = useState<PcTab>("overview");
@@ -202,6 +103,7 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
   const day = useSystemCareHistory("24h");
   const statusQuery = useSystemCareStatus();
   const pcStatus = statusQuery.data ?? null;
+  const trace = useTraceDiagnostics();
 
   const limits = useMemo(
     () => new Map((limitsView.data?.limits ?? []).map((limit) => [limit.metric, limit])),
@@ -243,77 +145,141 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
   const activeLimit = activeMetric ? limits.get(activeMetric) : undefined;
   const unit = activeInfo?.unit ?? "";
 
+  const lanes: ReadonlyArray<TimelineLane> = [
+    {
+      metric: "cpu.load",
+      label: "Processor",
+      detail: sample
+        ? readings(
+            formatValue(sample.cpu.clockMhz, "MHz"),
+            formatValue(sample.cpu.packageTempC ?? sample.cpu.maxCoreTempC, "°C"),
+          )
+        : "",
+    },
+    {
+      metric: "gpu.0.load",
+      label: "Graphics",
+      detail: gpu ? readings(formatValue(gpu.tempC, "°C"), formatValue(gpu.powerW, "W")) : "",
+    },
+    {
+      metric: "memory.load",
+      label: "Memory",
+      detail: sample
+        ? `${formatBytes(sample.memory.usedBytes)} of ${formatBytes(sample.memory.totalBytes, 0)}`
+        : "",
+    },
+    {
+      metric: "disk.active",
+      label: "Disk activity",
+      detail: sample ? `Reading ${formatValue(sample.disk.readBytesPerSec, "B/s")}` : "",
+    },
+  ].filter((lane) => available.includes(lane.metric));
+  const marks = useMemo(
+    (): ReadonlyArray<TimelineMark> => [
+      ...live.alerts.map((alert) => ({
+        at: alert.startedAt,
+        kind: "alert" as const,
+        label: `${alert.message} (${alert.label})`,
+      })),
+      ...(pcStatus?.benchmarks ?? []).map((run) => ({
+        at: Date.parse(run.at),
+        kind: "test" as const,
+        label: run.label,
+      })),
+      ...(trace.data?.latestFailures ?? []).map((failure) => ({
+        at: DateTime.toEpochMillis(failure.endedAt),
+        kind: "error" as const,
+        label: `${failure.name}: ${failure.cause}`,
+      })),
+    ],
+    [live.alerts, pcStatus, trace.data],
+  );
+  const failures = trace.data?.failureCount ?? null;
+
   const editable = [...limits.values()].filter(isEditableLimit);
   const limitGroups = METRIC_GROUPS.map((group) => ({
     group,
     rows: editable.filter((limit) => metricGroup(limit.metric) === group),
   })).filter((entry) => entry.rows.length > 0);
+  const partBadges = inv
+    ? [
+        inv.cpu.name,
+        ...inv.gpus
+          .filter(isDiscreteGpu)
+          .slice(0, 1)
+          .map((card) => card.name),
+        `${formatBytes(inv.memory.totalBytes, 0)} memory`,
+        ...(uptime ? [`On for ${uptime}`] : []),
+      ]
+    : [];
 
   return (
     <PageFrame embedded={embedded}>
       <div className="scrollbar-gutter-both flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background">
-        <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 p-4 sm:p-6">
-          <section className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/12 via-card to-card p-6">
-            <div className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-primary/10 blur-3xl" />
-            <div className="relative flex flex-wrap items-center gap-6">
-              <ScoreRing health={score} />
-              <div className="min-w-0 flex-1">
-                <h1 className="text-2xl font-semibold tracking-tight">PC Tuning</h1>
-                <p className="text-base font-medium">{score.headline}</p>
-                <p className="text-sm text-muted-foreground">
-                  {score.reasons.length > 0
-                    ? score.reasons.slice(0, 2).join(" · ")
-                    : sample
-                      ? "Every reading is inside its safe range."
-                      : HEALTH_LABEL.unknown}
-                  {alerts.length > 0 ? ` · ${alerts.length} open alerts` : ""}
-                </p>
-                {inv ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {[
-                      inv.cpu.name,
-                      ...inv.gpus
-                        .filter(isDiscreteGpu)
-                        .slice(0, 1)
-                        .map((card) => card.name),
-                      `${formatBytes(inv.memory.totalBytes, 0)} memory`,
-                      ...(uptime ? [`On for ${uptime}`] : []),
-                    ].map((text) => (
-                      <Badge key={text} variant="outline" className="max-w-full truncate">
-                        {text}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <div className="flex flex-col items-start gap-1.5 sm:items-end">
-                <div className="flex flex-wrap gap-2 sm:justify-end">
-                  <Button
-                    disabled={actions.busy || !supported}
-                    onClick={() => void actions.preparePrompt("tune")}
-                  >
-                    {actions.busy ? <Spinner /> : <ClipboardCopyIcon />}
-                    Tune my PC
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={actions.busy || !supported}
-                    onClick={() => void actions.preparePrompt("checkup")}
-                  >
-                    Get a checkup
-                  </Button>
+        <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 sm:p-6">
+          <PcTabs value={tab} onChange={setTab} />
+
+          <section className="flex flex-wrap items-center gap-5 rounded-2xl border bg-card p-5">
+            <ScoreRing health={score} />
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold">{score.headline}</p>
+              <p className="text-sm text-muted-foreground">
+                {score.reasons.length > 0
+                  ? score.reasons.slice(0, 2).join(" · ")
+                  : sample
+                    ? "Every reading is inside its safe range."
+                    : HEALTH_LABEL.unknown}
+                {alerts.length > 0 ? ` · ${alerts.length} open alerts` : ""}
+              </p>
+              {partBadges.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {partBadges.map((text) => (
+                    <Badge key={text} variant="outline">
+                      {text}
+                    </Badge>
+                  ))}
                 </div>
-                <p className="max-w-xs text-xs text-muted-foreground sm:text-right">
-                  Tune measures speed, researches your parts and asks before each change. Fills a
-                  new chat for you; nothing is sent until you press send.
-                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-col items-start gap-1.5 sm:items-end">
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button disabled={actions.busy || !supported} onClick={tune}>
+                        {actions.busy ? <Spinner /> : <ClipboardCopyIcon />}
+                        Tune my PC
+                      </Button>
+                    }
+                  />
+                  <TooltipPopup side="top">
+                    Measures speed, researches your parts and asks before each change.
+                  </TooltipPopup>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        disabled={actions.busy || !supported}
+                        onClick={() => void actions.preparePrompt("checkup")}
+                      >
+                        Get a checkup
+                      </Button>
+                    }
+                  />
+                  <TooltipPopup side="top">
+                    Runs a speed test and a health check. It changes nothing.
+                  </TooltipPopup>
+                </Tooltip>
               </div>
+              <p className="text-xs text-muted-foreground sm:text-right">
+                Fills a new chat. Nothing is sent until you press send.
+              </p>
             </div>
           </section>
 
-          <PcTabs value={tab} onChange={setTab} />
-
-          {live.error ? <p className="text-sm text-destructive">{live.error}</p> : null}
+          {live.error ? <p className="text-sm text-error-foreground">{live.error}</p> : null}
           {!supported ? (
             <p className="text-sm text-muted-foreground">
               PC Tuning is not available on this computer yet.
@@ -327,6 +293,42 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
               aria-labelledby="pc-tab-overview"
               className="flex flex-col gap-4"
             >
+              <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+                <SummaryCard
+                  label="Needs a look"
+                  value={String(wins.length)}
+                  detail={
+                    wins.length > 0 ? wins.map((win) => win.title).join(", ") : "Nothing to fix"
+                  }
+                />
+                <SummaryCard
+                  label="Alerts"
+                  value={String(alerts.length)}
+                  detail={
+                    alerts.length > 0
+                      ? alerts.map((alert) => alert.label).join(", ")
+                      : "All readings inside their limits"
+                  }
+                />
+                <SummaryCard
+                  label="Speed reached"
+                  value={speed.overall === null ? "-" : `${Math.round(speed.overall)}%`}
+                  detail="Of the rated speed of your parts"
+                />
+                <SummaryCard
+                  label="Leonidas errors"
+                  value={failures === null ? "-" : String(failures)}
+                  detail={
+                    trace.data
+                      ? `Failures in ${trace.data.recordCount} spans`
+                      : trace.canReadDiagnostics
+                        ? "Reading traces..."
+                        : "Not available here"
+                  }
+                  error={failures !== null && failures > 0}
+                />
+              </div>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <GaugeCard
                   title="Processor"
@@ -397,7 +399,89 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+              <MachineTimeline
+                range={range}
+                onRange={setRange}
+                points={points}
+                pending={history.isPending}
+                lanes={lanes}
+                metric={activeMetric}
+                onMetric={setMetric}
+                marks={marks}
+                now={points.at(-1)?.at ?? now}
+              >
+                {activeMetric ? (
+                  <>
+                    <div className="mt-4 flex flex-wrap items-end gap-x-8 gap-y-3 border-t pt-4">
+                      <div>
+                        <div className="text-xs text-muted-foreground">{activeInfo?.label}</div>
+                        <div className="text-2xl font-semibold tabular-nums">
+                          {formatValue(stats.latest, unit)}
+                        </div>
+                      </div>
+                      {(
+                        [
+                          ["Lowest", stats.min],
+                          ["Average", stats.avg],
+                          ["Highest", peak],
+                        ] as const
+                      ).map(([label, value]) => (
+                        <div key={label}>
+                          <div className="text-xs text-muted-foreground">{label}</div>
+                          <div className="text-sm font-medium tabular-nums">
+                            {formatValue(value, unit)}
+                          </div>
+                        </div>
+                      ))}
+                      <div className="ml-auto">
+                        <Select
+                          value={activeMetric}
+                          onValueChange={(value) => {
+                            if (value) setMetric(value);
+                          }}
+                        >
+                          <SelectTrigger size="sm" aria-label="Reading" className="w-auto min-w-48">
+                            <SelectValue>{activeInfo?.label ?? "Reading"}</SelectValue>
+                          </SelectTrigger>
+                          <SelectPopup>
+                            {grouped.map((entry) => (
+                              <SelectGroup key={entry.group}>
+                                <SelectGroupLabel>{entry.group}</SelectGroupLabel>
+                                {entry.keys.map((key) => (
+                                  <SelectItem key={key} value={key}>
+                                    {shortMetricLabel(key, metricInfo(key, inv, sample).label)}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            ))}
+                          </SelectPopup>
+                        </Select>
+                      </div>
+                    </div>
+                    {lanes.some((lane) => lane.metric === activeMetric) ? null : (
+                      <div className="mt-4">
+                        <AreaChart
+                          values={series}
+                          max={chartMax(unit, series)}
+                          format={(value) => formatValue(value, unit)}
+                          startLabel={`${RANGE_LABEL[range]} ago`}
+                          marks={
+                            activeLimit
+                              ? [
+                                  { value: activeLimit.warn, level: "warning" },
+                                  { value: activeLimit.critical, level: "critical" },
+                                ]
+                              : []
+                          }
+                        />
+                      </div>
+                    )}
+                  </>
+                ) : null}
+              </MachineTimeline>
+
+              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <QuickWinsCard wins={wins} busy={actions.busy || !supported} onTune={tune} />
                 <SpeedReachedCard
                   rows={speed.rows}
                   overall={speed.overall}
@@ -405,22 +489,13 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
                   busy={actions.busy || !supported}
                   onTune={tune}
                 />
-                <BottleneckCard findings={pcStatus?.bottlenecks ?? []} />
-                <SpeedTestsCard runs={pcStatus?.benchmarks ?? []} />
-                <TopAppsCard apps={pcStatus?.topApps ?? []} measuring={supported} />
-                <SystemFactsCard status={pcStatus} />
-                <QuickWinsCard
-                  wins={wins}
-                  busy={actions.busy || !supported}
-                  onTune={() => void actions.preparePrompt("tune")}
-                />
                 <Card
                   title="Alerts"
                   hint="Investigate fills a new chat with a message. Nothing is sent until you press send."
                 >
                   {alerts.length === 0 ? (
                     <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-6 text-sm text-muted-foreground">
-                      <span className="size-2.5 rounded-full bg-success" />
+                      <span className="size-2.5 rounded-full bg-state" />
                       All clear. Nothing needs your attention.
                     </div>
                   ) : (
@@ -433,7 +508,7 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
                           <span
                             className={cn(
                               "h-9 w-1 shrink-0 rounded-full",
-                              alert.severity === "critical" ? "bg-destructive" : "bg-warning",
+                              alert.severity === "critical" ? "bg-error" : "bg-warning",
                             )}
                           />
                           <div className="min-w-0 flex-1">
@@ -465,7 +540,25 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
                     </ul>
                   )}
                 </Card>
-
+              </div>
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                <TopAppsCard apps={pcStatus?.topApps ?? []} measuring={supported} />
+                <div className="flex flex-col gap-4">
+                  <BottleneckCard findings={pcStatus?.bottlenecks ?? []} />
+                  <SpeedTestsCard runs={pcStatus?.benchmarks ?? []} />
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {tab === "parts" ? (
+            <div
+              role="tabpanel"
+              id="pc-panel-parts"
+              aria-labelledby="pc-tab-parts"
+              className="flex flex-col gap-4"
+            >
+              <PartsCard inventory={inv} sample={sample} uptime={uptime} />
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
                 <Card title="Storage">
                   <ul className="flex flex-col gap-4">
                     {(sample?.volumes ?? []).map((volume) => {
@@ -485,10 +578,10 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
                               className={cn(
                                 "h-full rounded-full",
                                 tone === "ok"
-                                  ? "bg-primary"
+                                  ? "bg-state"
                                   : tone === "warning"
                                     ? "bg-warning"
-                                    : "bg-destructive",
+                                    : "bg-error",
                               )}
                               style={{ width: `${Math.min(100, used)}%` }}
                             />
@@ -511,108 +604,59 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
                     </ul>
                   ) : null}
                 </Card>
+                <SystemFactsCard status={pcStatus} />
               </div>
-            </div>
-          ) : null}
-          {tab === "parts" ? (
-            <div
-              role="tabpanel"
-              id="pc-panel-parts"
-              aria-labelledby="pc-tab-parts"
-              className="flex flex-col gap-4"
-            >
-              <div>
-                <PartsCard inventory={inv} sample={sample} uptime={uptime} />
-              </div>
-            </div>
-          ) : null}
-          {tab === "history" ? (
-            <div
-              role="tabpanel"
-              id="pc-panel-history"
-              aria-labelledby="pc-tab-history"
-              className="flex flex-col gap-4"
-            >
-              <div>
-                <Card
-                  title="History"
-                  action={
-                    <Segmented
-                      label="History range"
-                      value={range}
-                      options={RANGE_OPTIONS}
-                      onChange={setRange}
-                    />
-                  }
-                >
-                  {grouped.length > 0 ? (
-                    <div className="mb-5 flex flex-col gap-2.5">
-                      {grouped.map((entry) => (
-                        <div key={entry.group} className="flex flex-wrap items-center gap-2">
-                          <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">
-                            {entry.group}
-                          </span>
-                          {entry.keys.map((key) => (
-                            <Chip
-                              key={key}
-                              active={key === activeMetric}
-                              onClick={() => setMetric(key)}
-                            >
-                              {shortMetricLabel(key, metricInfo(key, inv, sample).label)}
-                            </Chip>
+              <Card
+                title="Deep sensors"
+                hint="Adds fan speeds, voltages and every temperature to the readings."
+                action={
+                  <Switch
+                    aria-label="Deep sensors"
+                    checked={
+                      live.status?.deepSensors === "on" || live.status?.deepSensors === "starting"
+                    }
+                    onCheckedChange={(enabled) => void actions.setDeepSensors(enabled)}
+                  />
+                }
+              >
+                <p className="text-sm text-muted-foreground">
+                  {live.status?.deepSensorsMessage ??
+                    `Status: ${live.status?.deepSensors ?? "off"}`}
+                </p>
+              </Card>
+              <Card
+                title="Alert limits"
+                hint="You get an alert when a reading stays past Warn or Critical for a while."
+              >
+                {limitGroups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Limits appear once readings arrive.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    {limitGroups.map((entry) => (
+                      <div key={entry.group}>
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          {entry.group}
+                        </div>
+                        <ul className="divide-y">
+                          {entry.rows.map((limit) => (
+                            <LimitRow
+                              key={limit.metric}
+                              limit={limit}
+                              current={metrics[limit.metric] ?? null}
+                              onSave={(warn, critical) =>
+                                void limitsView.save(limit.metric, warn, critical)
+                              }
+                            />
                           ))}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  {activeMetric ? (
-                    <>
-                      <div className="mb-4 flex flex-wrap items-end gap-x-8 gap-y-2">
-                        <div>
-                          <div className="text-xs text-muted-foreground">{activeInfo?.label}</div>
-                          <div className="text-3xl font-semibold tabular-nums">
-                            {formatValue(stats.latest, unit)}
-                          </div>
-                        </div>
-                        {(
-                          [
-                            ["Lowest", stats.min],
-                            ["Average", stats.avg],
-                            ["Highest", peak],
-                          ] as const
-                        ).map(([label, value]) => (
-                          <div key={label}>
-                            <div className="text-xs text-muted-foreground">{label}</div>
-                            <div className="text-lg font-medium tabular-nums">
-                              {formatValue(value, unit)}
-                            </div>
-                          </div>
-                        ))}
+                        </ul>
                       </div>
-                      <AreaChart
-                        values={series}
-                        max={chartMax(unit, series)}
-                        format={(value) => formatValue(value, unit)}
-                        startLabel={`${RANGE_LABEL[range]} ago`}
-                        marks={
-                          activeLimit
-                            ? [
-                                { value: activeLimit.warn, level: "warning" },
-                                { value: activeLimit.critical, level: "critical" },
-                              ]
-                            : []
-                        }
-                      />
-                    </>
-                  ) : (
-                    <p className="rounded-xl bg-muted/50 px-4 py-8 text-center text-sm text-muted-foreground">
-                      {history.isPending
-                        ? "Loading history..."
-                        : "History fills in as PC Tuning keeps watching."}
-                    </p>
-                  )}
-                </Card>
-              </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+              <PcTelemetryExport />
             </div>
           ) : null}
           {tab === "app" ? (
@@ -624,82 +668,8 @@ export function SystemCarePage({ embedded = false }: { readonly embedded?: boole
             >
               <Suspense fallback={<PanelLoading />}>
                 <LeonidasAppPanel environmentId={primaryEnvironmentId} />
-              </Suspense>
-            </div>
-          ) : null}
-          {tab === "logs" ? (
-            <div
-              role="tabpanel"
-              id="pc-panel-logs"
-              aria-labelledby="pc-tab-logs"
-              className="flex flex-col gap-4"
-            >
-              <Suspense fallback={<PanelLoading />}>
                 <LogsPanel />
               </Suspense>
-            </div>
-          ) : null}
-          {tab === "settings" ? (
-            <div
-              role="tabpanel"
-              id="pc-panel-settings"
-              aria-labelledby="pc-tab-settings"
-              className="flex flex-col gap-4"
-            >
-              <div className="flex flex-col gap-4">
-                <Card
-                  title="Deep sensors"
-                  hint="Adds fan speeds, voltages and every temperature to the readings."
-                  action={
-                    <Switch
-                      aria-label="Deep sensors"
-                      checked={
-                        live.status?.deepSensors === "on" || live.status?.deepSensors === "starting"
-                      }
-                      onCheckedChange={(enabled) => void actions.setDeepSensors(enabled)}
-                    />
-                  }
-                >
-                  <p className="text-sm text-muted-foreground">
-                    {live.status?.deepSensorsMessage ??
-                      `Status: ${live.status?.deepSensors ?? "off"}`}
-                  </p>
-                </Card>
-
-                <Card
-                  title="Alert limits"
-                  hint="You get an alert when a reading stays past Warn or Critical for a while."
-                >
-                  {limitGroups.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Limits appear once readings arrive.
-                    </p>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      {limitGroups.map((entry) => (
-                        <div key={entry.group}>
-                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {entry.group}
-                          </div>
-                          <ul className="divide-y">
-                            {entry.rows.map((limit) => (
-                              <LimitRow
-                                key={limit.metric}
-                                limit={limit}
-                                current={metrics[limit.metric] ?? null}
-                                onSave={(warn, critical) =>
-                                  void limitsView.save(limit.metric, warn, critical)
-                                }
-                              />
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
-                <PcTelemetryExport />
-              </div>
             </div>
           ) : null}
         </div>

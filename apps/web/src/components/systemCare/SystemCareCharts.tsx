@@ -7,14 +7,14 @@ import { limitScaleMax, sparklinePoints, stepLimit } from "./systemCare.logic";
 export type Level = "ok" | "warning" | "critical";
 
 export const LEVEL_TEXT: Record<Level, string> = {
-  ok: "text-primary",
+  ok: "text-state",
   warning: "text-warning",
-  critical: "text-destructive",
+  critical: "text-error",
 };
 const LEVEL_BG: Record<Level, string> = {
-  ok: "bg-primary",
+  ok: "bg-state",
   warning: "bg-warning",
-  critical: "bg-destructive",
+  critical: "bg-error",
 };
 
 export const worstLevel = (...levels: ReadonlyArray<Level>): Level =>
@@ -30,10 +30,14 @@ export function Card(props: {
   return (
     <section className={cn("rounded-2xl border bg-card p-5 shadow-xs/5", props.className)}>
       {props.title ? (
-        <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="text-sm font-semibold tracking-tight">{props.title}</h2>
-          {props.hint ? <p className="text-xs text-muted-foreground">{props.hint}</p> : null}
-          <div className="ml-auto">{props.action}</div>
+        <header className="mb-4 flex flex-wrap items-start gap-3">
+          <div className="min-w-40 flex-1">
+            <h2 className="text-sm font-semibold tracking-tight">{props.title}</h2>
+            {props.hint ? (
+              <div className="mt-0.5 text-xs text-muted-foreground">{props.hint}</div>
+            ) : null}
+          </div>
+          {props.action ? <div className="shrink-0">{props.action}</div> : null}
         </header>
       ) : null}
       {props.children}
@@ -54,7 +58,7 @@ export function ErrorNote(props: {
         "flex items-start gap-2 rounded-xl px-3 py-2 text-sm",
         props.tone === "warning"
           ? "bg-warning/10 text-warning-foreground"
-          : "bg-destructive/10 text-destructive",
+          : "bg-error/10 text-error-foreground",
         props.className,
       )}
     >
@@ -109,10 +113,10 @@ export function Gauge(props: { value: number | null; level: Level; children: Rea
           className={cn(
             "transition-[stroke-dasharray] duration-700 ease-out motion-reduce:transition-none",
             props.level === "ok"
-              ? "stroke-primary"
+              ? "stroke-state"
               : props.level === "warning"
                 ? "stroke-warning"
-                : "stroke-destructive",
+                : "stroke-error",
           )}
         />
       </svg>
@@ -179,24 +183,6 @@ export function Segmented<T extends string>(props: {
   );
 }
 
-export function Chip(props: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={props.active}
-      onClick={props.onClick}
-      className={cn(
-        "rounded-full border px-3 py-1 text-xs font-medium transition-colors motion-reduce:transition-none",
-        props.active
-          ? "border-primary/40 bg-primary/10 text-primary"
-          : "border-transparent bg-muted text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {props.children}
-    </button>
-  );
-}
-
 /** Filled line chart with a baseline, three guide lines and optional dashed limit lines. */
 export function AreaChart(props: {
   values: ReadonlyArray<number | null>;
@@ -223,7 +209,7 @@ export function AreaChart(props: {
           <svg
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="none"
-            className="size-full text-primary"
+            className="size-full text-state"
             role="img"
             aria-label="History chart"
           >
@@ -253,7 +239,7 @@ export function AreaChart(props: {
                   x2={width}
                   y1={y(mark.value)}
                   y2={y(mark.value)}
-                  className={mark.level === "critical" ? "stroke-destructive" : "stroke-warning"}
+                  className={mark.level === "critical" ? "stroke-error" : "stroke-warning"}
                   strokeWidth="1"
                   strokeDasharray="3 3"
                   vectorEffect="non-scaling-stroke"
@@ -320,7 +306,7 @@ export function Stepper(props: {
         <div
           className={cn(
             "text-[10px] font-medium uppercase tracking-wide",
-            props.tone === "warning" ? "text-warning" : "text-destructive",
+            props.tone === "warning" ? "text-warning" : "text-error",
           )}
         >
           {props.label}
