@@ -208,8 +208,8 @@ export function releaseNotes(
   });
   return (
     (post
-      ? `${post.trim()}\n\n## Patch notes\n\n${editorialNotes || "No patch notes were provided for this update.\n"}`
-      : `# ${version}${development ? " · Development" : ""}\n\n${bullets(highlights.length ? highlights : [extra.length ? "Additional changes are listed below." : "No patch notes were provided for this update."])}\n`) +
+      ? `${post.trim()}\n\n## Patch notes\n\n${editorialNotes || "Internal improvements only. Nothing new to see in this update.\n"}`
+      : `# ${version}${development ? " · Development" : ""}\n\n${bullets(highlights.length ? highlights : [extra.length ? "Additional changes are listed below." : "Internal improvements only. Nothing new to see in this update."])}\n`) +
     ((post ? postDetails : extra).length
       ? `\n## Details\n${bullets(post ? postDetails : extra)}\n`
       : "") +

@@ -33,7 +33,7 @@ Standard for Leonidas, Scribe and anything Jake builds. Adapted from Keep a Chan
 - Start with a verb in past tense: `Added`, `Improved`, `Fixed` (also `Changed`, `Removed`). Active voice. User-visible outcome first, cause never.
 - 8 to 18 words. One idea per bullet; two outcomes become two bullets or one is dropped.
 - Say what the user sees in the app (the reply label, the update popup, the usage panel), not what you edited. No file names, function names, package names, commit jargon, PR numbers or internal terms (`provider-core`, `RPC`, `contract`, `projection`, `CI`).
-- Max 5 highlight bullets per release. Merge related ones or drop the weakest; never pad. A release without curated notes gets `No patch notes were provided for this update.`; do not invent a reliability improvement. Detail-only releases point readers to the additional changes.
+- Max 5 highlight bullets per release. Merge related ones or drop the weakest; never pad. A release with only internal changes gets `Internal improvements only. Nothing new to see in this update.`; do not invent a reliability improvement. The merge queue blocks a user-visible change that has no note, so this line never hides a missed note. Detail-only releases point readers to the additional changes.
 - Internal-only work (CI, refactors, tests, docs, dependency bumps) gets no bullet.
 - Never claim what you did not run and see work. Unverified means no bullet.
 - A change that needs the user to act (restart, re-sign-in, reinstall) says so in the bullet.
