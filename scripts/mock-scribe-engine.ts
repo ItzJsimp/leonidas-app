@@ -79,6 +79,24 @@ function pick<T>(rng: () => number, list: readonly T[]): T {
   return list[Math.floor(rng() * list.length)] as T;
 }
 
+/** A suggestion with the v1.7 example: the same sentence heard with `wrong` and written with `correct`. */
+function suggestion(
+  wrong: string,
+  correct: string,
+  count: number,
+  before: string,
+  after: string,
+  heard = wrong,
+) {
+  const heardLine = { before, changed: heard, after };
+  return {
+    wrong,
+    correct,
+    count,
+    example: { heard: heardLine, wrote: { ...heardLine, changed: correct } },
+  };
+}
+
 function makeTexts(rng: () => number): { rawText: string; cleanedText: string; words: number } {
   const count = 1 + Math.floor(rng() * 3);
   const parts: string[] = [];
@@ -259,9 +277,16 @@ export async function startMockScribeEngine(
   const mined = options.empty
     ? []
     : [
-        { wrong: "jersey", correct: "Gersi", count: 5 },
-        { wrong: "leo nightness", correct: "Leonidas", count: 3 },
-        { wrong: "cooper netties", correct: "Kubernetes", count: 2 },
+        suggestion("jersey", "Gersi", 5, "I talked to ", " today about the new demo"),
+        suggestion(
+          "leo nightness",
+          "Leonidas",
+          3,
+          "",
+          " is ready to ship the update",
+          "Leo nightness",
+        ),
+        suggestion("cooper netties", "Kubernetes", 2, "Deploy the service to ", " before lunch"),
       ];
   const rejected = new Set<string>();
 

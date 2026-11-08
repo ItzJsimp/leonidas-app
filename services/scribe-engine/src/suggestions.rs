@@ -8,10 +8,14 @@
 //! misheard words, so the correct run must hold a term: a name or a coined word. A term has
 //! an inner capital or a digit (`GitHub`, `v1.2`), or a capital that is not only there because
 //! a sentence starts (`Gersi` mid-sentence, or a word never written in lower case anywhere).
+//!
+//! Each suggestion carries one example from the newest dictation that holds the fix: a few
+//! words around the run, as heard (raw) and as written (cleaned).
 
 use crate::config::write_atomic;
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -20,12 +24,68 @@ pub const MAX_ITEMS: usize = 50;
 const MAX_RUN: usize = 3;
 /// Longer dictations are skipped: the word alignment is quadratic.
 const MAX_WORDS: usize = 400;
+/// Words kept on each side of the changed run in an example.
+const CONTEXT: usize = 6;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Suggestion {
     pub wrong: String,
     pub correct: String,
     pub count: u32,
+    pub example: Example,
+}
+
+/// The same words in the raw and in the cleaned text of one dictation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Example {
+    pub heard: Excerpt,
+    pub wrote: Excerpt,
+}
+
+/// A cut of text in three parts, so a UI can mark `changed`: `before + changed + after` is the
+/// text. Each side that was cut short carries an ellipsis. Edge punctuation is dropped.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Excerpt {
+    pub before: String,
+    pub changed: String,
+    pub after: String,
+}
+
+/// One replaced run: the words (`wrong` in lower case, `correct` as written) and where they sit
+/// in the raw and in the cleaned word lists.
+#[derive(Debug, PartialEq, Eq)]
+struct Run {
+    wrong: String,
+    correct: String,
+    heard: Range<usize>,
+    wrote: Range<usize>,
+}
+
+/// `run` and up to `CONTEXT` words on each side of it.
+fn excerpt(words: &[&str], run: Range<usize>) -> Excerpt {
+    let from = run.start.saturating_sub(CONTEXT);
+    let to = (run.end + CONTEXT).min(words.len());
+    let mut before = String::new();
+    if from > 0 {
+        before.push_str("\u{2026} ");
+    }
+    for word in &words[from..run.start] {
+        before.push_str(word);
+        before.push(' ');
+    }
+    let mut after = String::new();
+    for word in &words[run.end..to] {
+        after.push(' ');
+        after.push_str(word);
+    }
+    if to < words.len() {
+        after.push_str(" \u{2026}");
+    }
+    Excerpt {
+        before,
+        changed: words[run].join(" "),
+        after,
+    }
 }
 
 /// Words without edge punctuation. Inner `'`, `-` and `.` stay (`don't`, `e-mail`, `v1.2`).
@@ -71,14 +131,10 @@ fn is_term(word: &str, sentence_start: bool, lower: &HashSet<String>) -> bool {
         || (first_upper && (!sentence_start || !lower.contains(&word.to_lowercase())))
 }
 
-/// The replaced runs between `raw` and `cleaned`, as (wrong in lower case, correct as written).
+/// The replaced runs between `raw` and `cleaned`.
 /// With `lower`, only runs whose correct side holds a term are kept. `None` keeps all (the old
 /// rule, for the before and after report).
-fn replacements(
-    raw: &str,
-    cleaned: &str,
-    lower: Option<&HashSet<String>>,
-) -> Vec<(String, String)> {
+fn replacements(raw: &str, cleaned: &str, lower: Option<&HashSet<String>>) -> Vec<Run> {
     let a = words(raw);
     let (b, starts) = words_with_starts(cleaned);
     if a.len() > MAX_WORDS || b.len() > MAX_WORDS {
@@ -106,7 +162,12 @@ fn replacements(
         let (removed, added) = (i - from_i, j - from_j);
         let term = lower.is_none_or(|lower| (from_j..j).any(|k| is_term(b[k], starts[k], lower)));
         if (1..=MAX_RUN).contains(&removed) && (1..=MAX_RUN).contains(&added) && term {
-            out.push((la[from_i..i].join(" "), b[from_j..j].join(" ")));
+            out.push(Run {
+                wrong: la[from_i..i].join(" "),
+                correct: b[from_j..j].join(" "),
+                heard: from_i..i,
+                wrote: from_j..j,
+            });
         }
     };
     while i < la.len() || j < lb.len() {
@@ -149,22 +210,34 @@ fn mine_all<'a>(
         .filter(|w| w.chars().any(char::is_lowercase) && !w.chars().any(char::is_uppercase))
         .map(str::to_owned)
         .collect();
-    let mut counts: HashMap<(String, String), u32> = HashMap::new();
+    // The history is newest first, so the first dictation with a fix gives its example.
+    let mut counts: HashMap<(String, String), (u32, Example)> = HashMap::new();
     for (raw, cleaned) in pairs {
         let mut seen = BTreeSet::new();
-        for pair in replacements(raw, cleaned, terms.then_some(&lower)) {
-            if seen.insert(pair.clone()) {
-                *counts.entry(pair).or_default() += 1;
+        for run in replacements(raw, cleaned, terms.then_some(&lower)) {
+            let key = (run.wrong, run.correct);
+            if seen.insert(key.clone()) {
+                counts
+                    .entry(key)
+                    .or_insert_with(|| {
+                        let example = Example {
+                            heard: excerpt(&words(raw), run.heard),
+                            wrote: excerpt(&words(cleaned), run.wrote),
+                        };
+                        (0, example)
+                    })
+                    .0 += 1;
             }
         }
     }
     let mut items: Vec<Suggestion> = counts
         .into_iter()
-        .filter(|((wrong, _), count)| *count >= MIN_COUNT && !known(wrong))
-        .map(|((wrong, correct), count)| Suggestion {
+        .filter(|((wrong, _), (count, _))| *count >= MIN_COUNT && !known(wrong))
+        .map(|((wrong, correct), (count, example))| Suggestion {
             wrong,
             correct,
             count,
+            example,
         })
         .collect();
     items.sort_by(|a, b| {
@@ -217,12 +290,16 @@ impl Rejects {
 mod tests {
     use super::*;
 
-    fn s(wrong: &str, correct: &str, count: u32) -> Suggestion {
-        Suggestion {
-            wrong: wrong.into(),
-            correct: correct.into(),
-            count,
-        }
+    fn s(wrong: &str, correct: &str, count: u32) -> (String, String, u32) {
+        (wrong.into(), correct.into(), count)
+    }
+
+    /// The suggestions without their examples.
+    fn plain(items: Vec<Suggestion>) -> Vec<(String, String, u32)> {
+        items
+            .into_iter()
+            .map(|item| (item.wrong, item.correct, item.count))
+            .collect()
     }
 
     #[test]
@@ -235,7 +312,7 @@ mod tests {
             ("the weather is nice", "The weather is nice."),
         ];
         assert_eq!(
-            mine(pairs, |_| false),
+            plain(mine(pairs, |_| false)),
             [s("jersey", "Gersi", 3), s("leo nightness", "Leonidas", 2)]
         );
     }
@@ -273,7 +350,7 @@ mod tests {
             ("open the cribe tab", "Open the Scribe tab."),
             ("the cribe tab works", "The Scribe tab works."),
         ];
-        assert_eq!(mine(pairs, |_| false), [s("cribe", "Scribe", 2)]);
+        assert_eq!(plain(mine(pairs, |_| false)), [s("cribe", "Scribe", 2)]);
     }
 
     #[test]
@@ -336,6 +413,55 @@ mod tests {
         for item in after.iter().take(20) {
             println!("  {} {:?} -> {:?}", item.count, item.wrong, item.correct);
         }
+    }
+
+    #[test]
+    fn a_suggestion_carries_an_example_from_the_newest_dictation() {
+        let pairs = [
+            (
+                "i talked to jersey today about the new demo and it went well for everyone there",
+                "I talked to Gersi today about the new demo and it went well for everyone there.",
+            ),
+            ("jersey said hi", "Gersi said hi."),
+            (
+                "one two three four five six seven eight jersey",
+                "One two three four five six seven eight Gersi.",
+            ),
+        ];
+        let items = mine(pairs, |_| false);
+        let cut = " today about the new demo and \u{2026}";
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            items[0].example,
+            Example {
+                heard: Excerpt {
+                    before: "i talked to ".into(),
+                    changed: "jersey".into(),
+                    after: cut.into(),
+                },
+                wrote: Excerpt {
+                    before: "I talked to ".into(),
+                    changed: "Gersi".into(),
+                    after: cut.into(),
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn an_example_marks_a_cut_start_and_end_and_keeps_a_multi_word_run() {
+        let words = [
+            "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n",
+        ];
+        let middle = excerpt(&words, 7..9);
+        assert_eq!(middle.before, "\u{2026} b c d e f g ");
+        assert_eq!(middle.changed, "h i");
+        assert_eq!(middle.after, " j k l m n");
+        let last = excerpt(&words, 12..14);
+        assert_eq!((last.changed.as_str(), last.after.as_str()), ("m n", ""));
+        let first = excerpt(&words, 0..1);
+        assert_eq!(first.before, "");
+        assert_eq!(first.after, " b c d e f g \u{2026}");
     }
 
     #[test]

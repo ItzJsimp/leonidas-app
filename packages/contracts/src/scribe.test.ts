@@ -121,6 +121,28 @@ describe("dictionary contract", () => {
     ).toHaveLength(1);
   });
 
+  it("decodes a suggestion with or without its v1.7 example", () => {
+    const line = { before: "I talked to ", changed: "jersey", after: " today" };
+    const [older, newer] = decodeSuggestions({
+      items: [
+        { wrong: "jersey", correct: "Gersi", count: 3 },
+        {
+          wrong: "jersey",
+          correct: "Gersi",
+          count: 3,
+          example: { heard: line, wrote: { ...line, changed: "Gersi" } },
+        },
+      ],
+    }).items;
+    expect(older?.example).toBeUndefined();
+    expect(newer?.example?.wrote.changed).toBe("Gersi");
+    expect(() =>
+      decodeSuggestions({
+        items: [{ wrong: "a", correct: "b", count: 2, example: { heard: line } }],
+      }),
+    ).toThrow();
+  });
+
   it("rejects more than 800 vocabulary words, as the engine does", () => {
     const words = Array.from({ length: 801 }, (_, index) => `w${index}`);
     expect(() => decodeDictionary({ replacements: [], vocabulary: words })).toThrow();

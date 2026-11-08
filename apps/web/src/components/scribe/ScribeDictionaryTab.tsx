@@ -2,7 +2,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
-import type { ScribeDictionary } from "@t3tools/contracts";
+import type { ScribeDictionary, ScribeSuggestionList } from "@t3tools/contracts";
 import { CheckIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
@@ -43,6 +43,7 @@ import { Meter } from "./StatsParts";
 import { formatCount, percentOf } from "./stats.logic";
 import { WordSyncRow } from "./WordSyncRow";
 import { EmptyLine, FixesPane, SelectionBar, plural, toggled } from "./DictionaryList";
+import { SuggestionExample } from "./SuggestionExample";
 
 type Pane = "fixes" | "words" | "suggestions";
 type Replacement = ScribeDictionary["replacements"][number];
@@ -425,12 +426,12 @@ function WordsPane(props: {
 }
 
 function SuggestionsPane(props: {
-  readonly items: readonly { wrong: string; correct: string; count: number }[];
+  readonly items: ScribeSuggestionList["items"];
   readonly loading: boolean;
   readonly failed: boolean;
   readonly busy: boolean;
   readonly onRefresh: () => void;
-  readonly onAccept: (item: { wrong: string; correct: string; count: number }) => Promise<void>;
+  readonly onAccept: (item: ScribeSuggestionList["items"][number]) => Promise<void>;
   readonly onReject: (item: { wrong: string }) => void;
 }) {
   if (props.loading) return <DictionarySkeleton />;
@@ -471,7 +472,15 @@ function SuggestionsPane(props: {
                   <span className="sr-only"> becomes </span>
                   <span className="font-medium">“{item.correct}”</span>
                 </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{suggestionWhy(item.count)}</p>
+                {item.example ? <SuggestionExample example={item.example} /> : null}
+                <p
+                  className={cn(
+                    "text-xs text-muted-foreground",
+                    item.example ? "mt-1.5" : "mt-0.5",
+                  )}
+                >
+                  {suggestionWhy(item.count)}
+                </p>
               </div>
               <IconButton
                 label={`Accept: always change “${item.wrong}” to “${item.correct}”`}
