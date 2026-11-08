@@ -45,7 +45,6 @@ const { stub } = vi.hoisted(() => ({
 }));
 vi.mock("../VoiceStep", stub("VoiceStep"));
 vi.mock("../AiLevelStep", stub("AiLevelStep"));
-vi.mock("../ApiKeysStep", stub("ApiKeysStep"));
 vi.mock("../LeonidasSkillsStep", stub("LeonidasSkillsStep"));
 vi.mock("../LeonidasLayaStep", stub("LeonidasLayaStep"));
 vi.mock("../AgentsStep", () => ({ AgentsStep: () => null }));
@@ -112,7 +111,7 @@ it("marks an item done from its step, and the meter grows", async () => {
   await act(async () => button("Start: Turn on voice").click());
   await act(async () => button("finish VoiceStep").click());
   expect(container.textContent).not.toContain("I can't hear you yet.");
-  expect(container.querySelector('[role="meter"]')?.getAttribute("aria-valuenow")).toBe("15");
+  expect(container.querySelector('[role="meter"]')?.getAttribute("aria-valuenow")).toBe("20");
 });
 
 it("runs the tour once after setup, and again on request", async () => {

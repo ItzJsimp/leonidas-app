@@ -40,7 +40,6 @@ import { Dialog, DialogPanel, DialogPopup, DialogTitle } from "../../ui/dialog";
 import { Spinner } from "../../ui/spinner";
 import { AgentsStep } from "../AgentsStep";
 import { AiLevelStep } from "../AiLevelStep";
-import { ApiKeysStep } from "../ApiKeysStep";
 import { LeonidasLayaStep } from "../LeonidasLayaStep";
 import { LeonidasSkillsStep } from "../LeonidasSkillsStep";
 import { VoiceStep } from "../VoiceStep";
@@ -261,8 +260,6 @@ function ItemPanel({
       return <VoiceStep {...step} />;
     case "level":
       return <AiLevelStep {...step} />;
-    case "keys":
-      return <ApiKeysStep {...step} />;
     case "skills":
       return <LeonidasSkillsStep {...step} />;
     case "laya":

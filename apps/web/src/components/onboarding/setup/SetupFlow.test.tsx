@@ -103,7 +103,7 @@ it("enters the app with every optional step skipped, and lists each skip", async
   expect(state.startedAt).not.toBeNull();
   const open = openSetupItems(state).map((item) => item.id);
   expect(open).not.toContain("basics");
-  for (const id of ["account", "questions", "interview", "import", "voice", "keys", "skills"]) {
+  for (const id of ["account", "questions", "interview", "import", "voice", "skills"]) {
     expect(open).toContain(id);
   }
 });

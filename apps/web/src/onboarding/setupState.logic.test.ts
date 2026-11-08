@@ -34,10 +34,9 @@ describe("brainScore", () => {
       account: 20,
       questions: 0,
       interview: 20,
-      voice: 5,
+      voice: 10,
       import: 10,
       skills: 5,
-      keys: 5,
     });
   });
 

@@ -14,7 +14,6 @@ export type SetupItemId =
   | "import"
   | "voice"
   | "level"
-  | "keys"
   | "skills"
   | "laya";
 
@@ -31,7 +30,8 @@ export const QUESTION_POINTS = 5;
 /** The 4 asked quick questions plus the default answer style (quickAnswerCount). */
 export const QUICK_QUESTION_COUNT = 5;
 
-/** Checklist order. Weights settled by Jake on 2026-10-20; they sum to 100 with the questions. */
+/** Checklist order. Weights settled by Jake on 2026-10-20; they sum to 100 with the questions.
+ * 2026-11-07: the duplicate Groq "keys" item is gone, and its 5 points moved to voice (Jake). */
 export const SETUP_ITEMS: readonly SetupItem[] = [
   {
     id: "basics",
@@ -58,18 +58,12 @@ export const SETUP_ITEMS: readonly SetupItem[] = [
     ability: "I don't know what your other AI knows about you yet.",
     points: 10,
   },
-  { id: "voice", label: "Turn on voice", ability: "I can't hear you yet.", points: 5 },
+  { id: "voice", label: "Turn on voice", ability: "I can't hear you yet.", points: 10 },
   {
     id: "level",
     label: "Pick your AI level",
     ability: "I don't know how much to explain yet.",
     points: 0,
-  },
-  {
-    id: "keys",
-    label: "Add keys for other services",
-    ability: "I can't reach your other services yet.",
-    points: 5,
   },
   {
     id: "skills",
