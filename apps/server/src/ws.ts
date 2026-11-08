@@ -19,6 +19,7 @@ import { listSubagents, subagentSources } from "./subagents/subagentCatalog.ts";
 import { subagentWorkspaceProjects } from "./subagents/workspaceProjects.ts";
 import { createStudioSubagent, updateStudioSubagent } from "./subagents/subagentStudioWrites.ts";
 import { appendDraft, feedStream } from "./events/eventsRpc.ts";
+import * as AutomationService from "./automations/AutomationService.ts";
 import * as MarketingRpc from "./marketing/marketingRpc.ts";
 import * as ContentRpc from "./content/contentRpc.ts";
 import * as HardwareWatch from "./hardwareWatch/HardwareWatch.ts";
@@ -1353,6 +1354,7 @@ const layerWsRpc = (
       const scribeSupervisor = yield* ScribeSupervisor.ScribeSupervisor;
       const voice = yield* VoiceDictation.VoiceDictation;
       const voiceKeys = yield* VoiceKeyStore.VoiceKeyStore;
+      const automations = yield* AutomationService.AutomationService;
       const deviceService = yield* DeviceService.DeviceService;
       const deviceHostContext =
         yield* Effect.context<Effect.Services<ReturnType<typeof remoteSshDeviceHosts>>>();
@@ -2992,6 +2994,10 @@ const layerWsRpc = (
               Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
             ),
           ),
+        [WS_METHODS.automationsList]: (input) => automations.list(input.workspaceId),
+        [WS_METHODS.automationsSetEnabled]: (input) => automations.setEnabled(input),
+        [WS_METHODS.automationsSetSchedule]: (input) => automations.setSchedule(input),
+        [WS_METHODS.automationsRunNow]: (input) => automations.runNow(input),
         [WS_METHODS.eventsAppend]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.orElseSucceed(() => []),

@@ -73,6 +73,7 @@ export * from "./laya.ts";
 export * from "./hardwareWatch.ts";
 export * from "./calendar.ts";
 export * from "./events.ts";
+export * from "./automations.ts";
 export * from "./marketing.ts";
 export * from "./content.ts";
 export * from "./savedItem.ts";

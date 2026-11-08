@@ -7,6 +7,7 @@ import * as AttachmentArchive from "./files/AttachmentArchive.ts";
 import * as SubagentRuns from "./subagents/SubagentRuns.ts";
 import * as TaskAutoLog from "./taskBoard/TaskAutoLog.ts";
 import * as AiosChangeLog from "./events/AiosChangeLog.ts";
+import * as AutomationService from "./automations/AutomationService.ts";
 import * as TaskBoardService from "./taskBoard/TaskBoardService.ts";
 import * as AreaSyncService from "./areaSync/AreaSyncService.ts";
 import * as PromptPrediction from "./workspace/PromptPrediction.ts";
@@ -621,6 +622,8 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
     Layer.provide(ProjectionStoreV2.layer),
     Layer.provide(ProcessRunner.layer),
   ),
+  // Built-in watchers and the frontier digest: scripts on a schedule, free engines only.
+  AutomationService.layer,
   // One aios.changed event per agent turn that changed AIOS files (ADR-0087).
   Layer.effectDiscard(AiosChangeLog.make.pipe(Effect.flatMap((service) => service.start()))).pipe(
     Layer.provide(ProjectionStoreV2.layer),

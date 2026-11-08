@@ -34,6 +34,16 @@ import {
 } from "./content.ts";
 import { EventsAppendInput, EventsSubscribeInput, FeedEventError, FeedUpdate } from "./events.ts";
 import {
+  AutomationError,
+  AutomationsListInput,
+  AutomationsListResult,
+  AutomationsRunNowInput,
+  AutomationsRunNowResult,
+  AutomationsSetEnabledInput,
+  AutomationsSetScheduleInput,
+  AutomationEntry,
+} from "./automations.ts";
+import {
   McpAppCallToolInput,
   McpAppCallToolResult,
   McpAppReadResourceInput,
@@ -727,6 +737,10 @@ export const WS_METHODS = {
   focusSubscribe: "focus.subscribe",
   eventsSubscribe: "events.subscribe",
   eventsAppend: "events.append",
+  automationsList: "automations.list",
+  automationsSetEnabled: "automations.setEnabled",
+  automationsSetSchedule: "automations.setSchedule",
+  automationsRunNow: "automations.runNow",
   marketingList: "marketing.list",
   marketingDecide: "marketing.decide",
   contentList: "content.list",
@@ -2162,6 +2176,34 @@ const WsEventsAppendRpc = Rpc.make(WS_METHODS.eventsAppend, {
   error: Schema.Union([FeedEventError, EnvironmentAuthorizationError]),
 });
 
+/** Everything that runs by itself: app watchers plus the AIOS automation register. */
+const WsAutomationsListRpc = Rpc.make(WS_METHODS.automationsList, {
+  payload: AutomationsListInput,
+  success: AutomationsListResult,
+  error: Schema.Union([AutomationError, EnvironmentAuthorizationError]),
+});
+
+/** Starts or stops one app automation. */
+const WsAutomationsSetEnabledRpc = Rpc.make(WS_METHODS.automationsSetEnabled, {
+  payload: AutomationsSetEnabledInput,
+  success: AutomationEntry,
+  error: Schema.Union([AutomationError, EnvironmentAuthorizationError]),
+});
+
+/** Changes when one app automation runs. */
+const WsAutomationsSetScheduleRpc = Rpc.make(WS_METHODS.automationsSetSchedule, {
+  payload: AutomationsSetScheduleInput,
+  success: AutomationEntry,
+  error: Schema.Union([AutomationError, EnvironmentAuthorizationError]),
+});
+
+/** Runs one app automation now. A dry run sends no event and writes no file. */
+const WsAutomationsRunNowRpc = Rpc.make(WS_METHODS.automationsRunNow, {
+  payload: AutomationsRunNowInput,
+  success: AutomationsRunNowResult,
+  error: Schema.Union([AutomationError, EnvironmentAuthorizationError]),
+});
+
 /** Reads the Marketing screens: the queue, the posts and the metrics of the open workspace. */
 const WsMarketingListRpc = Rpc.make(WS_METHODS.marketingList, {
   payload: MarketingListInput,
@@ -3475,6 +3517,10 @@ export const WsRpcGroup = RpcGroup.make(
   WsFocusSubscribeRpc,
   WsEventsSubscribeRpc,
   WsEventsAppendRpc,
+  WsAutomationsListRpc,
+  WsAutomationsSetEnabledRpc,
+  WsAutomationsSetScheduleRpc,
+  WsAutomationsRunNowRpc,
   WsMarketingListRpc,
   WsMarketingDecideRpc,
   WsContentListRpc,
