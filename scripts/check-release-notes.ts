@@ -2,7 +2,12 @@
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
-import { readCommits, type ReleaseCommit, type ReleaseKind } from "./leonidas-release.ts";
+import {
+  classifyRelease,
+  readCommits,
+  type ReleaseCommit,
+  type ReleaseKind,
+} from "./leonidas-release.ts";
 
 export interface NotesCheck {
   ok: boolean;
@@ -119,12 +124,14 @@ export function checkReleaseNotes(input: {
 }
 
 function main() {
-  const [range = "-1", kind = "patch"] = process.argv.slice(2);
-  if (!["patch", "minor", "major", "launch"].includes(kind))
+  // `auto` picks the kind the release script would pick, so the queue and the publisher agree.
+  const [range = "-1", kind = "auto"] = process.argv.slice(2);
+  if (!["auto", "patch", "minor", "major", "launch"].includes(kind))
     throw new Error("Unknown release kind");
+  const commits = readCommits(range);
   const result = checkReleaseNotes({
-    commits: readCommits(range),
-    kind: kind as ReleaseKind,
+    commits,
+    kind: kind === "auto" ? classifyRelease(commits) : (kind as ReleaseKind),
     root: process.cwd(),
   });
   if (result.ok) {
@@ -132,7 +139,8 @@ function main() {
     return;
   }
   console.log(
-    `FAIL: release notes for ${range}\n${result.reasons.map((r) => `- ${r}`).join("\n")}`,
+    `FAIL: release notes for ${range}\n${result.reasons.map((r) => `- ${r}`).join("\n")}\n` +
+      "Fix: add a plain `Release-Note: <Added|Improved|Fixed|Changed|Removed> ...` trailer to each user-visible commit (see .agents/skills/leonidas-release/SKILL.md), or `Release-Note: none` for internal work.",
   );
   process.exitCode = 1;
 }
