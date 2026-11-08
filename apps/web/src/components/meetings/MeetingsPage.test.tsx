@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 const mocks = vi.hoisted(() => ({
   discord: { configured: true, connected: true, user: { username: "Jake" } } as unknown,
   call: vi.fn(),
+  items: [] as unknown[],
+  templatesFail: false,
 }));
 
 vi.mock("~/state/environments", () => ({ usePrimaryEnvironmentId: () => "env" }));
@@ -45,8 +47,23 @@ let container: HTMLDivElement;
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  mocks.items = [item];
+  mocks.templatesFail = false;
+  mocks.call.mockReset();
   mocks.call.mockImplementation(async (_method: string, path: string) => {
-    if (path === "") return { ok: true, value: { items: [item] } };
+    if (path === "") return { ok: true, value: { items: mocks.items } };
+    if (path === "templates")
+      return mocks.templatesFail
+        ? { ok: false, message: "The engine is not available." }
+        : {
+            ok: true,
+            value: {
+              items: [
+                { id: "default", name: "Standard notes" },
+                { id: "brainstorm", name: "Brainstorm" },
+              ],
+            },
+          };
     if (path === "discord") return { ok: true, value: mocks.discord };
     if (path === "a") return { ok: true, value: detail };
     return { ok: true, value: {} };
@@ -75,7 +92,124 @@ const tab = (name: string) =>
     (el) => el.textContent === name,
   );
 
+async function confirmNotes() {
+  const write = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+    (el) => el.textContent === "Write notes again",
+  );
+  await act(async () => write?.click());
+  const confirm = [
+    ...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button'),
+  ].find((el) => el.textContent === "Write notes");
+  await act(async () => confirm?.click());
+}
+
 describe("MeetingsPage", () => {
+  it("refreshes notes when a same-template run finishes before the next poll", async () => {
+    let updated = false;
+    const original = mocks.call.getMockImplementation()!;
+    mocks.call.mockImplementation(async (method: string, path: string, body: unknown) => {
+      if (method === "POST" && path === "a/summary") {
+        updated = true;
+        return { ok: true, value: {} };
+      }
+      if (path === "a" && updated)
+        return {
+          ok: true,
+          value: { ...detail, note: { ...detail.note, summary: ["Updated meeting notes."] } },
+        };
+      return original(method, path, body);
+    });
+    await show();
+    await confirmNotes();
+    expect(text()).toContain("Updated meeting notes.");
+    expect(text()).not.toContain("We agreed on the plan.");
+  });
+
+  it("keeps saved notes when writing notes fails", async () => {
+    const original = mocks.call.getMockImplementation()!;
+    mocks.call.mockImplementation(async (method: string, path: string, body: unknown) =>
+      method === "POST" && path === "a/summary"
+        ? { ok: false, message: "The engine is not available." }
+        : original(method, path, body),
+    );
+    await show();
+    await confirmNotes();
+    expect(text()).toContain("We agreed on the plan.");
+  });
+
+  it("moves keyboard focus into the narrow reader and back to the selected meeting", async () => {
+    vi.stubGlobal("innerWidth", 390);
+    await show();
+    const row = container.querySelector<HTMLButtonElement>('nav button[aria-current="true"]');
+    await act(async () => {
+      row?.focus();
+      row?.click();
+    });
+    const back = container.querySelector<HTMLButtonElement>(
+      'button[title="Back to the Meetings list."]',
+    );
+    expect(document.activeElement).toBe(back);
+    await act(async () => back?.click());
+    expect(document.activeElement).toBe(row);
+  });
+  it("selects a template without writing notes, then sends it with Write notes again", async () => {
+    await show();
+    const picker = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Notes template: Standard notes"]',
+    );
+    expect(picker).not.toBeNull();
+    await act(async () => picker?.click());
+    const choice = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find(
+      (el) => el.textContent?.includes("Brainstorm"),
+    );
+    expect(choice).toBeDefined();
+    await act(async () => choice?.click());
+    expect(mocks.call.mock.calls.filter(([method]) => method === "POST")).toEqual([]);
+    const write = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (el) => el.textContent === "Write notes again",
+    );
+    await act(async () => write?.click());
+    expect(mocks.call.mock.calls.filter(([method]) => method === "POST")).toEqual([]);
+    expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain(
+      "Estimated cost: $0",
+    );
+    const confirm = [
+      ...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button'),
+    ].find((el) => el.textContent === "Write notes");
+    await act(async () => confirm?.click());
+    expect(mocks.call).toHaveBeenCalledWith("POST", "a/summary", { template: "brainstorm" });
+  });
+
+  it("lets the user retry loading templates without hiding saved notes", async () => {
+    mocks.templatesFail = true;
+    await show();
+    expect(text()).toContain("We agreed on the plan.");
+    expect(text()).toContain("Templates could not load.");
+    mocks.templatesFail = false;
+    const retry = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (el) => el.textContent === "Retry templates",
+    );
+    await act(async () => retry?.click());
+    expect(
+      container.querySelector('button[aria-label="Notes template: Standard notes"]'),
+    ).not.toBeNull();
+  });
+  it("filters meetings and restores them with Clear filters", async () => {
+    mocks.items = [item, { ...item, id: "b", title: "Client call", app: "Zoom", pinned: true }];
+    await show();
+    const button = (name: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>("nav button")].find((el) =>
+        el.textContent?.startsWith(name),
+      );
+    expect(text()).toContain("Client call");
+    await act(async () => button("Discord")?.click());
+    expect(text()).not.toContain("Client call");
+    await act(async () => button("Kept audio")?.click());
+    expect(text()).toContain("No meetings match");
+    await act(async () => button("Clear filters")?.click());
+    expect(text()).toContain("Client call");
+    expect(button("All")?.getAttribute("aria-pressed")).toBe("true");
+  });
   it("shows Summary first and the transcript on its own tab", async () => {
     await show();
     expect(tab("summary")?.getAttribute("aria-selected")).toBe("true");

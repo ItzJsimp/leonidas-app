@@ -15,6 +15,12 @@ export interface MeetingSummary {
   readonly notesState: "working" | "done" | "failed" | null;
   readonly notesError: string | null;
   readonly transcribeError: string | null;
+  readonly template: string;
+}
+
+export interface MeetingTemplate {
+  readonly id: string;
+  readonly name: string;
 }
 
 export interface MeetingSegment {
@@ -68,11 +74,24 @@ function parseSummary(raw: unknown): MeetingSummary | null {
     notesState: notes === "working" || notes === "done" || notes === "failed" ? notes : null,
     notesError: textOrNull(row.notesError),
     transcribeError: textOrNull(row.transcribeError),
+    template: textOrNull(row.template) ?? "default",
   };
 }
 
 export function parseMeetingList(raw: unknown): readonly MeetingSummary[] {
   return list(record(raw).items).flatMap((item) => parseSummary(item) ?? []);
+}
+
+export function parseMeetingTemplates(raw: unknown): readonly MeetingTemplate[] {
+  const seen = new Set<string>();
+  return list(record(raw).items).flatMap((value) => {
+    const row = record(value);
+    const id = text(row.id).trim();
+    const name = text(row.name).trim();
+    if (id === "" || name === "" || seen.has(id)) return [];
+    seen.add(id);
+    return [{ id, name }];
+  });
 }
 
 /** A note line is a string, or an object with a `text` (decision) or `task` and `owner` (action). */
@@ -191,16 +210,28 @@ export function formatDay(started: string): string {
   return new Date(time).toLocaleString(undefined, { month: "short", day: "numeric" });
 }
 
+export type MeetingFilter = "discord" | "kept" | "missing";
+
 export function filterMeetings(
   items: readonly MeetingSummary[],
   query: string,
+  filters: readonly MeetingFilter[] = [],
 ): readonly MeetingSummary[] {
   const needle = query.trim().toLowerCase();
-  if (needle === "") return items;
-  return items.filter((item) =>
-    [item.title, item.app ?? "", ...item.people].some((part) =>
-      part.toLowerCase().includes(needle),
-    ),
+  if (needle === "" && filters.length === 0) return items;
+  return items.filter(
+    (item) =>
+      filters.every((filter) =>
+        filter === "discord"
+          ? (item.app ?? "").toLowerCase().includes("discord")
+          : filter === "kept"
+            ? item.pinned
+            : !item.hasTranscript,
+      ) &&
+      (needle === "" ||
+        [item.title, item.app ?? "", ...item.people].some((part) =>
+          part.toLowerCase().includes(needle),
+        )),
   );
 }
 
