@@ -30,6 +30,12 @@ export const taskBoardApplyChangeSet = createEnvironmentRpcCommand(connectionAto
   tag: WS_METHODS.taskBoardApplyChangeSet,
 });
 
+/** Sets one project's open-task limit and warning in its project.md. */
+export const taskBoardCapSet = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:task-board:cap-set",
+  tag: WS_METHODS.taskBoardCapSet,
+});
+
 export const taskBoardCardCreate = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:task-board:card-create",
   tag: WS_METHODS.taskBoardCardCreate,

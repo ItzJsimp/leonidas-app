@@ -483,6 +483,8 @@ export function TasksPage() {
                 focus={prefs.focus}
                 counts={counts}
                 onFocus={selectFocus}
+                environmentId={board.environmentId}
+                onCapSaved={board.refresh}
                 {...hiddenProjects}
               />
             </aside>
