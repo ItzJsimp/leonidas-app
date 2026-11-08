@@ -21,6 +21,7 @@ describe("ClaudeAdapterV2 context usage", () => {
       cachedInputTokens: 5_000,
       outputTokens: 1_000,
       reasoningOutputTokens: 0,
+      promptCacheAnchorAt: "2026-08-29T00:00:00.000Z",
       updatedAt: "2026-08-29T00:00:00.000Z",
     });
   });

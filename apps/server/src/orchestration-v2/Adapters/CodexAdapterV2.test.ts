@@ -178,7 +178,6 @@ describe("CodexAdapterV2 context usage", () => {
         modelContextWindow: 200_000,
       },
       "2026-08-29T00:00:00.000Z",
-      "2026-08-28T23:59:00.000Z",
     );
 
     assert.deepEqual(usage, {
@@ -189,7 +188,7 @@ describe("CodexAdapterV2 context usage", () => {
       outputTokens: 5_000,
       reasoningOutputTokens: 1_000,
       promptCacheTtlMs: 30 * 60_000,
-      promptCacheAnchorAt: "2026-08-28T23:59:00.000Z",
+      promptCacheAnchorAt: "2026-08-29T00:00:00.000Z",
       updatedAt: "2026-08-29T00:00:00.000Z",
     });
   });

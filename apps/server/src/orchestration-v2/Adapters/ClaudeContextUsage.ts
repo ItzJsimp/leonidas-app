@@ -25,7 +25,6 @@ export function claudeProviderTurnTokenUsage(
   },
   updatedAt: string,
   reportedContextWindow?: number,
-  promptCacheAnchorAt?: string,
 ) {
   const inputTokens =
     usage.input_tokens +
@@ -48,7 +47,8 @@ export function claudeProviderTurnTokenUsage(
     outputTokens,
     reasoningOutputTokens: 0,
     ...(promptCacheTtlMs === undefined ? {} : { promptCacheTtlMs }),
-    ...(promptCacheAnchorAt === undefined ? {} : { promptCacheAnchorAt }),
+    // Each model call refreshes the cache, so the latest call starts the clock, not the turn.
+    promptCacheAnchorAt: updatedAt,
     updatedAt,
   };
 }

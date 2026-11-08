@@ -199,7 +199,6 @@ const CODEX_PROMPT_CACHE_TTL_MS = 30 * 60_000;
 export function codexProviderTurnTokenUsage(
   tokenUsage: CodexSchema.V2ThreadTokenUsageUpdatedNotification["tokenUsage"],
   updatedAt: string,
-  promptCacheAnchorAt?: string,
 ) {
   return {
     usedTokens: Math.max(0, tokenUsage.last.totalTokens),
@@ -209,7 +208,8 @@ export function codexProviderTurnTokenUsage(
     outputTokens: Math.max(0, tokenUsage.last.outputTokens),
     reasoningOutputTokens: Math.max(0, tokenUsage.last.reasoningOutputTokens),
     promptCacheTtlMs: CODEX_PROMPT_CACHE_TTL_MS,
-    ...(promptCacheAnchorAt === undefined ? {} : { promptCacheAnchorAt }),
+    // Each model call refreshes the cache, so the latest call starts the clock, not the turn.
+    promptCacheAnchorAt: updatedAt,
     updatedAt,
   };
 }
@@ -4430,7 +4430,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 tokenUsage: codexProviderTurnTokenUsage(
                   payload.tokenUsage,
                   DateTime.formatIso(now),
-                  DateTime.formatIso(context.startedAt),
                 ),
                 turnTokenUsage: snapshotCodexTurnTokenUsage(
                   usageStateForThread(payload.threadId),

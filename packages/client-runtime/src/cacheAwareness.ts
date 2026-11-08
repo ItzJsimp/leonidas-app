@@ -4,7 +4,7 @@ export interface CacheObservation {
   readonly cachedInputTokens?: number | null | undefined;
   readonly reportedAt: number;
   readonly ttlMs?: number | undefined;
-  /** Earliest known request time. A turn start is a conservative lower bound. */
+  /** Time of the latest model call. Each call refreshes the cache. */
   readonly anchorAt?: number | undefined;
 }
 export type CacheWarningCategory =
