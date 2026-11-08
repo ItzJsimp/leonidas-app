@@ -139,13 +139,14 @@ Labels are one plain word. Business tabs follow the workspace template flag; Dev
 
 ## Doop workflow
 
-Every visible change goes through Doop before code.
+Every visible change follows the Doop reference. Reuse an approved frame for small edits.
+Follow the [design review limits](.agents/skills/design-build/references/review-budget.md) across all design skills.
 
-1. **Capture.** The agent imports the live screen into the "Leonidas app" Doop canvas, on the page for its surface (Composer, Model picker, Command Center). Page 1, "Design system", holds the tokens and the theme. Frames are `<Surface> · <state>` and layers are `<Role> · <label>` (the doop skill, "Naming").
-2. **Design.** The agent adds 2 or 3 directions as frames of the real screen with real data, on these tokens. Every layer has a `data-doop-name`.
-3. **Jake edits.** Jake looks in the Doop app and picks, edits or asks in plain words. The agent changes frames until Jake approves one.
+1. **Capture.** The agent inspects the live screen and reuses the relevant frame in the "Leonidas app" Doop canvas, on the page for its surface (Composer, Model picker, Command Center). Page 1, "Design system", holds the tokens and the theme. Frames are `<Surface> · <state>` and layers are `<Role> · <label>` (the doop skill, "Naming").
+2. **Design.** Reuse the approved frame for a small edit. For an unresolved layout, compare two directions. Add a third only when asked.
+3. **Jake chooses when needed.** Existing approval covers an unchanged design. Apply feedback to the same frames and keep review images local.
 4. **Record.** The agent saves Jake's words (Doop `save_decision`, the task card), deletes rejected frames and renames the pick `<surface> · your pick`.
 5. **Build.** The agent builds the approved frame with tokens and shared components, never with copied inline styles.
-6. **Prove.** `design-audit` passes from fresh screenshots at 3 sizes. The agent replaces the pick frame with a capture of the built screen.
+6. **Prove.** `design-audit` passes from three local viewport captures. These do not create new Doop frames. Update the chosen frame once with the built screen.
 
 How-to for each step: the `doop` and `design-build` skills.

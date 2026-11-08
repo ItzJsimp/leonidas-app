@@ -17,6 +17,10 @@ license: MIT
 
 # Design Audit
 
+Apply the [design review limits](../design-build/references/review-budget.md).
+Review all states and sizes in one batch. Linked skills share that pass.
+Save screenshots locally; audit sizes do not require new Doop frames or individual chat images.
+
 Decides, with evidence, whether a design is good enough to ship. the user is not a designer, so this skill is the designer's eye: it catches what he would feel is "off" but could not name, and it names it in plain English with the exact fix. A design either PASSES or FAILS; "looks fine" is not a verdict.
 
 Works on anything with a visual surface: web apps and pages, desktop apps (Qt, Electron, Tauri), generated HTML artifacts and dashboards, and documents or PDFs. Impeccable covers web, iOS and Android; desktop Qt checks live here in [`references/qt-audit.md`](references/qt-audit.md).
@@ -49,14 +53,14 @@ Then one table, worst first. The "In plain English" column is mandatory: it is w
 | --- | --- | -------------- | ------------------------------------------------ | ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | 1   | P0  | `voice.py:243` | 8 widgets in one QHBoxLayout, label has no elide | The status line gets chopped off when the window is narrow | Split into a status row and an actions row; elide with the full text in the tooltip |
 
-Then: the screenshots (or their paths), and one line naming the single change with the biggest visible payoff.
+Then: link the saved evidence or chosen frame. Show one combined image only when useful, within the shared image limit.
 
 ## Rules
 
 - **Evidence, not vibes.** Every finding cites a file and line or a screenshot region.
 - **Judge against the resolved canon, not taste.** A deviation from the project's design system is a finding even if it looks nice. A project with no system gets AIOS canon, and that absence is itself a P1 if the project will grow.
 - **Never fix silently during an audit.** Audit reports; build fixes. Mixing them hides what changed.
-- **Re-audit after fixes.** A FAIL becomes PASS only from a fresh set of screenshots.
+- **Confirm after fixes.** Inspect one fresh batch after the combined correction pass. Stop cosmetic iteration after confirmation.
 
 ## Done when
 
