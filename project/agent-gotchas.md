@@ -86,6 +86,14 @@ Moved out of [agent-playbook.md](../agent-playbook.md) so it is not loaded every
 - **Normal-word lists are built, not edited.** `scripts/build-normal-words.ts` makes the two `.gz` files and `NOTICE.md` in `apps/web/src/components/scribe/normal-words/` from the SCOWL generator (app.aspell.net) and the SSA national names zip. `ssa.gov` answers HTTP 403 to scripts, so use the Wayback copy (`web.archive.org/web/2024id_/https://www.ssa.gov/oact/babynames/names.zip`) or a browser download. SCOWL tiers 10 and 20 return no words in the 2026 build: start at size 35.
 - **A "Fine as it is" mark is saved per rule on this computer.** The key is the lowercase wrong spelling plus the right spelling (`fineKey`), in localStorage (`leonidas-code:scribe-fine-fixes:v1`). A new right spelling asks again. Review again clears all marks.
 
+### Automations tab and watchers (2026-11-07)
+
+- **`schtasks /Change` asks for the account password on S4U tasks when it has no console:** a server call waits 30 s, then fails. Use `Enable-ScheduledTask`, `Disable-ScheduledTask`, `Start-ScheduledTask` or `Set-ScheduledTask -InputObject` through `pwsh -NonInteractive`. They keep the stored sign-in.
+- **The Browser panel's default profile can get HTTP 431 from a local dev server:** too many localhost cookies. Open the tab with the incognito profile.
+- **A fresh dev state has no AIOS root, so AIOS features show nothing:** do not use the onboarding folder step against a real AIOS. Run `node apps/server/src/bin.ts project add <aios folder> --base-dir <worktree>/.t3`.
+- **`routeTree.gen.ts` updates only when Vite runs:** a new route file fails typecheck until `vp run dev` or a build regenerates it. Commit the regenerated file.
+- **`vp lint` blocks native `title` tooltips, outset focus rings and restyled `Input` padding:** use the Tooltip component, add `focus-visible:ring-inset`, and keep icons out of `Input`.
+
 ### Older gotchas
 
 - **Watchdog forcefully crashing the renderer causes an infinite reload loop (2026-10-19):** RendererHangRecovery.ts pinged the renderer every 5 s and called webContents.forcefullyCrashRenderer() after 30 s of silence. Under normal load (initial rehydration, history rendering, GC) the renderer's V8 thread pauses or misses pings, triggering the crash. Each crash forces a reload, which incurs another heavy boot, causing another timeout after the 3-minute cooldown, looping forever. Retired: renderers must not be forcefully crashed by a timer.

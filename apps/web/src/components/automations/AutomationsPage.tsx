@@ -12,34 +12,52 @@ import {
   SearchIcon,
   ZapIcon,
 } from "lucide-react";
-import { type KeyboardEvent, type ReactElement, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { requestConfirmDialog } from "../../confirmDialog";
 import { cn } from "../../lib/utils";
 import { usePrimaryEnvironmentId } from "../../state/environments";
 import { serverEnvironment } from "../../state/server";
+import { RESIZABLE_WIDTH_PROPERTY, useResizableWidth } from "../../hooks/useResizableWidth";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useOpenAiosFile } from "../aiosFile/useOpenAiosFile";
+import { useNowMs } from "../commandCenter/useHomeReads";
+import { RightPanelResizeHandle } from "../preview/RightPanelResizeHandle";
 import { SystemCarePage } from "../systemCare/SystemCarePage";
 import { WindowHeader } from "../twoState/WindowHeader";
 import { Button } from "../ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
+import { Popover, PopoverClose, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
   type AutomationRow,
   filterRows,
-  GROUPS,
   type GroupId,
+  groupMarks,
+  GROUPS,
+  type Lane,
+  type Mark,
+  type MarkGroup,
+  NOW_X,
   scheduleWords,
   type ShowFilter,
   statusOf,
   summarize,
   timeLabel,
   timeline,
+  timelineTicks,
 } from "./automations.logic";
 import {
   automationsRunNow,
@@ -64,7 +82,7 @@ const TONE = {
   none: "border border-input text-muted-foreground",
 } as const;
 
-function Tip(props: { readonly tip: string; readonly children: ReactElement }) {
+function Tip(props: { readonly tip: ReactNode; readonly children: ReactElement }) {
   return (
     <Tooltip>
       <TooltipTrigger render={props.children} />
@@ -94,8 +112,8 @@ export function AutomationsPage(props: {
   readonly onSelect: (id: string | undefined) => void;
 }) {
   const data = useAutomations();
-  // oxlint-disable-next-line react-hooks-js/purity -- the summary and timeline read the clock once per render.
-  const now = Date.now();
+  // Ticks each minute, so the now line and Next up stay true while the tab is open.
+  const now = useNowMs();
   const summary = useMemo(() => summarize(data.rows, now), [data.rows, now]);
   const status =
     summary.needs.length > 0
@@ -230,30 +248,197 @@ function SummaryCards(props: {
   );
 }
 
+/** One color and one shape per kind, so the kind still reads without color. */
+const LANE_STYLE: Record<
+  Lane,
+  { readonly fill: string; readonly ring: string; readonly shape: string; readonly label: string }
+> = {
+  app: { fill: "bg-series-1", ring: "text-series-1", shape: "rounded-full", label: "App watcher" },
+  agents: {
+    fill: "bg-series-2",
+    ring: "text-series-2",
+    shape: "rotate-45 rounded-[1px]",
+    label: "Agent schedule",
+  },
+  windows: {
+    fill: "bg-muted-foreground",
+    ring: "text-muted-foreground",
+    shape: "rounded-[2px]",
+    label: "Windows task",
+  },
+};
+
+function Dot(props: { readonly lane: Lane; readonly past?: boolean }) {
+  const style = LANE_STYLE[props.lane];
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "block size-2.5",
+        style.shape,
+        props.past ? cn("border-2 border-current bg-transparent", style.ring) : style.fill,
+      )}
+    />
+  );
+}
+
+function clock(at: number) {
+  return new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function untilText(at: number, now: number) {
+  const minutes = Math.round((at - now) / 60_000);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `in ${minutes} min`;
+  return `in ${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+function TimelineMark(props: {
+  readonly lane: Lane;
+  readonly group: MarkGroup;
+  readonly now: number;
+  readonly byId: ReadonlyMap<string, AutomationRow>;
+  readonly onSelect: (id: string) => void;
+}) {
+  const { group, lane } = props;
+  const when = (mark: Mark) =>
+    mark.past
+      ? `Ran at ${clock(mark.at)}`
+      : `Runs at ${clock(mark.at)}, ${untilText(mark.at, props.now)}`;
+  const first = group.items[0]!;
+  const many = group.items.length > 1;
+  const label = many
+    ? `${group.items.length} ${lane === "windows" ? "Windows task" : LANE_STYLE[lane].label.toLowerCase()} runs around ${clock(group.at)}. Pick one.`
+    : `${first.name}: ${when(first)}. Open it.`;
+  const card = (
+    <div className="flex max-w-72 flex-col gap-1 py-0.5">
+      {group.items.slice(0, 6).map((mark) => {
+        const row = props.byId.get(mark.id);
+        return (
+          <div key={`${mark.id}-${mark.at}`} className="flex flex-col">
+            <div className="flex items-center gap-1.5 font-medium">
+              <Dot lane={lane} past={mark.past} />
+              {mark.name}
+            </div>
+            <div>{when(mark)}</div>
+            {row && !many ? (
+              <div className="text-muted-foreground">
+                {LANE_STYLE[lane].label} · {row.scheduleText} · {statusOf(row).label}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+      {group.items.length > 6 ? (
+        <div className="text-muted-foreground">and {group.items.length - 6} more</div>
+      ) : null}
+      <div className="text-muted-foreground">
+        {many ? "Select to pick one." : "Select to open it below."}
+      </div>
+    </div>
+  );
+  const dot = (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={many ? undefined : () => props.onSelect(first.id)}
+      style={{ left: `${(group.x * 100).toFixed(2)}%` }}
+      className="absolute top-1/2 grid size-5 -translate-1/2 place-items-center rounded-md outline-none hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+    >
+      <Dot lane={lane} past={group.past} />
+      {many ? (
+        <span className="absolute -top-1.5 -right-1.5 min-w-3.5 rounded-full bg-foreground px-0.5 text-center text-4xs leading-3.5 font-semibold text-background tabular-nums">
+          {group.items.length}
+        </span>
+      ) : null}
+    </button>
+  );
+  if (!many) return <Tip tip={card}>{dot}</Tip>;
+  return (
+    <Popover>
+      <Tip tip={card}>
+        <PopoverTrigger render={dot} />
+      </Tip>
+      <PopoverPopup align="center" className="w-72" aria-label={`Runs around ${clock(group.at)}`}>
+        <div className="flex flex-col">
+          {group.items.map((mark) => (
+            <PopoverClose
+              key={`${mark.id}-${mark.at}`}
+              render={
+                <button
+                  type="button"
+                  onClick={() => props.onSelect(mark.id)}
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                />
+              }
+            >
+              <Dot lane={lane} past={mark.past} />
+              <span className="min-w-0 flex-1 truncate">{mark.name}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{clock(mark.at)}</span>
+            </PopoverClose>
+          ))}
+        </div>
+      </PopoverPopup>
+    </Popover>
+  );
+}
+
 function Timeline(props: {
   readonly rows: ReadonlyArray<AutomationRow>;
   readonly now: number;
   readonly onSelect: (id: string) => void;
 }) {
   const lanes = useMemo(() => timeline(props.rows, props.now), [props.rows, props.now]);
+  const ticks = useMemo(() => timelineTicks(props.now), [props.now]);
+  const byId = useMemo(() => new Map(props.rows.map((row) => [row.id, row])), [props.rows]);
   const counts = (group: GroupId) => props.rows.filter((row) => row.group === group).length;
-  const ticks = [0, 3, 6, 9, 12, 15, 18, 21, 24];
   const nextAgent = props.rows
     .filter((row) => row.group === "agents" && row.enabled !== false && row.nextRunAt)
     .toSorted((a, b) => Date.parse(a.nextRunAt!) - Date.parse(b.nextRunAt!))[0];
+  const nowLeft = `${(NOW_X * 100).toFixed(2)}%`;
   return (
     <section
-      aria-label="Next 24 hours"
+      aria-label="Timeline"
       className="rounded-xl border border-border bg-card px-4 pt-3.5 pb-3"
     >
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">Next 24 hours</h2>
-        <span className="text-xs text-muted-foreground">
-          Each dot is one scheduled run. Select a dot to open it.
-        </span>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 className="text-sm font-semibold">Last 2 hours and next 22 hours</h2>
+        <ul
+          aria-label="Legend"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground"
+        >
+          {(["app", "agents", "windows"] as const).map((lane) => (
+            <li key={lane} className="flex items-center gap-1.5">
+              <Dot lane={lane} />
+              {LANE_STYLE[lane].label}
+            </li>
+          ))}
+          <li className="flex items-center gap-1.5">
+            <Dot lane="app" past />
+            Already ran
+          </li>
+        </ul>
       </div>
-      <div className="overflow-x-auto">
-        <div className="min-w-[640px]">
+      <div className="overflow-x-auto pt-3">
+        <div className="relative min-w-[640px]">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-3 bottom-5 z-10 grid w-full grid-cols-[150px_1fr]"
+          >
+            <span />
+            <div className="relative">
+              <div
+                style={{ left: nowLeft }}
+                className="absolute top-3 bottom-0 w-px bg-foreground"
+              />
+              <div
+                style={{ left: nowLeft }}
+                className="absolute top-0 -translate-x-1/2 rounded-full bg-foreground px-1.5 text-2xs leading-4 font-medium whitespace-nowrap text-background tabular-nums"
+              >
+                Now {clock(props.now)}
+              </div>
+            </div>
+          </div>
           {(["app", "windows", "agents"] as const).map((lane) => (
             <div key={lane} className="grid h-10 grid-cols-[150px_1fr] items-center">
               <div className="text-sm font-medium">
@@ -263,41 +448,29 @@ function Timeline(props: {
                 </span>
               </div>
               <div className="relative h-10 border-t border-border">
-                {lanes[lane].map((mark) => (
-                  <Tip
-                    key={`${mark.id}-${mark.at}`}
-                    tip={`${mark.name} · ${timeLabel(mark.at, props.now)}`}
-                  >
-                    <button
-                      type="button"
-                      aria-label={`${mark.name} at ${timeLabel(mark.at, props.now)}`}
-                      onClick={() => props.onSelect(mark.id)}
-                      style={{ left: `${(mark.x * 100).toFixed(2)}%` }}
-                      className="absolute top-1/2 size-2 -translate-1/2 rounded-full bg-state outline-none hover:scale-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset motion-safe:transition-transform"
-                    />
-                  </Tip>
+                {groupMarks(lanes[lane]).map((group) => (
+                  <TimelineMark
+                    key={`${group.items[0]!.id}-${group.at}`}
+                    lane={lane}
+                    group={group}
+                    now={props.now}
+                    byId={byId}
+                    onSelect={props.onSelect}
+                  />
                 ))}
               </div>
             </div>
           ))}
           <div className="grid grid-cols-[150px_1fr]">
             <span />
-            <div className="relative mx-1 h-4">
-              {ticks.map((hour) => (
+            <div className="relative h-4">
+              {ticks.map((tick) => (
                 <span
-                  key={hour}
-                  style={{ left: `${(hour / 24) * 100}%` }}
-                  className={cn(
-                    "absolute text-2xs whitespace-nowrap text-muted-foreground tabular-nums",
-                    hour === 0 ? "" : hour === 24 ? "-translate-x-full" : "-translate-x-1/2",
-                  )}
+                  key={tick.at}
+                  style={{ left: `${(tick.x * 100).toFixed(2)}%` }}
+                  className="absolute -translate-x-1/2 text-2xs whitespace-nowrap text-muted-foreground tabular-nums"
                 >
-                  {hour === 0
-                    ? "Now"
-                    : new Date(props.now + hour * 3_600_000).toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
+                  {clock(tick.at)}
                 </span>
               ))}
             </div>
@@ -306,7 +479,7 @@ function Timeline(props: {
       </div>
       {lanes.agents.length === 0 && nextAgent ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          No agent schedule runs in the next 24 hours. Next: {nextAgent.name},{" "}
+          No agent schedule runs in this window. Next: {nextAgent.name},{" "}
           {timeLabel(Date.parse(nextAgent.nextRunAt!), props.now)}.
         </p>
       ) : null}
@@ -325,6 +498,22 @@ function Browse(props: {
   const [query, setQuery] = useState("");
   const [show, setShow] = useState<ShowFilter>("all");
   const [group, setGroup] = useState<GroupId | "all">("all");
+  // Long names are cut at the default width, so the list can be dragged wider (saved between visits).
+  const listWidth = useResizableWidth({
+    storageKey: "leonidas.automations.listWidth",
+    defaultWidth: 380,
+    minWidth: 300,
+    maxWidth: 760,
+    edge: "right",
+  });
+  // A dot or card picked above scrolls its detail into view.
+  useEffect(() => {
+    if (!props.selectedId) return;
+    document.getElementById("automation-detail")?.scrollIntoView({
+      block: "nearest",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  }, [props.selectedId]);
   const visible = useMemo(
     () => filterRows(props.rows, { query, show, group }),
     [props.rows, query, show, group],
@@ -413,62 +602,71 @@ function Browse(props: {
       </div>
       <div className="flex border-t border-border pt-3">
         <div
-          role="listbox"
-          aria-label="Automations"
-          tabIndex={0}
-          onKeyDown={move}
+          style={{ [RESIZABLE_WIDTH_PROPERTY]: `${listWidth.width}px` } as CSSProperties}
           className={cn(
-            "w-full shrink-0 outline-none lg:block lg:w-[380px] lg:border-r lg:border-border lg:pr-4",
+            "relative w-full shrink-0 lg:block lg:w-[min(var(--resizable-width),calc(100%-24rem))] lg:border-r lg:border-border lg:pr-4",
             props.selectedId ? "hidden" : "block",
           )}
         >
-          {props.loading ? (
-            <div className="flex flex-col gap-2" aria-busy>
-              {[0, 1, 2, 3, 4].map((index) => (
-                <div key={index} className="h-12 animate-skeleton rounded-lg bg-muted" />
-              ))}
-            </div>
-          ) : visible.length === 0 ? (
-            <p className="px-2 py-6 text-sm text-muted-foreground">
-              Nothing matches. Clear the search or pick All.
-            </p>
-          ) : (
-            GROUPS.map((entry) => {
-              const rows = visible.filter((row) => row.group === entry.id);
-              if (rows.length === 0) return null;
-              return (
-                <div key={entry.id} role="group" aria-label={entry.label}>
-                  <div className="flex justify-between px-0.5 pt-3 pb-1.5 text-2xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    <span>{entry.label}</span>
-                    <span className="tabular-nums">{rows.length}</span>
-                  </div>
-                  {rows.map((row) => (
-                    <button
-                      key={row.id}
-                      type="button"
-                      role="option"
-                      aria-selected={row.id === selected?.id}
-                      onClick={() => props.onSelect(row.id)}
-                      className={cn(
-                        "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                        row.id === selected?.id
-                          ? "bg-sidebar-row-active"
-                          : "hover:bg-sidebar-row-hover",
-                      )}
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{row.name}</span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {row.scheduleText}
+          <div
+            role="listbox"
+            aria-label="Automations"
+            tabIndex={0}
+            onKeyDown={move}
+            className="outline-none"
+          >
+            {props.loading ? (
+              <div className="flex flex-col gap-2" aria-busy>
+                {[0, 1, 2, 3, 4].map((index) => (
+                  <div key={index} className="h-12 animate-skeleton rounded-lg bg-muted" />
+                ))}
+              </div>
+            ) : visible.length === 0 ? (
+              <p className="px-2 py-6 text-sm text-muted-foreground">
+                Nothing matches. Clear the search or pick All.
+              </p>
+            ) : (
+              GROUPS.map((entry) => {
+                const rows = visible.filter((row) => row.group === entry.id);
+                if (rows.length === 0) return null;
+                return (
+                  <div key={entry.id} role="group" aria-label={entry.label}>
+                    <div className="flex justify-between px-0.5 pt-3 pb-1.5 text-2xs font-semibold tracking-wide text-muted-foreground uppercase">
+                      <span>{entry.label}</span>
+                      <span className="tabular-nums">{rows.length}</span>
+                    </div>
+                    {rows.map((row) => (
+                      <button
+                        key={row.id}
+                        type="button"
+                        role="option"
+                        aria-selected={row.id === selected?.id}
+                        onClick={() => props.onSelect(row.id)}
+                        className={cn(
+                          "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                          row.id === selected?.id
+                            ? "bg-sidebar-row-active"
+                            : "hover:bg-sidebar-row-hover",
+                        )}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{row.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {row.scheduleText}
+                          </span>
                         </span>
-                      </span>
-                      <StatusChip row={row} />
-                    </button>
-                  ))}
-                </div>
-              );
-            })
-          )}
+                        <StatusChip row={row} />
+                      </button>
+                    ))}
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <RightPanelResizeHandle
+            handlers={listWidth.handlers}
+            className="-right-1 left-auto hidden lg:block"
+          />
         </div>
         <div
           className={cn("min-w-0 flex-1 lg:block lg:pl-6", props.selectedId ? "block" : "hidden")}
@@ -609,7 +807,11 @@ function Detail(props: {
   ] as const;
 
   return (
-    <article aria-label={row.name} className="flex flex-col gap-4">
+    <article
+      id="automation-detail"
+      aria-label={row.name}
+      className="flex scroll-mt-4 flex-col gap-4"
+    >
       <Button variant="ghost" size="sm" className="self-start lg:hidden" onClick={props.onBack}>
         <ArrowLeftIcon /> All automations
       </Button>
