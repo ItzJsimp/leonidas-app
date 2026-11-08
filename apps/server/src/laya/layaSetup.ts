@@ -37,7 +37,7 @@ export const LAYA_FILES: ReadonlyArray<{
   },
   {
     name: "laya-pack.zip",
-    sha256: "5bd5cbec82c32ce95e2c89fb0f445b2137807d21306cee74bd4a55365dea8890",
+    sha256: "8c7e85912d198867ebfa379a4b13b1b2802ffa6eaaf96258467b6cf3c5be937d",
     kind: "pack",
   },
 ];
