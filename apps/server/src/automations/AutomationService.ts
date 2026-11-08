@@ -40,6 +40,7 @@ import {
 import { execFile } from "./check.ts";
 import { type FreeStep, makeFreeChat } from "./freeChat.ts";
 import { readRegister } from "./register.ts";
+import { controlWindowsTask, TASK_PREFIX, type TaskAction } from "./windowsTasks.ts";
 
 /** Groq model Auto-pick skills uses by default (`composerAutoPickGroqModel`). */
 const GROQ_FREE_MODEL = "qwen/qwen3.8-27b";
@@ -209,6 +210,19 @@ export const make = Effect.gen(function* () {
         );
   };
 
+  const windowsTask = (workspaceId: string | undefined, id: string, action: TaskAction) =>
+    requireRoot(workspaceId).pipe(
+      Effect.flatMap((root) =>
+        Effect.tryPromise({
+          try: () => controlWindowsTask(root, id, action, execFile),
+          catch: (error) =>
+            new AutomationError({
+              message: error instanceof Error ? error.message : String(error),
+            }),
+        }),
+      ),
+    );
+
   const requireRoot = (workspaceId?: string) =>
     aiosRoot(workspaceId).pipe(
       Effect.flatMap((root) =>
@@ -285,18 +299,30 @@ export const make = Effect.gen(function* () {
         };
       }),
     setEnabled: (input) =>
-      update(input.id, input.workspaceId, (state) => ({
-        ...state,
-        enabled: input.enabled,
-        nextRunAt: input.enabled
-          ? (nextRun(
-              state.schedule ?? BUILT_INS.find((b) => b.id === input.id)!.schedule,
-              Date.now(),
-            ) ?? undefined)
-          : undefined,
-      })),
+      input.id.startsWith(TASK_PREFIX)
+        ? windowsTask(input.workspaceId, input.id, { kind: input.enabled ? "enable" : "disable" })
+        : update(input.id, input.workspaceId, (state) => ({
+            ...state,
+            enabled: input.enabled,
+            nextRunAt: input.enabled
+              ? (nextRun(
+                  state.schedule ?? BUILT_INS.find((b) => b.id === input.id)!.schedule,
+                  Date.now(),
+                ) ?? undefined)
+              : undefined,
+          })),
     setSchedule: (input) => {
       const schedule = input.schedule;
+      if (input.id.startsWith(TASK_PREFIX)) {
+        return schedule.type === "fixed_time"
+          ? windowsTask(input.workspaceId, input.id, {
+              kind: "time",
+              timeOfDay: schedule.timeOfDay,
+            })
+          : Effect.fail(
+              new AutomationError({ message: "A Windows task changes only its start time here." }),
+            );
+      }
       if (schedule.type !== "interval" && schedule.type !== "fixed_time") {
         return Effect.fail(
           new AutomationError({
@@ -312,6 +338,14 @@ export const make = Effect.gen(function* () {
     },
     runNow: (input) =>
       Effect.gen(function* () {
+        if (input.id.startsWith(TASK_PREFIX)) {
+          const entry = yield* windowsTask(input.workspaceId, input.id, { kind: "run" });
+          return {
+            entry,
+            report: [`Started ${entry.name} in Windows Task Scheduler.`],
+            notified: 0,
+          };
+        }
         const builtIn = yield* find(input.id);
         const root = yield* requireRoot(input.workspaceId);
         return yield* runOne(builtIn, root, input.dryRun === true);

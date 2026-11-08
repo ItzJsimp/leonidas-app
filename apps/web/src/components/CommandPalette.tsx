@@ -2389,10 +2389,10 @@ function OpenCommandPaletteDialog(props: {
       "OTLP",
       "telemetry export",
     ],
-    title: "Open PC Tuning",
+    title: "Open Automations: Machine",
     icon: <GaugeIcon className={ITEM_ICON_CLASS} />,
     run: async () => {
-      await navigate({ to: "/system-care" });
+      await navigate({ to: "/automations", search: { view: "machine" } });
     },
   });
 

@@ -15,6 +15,7 @@ function isSidebarUtilityPage(pathname: string) {
     isAppModalPage(pathname) ||
     pathname.startsWith("/projects/") ||
     pathname === "/system-care" ||
+    pathname === "/automations" ||
     pathname === "/images" ||
     pathname === "/scribe" ||
     pathname === "/command-center" ||

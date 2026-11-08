@@ -48,7 +48,8 @@ export function registerEntry(row: RegisterRow): AutomationEntry | null {
           : "skipped",
     lastSummary: text(row.status),
     nextRunAt: text(row.nextRunAt),
-    canRunNow: false,
+    // Windows tasks start, stop and run through schtasks; daemons and hooks have no run button.
+    canRunNow: row.kind === "windows_task",
     ...(file === null ? {} : { file }),
   };
 }
