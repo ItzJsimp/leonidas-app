@@ -156,7 +156,7 @@ foreach ($group in ($plan | Where-Object { $_ -like 'test|*' } | Group-Object { 
         $names = @($headFailed[$rel])
         $known = $baseFailed[$rel]
         # No names means the file broke before its tests ran. No baseline means the file is new or passes on origin/main.
-        $new = if ($names.Count -eq 0 -or $null -eq $known) { @($rel) } else { @($names | Where-Object { $_ -notin $known }) }
+        $new = @(if ($names.Count -eq 0 -or $null -eq $known) { $rel } else { $names | Where-Object { $_ -notin $known } })
         if ($new.Count -gt 0) { $fail.Add("test|$pkg|$rel"); $notes.Add("test|$pkg|$rel : $($new.Count) new failure(s), first: $($new[0])") }
         else { $notes.Add("test|$pkg|$rel : only failures origin/main already has") }
     }
