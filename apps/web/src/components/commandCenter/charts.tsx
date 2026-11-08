@@ -146,27 +146,33 @@ export function HalfGauge({
 }
 
 const BAR_AREA = 96;
+const TASKS_DONE = ["task done", "tasks done"] as const;
 
 /** 14 bars, one per day. Today is the foreground color, the rest are muted. A dashed line marks the average. */
 export function DoneBars({
   days,
   average,
+  unit = TASKS_DONE,
+  height = BAR_AREA,
 }: {
   readonly days: ReadonlyArray<DoneDay>;
   readonly average: number;
+  /** What one bar counts, singular then plural. */
+  readonly unit?: readonly [string, string];
+  readonly height?: number;
 }) {
   const max = Math.max(1, average, ...days.map((day) => day.count));
   return (
     <div>
-      <div role="list" className="relative flex items-end gap-1" style={{ height: BAR_AREA }}>
+      <div role="list" className="relative flex items-end gap-1" style={{ height }}>
         {days.map((day) => (
           <Tip
             key={day.key}
-            text={`${day.full}: ${day.count} ${day.count === 1 ? "task" : "tasks"} done`}
+            text={`${day.full}: ${day.count} ${day.count === 1 ? unit[0] : unit[1]}`}
           >
             <div
               role="listitem"
-              aria-label={`${day.full}: ${day.count} done`}
+              aria-label={`${day.full}: ${day.count} ${day.count === 1 ? unit[0] : unit[1]}`}
               className="flex h-full min-w-0 flex-1 items-end"
             >
               <div
@@ -174,7 +180,7 @@ export function DoneBars({
                   "w-full rounded-t-sm",
                   day.today ? "bg-foreground" : "bg-muted-foreground/70",
                 )}
-                style={{ height: Math.max(day.count > 0 ? 3 : 1, (day.count / max) * BAR_AREA) }}
+                style={{ height: Math.max(day.count > 0 ? 3 : 1, (day.count / max) * height) }}
               />
             </div>
           </Tip>
@@ -183,7 +189,7 @@ export function DoneBars({
           <div
             aria-hidden
             className="pointer-events-none absolute inset-x-0 border-t border-dashed border-muted-foreground/70"
-            style={{ bottom: (average / max) * BAR_AREA }}
+            style={{ bottom: (average / max) * height }}
           />
         ) : null}
       </div>

@@ -4,15 +4,13 @@ import {
   areaBars,
   capRows,
   doneSeries,
-  eventsToday,
   goalMeta,
-  goalPercent,
+  needsYouLine,
   oldestAt,
   ringPercent,
   statusSegments,
-  summaryItems,
-  tileModels,
   updatedLabel,
+  usageGlance,
 } from "./commandCenter.logic";
 
 const now = new Date(2026, 9, 22, 20, 5).getTime();
@@ -22,84 +20,6 @@ const areas = [
   { id: "tasks", units: 118, changedAt: 1 },
   { id: "logs", units: 230, changedAt: 1 },
 ];
-
-const tile = (id: string, input: Partial<Parameters<typeof tileModels>[0]> = {}) =>
-  tileModels(
-    { needsYou: 3, running: 2, oldestNeedsYouAt: null, home: { counts, areas }, ...input },
-    now,
-  ).find((entry) => entry.id === id)!;
-
-describe("tileModels", () => {
-  it("shows no number for a count that is not read yet", () => {
-    expect(tile("needs-you", { needsYou: null }).value).toBeNull();
-    expect(tile("needs-you", { needsYou: null }).note).toBe("Reading your notifications");
-    expect(tile("running", { running: null }).value).toBeNull();
-    expect(tile("running", { running: null }).note).toBe("Reading your chats");
-  });
-
-  it("gives four tiles with the numbers the page already shows", () => {
-    const tiles = tileModels(
-      { needsYou: 3, running: 2, oldestNeedsYouAt: at(21, 21, 14), home: { counts, areas } },
-      now,
-    );
-    expect(tiles.map((entry) => [entry.label, entry.value, entry.unit])).toEqual([
-      ["Needs you", 3, "items"],
-      ["Running", 2, "agents"],
-      ["Open tasks", 31, "tasks"],
-      ["Memory", 348, "items"],
-    ]);
-  });
-
-  it("describes the oldest waiting item instead of inventing a trend", () => {
-    expect(tile("needs-you", { oldestNeedsYouAt: at(22, 9, 14) }).note).toBe(
-      "Oldest waits since 9:14 AM",
-    );
-    expect(tile("needs-you", { oldestNeedsYouAt: at(21, 21, 14) }).note).toBe(
-      "Oldest waits since yesterday",
-    );
-    expect(tile("needs-you", { oldestNeedsYouAt: at(18, 9, 14) }).note).toBe(
-      "Oldest waits since Oct 18",
-    );
-    expect(tile("needs-you", { needsYou: 0 }).note).toBe("Nothing is waiting for you");
-  });
-
-  it("uses singular units for one", () => {
-    expect(tile("needs-you", { needsYou: 1 }).unit).toBe("item");
-    expect(tile("running", { running: 1 }).unit).toBe("agent");
-    expect(tile("running", { running: 0 }).note).toBe("No agent is working now");
-  });
-
-  it("has no number while the AIOS read is loading", () => {
-    const loading = { home: null };
-    expect(tile("open-tasks", loading).value).toBeNull();
-    expect(tile("memory", loading).value).toBeNull();
-    expect(tile("needs-you", loading).value).toBe(3);
-  });
-
-  it("says when no AIOS folder is connected", () => {
-    const empty = tile("memory", { home: { counts, areas: [] } });
-    expect(empty.value).toBe(0);
-    expect(empty.note).toBe("No AIOS folder connected yet");
-  });
-
-  it("names blocked tasks only when there are some", () => {
-    expect(tile("open-tasks").note).toBe("6 in progress · 3 blocked");
-    expect(tile("open-tasks", { home: { counts: { ...counts, blocked: 0 }, areas } }).note).toBe(
-      "6 in progress",
-    );
-    const big = { counts: { ...counts, inProgress: 1001, blocked: 1001 }, areas };
-    expect(tile("open-tasks", { home: big }).note).toBe("1,001 in progress · 1,001 blocked");
-  });
-
-  it("explains exactly what each number counts", () => {
-    for (const entry of tileModels(
-      { needsYou: 0, running: 0, oldestNeedsYouAt: null, home: null },
-      now,
-    )) {
-      expect(entry.tip.length).toBeGreaterThan(20);
-    }
-  });
-});
 
 describe("statusSegments", () => {
   it("sizes each status by its share and keeps the order", () => {
@@ -223,57 +143,13 @@ describe("updatedLabel", () => {
   });
 });
 
-describe("goalPercent", () => {
-  it("reads a percent the status already states", () => {
-    expect(goalPercent("62% done")).toBe(62);
-    expect(goalPercent("18 of 29 cards done")).toBe(62);
-  });
-  it("returns null when the text holds no honest percent", () => {
-    expect(goalPercent("Not started")).toBeNull();
-    expect(goalPercent("")).toBeNull();
-    expect(goalPercent("0 of 0")).toBeNull();
-  });
-});
-
 describe("feed helpers", () => {
   const event = (ts: string) => ({ ts }) as never;
-  it("counts events of the local day", () => {
-    const today = new Date(2026, 9, 22, 9).toISOString();
-    const yesterday = new Date(2026, 9, 21, 23).toISOString();
-    expect(eventsToday([event(today), event(today), event(yesterday)], now)).toBe(2);
-  });
   it("finds the oldest event time", () => {
     expect(oldestAt([])).toBeNull();
     const a = new Date(2026, 9, 22, 9).toISOString();
     const b = new Date(2026, 9, 21, 9).toISOString();
     expect(oldestAt([event(a), event(b)])).toBe(Date.parse(b));
-  });
-});
-
-describe("summaryItems", () => {
-  const line = (counts: Parameters<typeof summaryItems>[0]) =>
-    summaryItems(counts)
-      .map((item) => item.lead + item.rest)
-      .join(" · ");
-  it("reads like the line under the greeting", () => {
-    expect(line({ needsYou: 3, running: 2, today: { done: 2, total: 5 } })).toBe(
-      "3 need you · 2 agents running · 2 of 5 done today",
-    );
-  });
-  it("says nothing before the counts are read", () => {
-    expect(summaryItems({ needsYou: null, running: 0, today: null })).toEqual([]);
-    expect(summaryItems({ needsYou: 0, running: null, today: null })).toEqual([]);
-  });
-  it("groups thousands", () => {
-    expect(line({ needsYou: 1200, running: 0, today: null })).toBe(
-      "1,200 need you · No agents running",
-    );
-  });
-  it("uses plain words for one and for none", () => {
-    expect(line({ needsYou: 1, running: 1, today: null })).toBe("1 needs you · 1 agent running");
-    expect(line({ needsYou: 0, running: 0, today: { done: 0, total: 0 } })).toBe(
-      "Nothing needs you · No agents running",
-    );
   });
 });
 
@@ -296,5 +172,49 @@ describe("goalMeta", () => {
     expect(goalMeta({ status: "Active", targetDate: "Ongoing" })).toBe("Active · Ongoing");
     expect(goalMeta({ status: "Active", targetDate: "2026-13-45" })).toBe("Active · 2026-13-45");
     expect(goalMeta({ status: "", targetDate: "" })).toBe("");
+  });
+});
+
+describe("needsYouLine", () => {
+  it("leads with the chat name for app events", () => {
+    expect(
+      needsYouLine({
+        title: "Input needed",
+        body: "Thin Leonidas layer for upstream",
+        actor: { kind: "app", name: "Leonidas" },
+      }),
+    ).toEqual({ primary: "Thin Leonidas layer for upstream", secondary: "Input needed" });
+  });
+  it("keeps the title and names the source for other events", () => {
+    expect(
+      needsYouLine({
+        title: "AIOS Sync Failing",
+        body: "Outcome: FAILED",
+        actor: { kind: "script", name: "Send-Notification.ps1" },
+      }),
+    ).toEqual({ primary: "AIOS Sync Failing", secondary: "Send-Notification.ps1" });
+  });
+});
+
+describe("usageGlance", () => {
+  const account = (id: string, ...used: number[]) => ({
+    id,
+    label: id,
+    limits: { windows: used.map((usedPercent) => ({ usedPercent })) },
+  });
+  it("puts the active account on the gauge and the two fullest others under it", () => {
+    const glance = usageGlance(
+      [account("claude", 10, 38)],
+      [account("codex", 0, 68), account("grok"), account("router", 100), account("pi", 5)],
+    );
+    expect(glance.main?.account.id).toBe("claude");
+    expect(glance.main?.window.usedPercent).toBe(38);
+    expect(glance.rest.map((row) => row.account.id)).toEqual(["router", "codex"]);
+  });
+  it("uses the fullest account when no active one reports windows", () => {
+    const glance = usageGlance([], [account("codex", 68), account("pi", 5)]);
+    expect(glance.main?.account.id).toBe("codex");
+    expect(glance.rest.map((row) => row.account.id)).toEqual(["pi"]);
+    expect(usageGlance([], []).main).toBeNull();
   });
 });

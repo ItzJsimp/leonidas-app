@@ -20,11 +20,13 @@ import { plainEventTitle } from "../../twoState/eventText";
 import { isNeedsYou } from "../../twoState/railFeed";
 import {
   INBOX_FILTERS,
+  INBOX_GROUPINGS,
   nextRowIndex,
   rowsOf,
   sourceLabel,
   type InboxFilter,
   type InboxGroup,
+  type InboxGrouping,
 } from "./inbox.logic";
 
 const SOURCE_ICON: Readonly<Record<FoldedFeedEvent["actor"]["kind"], LucideIcon>> = {
@@ -42,6 +44,14 @@ const EMPTY_FILTER_LINE: Readonly<Record<InboxFilter, string>> = {
   finished: "Nothing finished yet.",
 };
 
+const pill = (active: boolean) =>
+  cn(
+    "rounded-full border px-2.5 py-0.5 text-xs transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
+    active
+      ? "border-border bg-surface-raised font-medium text-foreground"
+      : "border-border/60 text-muted-foreground hover:text-foreground",
+  );
+
 interface Counts {
   readonly all: number;
   readonly needsYou: number;
@@ -55,6 +65,8 @@ export function InboxList({
   unread,
   filter,
   onFilter,
+  grouping,
+  onGrouping,
   query,
   onQuery,
   selectedId,
@@ -70,6 +82,8 @@ export function InboxList({
   readonly unread: number;
   readonly filter: InboxFilter;
   readonly onFilter: (filter: InboxFilter) => void;
+  readonly grouping: InboxGrouping;
+  readonly onGrouping: (grouping: InboxGrouping) => void;
   readonly query: string;
   readonly onQuery: (query: string) => void;
   readonly selectedId: string | undefined;
@@ -106,23 +120,33 @@ export function InboxList({
           value={query}
           onChange={(event) => onQuery(event.target.value)}
         />
-        <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
-          {INBOX_FILTERS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={filter === item.id}
-              onClick={() => onFilter(item.id)}
-              className={cn(
-                "rounded-full border px-2.5 py-0.5 text-xs transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
-                filter === item.id
-                  ? "border-border bg-surface-raised font-medium text-foreground"
-                  : "border-border/60 text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {item.label} <span className="tabular-nums">{count(item.id)}</span>
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
+            {INBOX_FILTERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={filter === item.id}
+                onClick={() => onFilter(item.id)}
+                className={pill(filter === item.id)}
+              >
+                {item.label} <span className="tabular-nums">{count(item.id)}</span>
+              </button>
+            ))}
+          </div>
+          <div role="group" aria-label="Group" className="flex gap-1.5">
+            {INBOX_GROUPINGS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={grouping === item.id}
+                onClick={() => onGrouping(item.id)}
+                className={pill(grouping === item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
         <p className="text-xs text-muted-foreground tabular-nums" role="status">
           {unread === 0 ? "All read" : `${unread} unread`}
@@ -136,8 +160,9 @@ export function InboxList({
         ) : (
           groups.map((group) => (
             <section key={group.key} aria-label={group.label}>
-              <h2 className="px-4 pt-2 pb-1 text-xs font-medium text-muted-foreground">
-                {group.label}
+              <h2 className="flex gap-1.5 px-4 pt-2 pb-1 text-xs font-medium text-muted-foreground">
+                <span className="min-w-0 truncate">{group.label}</span>
+                <span className="font-normal tabular-nums">{group.events.length}</span>
               </h2>
               <ul>
                 {group.events.map((event) => {
@@ -187,7 +212,6 @@ export function InboxList({
                             <span className="sr-only">Needs you: </span>
                           ) : null}
                           <span
-                            title={plainEventTitle(event.title)}
                             className={cn(
                               "line-clamp-2 text-sm wrap-anywhere",
                               read ? "text-muted-foreground" : "font-medium text-foreground",
@@ -196,10 +220,7 @@ export function InboxList({
                             {event.level === "failed" ? <FailedTag /> : null}
                             {plainEventTitle(event.title)}
                           </span>
-                          <span
-                            title={sourceLabel(event)}
-                            className="block truncate text-xs text-muted-foreground"
-                          >
+                          <span className="block truncate text-xs text-muted-foreground">
                             {sourceLabel(event)}
                           </span>
                         </span>

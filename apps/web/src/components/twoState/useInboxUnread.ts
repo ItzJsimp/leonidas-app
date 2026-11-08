@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
 import { useEventFeedStore } from "~/eventFeedStore";
+import { isShown } from "~/notificationRules";
 import { eventFeedLive } from "~/state/eventFeed";
 import { useEnvironmentQuery } from "~/state/query";
 
@@ -15,11 +16,12 @@ export function useInboxUnread(): number {
       : null,
   );
   const marks = useEventFeedStore((store) => store.marks);
+  const rules = useEventFeedStore((store) => store.typeRules);
   return useMemo(
     () =>
       (feed.data?.events ?? []).filter(
-        (event) => !marks[event.id]?.dismissed && !marks[event.id]?.read,
+        (event) => !marks[event.id]?.dismissed && !marks[event.id]?.read && isShown(event, rules),
       ).length,
-    [feed.data, marks],
+    [feed.data, marks, rules],
   );
 }

@@ -12,6 +12,7 @@ import {
   type ThreadId,
   type RuntimeMode,
   type ProviderInteractionMode,
+  type ModelSelection,
 } from "@t3tools/contracts";
 import { createModelSelection } from "@t3tools/shared/model";
 import { useCallback } from "react";
@@ -129,16 +130,19 @@ export function useOnboardingChat(environmentId: EnvironmentId | undefined) {
       readonly prompt: string;
       readonly runtimeMode?: RuntimeMode;
       readonly interactionMode?: ProviderInteractionMode;
+      /** The model picked in the caller's own picker. Default: the first ready AI's default model. */
+      readonly modelSelection?: ModelSelection;
     }): Promise<StartChatResult> => {
       if (environmentId === undefined || !canOperate) {
         return { ok: false, message: NO_PERMISSION_MESSAGE };
       }
       const provider = selectedProvider;
       const model = selectedModel;
-      if (provider === undefined || model === undefined) {
+      if (args.modelSelection === undefined && (provider === undefined || model === undefined)) {
         return { ok: false, message: "Connect an AI first." };
       }
-      const modelSelection = createModelSelection(provider.instanceId, model);
+      const modelSelection =
+        args.modelSelection ?? createModelSelection(provider!.instanceId, model!);
       const threadId = newThreadId();
       const createdAt = new Date().toISOString();
       try {
@@ -222,5 +226,9 @@ export function useOnboardingChat(environmentId: EnvironmentId | undefined) {
     startChat,
     providerName: selectedProvider?.driver ?? null,
     modelName: selectedModel ?? null,
+    defaultSelection:
+      selectedProvider && selectedModel
+        ? createModelSelection(selectedProvider.instanceId, selectedModel)
+        : null,
   };
 }

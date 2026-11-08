@@ -15,8 +15,8 @@ import { useEnvironments } from "../state/environments";
 const HOME_CONTEXT = { forward: "cc" } as const;
 
 /**
- * The Command Center home: the greeting and number tiles, then the widgets. Chats that need an
- * answer or work now show in the Needs you and Running widgets, which read the same sources.
+ * The Command Center home: the greeting and the Ask box, then 8 cards. Each card shows one live
+ * number and opens its tab: see everything at a glance, jump anywhere.
  */
 function CommandCenterPage() {
   const { scope } = useActiveAiosWorkspace();
@@ -32,7 +32,7 @@ function CommandCenterPage() {
         <p className="truncate text-sm font-medium">Command Center</p>
       </WorkspacePageHeader>
       <main className="min-h-0 flex-1 overflow-y-auto">
-        <WorkspacePageContainer width="expanded" className="max-w-[75rem] px-4 min-[1440px]:px-6">
+        <WorkspacePageContainer width="expanded" className="max-w-[96rem] px-4 min-[1440px]:px-8">
           <div data-tour="command-home">
             <CommandCenterForward />
           </div>

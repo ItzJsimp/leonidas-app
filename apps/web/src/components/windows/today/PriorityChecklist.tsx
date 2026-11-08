@@ -24,6 +24,7 @@ export function PriorityChecklist({
   /** The card file of a linked task, AIOS-relative; null when it is not in this AIOS. */
   readonly cardPath?: (taskId: string) => string | null;
   readonly onOpenFile?: (path: string) => void;
+  /** Tighter rows with titles only, for the Command Center card. */
   readonly dense?: boolean;
 }) {
   const base = useId();
@@ -37,7 +38,7 @@ export function PriorityChecklist({
             className="mt-0.5"
             checked={priority.done}
             disabled={priority.locked !== null}
-            aria-describedby={priority.detail ? `${id}-detail` : undefined}
+            aria-describedby={priority.detail && !dense ? `${id}-detail` : undefined}
             onCheckedChange={() => onToggle(priority)}
           />
         );
@@ -72,7 +73,7 @@ export function PriorityChecklist({
                 >
                   {priority.title}
                 </span>
-                {priority.detail ? (
+                {priority.detail && !dense ? (
                   <span
                     id={`${id}-detail`}
                     className="block text-xs wrap-anywhere text-muted-foreground"

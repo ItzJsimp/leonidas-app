@@ -19,7 +19,7 @@ describe("event feed store", () => {
     }
   });
   beforeEach(() => {
-    useEventFeedStore.setState({ marks: {}, mutedTypes: [] });
+    useEventFeedStore.setState({ marks: {}, typeRules: {} });
     for (const key of ["one", "two", "probe"]) useEventFeedStore.getState().setFeedIds(key, null);
   });
 
@@ -41,11 +41,33 @@ describe("event feed store", () => {
     expect(marks.evt_00000).toBeUndefined();
   });
 
-  it("toggles a muted type", () => {
-    useEventFeedStore.getState().toggleMuted("script.failed");
-    expect(useEventFeedStore.getState().mutedTypes).toEqual(["script.failed"]);
-    useEventFeedStore.getState().toggleMuted("script.failed");
-    expect(useEventFeedStore.getState().mutedTypes).toEqual([]);
+  it("sets and clears a rule per type", () => {
+    useEventFeedStore.getState().setTypeRule("script.failed", "inbox");
+    useEventFeedStore.getState().setTypeRule("task.worked", "off");
+    expect(useEventFeedStore.getState().typeRules).toEqual({
+      "script.failed": "inbox",
+      "task.worked": "off",
+    });
+    useEventFeedStore.getState().setTypeRule("script.failed", null);
+    expect(useEventFeedStore.getState().typeRules).toEqual({ "task.worked": "off" });
+  });
+
+  it("marks all done, then Undo puts every mark back as it was", () => {
+    const store = useEventFeedStore.getState();
+    store.markRead(["evt_A"]);
+    const before = { evt_A: { read: true } as const, evt_B: undefined };
+    store.dismissAll(["evt_A", "evt_B"]);
+    expect(useEventFeedStore.getState().marks.evt_B).toEqual({ read: true, dismissed: true });
+    store.restoreMarks(before);
+    expect(useEventFeedStore.getState().marks).toEqual({ evt_A: { read: true } });
+  });
+
+  it("moves version 1 muted types to Inbox only", () => {
+    const migrate = useEventFeedStore.persist.getOptions().migrate!;
+    expect(migrate({ marks: {}, mutedTypes: ["script.failed"] }, 1)).toEqual({
+      marks: {},
+      typeRules: { "script.failed": "inbox" },
+    });
   });
 
   it("keeps marks in every active feed and drops them only after they leave", () => {

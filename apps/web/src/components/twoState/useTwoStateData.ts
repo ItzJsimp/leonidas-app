@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { countOpenChats, groupCommandCenterThreads } from "~/commandCenter";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
 import { useEventFeedStore } from "~/eventFeedStore";
+import { isShown } from "~/notificationRules";
 import { useAllEnvironmentShellsBootstrapped, useThreadShells } from "~/state/entities";
 import { eventFeedLive } from "~/state/eventFeed";
 import { useEnvironmentQuery } from "~/state/query";
@@ -22,19 +23,23 @@ export function useAiosHome() {
   );
 }
 
-/** The feed read: events the user has not dismissed (newest first), plus its load state. */
+/** The feed read: events the user has not dismissed or turned off (newest first), plus its load state. */
 export function useFeedStatus() {
   const { environmentId, scope, scopeReady } = useActiveAiosWorkspace();
   const feed = useEnvironmentQuery(
     environmentId && scopeReady ? eventFeedLive({ environmentId, input: scope }) : null,
   );
   const marks = useEventFeedStore((store) => store.marks);
+  const rules = useEventFeedStore((store) => store.typeRules);
+  const all = feed.data?.events ?? NO_EVENTS;
   const events = useMemo(
-    () => (feed.data?.events ?? NO_EVENTS).filter((event) => !marks[event.id]?.dismissed),
-    [feed.data, marks],
+    () => all.filter((event) => !marks[event.id]?.dismissed && isShown(event, rules)),
+    [all, marks, rules],
   );
   return {
     events,
+    /** Every event in the feed, for the rules screen: a type that is off must still be listed. */
+    all,
     loaded: feed.data !== null,
     error: feed.error,
     updatedAt: feed.dataUpdatedAt,

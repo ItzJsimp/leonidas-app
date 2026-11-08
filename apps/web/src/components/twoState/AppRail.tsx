@@ -63,7 +63,7 @@ import { useRailShowAnyway } from "./useRailShowAnyway";
 import { useTwoStateStore } from "./twoStateStore";
 import { useTwoStateCounts } from "./useTwoStateData";
 
-const ICONS: Readonly<Record<string, LucideIcon>> = {
+export const ICONS: Readonly<Record<string, LucideIcon>> = {
   "command-center": LayoutDashboardIcon,
   chat: MessageSquareIcon,
   scribe: MicIcon,
