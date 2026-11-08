@@ -1611,6 +1611,135 @@ describe("ClaudeAdapterV2 resume compaction", () => {
   );
 });
 
+describe("ClaudeAdapterV2 question answers", () => {
+  it.effect("expands a skill typed in a question answer", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const idAllocator = yield* IdAllocator.IdAllocatorV2;
+        const path = yield* Path.Path;
+        const attachmentsDir = yield* fileSystem.makeTempDirectoryScoped({
+          prefix: "t3-claude-answer-skill-",
+        });
+        const cwd = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-claude-answer-cwd-" });
+        yield* fileSystem.makeDirectory(path.join(cwd, ".claude", "skills", "tdd"), {
+          recursive: true,
+        });
+        yield* fileSystem.writeFileString(
+          path.join(cwd, ".claude", "skills", "tdd", "SKILL.md"),
+          "---" +
+            String.fromCharCode(10) +
+            "name: tdd" +
+            String.fromCharCode(10) +
+            "---" +
+            String.fromCharCode(10) +
+            "Write the test first." +
+            String.fromCharCode(10),
+        );
+        let openedOptions: ClaudeAdapterV2.ClaudeAgentSdkQueryOptions | undefined;
+        const adapter = yield* ClaudeAdapterV2.makeClaudeAdapterV2({
+          instanceId: ClaudeAdapterV2.CLAUDE_DEFAULT_INSTANCE_ID,
+          settings: DEFAULT_CLAUDE_SETTINGS,
+          environment: {},
+          attachmentsDir,
+          fileSystem,
+          path,
+          crypto: yield* Crypto.Crypto,
+          idAllocator,
+          queryRunner: {
+            allocateSessionId: Effect.succeed("native-thread-claude-answer-skill"),
+            open: (input) =>
+              Effect.sync(() => {
+                openedOptions = input.options;
+                return {
+                  messages: Stream.never,
+                  offer: () => Effect.void,
+                  setModel: () => Effect.void,
+                  applyFlagSettings: () => Effect.void,
+                  setPermissionMode: () => Effect.void,
+                  stopTask: () => Effect.void,
+                  interrupt: Effect.void,
+                  close: Effect.void,
+                };
+              }),
+            forkSession: () => Effect.die("unused"),
+            subagentLaunchToolUseId: () => Effect.succeed(null),
+            assertComplete: Effect.void,
+          },
+        });
+        const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+          runtimeMode: "full-access",
+          interactionMode: "default",
+          cwd,
+        });
+        const threadId = ThreadId.make("thread-claude-answer-skill");
+        const runtime = yield* adapter.openSession({
+          threadId,
+          providerSessionId: ProviderSessionId.make("provider-session-claude-answer-skill"),
+          modelSelection: CLAUDE_TEST_MODEL_SELECTION,
+          runtimePolicy,
+        });
+        const providerThread = yield* runtime.ensureThread({
+          threadId,
+          modelSelection: CLAUDE_TEST_MODEL_SELECTION,
+          runtimePolicy,
+        });
+        const now = yield* DateTime.now;
+        yield* runtime.startTurn(
+          makeClaudeTestTurnInput({
+            threadId,
+            providerThread,
+            now,
+            attemptId: RunAttemptId.make("attempt-claude-answer-skill"),
+            text: "continue",
+            attachments: [],
+            runtimePolicy,
+          }),
+        );
+        const canUseTool = openedOptions?.canUseTool;
+        assert.isFunction(canUseTool);
+        const question = "How should we start?";
+        const requestEvent = yield* runtime.events.pipe(
+          Stream.filter((event) => event.type === "runtime_request.updated"),
+          Stream.runHead,
+          Effect.forkScoped,
+        );
+        const result = yield* Effect.promise(() =>
+          canUseTool!(
+            "AskUserQuestion",
+            {
+              questions: [{ header: "Start", question, options: [], multiSelect: false }],
+            },
+            {
+              signal: new AbortController().signal,
+              toolUseID: "tool-question-skill",
+              requestId: "request-question-skill",
+            },
+          ),
+        ).pipe(Effect.forkScoped);
+        const event = yield* Fiber.join(requestEvent);
+        assert.isTrue(Option.isSome(event));
+        if (Option.isNone(event) || event.value.type !== "runtime_request.updated") return;
+        yield* runtime.respondToRuntimeRequest({
+          requestId: event.value.runtimeRequest.id,
+          answers: { [question]: "$tdd the parser" },
+        });
+        const resolved = yield* Fiber.join(result);
+        assert.equal(resolved.behavior, "allow");
+        const answer =
+          resolved.behavior === "allow" ? resolved.updatedInput?.answers?.[question] : undefined;
+        assert.include(String(answer), '<skill name="tdd"/>');
+        assert.include(String(answer), "Write the test first.");
+        assert.include(String(answer), "ARGUMENTS: the parser");
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+        ),
+      ),
+    ),
+  );
+});
+
 describe("ClaudeAdapterV2 attachments", () => {
   it.effect("forwards images and references generic files on sends and steering", () =>
     Effect.scoped(
