@@ -14,6 +14,8 @@ import {
   resolveSidebarRowAccessibility,
   resolveReplyStatusMark,
   resolveWorkingStartedAt,
+  sidebarWorkerRollup,
+  useSidebarCacheWarmth,
 } from "../Sidebar.logic";
 import { formatRelativeTimeLabel, parseTimestampDate } from "../../timestampFormat";
 import { resolveSettledThreadTimestamp } from "@t3tools/client-runtime/state/thread-sort";
@@ -57,6 +59,8 @@ import { ThreadHoverCardPopup, ThreadHoverCard } from "../ThreadHoverCard";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import {
   GitBranchIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
   CircleAlertIcon,
   ArrowRightLeftIcon,
   TerminalIcon,
@@ -494,6 +498,8 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   projectDisplayName: string | null;
   /** False hides the second line that says why a chat is in its state. */
   showActivityLine?: boolean;
+  /** Worker chats that belong to this chat, for the rollup line. */
+  workers?: readonly SidebarThreadSummary[] | undefined;
   providerEntryByInstanceId: ReadonlyMap<string, ProviderInstanceEntry>;
   timestampFormat: TimestampFormat;
   onThreadClick: (event: ReactMouseEvent, threadRef: ScopedThreadRef) => void;
@@ -631,6 +637,9 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   const activityLine = threadActivityLine({ status, summary: thread.activitySummary });
   // The line can be hidden from view; screen readers still hear it.
   const visibleActivityLine = props.showActivityLine === false ? null : activityLine;
+  const warmth = useSidebarCacheWarmth(thread.contextUsage);
+  const rollup = sidebarWorkerRollup(props.workers, isUnread);
+  const [workersOpen, setWorkersOpen] = useState(false);
   const isInFlight =
     status === "working" || status === "waiting" || status === "approval" || status === "input";
   // A woken thread reappears at its original position (the sort is
@@ -1391,6 +1400,7 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   const diff = latestRunDiff(thread);
   // Only the provider icon would remain, so the row drops the line instead of leaving it blank.
   const metaLineEmpty =
+    !props.projectDisplayName &&
     !thread.branch &&
     !showsScratchMachine &&
     prBadge === null &&
@@ -1406,10 +1416,10 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
       className={cn(
         "relative list-none py-0.5 [content-visibility:auto]",
         visibleActivityLine
-          ? "[contain-intrinsic-size:auto_100px]"
+          ? "[contain-intrinsic-size:auto_88px]"
           : metaLineEmpty
-            ? "[contain-intrinsic-size:auto_58px]"
-            : "[contain-intrinsic-size:auto_78px]",
+            ? "[contain-intrinsic-size:auto_44px]"
+            : "[contain-intrinsic-size:auto_60px]",
         sortable?.isDragging && "z-20",
       )}
     >
@@ -1442,26 +1452,50 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
           <div
             className={cn(
               "relative z-10 px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)",
-              metaLineEmpty ? "h-auto" : visibleActivityLine ? "min-h-[6.25rem]" : "h-[4.875rem]",
+              metaLineEmpty
+                ? "h-auto"
+                : visibleActivityLine || rollup
+                  ? "min-h-[5.5rem]"
+                  : "min-h-[3.75rem]",
             )}
           >
-            <div className="flex h-5 min-w-0 items-center gap-1.5">
-              {draftIndicator}
-              {props.project ? (
-                <ProjectFavicon project={props.project} className="size-4 shrink-0" />
-              ) : null}
-              {props.projectDisplayName ? (
+            {warmth ? (
+              <span
+                aria-hidden
+                data-row-part="cache-bar"
+                className="absolute bottom-2.5 left-1 top-2.5 w-[3px] overflow-hidden rounded-full bg-sidebar-border"
+              >
                 <span
                   className={cn(
-                    "min-w-0 flex-1 truncate text-secondary-label text-xs",
-                    shouldRecede ? "font-normal" : "font-medium",
+                    "absolute inset-x-0 bottom-0",
+                    warmth.low ? "bg-warning" : "bg-state",
                   )}
+                  style={{ height: `${Math.round(warmth.fraction * 100)}%` }}
+                />
+              </span>
+            ) : null}
+            <div className="flex h-5 min-w-0 items-center gap-1.5">
+              {draftIndicator}
+              {rollup ? (
+                <button
+                  type="button"
+                  aria-label={workersOpen ? "Hide workers" : "Show workers"}
+                  aria-expanded={workersOpen}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setWorkersOpen((open) => !open);
+                  }}
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
                 >
-                  {props.projectDisplayName}
-                </span>
-              ) : (
-                <span className="flex-1" />
-              )}
+                  {workersOpen ? (
+                    <ChevronDownIcon aria-hidden className="size-3.5" />
+                  ) : (
+                    <ChevronRightIcon aria-hidden className="size-3.5" />
+                  )}
+                </button>
+              ) : null}
+              {title}
               {pinIndicator}
               {/* The visible state owns this slot's width: status at rest,
                   actions on hover/keyboard focus or while the popover is open. Keeping
@@ -1538,7 +1572,11 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                           ) : null}
                         </span>
                       )
-                    ) : null}
+                    ) : (
+                      <span data-row-part="time" className="text-2xs">
+                        {threadTimeLabel(thread)}
+                      </span>
+                    )}
                   </span>
                   {props.settlementSupported || showSnoozeButton || hasUnsentDraft ? (
                     <span
@@ -1606,34 +1644,77 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                   release click still fires and is consumed. */}
               {props.sweepAction !== null ? dragDestination : null}
             </div>
-            <div className="mt-1 flex min-w-0 items-baseline">
-              {title}
-              {/* A status label takes the time's slot in the header, so the
-                  time drops beneath it instead of disappearing. Working rows
-                  already carry their own ticking duration. */}
-              {status !== "working" ? (
-                <span
-                  data-row-part="time"
-                  className="ml-auto shrink-0 pl-2 text-2xs tabular-nums text-muted-foreground"
-                >
-                  {threadTimeLabel(thread)}
-                </span>
-              ) : null}
-              {isRegeneratingTitle ? (
-                <span role="status" className="sr-only">
-                  Regenerating title
-                </span>
-              ) : null}
-              {metaLineEmpty ? (
-                <span aria-hidden className="inline-flex shrink-0 self-center pl-1.5">
-                  <SidebarProviderStack
-                    thread={thread}
-                    providerEntryByInstanceId={props.providerEntryByInstanceId}
-                  />
-                </span>
-              ) : null}
-            </div>
-            {visibleActivityLine ? (
+            {isRegeneratingTitle || metaLineEmpty ? (
+              <div className="flex min-w-0 items-baseline">
+                {isRegeneratingTitle ? (
+                  <span role="status" className="sr-only">
+                    Regenerating title
+                  </span>
+                ) : null}
+                {metaLineEmpty ? (
+                  <span aria-hidden className="ml-auto inline-flex shrink-0 self-center pl-1.5">
+                    <SidebarProviderStack
+                      thread={thread}
+                      providerEntryByInstanceId={props.providerEntryByInstanceId}
+                    />
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {rollup ? (
+              <div className="mt-0.5" data-row-part="workers">
+                <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                  <span className="min-w-0 flex-1 truncate">
+                    {rollup.items.length} {rollup.items.length === 1 ? "worker" : "workers"}
+                    {rollup.running > 0
+                      ? ` · ${rollup.done} done · ${rollup.running} running`
+                      : ` finished${rollup.failed ? ` · ${rollup.failed} failed` : ""} · open to review`}
+                  </span>
+                  <span aria-hidden className="flex shrink-0 gap-0.5">
+                    {rollup.items.slice(0, 6).map((item) => (
+                      <span
+                        key={item.id}
+                        className={cn(
+                          "h-1 w-3 rounded-full",
+                          item.state === "running"
+                            ? "bg-state"
+                            : item.state === "failed"
+                              ? "bg-error"
+                              : "bg-muted-foreground",
+                        )}
+                      />
+                    ))}
+                  </span>
+                </div>
+                {workersOpen ? (
+                  <ul aria-label="Workers" className="ml-2 mt-1 border-l border-border pl-3">
+                    {rollup.items.map((item) => (
+                      <li key={item.id} className="flex h-6 min-w-0 items-center gap-2 text-xs">
+                        <span className="min-w-0 flex-1 truncate text-foreground">
+                          {item.title}
+                        </span>
+                        <span
+                          className={cn(
+                            "shrink-0 text-2xs",
+                            item.state === "running"
+                              ? "font-medium text-state-text"
+                              : item.state === "failed"
+                                ? "text-error-foreground"
+                                : "text-muted-foreground",
+                          )}
+                        >
+                          {item.state === "running"
+                            ? "Running"
+                            : item.state === "failed"
+                              ? "Failed"
+                              : "Done"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : visibleActivityLine ? (
               <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                 <span className="min-w-0 flex-1 truncate">{visibleActivityLine.text}</span>
                 {visibleActivityLine.progress ? (
@@ -1652,6 +1733,24 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                 metaLineEmpty && "hidden",
               )}
             >
+              {props.project ? (
+                <ProjectFavicon project={props.project} className="size-4 shrink-0" />
+              ) : null}
+              {props.projectDisplayName ? (
+                <span
+                  className={cn(
+                    "min-w-0 max-w-[28%] truncate",
+                    shouldRecede ? "font-normal" : "font-medium",
+                  )}
+                >
+                  {props.projectDisplayName}
+                </span>
+              ) : null}
+              {props.projectDisplayName && (thread.branch || showsScratchMachine) ? (
+                <span aria-hidden className="text-muted-foreground">
+                  ·
+                </span>
+              ) : null}
               {/* The branch remains independent of the live plan step. */}
               {thread.branch ? (
                 <>
@@ -1661,7 +1760,7 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                       render={
                         <span
                           className={cn(
-                            "flex min-w-0 flex-1 items-center gap-1",
+                            "flex min-w-16 flex-1 items-center gap-1",
                             branchMismatch ? "text-warning-foreground" : "text-muted-foreground",
                           )}
                         />
@@ -1705,6 +1804,17 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                   <span className="text-diff-deletion-foreground">
                     −{formatDiffCount(diff.deletions)}
                   </span>
+                </span>
+              ) : null}
+              {warmth ? (
+                <span
+                  data-row-part="cache-label"
+                  className={cn(
+                    "shrink-0 text-2xs tabular-nums",
+                    warmth.low ? "font-medium text-warning-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {warmth.label}
                 </span>
               ) : null}
               <span

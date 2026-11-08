@@ -2372,10 +2372,14 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         usedTokens: 185_000,
         maxTokens: 1_000_000,
         totalProcessedTokens: 4_100_000,
+        reportedAt: "2026-08-29T12:00:09.000Z",
       });
       // A handoff moves the conversation: the snapshot's extras stay behind.
       yield* applyProviderThread("second", null, 1);
-      assert.deepEqual(yield* shellUsage, { usedTokens: 185_000 });
+      assert.deepEqual(yield* shellUsage, {
+        usedTokens: 185_000,
+        reportedAt: "2026-08-29T12:00:09.000Z",
+      });
     }),
   );
 

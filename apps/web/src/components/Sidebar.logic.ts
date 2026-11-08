@@ -1,3 +1,4 @@
+import { cacheStatus } from "@t3tools/client-runtime/cache-awareness";
 import { resolveThreadWorkingStartedAt } from "@t3tools/client-runtime/state/models";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { threadPullRequestSearchTerms } from "@t3tools/shared/threadPullRequests";
@@ -24,6 +25,7 @@ import {
 } from "../lib/threadSort";
 import type { SidebarThreadSummary, Thread } from "../types";
 import { formatContextWindowTokens } from "../lib/contextWindow";
+import { cacheClock } from "../lib/cacheAwarenessStore";
 import { cn, normalizeSearchText } from "../lib/utils";
 import { isLatestRunSettled } from "../session-logic";
 import { resolveServerBackedAppStageLabel } from "../branding.logic";
@@ -1519,4 +1521,98 @@ export function threadUsageLines(usage: SidebarThreadSummary["contextUsage"]): s
     );
   }
   return lines;
+}
+
+const CACHE_LOW_MS = 10 * 60_000;
+
+/** Bar fill and label for the row's cache. Null when the provider gave no lifetime. */
+export function sidebarCacheWarmth(usage: SidebarThreadSummary["contextUsage"], now: number) {
+  if (!usage?.reportedAt) return null;
+  const status = cacheStatus(
+    {
+      inputTokens: usage.inputTokens,
+      cachedInputTokens: usage.cachedInputTokens,
+      reportedAt: Date.parse(usage.reportedAt),
+      ttlMs: usage.promptCacheTtlMs,
+      // Older reports carry no anchor. The report time is the model call, so it stands in.
+      anchorAt: Date.parse(usage.promptCacheAnchorAt ?? usage.reportedAt),
+    },
+    now,
+  );
+  if (status.state === "possibly-expired") return { fraction: 0, label: "Cold", low: false };
+  if (status.state !== "estimated" || status.remainingMs === null || !usage.promptCacheTtlMs)
+    return null;
+  const low = status.remainingMs <= CACHE_LOW_MS;
+  const minutes = Math.ceil(status.remainingMs / 60_000);
+  return {
+    fraction: Math.min(1, status.remainingMs / usage.promptCacheTtlMs),
+    label: low ? `Cache ${minutes}m left` : `Cache ${minutes}m`,
+    low,
+  };
+}
+
+type WorkerChild = Pick<
+  SidebarThreadSummary,
+  | "id"
+  | "title"
+  | "lineage"
+  | "archivedAt"
+  | "hasPendingApprovals"
+  | "hasPendingUserInput"
+  | "runtime"
+>;
+
+/** Worker child threads by parent id, built once per render of the list. */
+export function groupSidebarWorkers<T extends WorkerChild>(threads: readonly T[]) {
+  const byParent = new Map<string, T[]>();
+  for (const thread of threads) {
+    const parent = thread.lineage.parentThreadId;
+    if (thread.archivedAt !== null || thread.lineage.relationshipToParent !== "subagent" || !parent)
+      continue;
+    const list = byParent.get(parent);
+    if (list) list.push(thread);
+    else byParent.set(parent, [thread]);
+  }
+  return byParent;
+}
+
+export type SidebarWorkerState = "running" | "done" | "failed";
+
+/** Counts for a parent row. Shown while a worker runs, then until the user reads the chat. */
+export function sidebarWorkerRollup(
+  workers: readonly WorkerChild[] | undefined,
+  isUnread: boolean,
+) {
+  if (!workers?.length) return null;
+  const items = workers.map((worker) => {
+    const status = resolveSidebarThreadStatus(worker);
+    const state: SidebarWorkerState =
+      status === "working" || status === "approval" || status === "input"
+        ? "running"
+        : status === "failed" || status === "limited"
+          ? "failed"
+          : "done";
+    return { id: worker.id, title: worker.title, state };
+  });
+  const running = items.filter((item) => item.state === "running").length;
+  if (running === 0 && !isUnread) return null;
+  return {
+    items,
+    running,
+    failed: items.filter((item) => item.state === "failed").length,
+    done: items.length - running,
+  };
+}
+
+/** Changes only when the label or the bar step changes, so a clock tick re-renders no other row. */
+export function sidebarCacheWarmthKey(usage: SidebarThreadSummary["contextUsage"], now: number) {
+  const warmth = sidebarCacheWarmth(usage, now);
+  return warmth ? `${warmth.label}|${Math.round(warmth.fraction * 20)}` : "";
+}
+
+export function useSidebarCacheWarmth(usage: SidebarThreadSummary["contextUsage"]) {
+  React.useSyncExternalStore(cacheClock.subscribe, () =>
+    sidebarCacheWarmthKey(usage, cacheClock.read()),
+  );
+  return sidebarCacheWarmth(usage, cacheClock.read());
 }
