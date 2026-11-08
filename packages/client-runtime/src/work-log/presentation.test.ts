@@ -554,7 +554,7 @@ describe("resolveWorkEntryToolPresentation", () => {
         label: "mcp__t3_code__task_status",
         toolTitle: "Check the child task",
       }),
-    ).toEqual({ displayName: "Getting helper status", icon: "t3-code" });
+    ).toEqual({ displayName: "Getting helper status", icon: "leonidas" });
   });
 
   it("does not brand unknown tools or another server's matching tool name", () => {

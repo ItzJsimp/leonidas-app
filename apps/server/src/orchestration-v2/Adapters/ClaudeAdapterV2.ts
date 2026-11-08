@@ -151,7 +151,7 @@ import {
 } from "../../provider/claudeUsageLimits.ts";
 import type { ManagedServerProvider } from "@t3tools/provider-core/server/snapshot";
 import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/instanceEnvironment";
-import { T3_CODE_ORCHESTRATION_INSTRUCTIONS } from "@t3tools/provider-core/server/orchestrationInstructions";
+import { LEONIDAS_ORCHESTRATION_INSTRUCTIONS } from "@t3tools/provider-core/server/orchestrationInstructions";
 import {
   activeAiLevel,
   buildRuntimeInstructions,
@@ -1194,7 +1194,7 @@ export function makeClaudeQueryOptions(input: {
                 harness: "Claude Code",
                 ponytailPlugin: isPonytailPluginEnabled(input.environment),
                 replyStyle: input.replyStyle,
-              }) + (input.mcpServers === undefined ? "" : T3_CODE_ORCHESTRATION_INSTRUCTIONS),
+              }) + (input.mcpServers === undefined ? "" : LEONIDAS_ORCHESTRATION_INSTRUCTIONS),
           },
         }
       : { systemPrompt: input.persona.systemPrompt, settingSources: [] }),

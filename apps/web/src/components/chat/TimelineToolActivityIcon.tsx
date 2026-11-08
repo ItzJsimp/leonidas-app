@@ -57,6 +57,7 @@ export type WorkEntryIconName =
   | "square-pen"
   | "terminal"
   | "pull-request"
+  | "leonidas"
   | "t3-code"
   | "wrench"
   | "x"
@@ -249,6 +250,7 @@ function WorkEntryIcon({ name, className }: { name: WorkEntryIconName; className
       return <ComputerUseAppIcon className={className} />;
     case "device":
       return <SmartphoneIcon className={className} aria-hidden />;
+    case "leonidas":
     case "t3-code":
       return <T3Wordmark className={className} aria-hidden />;
     case "check":

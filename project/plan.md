@@ -15,7 +15,7 @@ Jake's fork of T3 Code (Mob tests), the agent harness that replaces the Claude C
 1. **Shared repo from Mob's build.** Mob pushes his modified source to a new repo (or a branch of `ItzJsimp/t3code`); both clone it; the other is added as collaborator. Card: [`t3-code-shared-repo-from-mob-build`](../../../tasks/t3-code-shared-repo-from-mob-build.md).
 2. **Push-to-update pipeline.** Slim GitHub Actions workflow: on push to `main`, build the Windows NSIS installer with `GITHUB_REPOSITORY` set, publish a GitHub Release with version `1.0.<run_number>`. The existing updater shows the toast on the other machine within about 4 minutes of the release landing. Card: [`t3-code-push-to-update-release-pipeline`](../../../tasks/t3-code-push-to-update-release-pipeline.md).
 3. **Synced task board.** Panel in the web UI, backed by a shared store both instances watch; agents add tasks through a CLI or MCP tool. Card: [`t3-code-synced-task-board`](../../../tasks/t3-code-synced-task-board.md).
-4. **Rebrand.** Product name, icons, window title, installer name, update repo. Keep it a thin layer so upstream merges stay cheap. Card: [`t3-code-rebrand`](../../../tasks/t3-code-rebrand.md).
+4. **Rebrand.** Product name, icons, window title, installer name, update repo. Keep it a thin layer so upstream merges stay cheap. Card: [`rename-the-t3-code-mcp-server-and-tools-to-leonidas-names`](../../tasks/rename-the-t3-code-mcp-server-and-tools-to-leonidas-names.md).
 
 ## Constraints that shape the build
 

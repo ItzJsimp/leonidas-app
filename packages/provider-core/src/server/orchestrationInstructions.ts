@@ -1,6 +1,6 @@
 import type { ProviderInteractionMode } from "@t3tools/contracts";
 
-export const T3_CODE_ORCHESTRATION_INSTRUCTIONS = `
+export const LEONIDAS_ORCHESTRATION_INSTRUCTIONS = `
 
 ## Leonidas orchestration
 
@@ -37,7 +37,7 @@ Ordinary coding tasks need no \`leonidas\` tools.
  * ACP-only: some ACP agents accept the injected MCP server but do not expose its tools. Native
  * adapters never need the terminal fallback, so it is not part of the shared orchestration text.
  */
-export const T3_ACP_FALLBACK_INSTRUCTIONS = `ACP fallback: if the T3 tools are absent and \`T3_ACP_MCP_NODE\` is present, call them through the terminal: \`ELECTRON_RUN_AS_NODE=1 "$T3_ACP_MCP_NODE" \${T3_ACP_MCP_ENTRYPOINT:+"$T3_ACP_MCP_ENTRYPOINT"} acp-mcp-call leo_orchestrator_capabilities '{}'\` (\`T3_ACP_MCP_ENTRYPOINT\` is unset for a standalone executable). Delegate with \`acp-mcp-call leo_delegate_task '{"task":"...","target":{"providerInstanceId":"...","model":"..."},"mode":"async","clientRequestId":"..."}'\`. This is the supported transport, not a shell substitute for delegation.`;
+export const T3_ACP_FALLBACK_INSTRUCTIONS = `ACP fallback: if the Leonidas tools are absent and \`T3_ACP_MCP_NODE\` is present, call them through the terminal: \`ELECTRON_RUN_AS_NODE=1 "$T3_ACP_MCP_NODE" \${T3_ACP_MCP_ENTRYPOINT:+"$T3_ACP_MCP_ENTRYPOINT"} acp-mcp-call leo_orchestrator_capabilities '{}'\` (\`T3_ACP_MCP_ENTRYPOINT\` is unset for a standalone executable). Delegate with \`acp-mcp-call leo_delegate_task '{"task":"...","target":{"providerInstanceId":"...","model":"..."},"mode":"async","clientRequestId":"..."}'\`. This is the supported transport, not a shell substitute for delegation.`;
 
 export const T3_CODE_BROWSER_TOOL_INSTRUCTIONS = `
 
@@ -92,12 +92,12 @@ export function t3AcpPromptWithInstructions(input: {
           ...(input.state.hasBrowserTools === false
             ? []
             : [T3_CODE_BROWSER_TOOL_INSTRUCTIONS.trim()]),
-          T3_CODE_ORCHESTRATION_INSTRUCTIONS.trim(),
+          LEONIDAS_ORCHESTRATION_INSTRUCTIONS.trim(),
           ...(input.state.hasAcpFallback === false ? [] : [T3_ACP_FALLBACK_INSTRUCTIONS]),
         ]
       : []),
   ];
-  return `<t3_code_instructions>\n${instructions.join("\n\n")}\n</t3_code_instructions>\n\n<user_request>\n${input.prompt}\n</user_request>`;
+  return `<leonidas_instructions>\n${instructions.join("\n\n")}\n</leonidas_instructions>\n\n<user_request>\n${input.prompt}\n</user_request>`;
 }
 
 /**
@@ -106,7 +106,7 @@ export function t3AcpPromptWithInstructions(input: {
  * mistaken for text authored by the user.
  */
 function prependT3OrchestrationInstructions(prompt: string): string {
-  return `<t3_code_orchestration_instructions>${T3_CODE_ORCHESTRATION_INSTRUCTIONS.trim()}</t3_code_orchestration_instructions>\n\n<user_request>\n${prompt}\n</user_request>`;
+  return `<leonidas_orchestration_instructions>${LEONIDAS_ORCHESTRATION_INSTRUCTIONS.trim()}</leonidas_orchestration_instructions>\n\n<user_request>\n${prompt}\n</user_request>`;
 }
 
 export function t3OrchestrationPromptForFirstRun(input: {
@@ -120,5 +120,7 @@ export function t3OrchestrationPromptForFirstRun(input: {
 }
 
 export function t3OrchestrationSystemPrompt(hasT3Mcp: boolean): string | undefined {
-  return hasT3Mcp ? T3_CODE_ORCHESTRATION_INSTRUCTIONS : undefined;
+  return hasT3Mcp ? LEONIDAS_ORCHESTRATION_INSTRUCTIONS : undefined;
 }
+
+export const T3_CODE_ORCHESTRATION_INSTRUCTIONS = LEONIDAS_ORCHESTRATION_INSTRUCTIONS;

@@ -1012,7 +1012,7 @@ describe("AcpAdapterV2", () => {
 
       const command = yield* runTurn(0, defaultPolicy, "/compact");
       assert.isTrue(command.prompt.startsWith("/compact"));
-      assert.notInclude(command.prompt, "<t3_code_instructions>");
+      assert.notInclude(command.prompt, "<leonidas_instructions>");
       const firstDefault = yield* runTurn(1, defaultPolicy, "First default request.");
       assert.include(firstDefault.prompt, "Leonidas interaction mode: Default");
       // The browser block is injected only when browser tools are live; this fixture has none.

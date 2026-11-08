@@ -31,50 +31,50 @@ describe("resolveT3McpToolPresentation", () => {
   it("pretty prints Claude and Cursor T3 MCP tool names", () => {
     expect(resolveT3McpToolPresentation("mcp__leonidas__leo_thread_read")).toEqual({
       displayName: "Read a chat",
-      logo: "t3-code",
+      logo: "leonidas",
     });
   });
 
   it("pretty prints Codex T3 MCP tool names", () => {
     expect(resolveT3McpToolPresentation("leonidas.leo_create_threads")).toEqual({
       displayName: "Create chats",
-      logo: "t3-code",
+      logo: "leonidas",
     });
   });
 
   it("pretty prints thread metadata updates", () => {
     expect(resolveT3McpToolPresentation("mcp__leonidas__leo_thread_update")).toEqual({
       displayName: "Update chat details",
-      logo: "t3-code",
+      logo: "leonidas",
     });
   });
 
   it("pretty prints bare T3 MCP toolkit names", () => {
     expect(resolveT3McpToolPresentation("list_scheduled_tasks")).toEqual({
       displayName: "List scheduled tasks",
-      logo: "t3-code",
+      logo: "leonidas",
     });
   });
 
   it("pretty prints worktree T3 MCP tool names", () => {
     expect(resolveT3McpToolPresentation("mcp__leonidas__leo_worktree_handoff")).toEqual({
       displayName: "Hand off chat to a separate copy",
-      logo: "t3-code",
+      logo: "leonidas",
     });
     expect(resolveT3McpToolPresentation("leonidas.leo_worktree_status")).toEqual({
       displayName: "Get separate copy status",
-      logo: "t3-code",
+      logo: "leonidas",
     });
   });
 
   it("pretty prints preview T3 MCP tool names", () => {
     expect(resolveT3McpToolPresentation("T3-code.preview_open")).toEqual({
       displayName: "Open a page in the preview browser",
-      logo: "t3-code",
+      logo: "leonidas",
     });
     expect(resolveT3McpToolPresentation("mcp__leonidas__leo_preview_status")).toEqual({
       displayName: "Get preview browser status",
-      logo: "t3-code",
+      logo: "leonidas",
     });
   });
 

@@ -4,7 +4,7 @@ import { LEONIDAS_OUTPUT_STANDARD } from "./outputStandard.ts";
 import {
   T3_ACP_FALLBACK_INSTRUCTIONS,
   T3_CODE_BROWSER_TOOL_INSTRUCTIONS,
-  T3_CODE_ORCHESTRATION_INSTRUCTIONS,
+  LEONIDAS_ORCHESTRATION_INSTRUCTIONS,
   t3AcpPromptWithInstructions,
   t3OrchestrationPromptForFirstRun,
   t3OrchestrationSystemPrompt,
@@ -12,49 +12,49 @@ import {
 
 describe("T3 orchestration provider instructions", () => {
   it("distinguishes delegated subagents from ordinary top-level threads", () => {
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "`leo_delegate_task` for another provider");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "make new top-level threads");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "`leo_delegate_task` for another provider");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "make new top-level threads");
     assert.include(
-      T3_CODE_ORCHESTRATION_INSTRUCTIONS,
+      LEONIDAS_ORCHESTRATION_INSTRUCTIONS,
       '"Subagent", "delegate", and "parallel" never mean one',
     );
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "another provider");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "is a new `leo_delegate_task`");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "another provider");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "is a new `leo_delegate_task`");
     assert.include(
-      T3_CODE_ORCHESTRATION_INSTRUCTIONS,
+      LEONIDAS_ORCHESTRATION_INSTRUCTIONS,
       "Never continue a review with `leo_thread_send` on `childThreadId`",
     );
   });
 
   it("guides model discovery, bounded delegation, and review", () => {
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "Tiered orchestration");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "Tiered orchestration");
     assert.include(
-      T3_CODE_ORCHESTRATION_INSTRUCTIONS,
+      LEONIDAS_ORCHESTRATION_INSTRUCTIONS,
       "Keep planning, architecture, integration, and final review",
     );
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "from `leo_orchestrator_capabilities`");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "Track every delegated task by `taskId`");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "Report checks that could not run");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "from `leo_orchestrator_capabilities`");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "Track every delegated task by `taskId`");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "Report checks that could not run");
   });
 
   it("keeps parallel decision exploration read-only and closes the frontend verification loop", () => {
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "two independent, read-only");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "Children share the workspace");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "separate worktrees");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "preview_status");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "inspect it again");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "two independent, read-only");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "Children share the workspace");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "separate worktrees");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "preview_status");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "inspect it again");
   });
 
   it("tells the lead agent to delegate simple work to cheaper or faster models", () => {
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "You lead the AI accounts");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "cheaper or faster model");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "Inspect its diff");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "You lead the AI accounts");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "cheaper or faster model");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "Inspect its diff");
   });
 
   it("documents structured schedules instead of JSON strings", () => {
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "is an object, never JSON text");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, '"everyMs":3600000');
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "bindToCurrentThread=false");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "is an object, never JSON text");
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, '"everyMs":3600000');
+    assert.include(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "bindToCurrentThread=false");
   });
 
   it("injects prompt fallback only for an MCP-enabled first run", () => {
@@ -65,7 +65,7 @@ describe("T3 orchestration provider instructions", () => {
       hasT3Mcp: true,
     });
 
-    assert.include(injected, "<t3_code_orchestration_instructions>");
+    assert.include(injected, "<leonidas_orchestration_instructions>");
     assert.include(injected, `<user_request>\n${prompt}\n</user_request>`);
     assert.equal(
       t3OrchestrationPromptForFirstRun({ prompt, runOrdinal: 2, hasT3Mcp: true }),
@@ -79,7 +79,7 @@ describe("T3 orchestration provider instructions", () => {
 
   it("only exposes the system prompt when the T3 MCP server is attached", () => {
     assert.equal(t3OrchestrationSystemPrompt(false), undefined);
-    assert.equal(t3OrchestrationSystemPrompt(true), T3_CODE_ORCHESTRATION_INSTRUCTIONS);
+    assert.equal(t3OrchestrationSystemPrompt(true), LEONIDAS_ORCHESTRATION_INSTRUCTIONS);
   });
 
   it("gives ACP sessions provider-neutral mode, browser, and orchestration guidance", () => {
@@ -95,7 +95,7 @@ describe("T3 orchestration provider instructions", () => {
   });
 
   it("keeps the terminal ACP fallback out of non-ACP orchestration prompts", () => {
-    assert.notInclude(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "T3_ACP_MCP_NODE");
+    assert.notInclude(LEONIDAS_ORCHESTRATION_INSTRUCTIONS, "T3_ACP_MCP_NODE");
     assert.notInclude(
       t3OrchestrationPromptForFirstRun({ prompt: "x", runOrdinal: 1, hasT3Mcp: true }),
       "T3_ACP_MCP_NODE",
@@ -148,7 +148,7 @@ describe("T3 orchestration provider instructions", () => {
         state: { ...previousState, hasBrowserTools: false },
         previousState,
       }),
-      "<t3_code_instructions>",
+      "<leonidas_instructions>",
     );
   });
 
@@ -180,7 +180,7 @@ describe("T3 orchestration provider instructions", () => {
 
 describe("injected instruction budget", () => {
   const blocks = [
-    T3_CODE_ORCHESTRATION_INSTRUCTIONS,
+    LEONIDAS_ORCHESTRATION_INSTRUCTIONS,
     T3_CODE_BROWSER_TOOL_INSTRUCTIONS,
     T3_ACP_FALLBACK_INSTRUCTIONS,
     LEONIDAS_OUTPUT_STANDARD,
