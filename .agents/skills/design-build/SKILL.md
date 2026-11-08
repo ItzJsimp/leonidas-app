@@ -1,6 +1,6 @@
 ---
 name: "design-build"
-description: "Design and build a new app, screen, page, dashboard, HTML artifact or document to Apple-grade quality: design read, contact sheet to pick from, token-true build, audit PASS. Use for any new UI or visual deliverable."
+description: "Design and build interfaces with project tokens and bounded visual review. Reuse approved designs for small edits; compare directions only for unresolved design choices."
 category: design
 scope: structural
 distribution: template
@@ -24,6 +24,9 @@ license: MIT
 
 # Design Build
 
+Read the [design review limits](references/review-budget.md) first. Reuse an approved design for small edits.
+New directions are for unresolved design choices. A skill invocation does not require a new contact sheet.
+
 Turns "build me X" or "I don't like how this looks" into a finished design that passes [`design-audit`](../design-audit/SKILL.md). the user is not a designer: he picks from rendered options and never has to describe a design in words. This skill does the designer's work: reading the room, proposing directions, building on a design system, and proving the result.
 
 Works for any project: new or existing apps (web, Qt, other desktop), pages, dashboards, generated HTML artifacts, and documents or PDFs. Impeccable is the engine for web craft; the Qt branch lives in [`references/qt-build.md`](references/qt-build.md).
@@ -39,7 +42,7 @@ Works for any project: new or existing apps (web, Qt, other desktop), pages, das
    - Design read: "Reading this as: <surface> where <user> <job>, <N> times a day, <impeccable mode>, <density>, on <canon>." Ask one question only if two reads diverge.
    - Build Menu per [`standards/ai-build-protocol.md`](../../../standards/ai-build-protocol.md) section 1: Core, Standard, Stretch, each with cost and default. For AIOS capabilities, say how it surfaces in the Command Center (section 1b).
    - Name 2 or 3 reference products the user already knows (Linear, Raycast, Arc, macOS System Settings, Apple Music, Stripe, Vercel dashboard) and what each does well for this job.
-4. **Render a contact sheet, never a prose menu of looks.** Show 3 structurally different directions on real tokens and real data (see [`references/contact-sheet.md`](references/contact-sheet.md)). Label them A, B, C, each with one "wins when" line. the user answers from pixels ("B, with A's header"). Record the pick in the grill, task or project file.
+4. **Reuse or compare.** Reuse the approved frame when the request preserves its design. Otherwise render two directions on real tokens and data ([contact sheet](references/contact-sheet.md)). Use a third only when the user requests it. Record the existing approval or new pick on the task card. Follow the project's Doop workflow within the shared frame budget.
 5. **Freeze the spec.** List files touched, components reused, states to build (empty, loading, error, long text), what's out of scope, and the end-to-end check. For a separate build chat this is the complete brief (ai-build-protocol 1c): it must not leave a design choice open.
 6. **Build on the system.**
    - Every value comes from tokens, and every component from the project's existing helpers first. Invent only what does not exist, and add it to the shared helpers, not the page.
@@ -48,7 +51,7 @@ Works for any project: new or existing apps (web, Qt, other desktop), pages, das
    - **Qt:** follow [`references/qt-build.md`](references/qt-build.md).
    - **Documents and PDFs:** use the Dispatch register (paper tone, 64-72 character measure, doubled spacing), and embed the same font files.
    - **Motion:** only where [`references/motion.md`](references/motion.md) says it earns its place.
-7. **Prove it.** Run [`design-audit`](../design-audit/SKILL.md) on the result with fresh screenshots at 3 sizes. It must PASS. Show the user the after screenshots, next to the before ones for a redesign.
+7. **Prove it.** Run [design-audit](../design-audit/SKILL.md) on the built result. Save the three required sizes locally. Use one combined comparison when useful, within the shared image limit. Keep routine QA images out of chat.
 
 ## Standing rules for anything built for the user
 
@@ -66,6 +69,6 @@ These come from the user's recorded preferences ([`memory/observed/patterns.md`]
 
 ## Done when
 
-1. the user picked a direction from a rendered contact sheet, and the pick is recorded.
-2. The result passes [`design-audit`](../design-audit/SKILL.md) from fresh screenshots at 3 sizes, and the screenshots were shown.
+1. The existing approval or new design pick is recorded, with the reused frame ID when available.
+2. The result passes [design-audit](../design-audit/SKILL.md). Required screenshots are saved locally and the frame or evidence is linked.
 3. No hex values, fonts or one-off components exist outside the project's token files and shared helpers.

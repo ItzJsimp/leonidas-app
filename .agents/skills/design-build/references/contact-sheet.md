@@ -1,18 +1,22 @@
-# Contact sheet: the user picks from pixels
+# Contact sheet: only for a real design choice
 
-the user narrows taste fastest from rendered specimens side by side ([`patterns.md`](../../../../memory/observed/patterns.md), "Taste Is Chosen From Rendered Specimens"). Never offer visual choices as text only.
+Apply the [design review limits](review-budget.md) across the whole task.
 
-## Build it
+For a small change or an approved design, reuse the chosen frame. Skip this contact sheet.
+A request to add an agreed control does not reopen the screen's design.
 
-1. One self-contained HTML file in the project folder (for example `projects/<project>/design/<surface>-directions.html`). It loads the project's fonts and tokens, or for AIOS canon [`assets/fonts/fonts.css`](../../../../assets/fonts/fonts.css) and the CSS variables from [`tokens.css`](../../../../projects/leonidas-command-center/src/tokens.css), so every direction is on-system. Desktop screens are mocked in HTML at the real window size and documents at page size; that is faster than building three native variants. For a project choosing its own brand, the 3 directions may also differ in palette and type.
-2. Use real data sampled from the live source (events, tasks, config), not lorem ipsum. Include one long string and one empty state per direction so clipping shows.
-3. Exactly 3 directions, side by side at the real width, labeled A, B, C. Make them structurally different (layout and information architecture), not three color tweaks. Typical spread for an app screen (for a landing page or document, pick 3 archetypes that fit that form instead):
-   - **A: Dense list plus detail pane** (Apple Mail, Linear). Wins when scanning many items.
-   - **B: Cards and summary first** (Apple Health, Vercel dashboard). Wins when the headline number matters most.
-   - **C: Single focused column with progressive disclosure** (macOS System Settings). Wins when the screen is mostly configuration.
-4. Under each: one "wins when" line and what it would cost to build (S, M, L).
-5. Open it for the user with `SendUserFile` (display `render`) or the browser pane, and screenshot it into the chat.
+## Compare an unresolved design
+
+1. Use the project's tokens, fonts and real content.
+2. Render two directions, side by side. Add a third only when the user requests it.
+3. Compare a real choice in layout, navigation or behavior. Name each direction and when it helps.
+4. Use existing Doop frames where possible. The task-wide limit includes every new capture and state frame.
+5. Keep responsive and stress checks local, or use controls inside one prototype.
+6. Inspect the completed directions together. Fix findings in one batch, then confirm once.
+7. Share one contact sheet or direct frame links. Keep routine review screenshots out of chat.
 
 ## Record the pick
 
-Write the user's answer verbatim ("B, but A's header") plus the resolved recipe (layout, components, which states) into the grill capture file or the task's spec before building.
+Save the user's words and the chosen frame ID on the task card.
+Keep the same frame ID during implementation and replace its contents with the built screen.
+Existing approval is sufficient when the requested edit preserves that design.
