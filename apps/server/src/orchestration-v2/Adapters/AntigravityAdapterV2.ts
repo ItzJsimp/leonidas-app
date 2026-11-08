@@ -180,7 +180,8 @@ export function makeAntigravityAcpAdapterFlavor(
     // The second form is the agent's reply when its own model request to a local port times out.
     connectionLostText:
       /^Agent (?:connection was lost and could not be re-established|execution error: doRequest: error sending request)/,
-    // `manage_task kill` cancels the next model request; the agent then stops without a reply.
+    // `manage_task kill` can cancel the next model request. The agent then stops without a reply
+    // and drops or hangs every later prompt on that process, so the adapter restarts it first.
     silentStopContinuation:
       "Your last model request was cancelled before you replied. Continue from where you stopped and finish with a short reply for the user.",
     subagentsIdleOnTurnCompletion: true,

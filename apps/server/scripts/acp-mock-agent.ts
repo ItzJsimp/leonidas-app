@@ -106,6 +106,13 @@ const lostConnectionMarkerPath = process.env.T3_ACP_LOST_CONNECTION_MARKER_PATH;
 // First prompt across all agent processes ends right after a tool call with no reply, like an
 // Antigravity turn whose last model request was cancelled by `manage_task kill`.
 const silentStopMarkerPath = process.env.T3_ACP_SILENT_STOP_MARKER_PATH;
+// With a silent stop, this process then drops every later prompt: it returns at once and records
+// nothing, as the real Antigravity agent does after `manage_task kill` cancelled its context.
+// Only a new process answers.
+const silentStopWedge = process.env.T3_ACP_SILENT_STOP_WEDGE === "1";
+let silentStopWedged = false;
+// How many prompts, across all processes, end with a silent stop. The marker file holds the count.
+const silentStopTimes = Number(process.env.T3_ACP_SILENT_STOP_TIMES ?? "1");
 const initialGrokReasoningEffort =
   process.env.T3_ACP_INITIAL_GROK_REASONING_EFFORT?.trim() || undefined;
 const promptDelayMs = Number(process.env.T3_ACP_PROMPT_DELAY_MS ?? "0");
@@ -1394,8 +1401,15 @@ const program = Effect.gen(function* () {
         return yield* finishPrompt(requestedSessionId, "end_turn");
       }
 
-      if (silentStopMarkerPath !== undefined && !NodeFS.existsSync(silentStopMarkerPath)) {
-        NodeFS.writeFileSync(silentStopMarkerPath, "silent");
+      if (silentStopWedged) return yield* finishPrompt(requestedSessionId, "end_turn");
+
+      const silentStopsSoFar =
+        silentStopMarkerPath !== undefined && NodeFS.existsSync(silentStopMarkerPath)
+          ? Number(NodeFS.readFileSync(silentStopMarkerPath, "utf8"))
+          : 0;
+      if (silentStopMarkerPath !== undefined && silentStopsSoFar < silentStopTimes) {
+        NodeFS.writeFileSync(silentStopMarkerPath, String(silentStopsSoFar + 1));
+        silentStopWedged = silentStopWedge;
         yield* Effect.sync(() =>
           writeJsonRpcNotification("session/update", {
             sessionId: requestedSessionId,

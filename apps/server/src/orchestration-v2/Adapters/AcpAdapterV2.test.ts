@@ -846,7 +846,10 @@ describe("AcpAdapterV2", () => {
     }).pipe(Effect.provide(layerTest), Effect.scoped),
   );
 
-  const silentStopTexts = (silentStopContinuation: string | undefined) =>
+  const silentStopTexts = (
+    silentStopContinuation: string | undefined,
+    { wedge = false, silentStops = 1, turns = 1 } = {},
+  ) =>
     Effect.gen(function* () {
       const childProcessSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
       const path = yield* Path.Path;
@@ -869,6 +872,8 @@ describe("AcpAdapterV2", () => {
             environment: {
               T3_ACP_SILENT_STOP_MARKER_PATH: markerPath,
               T3_ACP_PROMPT_RESPONSE_TEXT: "continued answer",
+              ...(wedge ? { T3_ACP_SILENT_STOP_WEDGE: "1" } : {}),
+              T3_ACP_SILENT_STOP_TIMES: String(silentStops),
             },
           }),
         },
@@ -892,21 +897,25 @@ describe("AcpAdapterV2", () => {
         modelSelection,
         runtimePolicy,
       });
-      yield* runtime.startTurn(
-        makeTurnInput({
-          threadId,
-          providerThread,
-          instanceId,
-          runtimePolicy,
-          now: yield* DateTime.now,
-        }),
-      );
-      const events = Array.from(
-        yield* runtime.events.pipe(
-          Stream.takeUntil((event) => event.type === "turn.terminal"),
-          Stream.runCollect,
-        ),
-      );
+      let events: ReadonlyArray<ProviderAdapter.ProviderAdapterV2Event> = [];
+      for (let ordinal = 1; ordinal <= turns; ordinal++) {
+        yield* runtime.startTurn(
+          makeTurnInput({
+            threadId,
+            providerThread,
+            instanceId,
+            runtimePolicy,
+            now: yield* DateTime.now,
+            ordinal,
+          }),
+        );
+        events = Array.from(
+          yield* runtime.events.pipe(
+            Stream.takeUntil((event) => event.type === "turn.terminal"),
+            Stream.runCollect,
+          ),
+        );
+      }
       return events.flatMap((event) =>
         event.type === "turn_item.updated" && event.turnItem.type === "assistant_message"
           ? [event.turnItem.text]
@@ -917,6 +926,29 @@ describe("AcpAdapterV2", () => {
   it.live("sends one follow-up when the agent stops right after a tool call with no reply", () =>
     Effect.gen(function* () {
       const texts = yield* silentStopTexts("Continue and reply.");
+      assert.equal(texts.at(-1), "continued answer");
+    }),
+  );
+
+  // The real agent drops every prompt after `manage_task kill` cancelled its context (seen in
+  // thread 0cfe99f4: the follow-up returned in 14 to 40 ms and the next prompt hung). Only a new
+  // process answers, so the follow-up must not go to the stalled one.
+  it.live("sends the follow-up to a new agent process when the stalled one drops prompts", () =>
+    Effect.gen(function* () {
+      const texts = yield* silentStopTexts("Continue and reply.", { wedge: true });
+      assert.equal(texts.at(-1), "continued answer");
+    }),
+  );
+
+  // Both prompts end silent, so the user sends Resume. The agent that dropped the follow-up
+  // hangs on it (thread 0cfe99f4, run 4), so that next turn must start a new process.
+  it.live("starts a new agent process for the next turn when the follow-up stays silent", () =>
+    Effect.gen(function* () {
+      const texts = yield* silentStopTexts("Continue and reply.", {
+        wedge: true,
+        silentStops: 2,
+        turns: 2,
+      });
       assert.equal(texts.at(-1), "continued answer");
     }),
   );
