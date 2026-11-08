@@ -640,6 +640,14 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   const warmth = useSidebarCacheWarmth(thread.contextUsage);
   const rollup = sidebarWorkerRollup(props.workers, isUnread);
   const [workersOpen, setWorkersOpen] = useState(false);
+  const isWaitingOnUser = status === "waiting" || status === "approval" || status === "input";
+  // A working row already shows its ticking duration in the header.
+  const rowTime =
+    status === "working" ? null : (
+      <span data-row-part="time" className="shrink-0 text-2xs tabular-nums text-muted-foreground">
+        {threadTimeLabel(thread)}
+      </span>
+    );
   const isInFlight =
     status === "working" || status === "waiting" || status === "approval" || status === "input";
   // A woken thread reappears at its original position (the sort is
@@ -1459,21 +1467,6 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                   : "min-h-[3.75rem]",
             )}
           >
-            {warmth ? (
-              <span
-                aria-hidden
-                data-row-part="cache-bar"
-                className="absolute bottom-2.5 left-1 top-2.5 w-[3px] overflow-hidden rounded-full bg-sidebar-border"
-              >
-                <span
-                  className={cn(
-                    "absolute inset-x-0 bottom-0",
-                    warmth.low ? "bg-warning" : "bg-state",
-                  )}
-                  style={{ height: `${Math.round(warmth.fraction * 100)}%` }}
-                />
-              </span>
-            ) : null}
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
               {rollup ? (
@@ -1572,11 +1565,7 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                           ) : null}
                         </span>
                       )
-                    ) : (
-                      <span data-row-part="time" className="text-2xs">
-                        {threadTimeLabel(thread)}
-                      </span>
-                    )}
+                    ) : null}
                   </span>
                   {props.settlementSupported || showSnoozeButton || hasUnsentDraft ? (
                     <span
@@ -1652,7 +1641,11 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                   </span>
                 ) : null}
                 {metaLineEmpty ? (
-                  <span aria-hidden className="ml-auto inline-flex shrink-0 self-center pl-1.5">
+                  <span
+                    aria-hidden
+                    className="ml-auto inline-flex shrink-0 items-center gap-1.5 self-center pl-1.5"
+                  >
+                    {rowTime}
                     <SidebarProviderStack
                       thread={thread}
                       providerEntryByInstanceId={props.providerEntryByInstanceId}
@@ -1670,29 +1663,22 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                       ? ` · ${rollup.done} done · ${rollup.running} running`
                       : ` finished${rollup.failed ? ` · ${rollup.failed} failed` : ""} · open to review`}
                   </span>
-                  <span aria-hidden className="flex shrink-0 gap-0.5">
-                    {rollup.items.slice(0, 6).map((item) => (
-                      <span
-                        key={item.id}
-                        className={cn(
-                          "h-1 w-3 rounded-full",
-                          item.state === "running"
-                            ? "bg-state"
-                            : item.state === "failed"
-                              ? "bg-error"
-                              : "bg-muted-foreground",
-                        )}
-                      />
-                    ))}
-                  </span>
                 </div>
                 {workersOpen ? (
                   <ul aria-label="Workers" className="ml-2 mt-1 border-l border-border pl-3">
                     {rollup.items.map((item) => (
                       <li key={item.id} className="flex h-6 min-w-0 items-center gap-2 text-xs">
-                        <span className="min-w-0 flex-1 truncate text-foreground">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onThreadClick(event, scopeThreadRef(thread.environmentId, item.id));
+                          }}
+                          onDoubleClick={(event) => event.stopPropagation()}
+                          className="min-w-0 flex-1 cursor-pointer truncate rounded-sm text-left text-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                        >
                           {item.title}
-                        </span>
+                        </button>
                         <span
                           className={cn(
                             "shrink-0 text-2xs",
@@ -1739,7 +1725,7 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
               {props.projectDisplayName ? (
                 <span
                   className={cn(
-                    "min-w-0 max-w-[28%] truncate",
+                    "min-w-0 max-w-[60%] shrink-0 truncate",
                     shouldRecede ? "font-normal" : "font-medium",
                   )}
                 >
@@ -1806,7 +1792,7 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                   </span>
                 </span>
               ) : null}
-              {warmth ? (
+              {warmth && isWaitingOnUser && (warmth.low || warmth.label === "Cold") ? (
                 <span
                   data-row-part="cache-label"
                   className={cn(
@@ -1814,13 +1800,14 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                     warmth.low ? "font-medium text-warning-foreground" : "text-muted-foreground",
                   )}
                 >
-                  {warmth.label}
+                  {warmth.label === "Cold" ? "Cache cold" : warmth.label}
                 </span>
               ) : null}
               <span
                 aria-hidden
-                className="pointer-events-none ml-auto inline-flex shrink-0 items-center gap-1"
+                className="pointer-events-none ml-auto inline-flex shrink-0 items-center gap-1.5"
               >
+                {rowTime}
                 {isRemote && !showsScratchMachine ? (
                   <span className="inline-flex shrink-0 items-center text-sidebar-muted-foreground/70">
                     <EnvironmentMachineIcon
