@@ -38,7 +38,10 @@ import * as McpHttpServer from "../../McpHttpServer.ts";
 import * as McpSessionRegistry from "../../McpSessionRegistry.ts";
 import * as PreviewAutomationBroker from "../../PreviewAutomationBroker.ts";
 import * as PreviewBrowser from "#server/preview/PreviewBrowser.ts";
+import * as Calendar from "#server/calendar/Calendar.ts";
 import * as HardwareWatch from "#server/hardwareWatch/HardwareWatch.ts";
+import * as LocalModelsService from "#server/localModels/LocalModelsService.ts";
+import * as ScribeEngine from "#server/scribe/ScribeEngine.ts";
 import * as ReviewService from "#server/review/ReviewService.ts";
 
 const layerStubServices = Layer.mergeAll(
@@ -65,6 +68,9 @@ const layerStubServices = Layer.mergeAll(
   Layer.mock(TaskBoardService.TaskBoardService)({}),
   Layer.mock(ModelBenchmarks.ModelBenchmarks)({}),
   Layer.mock(HardwareWatch.HardwareWatch)({}),
+  Layer.mock(Calendar.Calendar)({}),
+  Layer.mock(LocalModelsService.LocalModelsService)({}),
+  Layer.mock(ScribeEngine.ScribeEngine)({}),
   Layer.mock(ReviewService.ReviewService)({}),
   ServerSettings.layerTest({}),
   Layer.mock(GitWorkflowService.GitWorkflowService)({}),

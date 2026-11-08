@@ -5,6 +5,7 @@ import {
 } from "@t3tools/shared/mcpServerName";
 import { describe, expect, it } from "@effect/vitest";
 
+import { ActionToolkit } from "./toolkits/actions/tools.ts";
 import { AttachmentToolkit } from "./toolkits/attachment/tools.ts";
 import { ContentToolkit } from "./toolkits/content/tools.ts";
 import { DeviceToolkit } from "./toolkits/device/tools.ts";
@@ -22,6 +23,7 @@ import { ThreadToolkit } from "./toolkits/thread/tools.ts";
 import { WorktreeToolkit } from "./toolkits/worktree/tools.ts";
 
 const toolkits = [
+  ActionToolkit,
   AttachmentToolkit,
   ContentToolkit,
   DeviceToolkit,

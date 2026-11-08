@@ -1,9 +1,18 @@
 import { OrchestratorMcpFailure } from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as Stream from "effect/Stream";
 import * as Clock from "effect/Clock";
 import { readMemory, searchMemory } from "#server/aiosMemory/aiosMemory.ts";
+import * as Calendar from "#server/calendar/Calendar.ts";
+import { calendarEvents, rangeError } from "#server/calendar/calendarEvents.ts";
 import { compareTurns, turnPerf } from "#server/diagnostics/turnPerfReport.ts";
+import * as LocalModelsService from "#server/localModels/LocalModelsService.ts";
+import { pickModel } from "#server/localModels/modelPick.ts";
+import * as ScribeEngine from "#server/scribe/ScribeEngine.ts";
+import { makeScribeStats } from "#server/scribe/scribeStats.ts";
+import { scribeSummary } from "#server/scribe/scribeSummary.ts";
 import * as HardwareWatch from "#server/hardwareWatch/HardwareWatch.ts";
 import { hardwareStatus } from "#server/hardwareWatch/hardwareStatus.ts";
 import * as ProjectService from "#server/project/ProjectService.ts";
@@ -25,6 +34,16 @@ import { InsightToolkit } from "./tools.ts";
 
 const failed = (message: string) =>
   new OrchestratorMcpFailure({ code: "orchestration_error", message });
+
+// One stats object per engine, so repeated calls share its short history cache.
+const statsByEngine = new WeakMap<object, ReturnType<typeof makeScribeStats>>();
+const statsFor = (engine: ScribeEngine.ScribeEngine["Service"]) => {
+  const known = statsByEngine.get(engine);
+  if (known !== undefined) return known;
+  const made = makeScribeStats(engine);
+  statsByEngine.set(engine, made);
+  return made;
+};
 
 export const layer = McpToolAccess.toLayer(InsightToolkit, {
   leo_aios_memory_search: McpToolAccess.reads(({ query, limit }) =>
@@ -152,6 +171,44 @@ export const layer = McpToolAccess.toLayer(InsightToolkit, {
       ]);
       const runs = turnPerf(projection, limit ?? 5);
       return { runs, change: compareTurns(runs) };
+    }),
+  ),
+  leo_calendar_events: McpToolAccess.reads(({ from, to }) =>
+    Effect.gen(function* () {
+      const problem = rangeError(from, to);
+      if (problem !== null)
+        return yield* new OrchestratorMcpFailure({ code: "invalid_request", message: problem });
+      const calendar = yield* Calendar.Calendar;
+      const { events } = yield* calendar.events({
+        from: DateTime.formatIso(DateTime.makeUnsafe(Date.parse(from))),
+        to: DateTime.formatIso(DateTime.makeUnsafe(Date.parse(to))),
+      });
+      // The server's own zone: on the user's computer this is where they live.
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return { timeZone, events: calendarEvents(events, timeZone) };
+    }),
+  ),
+  leo_scribe_insights: McpToolAccess.reads(() =>
+    Effect.gen(function* () {
+      const stats = statsFor(yield* ScribeEngine.ScribeEngine);
+      const [insights, goals] = yield* Effect.all([stats.getInsights({}), stats.getGoals({})]).pipe(
+        Effect.mapError((error) => failed(`Scribe is not available: ${error.message}`)),
+      );
+      return scribeSummary(insights, goals);
+    }),
+  ),
+  leo_local_models_advice: McpToolAccess.reads(({ size }) =>
+    Effect.gen(function* () {
+      const models = yield* LocalModelsService.LocalModelsService;
+      const state = yield* models.subscribe.pipe(
+        Stream.runHead,
+        Effect.mapError((error) => failed(`Local models unavailable: ${error.reason}`)),
+      );
+      if (Option.isNone(state)) return yield* failed("Local models gave no state.");
+      return {
+        ollamaRunning: state.value.ollama.running,
+        ...pickModel(state.value.rows, size ?? "medium"),
+      };
     }),
   ),
   leo_release_status: McpToolAccess.reads(() => Effect.promise(() => readReleaseStatus())),

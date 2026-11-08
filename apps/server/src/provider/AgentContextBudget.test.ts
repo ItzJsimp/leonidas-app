@@ -5,10 +5,12 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { McpServer } from "effect/ai";
 
+import { Calendar } from "../calendar/Calendar.ts";
 import { DeviceService } from "../device/DeviceService.ts";
 import { GitVcsDriver } from "../vcs/GitVcsDriver.ts";
 import { GitWorkflowService } from "../git/GitWorkflowService.ts";
 import { HardwareWatch } from "../hardwareWatch/HardwareWatch.ts";
+import { LocalModelsService } from "../localModels/LocalModelsService.ts";
 import { LocalVmService } from "../localVm/LocalVmService.ts";
 import { ManagedProjectFolders } from "../project/ManagedProjectFolders.ts";
 import { ModelBenchmarks } from "../benchmarks/ModelBenchmarks.ts";
@@ -25,6 +27,7 @@ import { SavedItemExecution } from "../savedItems/SavedItemExecution.ts";
 import { SavedItemService } from "../savedItems/SavedItemService.ts";
 import { ScheduledTaskService } from "../scheduledTasks/ScheduledTaskService.ts";
 import { SecretRequests } from "../secrets/SecretRequests.ts";
+import { ScribeEngine } from "../scribe/ScribeEngine.ts";
 import { ServerEnvironment } from "../environment/ServerEnvironment.ts";
 import { ServerSecretStore } from "../auth/ServerSecretStore.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
@@ -45,11 +48,14 @@ import budget from "./agentContextBudget.json" with { type: "json" };
 
 // Registration only stores tool definitions, so the handlers' services are never called.
 const toolHandlerServices = Layer.mergeAll(
+  Layer.mock(Calendar)({}),
   Layer.mock(DeviceService)({}),
   Layer.mock(GitVcsDriver)({}),
   Layer.mock(GitWorkflowService)({}),
   Layer.mock(HardwareWatch)({}),
+  Layer.mock(LocalModelsService)({}),
   Layer.mock(LocalVmService)({}),
+  Layer.mock(ScribeEngine)({}),
   Layer.mock(ManagedProjectFolders)({ namedProjectsRoot: "" }),
   Layer.mock(ModelBenchmarks)({}),
   Layer.mock(OrchestratorV2)({}),
