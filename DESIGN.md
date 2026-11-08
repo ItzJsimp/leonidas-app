@@ -135,7 +135,7 @@ Labels are one plain word. Business tabs follow the workspace template flag; Dev
 
 - **Expanded (default):** group names and labels. The header is the workspace picker (picture tile, name, Personal or Business chip) with the collapse icon beside it.
 - **Collapsed:** icons only, a thin divider between groups. The workspace picture sits on top, the expand icon under it, then a divider.
-- The app remembers the state. Every tab stays visible: a long business rail scrolls, it does not fold.
+- The app remembers the state. Every tab stays visible: a long business rail scrolls, it does not fold. The list fades at each edge that has more rows out of view (3 rem deep, so it reaches into the next row; a row is 38 px). The header and Usage and Settings stay fixed.
 
 ## Doop workflow
 

@@ -30,6 +30,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { SidebarUpdatePill } from "~/components/sidebar/SidebarUpdatePill";
 import { Popover, PopoverPopup, PopoverTrigger } from "~/components/ui/popover";
+import { ScrollArea } from "~/components/ui/scroll-area";
 import { SidebarMenu } from "~/components/ui/sidebar";
 import { WorkspaceMenu } from "~/components/workspace/WorkspaceSwitcher";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
@@ -162,35 +163,38 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>
-      <div
-        className={cn(
-          "mt-1 flex min-h-0 flex-1 flex-col gap-0.5 scrollbar-gutter-both overflow-y-auto",
-          !expanded && "items-center",
-        )}
+      {/* The fade shows only on the edge that has more rows. Rows are links, so the list needs no tab stop. */}
+      <ScrollArea
+        scrollFade
+        viewportTabIndex={-1}
+        // A row is 38 px high: the fade must reach into the next row, or the cue is invisible.
+        className="mt-1 flex-1 [&_[data-slot=scroll-area-viewport]]:[--fade-size:3rem]"
       >
-        {main.map((item, index) => {
-          const first = index === 0 || main[index - 1]!.group !== item.group;
-          return (
-            <Fragment key={item.id}>
-              {first && expanded ? (
-                <p
-                  aria-hidden
-                  className={cn(
-                    "px-2.5 pb-1 text-3xs font-semibold tracking-wider text-muted-foreground uppercase",
-                    index === 0 ? "pt-1" : "pt-3",
-                  )}
-                >
-                  {RAIL_GROUP_LABELS[item.group]}
-                </p>
-              ) : null}
-              {first && !expanded && index > 0 ? (
-                <span aria-hidden className="my-1.5 h-px w-6 shrink-0 bg-border" />
-              ) : null}
-              {renderItem(item)}
-            </Fragment>
-          );
-        })}
-      </div>
+        <div className={cn("flex flex-col gap-0.5", !expanded && "items-center")}>
+          {main.map((item, index) => {
+            const first = index === 0 || main[index - 1]!.group !== item.group;
+            return (
+              <Fragment key={item.id}>
+                {first && expanded ? (
+                  <p
+                    aria-hidden
+                    className={cn(
+                      "px-2.5 pb-1 text-3xs font-semibold tracking-wider text-muted-foreground uppercase",
+                      index === 0 ? "pt-1" : "pt-3",
+                    )}
+                  >
+                    {RAIL_GROUP_LABELS[item.group]}
+                  </p>
+                ) : null}
+                {first && !expanded && index > 0 ? (
+                  <span aria-hidden className="my-1.5 h-px w-6 shrink-0 bg-border" />
+                ) : null}
+                {renderItem(item)}
+              </Fragment>
+            );
+          })}
+        </div>
+      </ScrollArea>
       <div className={cn("flex flex-col gap-0.5", !expanded && "items-center")}>
         {bottom.map(renderItem)}
         {/* Shows only while an update is on its way, directly under Settings. */}
