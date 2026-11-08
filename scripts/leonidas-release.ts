@@ -210,7 +210,6 @@ export function releaseNotes(
     (post
       ? `${post.trim()}\n\n## Patch notes\n\n${editorialNotes || "No patch notes were provided for this update.\n"}`
       : `# ${version}${development ? " · Development" : ""}\n\n${bullets(highlights.length ? highlights : [extra.length ? "Additional changes are listed below." : "No patch notes were provided for this update."])}\n`) +
-    `\n## If Windows shows a blue warning\nClick **More info**, then click **Run anyway**. The installer is not signed yet.\n` +
     ((post ? postDetails : extra).length
       ? `\n## Details\n${bullets(post ? postDetails : extra)}\n`
       : "") +

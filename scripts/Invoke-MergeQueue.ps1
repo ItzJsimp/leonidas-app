@@ -72,6 +72,10 @@ function Invoke-Gate([string]$base) {
         try { $out = node scripts/smoke.mjs 2>&1 | Out-String; $ok = $LASTEXITCODE -eq 0 } finally { Pop-Location }
         if (-not $ok) { return [pscustomobject]@{ Status = 'red'; FailKeys = @('smoke'); Notes = @($out.Trim().Split("`n") | Select-Object -Last 5) } }
     }
+    # A push ships a release: a user-visible commit with no plain Release-Note must not land.
+    Push-Location $LandWorktree
+    try { $notesOut = node scripts/check-release-notes.ts "$base..HEAD" auto 2>&1 | Out-String; $notesOk = $LASTEXITCODE -eq 0 } finally { Pop-Location }
+    if (-not $notesOk) { return [pscustomobject]@{ Status = 'red'; FailKeys = @('release-notes'); Notes = @($notesOut.Trim().Split("`n") | Select-Object -First 8) } }
     $gate
 }
 
