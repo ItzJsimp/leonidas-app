@@ -48,7 +48,7 @@ import { Button } from "../ui/button";
 import { Dialog, DialogPanel, DialogPopup } from "../ui/dialog";
 import { RefreshIcon } from "../ui/refresh-icon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { resetCreditsSummary } from "../usage/UsageLimits";
+import { ResetCreditDialog, resetCreditsSummary, useResetCredit } from "../usage/UsageLimits";
 import { readUsagePagePreferences, saveUsagePagePreferences } from "../usage/usagePagePreferences";
 import type { StartBenchmarkArena } from "./BenchmarkExplorer";
 import { barSegments } from "./ContextBreakdown.logic";
@@ -336,17 +336,58 @@ function InlineWindowRow({
   );
 }
 
+/** The banked-credit line with its own "Use" button and confirm, so a reset is one click away. */
+function BankedCredits({
+  environmentId,
+  account,
+  text,
+}: {
+  readonly environmentId: EnvironmentId;
+  readonly account: Account;
+  readonly text: string;
+}) {
+  const input = account.resetCreditInput ?? { instanceId: account.instanceId! };
+  const { canManageProviders, confirming, setConfirming, busy, status, redeem } = useResetCredit(
+    environmentId,
+    input,
+  );
+  return (
+    <>
+      <span className="truncate">
+        <strong className="font-semibold text-foreground">{status ?? text}</strong>
+      </span>
+      <Button
+        size="xs"
+        variant="outline"
+        className="ms-auto shrink-0"
+        disabled={busy || !canManageProviders}
+        onClick={() => setConfirming(true)}
+      >
+        {busy ? "Using…" : "Use reset"}
+      </Button>
+      <ResetCreditDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        onConfirm={() => void redeem()}
+        disabled={!canManageProviders}
+      />
+    </>
+  );
+}
+
 /**
  * Sleek inset provider card:
  * Provider header with plan/account qualifier and per-card updated age,
  * inline 4-column quota bars (% used + full reset countdown), and a bottom sub-pill for sibling accounts.
  */
 function ProviderAccountCard({
+  environmentId,
   group,
   activeIds,
   now,
   onSwapAccount,
 }: {
+  readonly environmentId: EnvironmentId;
   readonly group: ProviderAccountGroup;
   readonly activeIds: ReadonlySet<string>;
   readonly now: number;
@@ -368,6 +409,10 @@ function ProviderAccountCard({
     primary.limits.resetCredits && primary.limits.resetCredits.availableCount > 0
       ? resetCreditsSummary(primary.limits.resetCredits, now, true)
       : null;
+  // Account ids start with their environment; only that environment can redeem for it.
+  const canRedeem =
+    (primary.resetCreditInput !== undefined || primary.instanceId !== undefined) &&
+    primary.id.startsWith(`${environmentId}:`);
   const hasSubPill = siblingSummaries.length > 0 || creditsText !== null;
   const nextSibling = siblings[0] ?? null;
 
@@ -448,7 +493,9 @@ function ProviderAccountCard({
                 ))}
               </span>
             ) : null}
-            {creditsText ? (
+            {creditsText && canRedeem ? (
+              <BankedCredits environmentId={environmentId} account={primary} text={creditsText} />
+            ) : creditsText ? (
               <span className="truncate">
                 {siblingSummaries.length > 0 ? "· " : ""}
                 <strong className="font-semibold text-foreground">{creditsText}</strong>
@@ -827,6 +874,7 @@ export const UsageOverlayCard = memo(function UsageOverlayCard({
             {providerGroups.map((group) => (
               <ProviderAccountCard
                 key={group.primary.id}
+                environmentId={environmentId}
                 group={group}
                 activeIds={activeIds}
                 now={now}

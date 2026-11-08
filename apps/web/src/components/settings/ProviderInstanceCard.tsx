@@ -53,6 +53,7 @@ import { deriveProviderSettingsFields, ProviderSettingsForm } from "./ProviderSe
 import { ProviderModelsSection } from "./ProviderModelsSection";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 import { ProviderAccentColorPicker } from "./ProviderAccentColorPicker";
+import { ResetCredits } from "../usage/UsageLimits";
 import { RedactedSensitiveText } from "./RedactedSensitiveText";
 import { SettingsRow, SettingsSection } from "./settingsLayout";
 import { AcpSessionManagementSection } from "./AcpSessionManagementSection";
@@ -583,6 +584,7 @@ export function ProviderInstanceCard({
 }: ProviderInstanceCardProps) {
   const needsApiKey = providerInstanceNeedsApiKey(instance);
   const enabled = !needsApiKey && resolveProviderInstanceEnabled(instance);
+  const [renderedAt] = useState(Date.now);
   const compatibility = enabled ? liveProvider?.compatibilityAdvisory : undefined;
   // A locally disabled provider reads "Disabled" with a muted dot even if its
   // last server status is stale. Enabled providers use the server status.
@@ -1032,6 +1034,19 @@ export function ProviderInstanceCard({
             </div>
           }
         />
+        {environmentId !== undefined && liveProvider?.usageLimits?.resetCredits ? (
+          <SettingsRow
+            title="Reset credits"
+            control={
+              <ResetCredits
+                environmentId={environmentId}
+                input={{ instanceId }}
+                credits={liveProvider.usageLimits.resetCredits}
+                now={renderedAt}
+              />
+            }
+          />
+        ) : null}
       </SettingsSection>
 
       {setup || environmentFields.length > 0 ? (
