@@ -172,7 +172,7 @@ describe("Leonidas release policy", () => {
       "0.3.1",
       true,
     );
-    expect(quiet).toContain("\n- No patch notes were provided for this update.\n");
+    expect(quiet).toContain("\n- Internal improvements only. Nothing new to see in this update.\n");
     const comment = quiet.trimEnd().split("\n").at(-1)!;
     expect(comment.indexOf("-->")).toBe(comment.length - 3);
     const json = JSON.parse(comment.slice("<!-- leonidas-release ".length, -4));
