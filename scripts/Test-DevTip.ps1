@@ -66,7 +66,7 @@ function Get-BaselineErrors([string]$package) {
 
 # The vitest report path of a test result, relative to its package.
 function Get-TestRelPath([string]$name, [string]$package) {
-    $rel = $name -replace '\', '/'
+    $rel = $name -replace '\\', '/'
     $idx = $rel.IndexOf("$package/")
     if ($idx -ge 0) { $rel.Substring($idx + $package.Length + 1) } else { $rel }
 }
