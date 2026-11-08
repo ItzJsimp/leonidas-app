@@ -6,6 +6,7 @@
   - tsc --noEmit for apps/web and apps/server (only when files under that app or packages/ changed).
     A check fails only on errors that origin/main (-Base) does not already have.
   - vitest on the changed test files and on the sibling test of each changed source file.
+    A test fails the gate only when origin/main (-Base) does not already fail it (compared by test name).
   - -Keys re-runs only the named checks (used while bisecting to a culprit branch).
   Returns one object: Status (green | red | unavailable), FailKeys, Notes.
   `unavailable` means the gate could not run (no dependencies, install failed); callers fail open.
@@ -63,6 +64,43 @@ function Get-BaselineErrors([string]$package) {
     return $errs
 }
 
+# The vitest report path of a test result, relative to its package.
+function Get-TestRelPath([string]$name, [string]$package) {
+    $rel = $name -replace '\', '/'
+    $idx = $rel.IndexOf("$package/")
+    if ($idx -ge 0) { $rel.Substring($idx + $package.Length + 1) } else { $rel }
+}
+
+# Failed tests per test file, from a vitest JSON report. A file that fails before any test runs maps to @().
+function Get-FailedTestNames($json, [string]$package) {
+    $out = @{}
+    foreach ($r in $json.testResults | Where-Object { $_.status -eq 'failed' }) {
+        $out[(Get-TestRelPath $r.name $package)] = @($r.assertionResults | Where-Object { $_.status -eq 'failed' } | ForEach-Object { $_.fullName })
+    }
+    $out
+}
+
+# Failed tests origin/main already has, for the given test files. A file missing at -Base is not in the result.
+function Get-BaselineFailedTests([string]$package, [string[]]$files) {
+    $out = @{}
+    $head = (git -C $Worktree rev-parse HEAD).Trim()
+    git -C $Worktree checkout -q --detach $Base
+    try {
+        $present = @($files | Where-Object { Test-Path -LiteralPath (Join-Path $Worktree "$package/$_") })
+        if ($present.Count -eq 0) { return $out }
+        $report = Join-Path $env:TEMP ("dev-gate-base-{0}.json" -f [guid]::NewGuid().ToString('N'))
+        Push-Location (Join-Path $Worktree $package)
+        try { & $vp test run --reporter=json --outputFile=$report @present *> $null } finally { Pop-Location }
+        if (-not (Test-Path -LiteralPath $report)) { return $out }
+        $json = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+        Remove-Item -LiteralPath $report -Force
+        foreach ($r in $json.testResults) {
+            $out[(Get-TestRelPath $r.name $package)] = @($r.assertionResults | Where-Object { $_.status -eq 'failed' } | ForEach-Object { $_.fullName })
+        }
+        return $out
+    } finally { git -C $Worktree checkout -q --detach $head }
+}
+
 # Plan: which checks to run.
 $plan = [System.Collections.Generic.List[string]]::new()
 if ($Keys) {
@@ -110,10 +148,17 @@ foreach ($group in ($plan | Where-Object { $_ -like 'test|*' } | Group-Object { 
     }
     $json = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
     Remove-Item -LiteralPath $report -Force
-    foreach ($r in $json.testResults | Where-Object { $_.status -eq 'failed' }) {
-        $rel = ($r.name -replace '\\', '/')
-        $idx = $rel.IndexOf("$pkg/")
-        $fail.Add("test|$pkg|" + $(if ($idx -ge 0) { $rel.Substring($idx + $pkg.Length + 1) } else { $rel }))
+    # Like the type check, a test fails the gate only when origin/main does not already fail it.
+    $headFailed = Get-FailedTestNames $json $pkg
+    if ($headFailed.Count -eq 0) { continue }
+    $baseFailed = Get-BaselineFailedTests $pkg @($headFailed.Keys)
+    foreach ($rel in $headFailed.Keys) {
+        $names = @($headFailed[$rel])
+        $known = $baseFailed[$rel]
+        # No names means the file broke before its tests ran. No baseline means the file is new or passes on origin/main.
+        $new = if ($names.Count -eq 0 -or $null -eq $known) { @($rel) } else { @($names | Where-Object { $_ -notin $known }) }
+        if ($new.Count -gt 0) { $fail.Add("test|$pkg|$rel"); $notes.Add("test|$pkg|$rel : $($new.Count) new failure(s), first: $($new[0])") }
+        else { $notes.Add("test|$pkg|$rel : only failures origin/main already has") }
     }
 }
 if ($fail.Count -gt 0) { return Result 'red' $fail }
