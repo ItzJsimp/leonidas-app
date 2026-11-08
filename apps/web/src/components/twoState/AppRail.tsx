@@ -14,11 +14,12 @@ import {
   ListChecksIcon,
   MegaphoneIcon,
   MessageSquareIcon,
+  MicIcon,
   SettingsIcon,
   SunIcon,
   TerminalSquareIcon,
   UsersIcon,
-  MicIcon,
+  ZapIcon,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -67,6 +68,7 @@ const ICONS: Readonly<Record<string, LucideIcon>> = {
   deals: ClapperboardIcon,
   images: ImageIcon,
   files: FolderOpenIcon,
+  automations: ZapIcon,
   subagents: BotIcon,
   team: UsersIcon,
   developer: TerminalSquareIcon,

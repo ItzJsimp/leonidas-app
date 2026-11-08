@@ -26,7 +26,6 @@ import {
   MessageSquareTextIcon,
   MessageSquareWarningIcon,
   MessagesSquareIcon,
-  MonitorIcon,
   PaletteIcon,
   PanelsTopLeftIcon,
   ScrollTextIcon,
@@ -431,18 +430,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                           </SidebarMenuItem>
                         );
                       })}
-                      {index === navGroups.length - 1 ? (
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            className={ROW_CLASS_NAME}
-                            isActive={pathname === "/system-care"}
-                            onClick={() => void navigate({ to: "/system-care" })}
-                          >
-                            <MonitorIcon />
-                            <span className={labelClassName}>This PC</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ) : null}
                     </SidebarMenu>
                   </div>
                 ))}

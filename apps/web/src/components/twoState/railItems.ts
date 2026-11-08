@@ -13,6 +13,7 @@ export type RailTo =
   | "/content"
   | "/images"
   | "/files"
+  | "/automations"
   | "/subagents"
   | "/team"
   | "/developer"
@@ -67,6 +68,9 @@ const BEFORE_EXTRAS: readonly RailItem[] = [
   item("deals", "Content", "/content", "deals, scripts and what to film"),
   item("images", "Images", "/images", "make and keep pictures"),
   item("files", "Files", "/files", "every attachment, screenshot and upload"),
+  item("automations", "Automations", "/automations", "everything that runs by itself", [
+    "/system-care",
+  ]),
   item("subagents", "Subagents", "/subagents", "helpers your chats run, live and past"),
 ];
 const TEAM = item("team", "Team", "/team", "members, roles and areas");
@@ -76,7 +80,7 @@ const DEVELOPER = item("developer", "Developer", "/developer", "Git, pull reques
 ]);
 const BOTTOM: readonly RailItem[] = [
   item("usage", "Usage", "/usage", "how much of your plan you have used"),
-  item("settings", "Settings", "/settings", "change how Leonidas works", ["/system-care"]),
+  item("settings", "Settings", "/settings", "change how Leonidas works"),
 ];
 
 /** The rail icons. Marketing, Content and Team show for a business workspace and Developer for a builder. */

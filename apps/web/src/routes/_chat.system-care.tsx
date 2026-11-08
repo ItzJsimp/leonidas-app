@@ -1,15 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { SystemCarePage } from "../components/systemCare/SystemCarePage";
-
+// System Care is now the Machine view of the Automations tab (Batch 16).
 export const Route = createFileRoute("/_chat/system-care")({
-  beforeLoad: async ({ context }) => {
-    if (
-      context.authGateState.status !== "authenticated" &&
-      context.authGateState.status !== "hosted-static"
-    ) {
-      throw redirect({ to: "/pair", replace: true });
-    }
+  beforeLoad: () => {
+    throw redirect({ to: "/automations", search: { view: "machine" }, replace: true });
   },
-  component: SystemCarePage,
 });

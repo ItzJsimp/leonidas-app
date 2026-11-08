@@ -38,6 +38,7 @@ import { Route as ChatDeveloperRouteImport } from './routes/_chat.developer'
 import { Route as ChatContentRouteImport } from './routes/_chat.content'
 import { Route as ChatCommandCenterRouteImport } from './routes/_chat.command-center'
 import { Route as ChatBrainRouteImport } from './routes/_chat.brain'
+import { Route as ChatAutomationsRouteImport } from './routes/_chat.automations'
 import { Route as ChatSettingsWorktreesRouteImport } from './routes/_chat.settings.worktrees'
 import { Route as ChatSettingsThreadsRouteImport } from './routes/_chat.settings.threads'
 import { Route as ChatSettingsStorageRouteImport } from './routes/_chat.settings.storage'
@@ -210,6 +211,11 @@ const ChatBrainRoute = ChatBrainRouteImport.update({
   path: '/brain',
   getParentRoute: () => ChatRoute,
 } as any)
+const ChatAutomationsRoute = ChatAutomationsRouteImport.update({
+  id: '/automations',
+  path: '/automations',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ChatSettingsWorktreesRoute = ChatSettingsWorktreesRouteImport.update({
   id: '/worktrees',
   path: '/worktrees',
@@ -358,6 +364,7 @@ export interface FileRoutesByFullPath {
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
   '/welcome': typeof WelcomeRoute
+  '/automations': typeof ChatAutomationsRoute
   '/brain': typeof ChatBrainRoute
   '/command-center': typeof ChatCommandCenterRoute
   '/content': typeof ChatContentRoute
@@ -414,6 +421,7 @@ export interface FileRoutesByTo {
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
   '/welcome': typeof WelcomeRoute
+  '/automations': typeof ChatAutomationsRoute
   '/brain': typeof ChatBrainRoute
   '/command-center': typeof ChatCommandCenterRoute
   '/content': typeof ChatContentRoute
@@ -473,6 +481,7 @@ export interface FileRoutesById {
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
   '/welcome': typeof WelcomeRoute
+  '/_chat/automations': typeof ChatAutomationsRoute
   '/_chat/brain': typeof ChatBrainRoute
   '/_chat/command-center': typeof ChatCommandCenterRoute
   '/_chat/content': typeof ChatContentRoute
@@ -533,6 +542,7 @@ export interface FileRouteTypes {
     | '/connect-agent'
     | '/pair'
     | '/welcome'
+    | '/automations'
     | '/brain'
     | '/command-center'
     | '/content'
@@ -589,6 +599,7 @@ export interface FileRouteTypes {
     | '/connect-agent'
     | '/pair'
     | '/welcome'
+    | '/automations'
     | '/brain'
     | '/command-center'
     | '/content'
@@ -647,6 +658,7 @@ export interface FileRouteTypes {
     | '/connect-agent'
     | '/pair'
     | '/welcome'
+    | '/_chat/automations'
     | '/_chat/brain'
     | '/_chat/command-center'
     | '/_chat/content'
@@ -914,6 +926,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatBrainRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/_chat/automations': {
+      id: '/_chat/automations'
+      path: '/automations'
+      fullPath: '/automations'
+      preLoaderRoute: typeof ChatAutomationsRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/_chat/settings/worktrees': {
       id: '/_chat/settings/worktrees'
       path: '/worktrees'
@@ -1167,6 +1186,7 @@ const ChatSettingsRouteWithChildren = ChatSettingsRoute._addFileChildren(
 )
 
 interface ChatRouteChildren {
+  ChatAutomationsRoute: typeof ChatAutomationsRoute
   ChatBrainRoute: typeof ChatBrainRoute
   ChatCommandCenterRoute: typeof ChatCommandCenterRoute
   ChatContentRoute: typeof ChatContentRoute
@@ -1195,6 +1215,7 @@ interface ChatRouteChildren {
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
+  ChatAutomationsRoute: ChatAutomationsRoute,
   ChatBrainRoute: ChatBrainRoute,
   ChatCommandCenterRoute: ChatCommandCenterRoute,
   ChatContentRoute: ChatContentRoute,

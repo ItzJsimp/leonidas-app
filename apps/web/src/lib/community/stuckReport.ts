@@ -42,6 +42,7 @@ const SCREENS = new Set([
   "pull-requests",
   "scribe",
   "system-care",
+  "automations",
   "tasks",
   "usage",
   "welcome",

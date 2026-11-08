@@ -17,6 +17,7 @@ const BASE = [
   "library",
   "images",
   "files",
+  "automations",
   "subagents",
 ];
 const MARKETING_AND_CONTENT = ["content", "deals"];
@@ -47,7 +48,7 @@ describe("railItems", () => {
   it("shows everything, Team before Developer, for business with builder mode", () => {
     const { main } = railItems({ business: true, builder: true, scribe: true });
     expect(ids(main)).toEqual([...withBusiness(BASE), "team", "developer"]);
-    expect(main).toHaveLength(17);
+    expect(main).toHaveLength(18);
   });
 
   it("brings back only the tabs chosen with show-anyway in a personal workspace", () => {
@@ -150,7 +151,8 @@ describe("activeRailId", () => {
     expect(activeRailId("/developer", false)).toBe("developer");
   });
   it("marks Settings on This PC and on every settings page", () => {
-    expect(activeRailId("/system-care", false)).toBe("settings");
+    expect(activeRailId("/system-care", false)).toBe("automations");
+    expect(activeRailId("/automations", false)).toBe("automations");
     expect(activeRailId("/settings/appearance", false)).toBe("settings");
     expect(activeRailId("/settings/open-source-licenses", false)).toBe("settings");
   });
