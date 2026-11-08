@@ -7,9 +7,10 @@
   The claim records owner, worktree, branch and time. Then the winner gets worktree <Root>/<task>
   on a new branch task/<task>, cut from origin/main.
   Exit 0 = claimed (last line: "claimed: ..."). Exit 2 = taken (last line: "taken: ..."). Exit 1 = error.
+  In a builder's AIOS, -Card <name> must name an existing tasks/<name>.md card; the claim is refused without one.
   Land the work with scripts/Invoke-MergeQueue.ps1 -Branch task/<task>. That also releases the claim.
 .EXAMPLE
-  pwsh -NoProfile -File scripts/Start-AgentTask.ps1 -Task fix-sidebar-scroll -Owner claude-7
+  pwsh -NoProfile -File scripts/Start-AgentTask.ps1 -Task fix-sidebar-scroll -Card fix-the-sidebar-scroll -Owner claude-7
   pwsh -NoProfile -File scripts/Start-AgentTask.ps1 -Task fix-sidebar-scroll -Release
 #>
 [CmdletBinding()]
@@ -17,6 +18,7 @@ param(
     [Parameter(Mandatory)][string]$Task,
     [string]$Owner = "$env:USERNAME-$PID",
     [string]$Root = $(if ($env:LEONIDAS_WORKTREE_ROOT) { $env:LEONIDAS_WORKTREE_ROOT } else { 'C:/lcw' }),
+    [string]$Card,
     [switch]$Release,
     [switch]$NoWorktree
 )
@@ -34,6 +36,15 @@ if ($Release) {
     Remove-Item -LiteralPath $file -ErrorAction SilentlyContinue
     "released: $Task"
     exit 0
+}
+
+# In a builder's AIOS (two folders above this checkout), no card means no claim: work starts from a task card.
+$aios = Split-Path (Split-Path (Split-Path $common))
+if ($aios -and (Test-Path -LiteralPath (Join-Path $aios 'AGENTS.md')) -and (Test-Path -LiteralPath (Join-Path $aios 'tasks'))) {
+    if (-not $Card -or -not (Test-Path -LiteralPath (Join-Path $aios "tasks/$Card.md"))) {
+        Write-Error "No task card: pass -Card <name> for an existing tasks/<name>.md. Create one first: pwsh $aios/scripts/New-Task.ps1 -Name '<verb-first title>'"
+        exit 1
+    }
 }
 
 $worktree = (Join-Path $Root $Task) -replace '\\', '/'
@@ -56,7 +67,7 @@ try {
     exit 2
 }
 try {
-    $json = [ordered]@{ task = $Task; owner = $Owner; worktree = $worktree; branch = $branch; claimedAt = (Get-Date).ToString('o') } | ConvertTo-Json
+    $json = [ordered]@{ task = $Task; owner = $Owner; worktree = $worktree; branch = $branch; claimedAt = (Get-Date).ToString('o'); card = $Card } | ConvertTo-Json
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
     $stream.Write($bytes, 0, $bytes.Length)
 } finally { $stream.Dispose() }
@@ -82,7 +93,6 @@ if (-not $NoWorktree) {
     # In a builder's AIOS (two folders above this checkout), link the AIOS skills this project uses into the new
     # worktree, git-excluded. A worktree holds only committed skills otherwise. A failure never blocks the claim.
     try {
-        $aios = Split-Path (Split-Path (Split-Path $common))
         $linker = Join-Path $worktree 'scripts/Sync-DefaultSkills.ps1'
         if ($aios -and (Test-Path -LiteralPath (Join-Path $aios 'AGENTS.md')) -and (Test-Path -LiteralPath (Join-Path $aios 'projects')) -and (Test-Path -LiteralPath $linker)) {
             & $linker -RepoPath $aios -SourceRoot $aios -ProjectPath $worktree -SkillsOnly *>$null
