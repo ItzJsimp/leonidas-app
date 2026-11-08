@@ -461,7 +461,7 @@ export function TasksPage() {
             className="border-b bg-destructive/8 px-4 py-1.5 text-xs text-destructive-foreground"
           >
             At the open-task cap:{" "}
-            {fullProjects.map((entry) => `${entry.name} (${entry.open}/${entry.cap})`).join(", ")}.
+            {fullProjects.map((entry) => `${entry.name} (${capBadge(entry)?.label})`).join(", ")}.
             Park or retire a task before adding more.
           </p>
         ) : null}

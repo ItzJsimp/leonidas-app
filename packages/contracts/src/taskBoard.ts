@@ -261,6 +261,8 @@ export const TaskBoardWorkspaceProject = Schema.Struct({
   // The open-card cap and warning line from `projects/<slug>/project.md`; absent without an AIOS.
   cap: Schema.optional(Schema.Number),
   warn: Schema.optional(Schema.Number),
+  // Open cards in the AIOS folder: what the cap refuses against. `open` also counts native cards.
+  capOpen: Schema.optional(Schema.Number),
 });
 export type TaskBoardWorkspaceProject = typeof TaskBoardWorkspaceProject.Type;
 

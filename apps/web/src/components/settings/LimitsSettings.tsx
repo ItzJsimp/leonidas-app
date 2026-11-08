@@ -37,7 +37,7 @@ export function LimitsSettings() {
           <SettingsRow
             key={entry.slug}
             title={entry.name}
-            description={`${entry.open} open`}
+            description={`${entry.capOpen ?? entry.open} open`}
             control={
               entry.cap === undefined ? undefined : (
                 <CapEditor
@@ -45,7 +45,7 @@ export function LimitsSettings() {
                   projectSlug={entry.slug}
                   cap={entry.cap}
                   warn={entry.warn ?? entry.cap}
-                  open={entry.open}
+                  open={entry.capOpen ?? entry.open}
                   saveOn="commit"
                   onSaved={refresh}
                 />

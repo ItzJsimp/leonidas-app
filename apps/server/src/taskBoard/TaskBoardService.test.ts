@@ -1043,6 +1043,30 @@ it.effect("reports each project's cap and warn line in the workspace snapshot", 
   ).pipe(Effect.provide(boardLayer(noGithub))),
 );
 
+it.effect("counts only cards in the AIOS folder toward a project's cap", () =>
+  withAios({ "a.md": cardFile("task-a", "Alpha") }, (root, project) => {
+    const stateDir = NodePath.join(root, "native-state");
+    return Effect.gen(function* () {
+      const board = yield* TaskBoardService.TaskBoardService;
+      yield* board.cardCreate(
+        { title: "Native card", actor: "Jake", projectSlug: "leonidas-code" },
+        [project],
+      );
+      const entry = (yield* board.workspace([project])).projects.find(
+        (item) => item.slug === "leonidas-code",
+      );
+      // Both cards show on the board, but the cap refuses against the folder's one card.
+      expect(entry).toMatchObject({ open: 2, capOpen: 1 });
+    }).pipe(
+      Effect.provide(
+        boardLayer(noGithub).pipe(
+          Layer.provide(Layer.succeed(ServerConfig, { stateDir } as ServerConfig["Service"])),
+        ),
+      ),
+    );
+  }),
+);
+
 it.effect("applies a change set with a ledger and undoes it byte for byte", () =>
   withAios(
     { "a.md": cardFile("task-a", "Alpha"), "b.md": cardFile("task-b", "Bravo") },

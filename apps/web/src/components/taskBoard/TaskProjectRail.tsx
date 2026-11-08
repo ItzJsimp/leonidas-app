@@ -111,7 +111,7 @@ function CapBadgeEditor(props: {
             projectSlug={entry.slug}
             cap={props.cap}
             warn={entry.warn ?? props.cap}
-            open={entry.open}
+            open={entry.capOpen ?? entry.open}
             saveOn="button"
             onSaved={() => {
               setOpen(false);

@@ -331,10 +331,13 @@ function buildWorkspace(input: {
       section.project = project;
     }
   }
+  // The cap refuses against the cards in this folder, not the app's own native cards.
+  const folderCards = input.tasks.filter((task) => task.sourceRoot === input.root);
   const projects = [...sections.values()]
     .flatMap((section) => {
       const count = counts.get(section.slug) ?? { total: 0, open: 0 };
       if (count.total === 0 && !section.project) return [];
+      const rule = input.root === null ? null : capRuleFor(input.root, section.slug);
       return [
         {
           slug: section.slug,
@@ -343,7 +346,9 @@ function buildWorkspace(input: {
           repository: section.project ? githubRepository(section.project) : null,
           total: count.total,
           open: count.open,
-          ...(input.root === null ? {} : capRuleFor(input.root, section.slug)),
+          ...(rule === null
+            ? {}
+            : { ...rule, capOpen: capLevel(folderCards, section.slug, rule).open }),
         },
       ];
     })
