@@ -1239,6 +1239,9 @@ export const CLAUDE_READ_ONLY_T3_MCP_ALLOWED_TOOLS: ReadonlyArray<string> = [
   "mcp__leonidas__leo_aios_memory_read",
   "mcp__leonidas__leo_usage_status",
   "mcp__leonidas__leo_release_status",
+  "mcp__leonidas__leo_hardware_status",
+  "mcp__leonidas__leo_review_diff_get",
+  "mcp__leonidas__leo_perf_turn_report",
 ];
 
 // Claude Code aborts an HTTP MCP call after 60 s ("The operation timed out.")

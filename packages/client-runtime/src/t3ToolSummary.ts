@@ -336,6 +336,15 @@ export function summarizeT3ToolCalls(
     case "usage-status":
       label = phrase("Checked", "check", `account usage ${times}`);
       break;
+    case "hardware-status":
+      label = phrase("Checked", "check", `computer health ${times}`);
+      break;
+    case "review-diff":
+      label = phrase("Read", "read", `code changes ${times}`);
+      break;
+    case "perf-report":
+      label = phrase("Read", "read", `run speed ${times}`);
+      break;
     case "release-status":
       label = phrase("Checked", "check", `the release ${times}`);
       break;

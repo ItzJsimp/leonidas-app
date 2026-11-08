@@ -1,8 +1,11 @@
-import { OrchestratorMcpFailure, ReleaseStatus } from "@t3tools/contracts";
+import { OrchestratorMcpFailure, ReleaseStatus, ThreadId } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import { Tool, Toolkit } from "effect/ai";
+import * as HardwareWatch from "#server/hardwareWatch/HardwareWatch.ts";
+import * as ThreadManagementService from "#server/orchestration-v2/ThreadManagementService.ts";
 import * as ProjectService from "#server/project/ProjectService.ts";
 import * as ProviderRegistry from "#server/provider/ProviderRegistry.ts";
+import * as ReviewService from "#server/review/ReviewService.ts";
 import * as Settings from "#server/serverSettings.ts";
 import * as TaskBoardService from "#server/taskBoard/TaskBoardService.ts";
 import * as McpInvocationContext from "../../McpInvocationContext.ts";
@@ -106,9 +109,161 @@ const ReleaseStatusTool = Tool.make("leo_release_status", {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, true);
 
+const NullableNumber = Schema.NullOr(Schema.Number);
+const RepoSourceKind = Schema.Literals(["working-tree", "branch-range"]);
+
+const HardwareStatusTool = Tool.make("leo_hardware_status", {
+  ...shared,
+  dependencies: [McpInvocationContext.McpInvocationContext, HardwareWatch.HardwareWatch],
+  description:
+    "Read this computer's newest CPU, memory, GPU and disk-free numbers, and its open hardware alerts. Check it before heavy builds or local models.",
+  success: Schema.Struct({
+    sampledAt: NullableNumber,
+    cpu: Schema.NullOr(
+      Schema.Struct({ loadPct: NullableNumber, tempC: NullableNumber, clockMhz: NullableNumber }),
+    ),
+    memory: Schema.NullOr(
+      Schema.Struct({
+        usedBytes: Schema.Number,
+        totalBytes: Schema.Number,
+        usedPct: NullableNumber,
+      }),
+    ),
+    gpus: Schema.Array(
+      Schema.Struct({
+        name: Schema.String,
+        loadPct: NullableNumber,
+        tempC: NullableNumber,
+        vramUsedBytes: NullableNumber,
+        vramTotalBytes: NullableNumber,
+        vramUsedPct: NullableNumber,
+      }),
+    ),
+    disks: Schema.Array(
+      Schema.Struct({
+        mount: Schema.String,
+        freeBytes: Schema.Number,
+        totalBytes: Schema.Number,
+        usedPct: NullableNumber,
+      }),
+    ),
+    activeAlerts: Schema.Array(
+      Schema.Struct({
+        metric: Schema.String,
+        label: Schema.String,
+        severity: Schema.String,
+        value: Schema.Number,
+        limit: Schema.Number,
+        unit: Schema.String,
+        message: Schema.String,
+      }),
+    ),
+  }),
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true);
+
+const ReviewDiffTool = Tool.make("leo_review_diff_get", {
+  ...shared,
+  dependencies: [
+    McpInvocationContext.McpInvocationContext,
+    ThreadManagementService.ThreadManagementService,
+    ProjectService.ProjectService,
+    ReviewService.ReviewService,
+  ],
+  description:
+    "Read the diff of a thread's workspace (default: this thread). Each diff is cut at 30000 chars and flagged. `file` limits it to one file. `contentsOf` also returns that file's old and new text, cut at 20000 chars.",
+  parameters: Schema.Struct({
+    threadId: Schema.optional(ThreadId),
+    baseRef: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
+    ignoreWhitespace: Schema.optional(Schema.Boolean),
+    file: Schema.optional(Schema.Struct({ path: Schema.String, sourceKind: RepoSourceKind })),
+    contentsOf: Schema.optional(Schema.Struct({ path: Schema.String, sourceKind: RepoSourceKind })),
+  }),
+  success: Schema.Struct({
+    cwd: Schema.String,
+    sources: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        kind: RepoSourceKind,
+        title: Schema.String,
+        baseRef: Schema.NullOr(Schema.String),
+        headRef: Schema.NullOr(Schema.String),
+        diff: Schema.String,
+        truncated: Schema.Boolean,
+        files: Schema.Array(
+          Schema.Struct({
+            path: Schema.String,
+            previousPath: Schema.NullOr(Schema.String),
+            additions: Schema.Number,
+            deletions: Schema.Number,
+          }),
+        ),
+      }),
+    ),
+    contents: Schema.optional(
+      Schema.Struct({
+        path: Schema.String,
+        oldContents: Schema.String,
+        newContents: Schema.String,
+        truncated: Schema.Boolean,
+      }),
+    ),
+  }),
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true);
+
+const PerfTurnReportTool = Tool.make("leo_perf_turn_report", {
+  ...shared,
+  dependencies: [
+    McpInvocationContext.McpInvocationContext,
+    ThreadManagementService.ThreadManagementService,
+  ],
+  description:
+    "Read timing and token counts for a thread's newest runs (default: this thread), newest first. `change` is the newest finished run minus the one before it. No message text. Use it for performance-gate numbers.",
+  parameters: Schema.Struct({
+    threadId: Schema.optional(ThreadId),
+    limit: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 20 }))),
+  }),
+  success: Schema.Struct({
+    runs: Schema.Array(
+      Schema.Struct({
+        ordinal: Schema.Number,
+        status: Schema.String,
+        model: Schema.String,
+        waitMs: NullableNumber,
+        totalMs: NullableNumber,
+        toolMs: Schema.Number,
+        toolCalls: Schema.Number,
+        inputTokens: NullableNumber,
+        outputTokens: NullableNumber,
+      }),
+    ),
+    change: Schema.NullOr(
+      Schema.Struct({
+        fromOrdinal: Schema.Number,
+        toOrdinal: Schema.Number,
+        totalMs: NullableNumber,
+        toolMs: Schema.Number,
+        inputTokens: NullableNumber,
+        outputTokens: NullableNumber,
+      }),
+    ),
+  }),
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true);
+
 export const InsightToolkit = Toolkit.make(
   MemorySearchTool,
   MemoryReadTool,
   UsageStatusTool,
   ReleaseStatusTool,
+  HardwareStatusTool,
+  ReviewDiffTool,
+  PerfTurnReportTool,
 );
