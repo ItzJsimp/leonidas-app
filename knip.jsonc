@@ -24,6 +24,7 @@
         "knip-schemas.ts",
         "mobile-native-client.ts",
         "setup-worktree.ts",
+        "build-normal-words.ts",
         "dev-health.mjs",
         "extract-prompt-style-standard.ts",
         "generate-aios-folders.ts",

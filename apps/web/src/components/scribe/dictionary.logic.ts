@@ -1,5 +1,7 @@
 import type { ScribeDictionary, ScribeSuggestionList } from "@t3tools/contracts";
 
+import { normalWordKind, type NormalWordKind, type NormalWordLists } from "./normalWords.logic";
+
 /** The engine refuses a vocabulary list longer than this (contract v1.2). */
 export const VOCABULARY_CAP = 800;
 
@@ -79,19 +81,48 @@ export function dictionaryErrorMessage(reason: string | null): string {
   );
 }
 
+/** A misheard spelling that is a normal word or first name. `fine` is set when the person accepted it. */
+export interface NormalWordFlag {
+  readonly wrong: string;
+  readonly kind: NormalWordKind;
+  readonly fine: boolean;
+}
+
 /** One right spelling and every misheard spelling Scribe turns into it. */
 export interface FixGroup {
   readonly correct: string;
   readonly spellings: readonly string[];
   /** A rule whose wrong spelling is the right one. The engine ignores case, so it fixes capitals and guards a longer phrase. */
   readonly sameWord: boolean;
+  /** Spellings that are normal words or first names. Empty until the word lists are loaded. */
+  readonly flags: readonly NormalWordFlag[];
 }
 
 /** A word with this many spellings or more gets its own filter. */
 export const MANY_SPELLINGS = 5;
 
-/** Word fixes grouped by the right spelling, so 183 rules read as the 84 words they fix. */
-export function groupFixes(replacements: readonly Replacement[]): FixGroup[] {
+/** The key saved when a person marks a flagged fix as fine. It names the rule, so a new right spelling asks again. */
+export const fineKey = (correct: string, wrong: string) => `${lower(wrong)}\u0000${correct}`;
+
+/** One plain sentence on why a spelling is flagged. */
+export function flagReason(flag: NormalWordFlag, correct: string): string {
+  const what = flag.kind === "name" ? "A first name" : "A common English word";
+  return `${what}. Every “${flag.wrong}” you say becomes “${correct}”.`;
+}
+
+/** A word still has a flag the person has not accepted. */
+export const needsLook = (group: FixGroup) => group.flags.some((flag) => !flag.fine);
+
+/**
+ * Word fixes grouped by the right spelling, so 183 rules read as the 84 words they fix.
+ * With the word lists, each group also lists the spellings that are normal words. A same-word
+ * rule is never flagged: it guards a phrase or fixes capitals.
+ */
+export function groupFixes(
+  replacements: readonly Replacement[],
+  lists?: NormalWordLists,
+  fine: ReadonlySet<string> = new Set(),
+): FixGroup[] {
   const groups = new Map<string, string[]>();
   for (const rule of replacements) {
     const list = groups.get(rule.correct) ?? [];
@@ -102,13 +133,17 @@ export function groupFixes(replacements: readonly Replacement[]): FixGroup[] {
     correct,
     spellings,
     sameWord: spellings.some((wrong) => lower(wrong) === lower(correct)),
+    flags: spellings.flatMap((wrong) => {
+      const kind = lists && lower(wrong) !== lower(correct) ? normalWordKind(wrong, lists) : null;
+      return kind ? [{ wrong, kind, fine: fine.has(fineKey(correct, wrong)) }] : [];
+    }),
   }));
 }
 
-export type FixView = "all" | "many";
+export type FixView = "all" | "many" | "look";
 export type FixSort = "spellings" | "name";
 
-/** Search matches the right spelling or any misheard one. "many" keeps words with 5 or more spellings. */
+/** Search matches the right spelling or any misheard one. "many" keeps words with 5 or more spellings. "look" keeps words with a flag to review. */
 export function viewFixes(
   groups: readonly FixGroup[],
   query: string,
@@ -119,7 +154,8 @@ export function viewFixes(
   return groups
     .filter(
       (group) =>
-        (view === "all" || group.spellings.length >= MANY_SPELLINGS) &&
+        (view === "all" ||
+          (view === "many" ? group.spellings.length >= MANY_SPELLINGS : needsLook(group))) &&
         (!needle ||
           group.correct.toLowerCase().includes(needle) ||
           group.spellings.some((wrong) => wrong.toLowerCase().includes(needle))),
