@@ -176,6 +176,7 @@ import {
   sortSidebarV2ProjectGroups,
   sortThreadsForSidebar,
   sortWorkingThreadsBySend,
+  groupSidebarWorkers,
   useThreadJumpHintVisibility,
   type SidebarListItem,
   type SidebarSection,
@@ -753,6 +754,8 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
     },
     [openProjectSettings],
   );
+
+  const workersByParent = useMemo(() => groupSidebarWorkers(threads), [threads]);
 
   // Keep a dropped row at its destination while its server applies the
   // lifecycle command and any order-key writes. The next pickup waits for
@@ -3460,6 +3463,7 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
                                 key={`${threadKey}:${rowVariant}`}
                                 thread={thread}
                                 variant={rowVariant}
+                                workers={workersByParent.get(thread.id)}
                                 // Snoozed rows wake, settled rows un-settle, and cards settle.
                                 variantAction={
                                   section === "snoozed"

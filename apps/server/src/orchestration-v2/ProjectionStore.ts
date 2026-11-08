@@ -1656,7 +1656,26 @@ function activeProviderGoalForShell(
 }
 
 /** Newest provider-turn usage report: the figure the chat's context meter shows. */
-type ShellLiveTokenUsage = { readonly usedTokens: number; readonly maxTokens: number | null };
+type ShellLiveTokenUsageRow = {
+  readonly thread_id: string;
+  readonly used_tokens: number;
+  readonly max_tokens: number | null;
+  readonly input_tokens: number | null;
+  readonly cached_input_tokens: number | null;
+  readonly cache_ttl_ms: number | null;
+  readonly cache_anchor_at: string | null;
+  readonly reported_at: string;
+};
+
+type ShellLiveTokenUsage = {
+  readonly usedTokens: number;
+  readonly maxTokens: number | null;
+  readonly inputTokens?: number | undefined;
+  readonly cachedInputTokens?: number | undefined;
+  readonly promptCacheTtlMs?: number | undefined;
+  readonly promptCacheAnchorAt?: string | undefined;
+  readonly reportedAt: string;
+};
 
 function newestTurnTokenUsageForShell(
   turns: OrchestrationV2ThreadProjection["providerTurns"],
@@ -1671,7 +1690,15 @@ function newestTurnTokenUsageForShell(
   }
   return newest === undefined
     ? null
-    : { usedTokens: newest.usedTokens, maxTokens: newest.maxTokens ?? null };
+    : {
+        usedTokens: newest.usedTokens,
+        maxTokens: newest.maxTokens ?? null,
+        inputTokens: newest.inputTokens,
+        cachedInputTokens: newest.cachedInputTokens,
+        promptCacheTtlMs: newest.promptCacheTtlMs,
+        promptCacheAnchorAt: newest.promptCacheAnchorAt,
+        reportedAt: newest.updatedAt,
+      };
 }
 
 /**
@@ -1695,6 +1722,13 @@ function activeProviderContextUsageForShell(
       ? {}
       : { totalProcessedTokens: usage.totalProcessedTokens }),
     ...(maxTokens === undefined ? {} : { maxTokens }),
+    ...(live?.inputTokens === undefined ? {} : { inputTokens: live.inputTokens }),
+    ...(live?.cachedInputTokens === undefined ? {} : { cachedInputTokens: live.cachedInputTokens }),
+    ...(live?.promptCacheTtlMs === undefined ? {} : { promptCacheTtlMs: live.promptCacheTtlMs }),
+    ...(live?.promptCacheAnchorAt === undefined
+      ? {}
+      : { promptCacheAnchorAt: live.promptCacheAnchorAt }),
+    ...(live === null ? {} : { reportedAt: live.reportedAt }),
   };
 }
 
@@ -5585,16 +5619,18 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
 
     // Newest usage report per thread, picked in SQL so the shell never decodes every turn.
     const selectShellLiveTokenUsageRows = (threadIds: ReadonlyArray<ThreadId>) =>
-      sql<{
-        readonly thread_id: string;
-        readonly used_tokens: number;
-        readonly max_tokens: number | null;
-      }>`
-        SELECT thread_id, used_tokens, max_tokens FROM (
+      sql<ShellLiveTokenUsageRow>`
+        SELECT thread_id, used_tokens, max_tokens, input_tokens, cached_input_tokens,
+          cache_ttl_ms, cache_anchor_at, reported_at FROM (
           SELECT
             thread_id,
             json_extract(payload_json, '$.tokenUsage.usedTokens') AS used_tokens,
             json_extract(payload_json, '$.tokenUsage.maxTokens') AS max_tokens,
+            json_extract(payload_json, '$.tokenUsage.inputTokens') AS input_tokens,
+            json_extract(payload_json, '$.tokenUsage.cachedInputTokens') AS cached_input_tokens,
+            json_extract(payload_json, '$.tokenUsage.promptCacheTtlMs') AS cache_ttl_ms,
+            json_extract(payload_json, '$.tokenUsage.promptCacheAnchorAt') AS cache_anchor_at,
+            json_extract(payload_json, '$.tokenUsage.updatedAt') AS reported_at,
             ROW_NUMBER() OVER (
               PARTITION BY thread_id
               ORDER BY json_extract(payload_json, '$.tokenUsage.updatedAt') DESC
@@ -5605,19 +5641,21 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         ) WHERE newest = 1
       `;
 
-    const liveTokenUsageMap = (
-      rows: ReadonlyArray<{
-        readonly thread_id: string;
-        readonly used_tokens: number;
-        readonly max_tokens: number | null;
-      }>,
-    ) =>
+    const liveTokenUsageMap = (rows: ReadonlyArray<ShellLiveTokenUsageRow>) =>
       new Map(
         rows.map(
           (row) =>
             [
               ThreadId.make(row.thread_id),
-              { usedTokens: row.used_tokens, maxTokens: row.max_tokens },
+              {
+                usedTokens: row.used_tokens,
+                maxTokens: row.max_tokens,
+                inputTokens: row.input_tokens ?? undefined,
+                cachedInputTokens: row.cached_input_tokens ?? undefined,
+                promptCacheTtlMs: row.cache_ttl_ms ?? undefined,
+                promptCacheAnchorAt: row.cache_anchor_at ?? undefined,
+                reportedAt: row.reported_at,
+              },
             ] as const,
         ),
       );

@@ -1108,7 +1108,7 @@ export const OrchestrationV2ProviderTurnTokenUsage = Schema.Struct({
   /** Shortest prompt cache lifetime the provider wrote with this report.
       Expiry remains an estimate; providers can reuse partial prefixes. */
   promptCacheTtlMs: Schema.optional(PositiveInt),
-  /** Earliest known request time. A turn start is a conservative estimate. */
+  /** Time of the latest model call. Each call refreshes the cache. */
   promptCacheAnchorAt: Schema.optional(Schema.String),
   /** ISO timestamp of the provider's report; string so wire encoding is stable. */
   updatedAt: Schema.String,
@@ -2065,6 +2065,12 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
         usedTokens: NonNegativeInt,
         totalProcessedTokens: Schema.optional(NonNegativeInt),
         maxTokens: Schema.optional(PositiveInt),
+        /** Cache fields of the newest model call. Sidebar rows show how long the cache lasts. */
+        inputTokens: Schema.optional(NonNegativeInt),
+        cachedInputTokens: Schema.optional(NonNegativeInt),
+        promptCacheTtlMs: Schema.optional(PositiveInt),
+        promptCacheAnchorAt: Schema.optional(Schema.String),
+        reportedAt: Schema.optional(Schema.String),
       }),
     ),
   ),
