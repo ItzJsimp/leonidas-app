@@ -89,6 +89,7 @@ vi.mock("../WorkspaceBreadcrumb", () => ({
 vi.mock("../WorkspacePageContainer", () => ({ WorkspacePageContainer: "main" }));
 vi.mock("../WorkspacePageHeader", () => ({ WorkspacePageHeader: "header" }));
 vi.mock("./UsageProviderChart", () => ({ UsageProviderChart: "div" }));
+vi.mock("./LayaChecks", () => ({ LayaChecksSection: () => null }));
 vi.mock("./UsagePriceOverrides", () => ({ UsagePriceOverrides: () => null }));
 vi.mock("../chat/ProviderInstanceIcon", () => ({ ProviderInstanceIcon: () => null }));
 vi.mock("../settings/RedactedSensitiveText", () => ({ RedactedSensitiveText: "span" }));
@@ -102,6 +103,8 @@ let renderer: ReactTestRenderer;
 let environmentNumber = 0;
 beforeEach(() => {
   vi.stubGlobal("window", new EventTarget());
+  // useVisibleInterval reads document.visibilityState; "hidden" arms no timer, so tests stay deterministic.
+  vi.stubGlobal("document", Object.assign(new EventTarget(), { visibilityState: "hidden" }));
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-11T12:00:00Z"));
   environmentNumber += 1;
@@ -189,7 +192,7 @@ it("uses the current time when returning to limits from tokens", async () => {
   });
   const selectMetric = (metric: string) => {
     renderer.root
-      .findAll((node) => node.type === "div" && node.props["aria-label"] === "Usage metric")[0]!
+      .findAll((node) => node.type === "div" && node.props["aria-label"] === "What to show")[0]!
       .props.onValueChange([metric]);
   };
   await act(() => selectMetric("tokens"));
@@ -213,7 +216,7 @@ it("refreshes once on opening Limits and suppresses rapid returns and remounts",
   expect(state.refreshProviders).not.toHaveBeenCalled();
   const selectMetric = (metric: string) =>
     renderer.root
-      .findAll((node) => node.type === "div" && node.props["aria-label"] === "Usage metric")[0]!
+      .findAll((node) => node.type === "div" && node.props["aria-label"] === "What to show")[0]!
       .props.onValueChange([metric]);
   await act(() => selectMetric("limits"));
   expect(state.refreshProviders).toHaveBeenCalledTimes(1);

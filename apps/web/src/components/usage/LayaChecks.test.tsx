@@ -6,7 +6,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterAll, afterEach, expect, it, vi } from "vite-plus/test";
 
@@ -16,6 +16,7 @@ const query = vi.hoisted(() => ({
   data: null as LayaUsage | null,
   error: null as string | null,
   dataUpdatedAt: 0,
+  refresh: vi.fn(),
 }));
 vi.mock("~/state/environments", () => ({ usePrimaryEnvironmentId: () => "test" }));
 vi.mock("~/state/query", () => ({ useEnvironmentQuery: () => query }));
@@ -52,11 +53,19 @@ afterEach(async () => {
   query.data = null;
   query.error = null;
   query.dataUpdatedAt = 0;
+  query.refresh.mockClear();
 });
+
+const page = { setRefreshedAt: (_value: number) => {} };
+function Page() {
+  const [refreshedAt, set] = useState(1);
+  page.setRefreshedAt = set;
+  return <LayaChecksSection refreshedAt={refreshedAt} />;
+}
 
 async function renderSection() {
   const router = createRouter({
-    routeTree: createRootRoute({ component: LayaChecksSection }),
+    routeTree: createRootRoute({ component: Page }),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
   await router.load();
@@ -141,4 +150,38 @@ it("shows health before the first check and keeps loading and failure messages r
   const failed = await renderSection();
   expect(failed.textContent).toContain("Try again later.");
   expect(failed.textContent).not.toContain("raw private error");
+});
+
+it("keeps only the name in the heading, with the time and status beside it", async () => {
+  query.data = ready;
+  query.dataUpdatedAt = Date.parse("2026-11-07T20:31:00");
+  const section = await renderSection();
+  const heading = section.querySelector("h2");
+  expect(heading?.textContent).toBe("Laya");
+  expect(section.querySelector("time")?.closest("h2")).toBeNull();
+});
+
+it("reloads the Laya numbers when the page refreshes, not on first render", async () => {
+  query.data = ready;
+  await renderSection();
+  expect(query.refresh).not.toHaveBeenCalled();
+  await act(async () => page.setRefreshedAt(2));
+  expect(query.refresh).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ["Jev backup", "backup checker"],
+  ["Answered by", "each layer settled"],
+])("explains %s in a tooltip on focus", async (label, hint) => {
+  query.data = ready;
+  const section = await renderSection();
+  const term = [...section.querySelectorAll("dt")].find((dt) => dt.textContent === label);
+  await act(async () => term?.focus());
+  expect(document.body.textContent).toContain(hint);
+});
+
+it("sizes the Settings button for touch", async () => {
+  query.data = { ...ready, status: "missing", engineStatus: "error" };
+  const link = (await renderSection()).querySelector("a");
+  expect(link?.className).toContain("h-9");
 });

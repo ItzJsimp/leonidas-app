@@ -1,6 +1,7 @@
 import type { LayaUsage } from "@t3tools/contracts";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, ShieldCheckIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useEnvironmentQuery } from "~/state/query";
@@ -10,6 +11,7 @@ import { formatDayAwareTimestamp } from "~/timestampFormat";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 const JOB_LABELS: Record<string, string> = {
   bash_gate: "Command checks",
@@ -72,10 +74,31 @@ function Chip(props: { readonly dot: string; readonly value: number; readonly te
   );
 }
 
-function Fact(props: { readonly label: string; readonly value: string; readonly mono?: boolean }) {
+function Fact(props: {
+  readonly label: string;
+  readonly value: string;
+  readonly mono?: boolean;
+  readonly hint?: string;
+}) {
   return (
     <div className="flex gap-1.5">
-      <dt>{props.label}</dt>
+      {props.hint ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <dt
+                tabIndex={0}
+                className="cursor-help underline decoration-dotted underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              />
+            }
+          >
+            {props.label}
+          </TooltipTrigger>
+          <TooltipPopup side="top">{props.hint}</TooltipPopup>
+        </Tooltip>
+      ) : (
+        <dt>{props.label}</dt>
+      )}
       <dd className={cn("font-medium text-foreground tabular-nums", props.mono && "font-mono")}>
         {props.value}
       </dd>
@@ -118,12 +141,7 @@ function Notice(props: { readonly gameMode: boolean }) {
           : "Rules still run. Open Settings to check Laya setup."}
       </span>
       {props.gameMode ? null : (
-        <Button
-          className="ms-auto"
-          size="xs"
-          variant="outline"
-          render={<Link to="/settings/general" />}
-        >
+        <Button className="ms-auto" variant="outline" render={<Link to="/settings/general" />}>
           Open Settings
         </Button>
       )}
@@ -197,10 +215,15 @@ function Details(props: { readonly data: LayaUsage }) {
           label="Last probe"
           value={data.probeMs === null ? "Not measured" : `${data.probeMs} ms`}
         />
-        <Fact label="Jev backup" value={JEV_LABELS[data.jevState]} />
+        <Fact
+          label="Jev backup"
+          value={JEV_LABELS[data.jevState]}
+          hint="Whether the backup checker (Jev) can answer when rules and the local model are unsure."
+        />
         <Fact label="Game Mode" value={data.gameMode ? "On" : "Off"} />
         <Fact
           label="Answered by"
+          hint="How many checks each layer settled: fixed rules, the local model, then the Jev backup."
           value={`Rules ${count(data.tiers.rules)} · Model ${count(data.tiers.model)} · Jev backup ${count(data.tiers.jev)}`}
         />
       </dl>
@@ -208,27 +231,38 @@ function Details(props: { readonly data: LayaUsage }) {
   );
 }
 
-/** A Laya group for the Limits view, built like the AI service groups above it. Counts only, no command text. */
-export function LayaChecksSection() {
+/**
+ * A Laya group for the Limits view, built like the AI service groups above it. Counts only, no command text.
+ * `refreshedAt` is the page's last limits refresh time; each change reloads the Laya numbers too.
+ */
+export function LayaChecksSection(props: { readonly refreshedAt?: number }) {
   const environmentId = usePrimaryEnvironmentId();
-  const { data, error, dataUpdatedAt } = useEnvironmentQuery(
+  const { data, error, dataUpdatedAt, refresh } = useEnvironmentQuery(
     environmentId ? layaUsageQuery({ environmentId, input: {} }) : null,
   );
+  const lastRefreshedAt = useRef(props.refreshedAt);
+  useEffect(() => {
+    if (lastRefreshedAt.current === props.refreshedAt) return;
+    lastRefreshedAt.current = props.refreshedAt;
+    refresh();
+  }, [props.refreshedAt, refresh]);
   const checkedAt = dataUpdatedAt > 0 ? new Date(dataUpdatedAt).toISOString() : null;
   return (
     <section aria-label="Laya safety checks" className="flex flex-col gap-3">
-      <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <ShieldCheckIcon aria-hidden className="size-4 text-muted-foreground" />
-        Laya
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <ShieldCheckIcon aria-hidden className="size-4 text-muted-foreground" />
+          Laya
+        </h2>
         {data !== null && checkedAt !== null ? (
-          <span className="text-xs font-normal text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Checked{" "}
             <time dateTime={checkedAt}>{formatDayAwareTimestamp(checkedAt, "12-hour")}</time>
             {data.days.length > 0 ? ` · last ${data.days.length} days` : ""}
           </span>
         ) : null}
         {data === null ? null : <StatusChip engineStatus={data.engineStatus} />}
-      </h2>
+      </div>
       {data === null ? (
         error ? (
           <p role="status" className={cn(PANEL, "px-4 py-3 text-sm text-muted-foreground")}>

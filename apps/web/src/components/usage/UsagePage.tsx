@@ -554,7 +554,7 @@ export function UsagePage() {
                     ) : null
                   }
                 />
-                <LayaChecksSection />
+                <LayaChecksSection refreshedAt={limitsNow} />
               </div>
             ) : shown === null ? (
               <UsageSkeleton />
