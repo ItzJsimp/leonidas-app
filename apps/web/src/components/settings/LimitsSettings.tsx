@@ -53,6 +53,9 @@ export function LimitsSettings() {
             }
           />
         ))}
+        <p className="px-3 py-2 text-xs text-muted-foreground sm:px-4">
+          Press Enter or leave a field to save.
+        </p>
         {data !== null && entries.length === 0 ? (
           <SettingsRow title="No projects yet" description="Projects with tasks show up here." />
         ) : null}

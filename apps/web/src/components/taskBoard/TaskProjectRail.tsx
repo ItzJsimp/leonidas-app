@@ -88,12 +88,12 @@ function CapBadgeEditor(props: {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <span className="absolute top-1/2 right-1 -translate-y-1/2">
+      <span className="absolute top-1/2 right-0.5 -translate-y-1/2">
         <PopoverTrigger
           render={
             <Button
               variant="ghost"
-              size="micro"
+              size="xs"
               aria-label={`Open-task limit for ${entry.name}: ${props.badge.label}. Change`}
             />
           }

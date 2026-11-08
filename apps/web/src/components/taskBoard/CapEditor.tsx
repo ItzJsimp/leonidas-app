@@ -153,9 +153,6 @@ export function CapEditor(props: {
           {note}
         </p>
       ) : null}
-      {commits ? (
-        <p className="text-xs text-muted-foreground">Press Enter or leave a field to save.</p>
-      ) : null}
       <div className="flex items-center justify-between gap-2">
         <Button
           type="button"
