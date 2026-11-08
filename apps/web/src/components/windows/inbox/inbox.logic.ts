@@ -15,8 +15,18 @@ export const INBOX_FILTERS: ReadonlyArray<{ readonly id: InboxFilter; readonly l
   { id: "finished", label: "Finished" },
 ];
 
+export type InboxGrouping = "time" | "source";
+
+export const INBOX_GROUPINGS: ReadonlyArray<{
+  readonly id: InboxGrouping;
+  readonly label: string;
+}> = [
+  { id: "time", label: "By time" },
+  { id: "source", label: "By source" },
+];
+
 export interface InboxGroup {
-  readonly key: "needs-you" | "today" | "earlier";
+  readonly key: "needs-you" | "today" | "earlier" | `source:${string}`;
   readonly label: string;
   readonly events: ReadonlyArray<FoldedFeedEvent>;
 }
@@ -58,12 +68,32 @@ export function inboxCounts(events: ReadonlyArray<FoldedFeedEvent>, marks: Marks
 export const unreadIds = (events: ReadonlyArray<FoldedFeedEvent>, marks: Marks): string[] =>
   events.filter((event) => !isRead(marks, event)).map((event) => event.id);
 
+/** The events a filter pill keeps. Needs you means unread questions and failures. */
 export function filterInbox(
-  groups: ReadonlyArray<InboxGroup>,
+  events: ReadonlyArray<FoldedFeedEvent>,
+  marks: Marks,
   filter: InboxFilter,
-): ReadonlyArray<InboxGroup> {
-  if (filter === "all") return groups;
-  return groups.filter((group) => (group.key === "needs-you") === (filter === "needs-you"));
+): ReadonlyArray<FoldedFeedEvent> {
+  if (filter === "all") return events;
+  return events.filter(
+    (event) => isNeedsYou(event, isRead(marks, event)) === (filter === "needs-you"),
+  );
+}
+
+/** One group per source, the source with the newest event first. Newest first inside. */
+export function groupBySource(events: ReadonlyArray<FoldedFeedEvent>): ReadonlyArray<InboxGroup> {
+  const groups = new Map<string, FoldedFeedEvent[]>();
+  for (const event of events.toSorted((a, b) => time(b) - time(a))) {
+    const label = event.actor.name;
+    const group = groups.get(label);
+    if (group) group.push(event);
+    else groups.set(label, [event]);
+  }
+  return [...groups].map(([label, rows]) => ({
+    key: `source:${label}` as const,
+    label,
+    events: rows,
+  }));
 }
 
 /** The rows in the order the list shows them, for arrow keys and selection. */

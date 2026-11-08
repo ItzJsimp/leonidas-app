@@ -1,89 +1,18 @@
-import { isScratchProject } from "@t3tools/client-runtime/state/projects";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { FolderKanbanIcon, FolderIcon, PlusIcon } from "lucide-react";
-import { useMemo } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
-import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
-import { scopeToWorkspace } from "~/components/workspace/aiosWorkspace.logic";
 import { openCommandPalette } from "~/commandPaletteBus";
-import { useClientSettings } from "~/hooks/useSettings";
 import { useNowMinute } from "~/hooks/useNowMinute";
-import { selectProjectGroupingSettings } from "~/logicalProject";
-import { buildSidebarProjectSnapshots } from "~/sidebarProjectGrouping";
-import {
-  useAllEnvironmentProjectSnapshotsReady,
-  useProjects,
-  useServerConfigs,
-  useThreadShells,
-} from "~/state/entities";
-import { useEnvironments, usePrimaryEnvironmentId } from "~/state/environments";
 
 import { RailWindow } from "../../twoState/RailWindow";
-import {
-  activityLabel,
-  projectRows,
-  type ProjectChat,
-  type ProjectGroup,
-  type ProjectRow,
-} from "./projects.logic";
+import { activityLabel } from "./projects.logic";
+import { useProjectRows } from "./useProjectRows";
 
 const addProject = () => openCommandPalette({ open: "add-project" });
 const BUTTON_LINK =
   "inline-flex h-7 items-center rounded-md border border-border px-2 text-xs font-medium hover:bg-surface-raised focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:h-6";
-
-/** The projects of the active workspace, grouped the way the chat list groups them. */
-function useProjectRows(): { readonly rows: ProjectRow[] | null } {
-  const projects = useProjects();
-  const threads = useThreadShells();
-  const configs = useServerConfigs();
-  const settings = useClientSettings(selectProjectGroupingSettings);
-  const primaryEnvironmentId = usePrimaryEnvironmentId();
-  const { environments } = useEnvironments();
-  const workspace = useActiveAiosWorkspace();
-  const snapshotsReady = useAllEnvironmentProjectSnapshotsReady();
-  const { environmentId, workspaces, active, scopeReady } = workspace;
-  return useMemo(() => {
-    if (!scopeReady || !snapshotsReady) return { rows: null };
-    const scoped = scopeToWorkspace({ environmentId, workspaces, active, projects, threads });
-    const named = scoped.projects.filter(
-      (project) =>
-        !isScratchProject(project, configs.get(project.environmentId)?.scratchWorkspaceRoot),
-    );
-    const labels = new Map(environments.map((entry) => [entry.environmentId, entry.label]));
-    const groups: ProjectGroup[] = buildSidebarProjectSnapshots({
-      projects: named,
-      settings,
-      primaryEnvironmentId,
-      resolveEnvironmentLabel: (id) => labels.get(id) ?? null,
-    }).map((group) => ({
-      key: group.projectKey,
-      name: group.displayName,
-      memberKeys: group.memberProjects.map((member) => `${member.environmentId}:${member.id}`),
-    }));
-    const chats: ProjectChat[] = scoped.threads.map((thread) => ({
-      id: thread.id,
-      environmentId: thread.environmentId,
-      projectKey: `${thread.environmentId}:${thread.projectId}`,
-      at: thread.lastActivityAt ?? thread.updatedAt,
-      archived: thread.archivedAt !== null,
-    }));
-    return { rows: projectRows(groups, chats) };
-  }, [
-    scopeReady,
-    snapshotsReady,
-    environmentId,
-    workspaces,
-    active,
-    projects,
-    threads,
-    configs,
-    settings,
-    primaryEnvironmentId,
-    environments,
-  ]);
-}
 
 /** The Projects window: one row per project with its chats, its last activity and two actions. */
 export function ProjectsWindow() {

@@ -5,6 +5,9 @@ import { ArrowLeftIcon } from "lucide-react";
 import type { Ref } from "react";
 
 import { Button } from "~/components/ui/button";
+import { toastManager } from "~/components/ui/toast";
+import { useEventFeedStore } from "~/eventFeedStore";
+import { ruleFor, typeLabel } from "~/notificationRules";
 import { buildThreadRouteParams } from "~/threadRoutes";
 
 import { changedLabel } from "../../twoState/areaRows";
@@ -12,6 +15,7 @@ import { plainEventCause, plainEventTitle } from "../../twoState/eventText";
 import { actionLabel } from "../../twoState/railFeed";
 import { Tip } from "../../twoState/Tip";
 import { linkedThreadId, sourceLabel } from "./inbox.logic";
+import { RuleControl } from "./NotificationRules";
 
 /** One message: what happened, where it came from, and the one thing to do about it. */
 export function InboxDetail({
@@ -42,6 +46,9 @@ export function InboxDetail({
   const title = plainEventTitle(event.title);
   const cause = plainEventCause(event);
   const threadId = linkedThreadId(event);
+  const rule = useEventFeedStore((store) => ruleFor(event, store.typeRules));
+  const setTypeRule = useEventFeedStore((store) => store.setTypeRule);
+  const kind = typeLabel(event.type);
   return (
     <article aria-label={title} className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
       {onBack ? (
@@ -81,7 +88,7 @@ export function InboxDetail({
         <Link
           to="/$environmentId/$threadId"
           params={buildThreadRouteParams(scopeThreadRef(environmentId, threadId as ThreadId))}
-          className="mt-3 w-fit rounded-sm text-sm font-medium text-foreground underline underline-offset-4 hover:no-underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-3 w-fit rounded-sm text-sm font-medium text-foreground underline underline-offset-4 hover:no-underline focus-visible:outline-2 focus-visible:outline-ring"
         >
           Open the linked chat
         </Link>
@@ -89,6 +96,33 @@ export function InboxDetail({
       {files.length > 0 ? (
         <p className="mt-3 text-xs break-words text-muted-foreground">{files.join(", ")}</p>
       ) : null}
+      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4">
+        <p className="min-w-0 flex-1 basis-40 text-sm">
+          <span className="text-muted-foreground">This kind: </span>
+          <span className="font-medium">{kind}</span>
+        </p>
+        <RuleControl
+          type={event.type}
+          label={kind}
+          rule={rule}
+          onPick={(next, before) => {
+            if (next !== "off") return;
+            // Off hides this message too, so the way back is one click away.
+            const toastId = toastManager.add({
+              type: "info",
+              title: `${kind} is off`,
+              description: "Turn it back on in Rules.",
+              actionProps: {
+                children: "Undo",
+                onClick: () => {
+                  setTypeRule(event.type, before);
+                  toastManager.close(toastId);
+                },
+              },
+            });
+          }}
+        />
+      </div>
     </article>
   );
 }

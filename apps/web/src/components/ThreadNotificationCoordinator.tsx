@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { feedEventOpenTarget, openFeedEvent } from "../eventFeedOpen";
 import { useEventFeedStore } from "../eventFeedStore";
+import { popsUp } from "../notificationRules";
 import { getClientSettings, useClientSettings } from "../hooks/useSettings";
 import { useEnvironmentIds } from "../state/environments";
 import { eventFeedLive, eventsAppend } from "../state/eventFeed";
@@ -134,16 +135,6 @@ function threadEventType(
   return "agent.needs_input";
 }
 
-/** Toasts and Windows notifications read `needs_you` and `failed`, plus the app's finished chats. */
-function popsUp(event: FeedEvent): boolean {
-  if (useEventFeedStore.getState().mutedTypes.includes(event.type)) return false;
-  if (event.level !== "info") return true;
-  return (
-    event.actor.kind === "app" &&
-    (event.type === "agent.finished" || event.type === "agent.child_finished")
-  );
-}
-
 function leadingIcon(event: FeedEvent) {
   if (event.level === "info")
     return <CircleCheckIcon aria-hidden className="size-4 text-success-foreground" />;
@@ -168,7 +159,8 @@ function usePresentFeedEvent(
 
   return useCallback(
     (event: FeedEvent) => {
-      if (!popsUp(event)) return;
+      // The type's rule (Settings in Notifications): only Toast pops up, sounds or notifies.
+      if (!popsUp(event, useEventFeedStore.getState().typeRules)) return;
       const settings = getClientSettings();
       const quiet = isInNotificationQuietHours(settings);
       if (hasNotificationSound(settings.notificationMode) && !quiet) {

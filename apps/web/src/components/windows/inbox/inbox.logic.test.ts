@@ -3,13 +3,13 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   filterInbox,
+  groupBySource,
   groupInbox,
   inboxCounts,
   inboxEmptyText,
   linkedThreadId,
   neighborRowId,
   nextRowIndex,
-  rowsOf,
   searchInbox,
   sourceLabel,
   unreadIds,
@@ -70,16 +70,24 @@ describe("inboxCounts", () => {
 });
 
 describe("filterInbox", () => {
-  const groups = groupInbox(all, marks, NOW);
-  it("keeps every group for All", () => {
-    expect(rowsOf(filterInbox(groups, "all"))).toHaveLength(5);
+  it("keeps every event for All", () => {
+    expect(filterInbox(all, marks, "all")).toHaveLength(5);
   });
-  it("keeps only the needs you group, or only the others", () => {
-    expect(rowsOf(filterInbox(groups, "needs-you"))).toHaveLength(2);
-    expect(rowsOf(filterInbox(groups, "finished")).map((item) => item.title)).toEqual([
-      "Vision map updated",
-      "Old question",
-      "Weekly report ready",
+  it("keeps only unread questions and failures, or only the others", () => {
+    expect(filterInbox(all, marks, "needs-you")).toEqual([failed, asks]);
+    expect(filterInbox(all, marks, "finished")).toEqual([doneOld, answered, doneToday]);
+  });
+});
+
+describe("groupBySource", () => {
+  it("makes one group per source, the newest source first, newest first inside", () => {
+    const script = { kind: "script", name: "Send-Notification.ps1" } as const;
+    const early = event("Sync failed", at(0, 2), { actor: script });
+    const late = event("Sync failed again", at(0, 14), { actor: script });
+    const groups = groupBySource([doneToday, early, asks, late]);
+    expect(groups.map((group) => [group.key, group.events.map((item) => item.title)])).toEqual([
+      ["source:Send-Notification.ps1", ["Sync failed again", "Sync failed"]],
+      ["source:Leonidas", ["Vision map updated", "Pick a chart"]],
     ]);
   });
 });

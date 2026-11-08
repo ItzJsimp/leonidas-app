@@ -4,7 +4,6 @@ import { areaLabel, changedLabel } from "../twoState/areaRows";
 
 const DAY = 24 * 60 * 60_000;
 const startOfDay = (ms: number) => new Date(ms).setHours(0, 0, 0, 0);
-const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
 
 export interface TaskCounts {
   readonly todo: number;
@@ -13,111 +12,14 @@ export interface TaskCounts {
   readonly blocked: number;
 }
 
-export interface HomeInput {
-  readonly counts: TaskCounts;
-  readonly areas?: ReadonlyArray<TaskBoardHomeArea> | undefined;
-}
-
-export interface TileModel {
-  readonly id: "needs-you" | "running" | "open-tasks" | "memory";
-  readonly label: string;
-  /** Null while the number is still loading. */
-  readonly value: number | null;
-  readonly unit: string;
-  /** One plain muted line. It never claims a trend, because the app keeps no history yet. */
-  readonly note: string;
-  /** Says exactly what the number counts. */
-  readonly tip: string;
-}
-
 /** "9:14 AM" today, "yesterday", else "Oct 18". */
-function sinceLabel(at: number, now: number): string {
+export function sinceLabel(at: number, now: number): string {
   const days = Math.round((startOfDay(now) - startOfDay(at)) / DAY);
   if (days <= 0) {
     return new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   }
   if (days === 1) return "yesterday";
   return new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-export function tileModels(
-  input: {
-    readonly needsYou: number | null;
-    readonly running: number | null;
-    /** Chats that are not archived. Undefined when the caller does not count them. */
-    readonly openChats?: number | null;
-    readonly oldestNeedsYouAt: number | null;
-    readonly home: HomeInput | null;
-  },
-  now: number,
-): TileModel[] {
-  const { needsYou, running, oldestNeedsYouAt, home } = input;
-  const openChats =
-    input.openChats === undefined || input.openChats === null
-      ? ""
-      : ` · ${input.openChats.toLocaleString("en-US")} open ${plural(input.openChats, "chat", "chats")}`;
-  const open = home
-    ? home.counts.todo + home.counts.inProgress + home.counts.review + home.counts.blocked
-    : null;
-  const memory = home ? (home.areas ?? []).reduce((sum, area) => sum + area.units, 0) : null;
-  const areaCount = home?.areas?.length ?? 0;
-  return [
-    {
-      id: "needs-you",
-      label: "Needs you",
-      value: needsYou,
-      unit: plural(needsYou ?? 0, "item", "items"),
-      note:
-        needsYou === null
-          ? "Reading your notifications"
-          : needsYou === 0
-            ? "Nothing is waiting for you"
-            : oldestNeedsYouAt === null
-              ? "Waiting for your answer"
-              : `Oldest waits since ${sinceLabel(oldestNeedsYouAt, now)}`,
-      tip: "Unread questions, permission requests and failures. The Notifications badge shows the same number.",
-    },
-    {
-      id: "running",
-      label: "Running",
-      value: running,
-      unit: plural(running ?? 0, "agent", "agents"),
-      note:
-        running === null
-          ? "Reading your chats"
-          : running === 0
-            ? `No agent is working now${openChats}`
-            : `Working right now${openChats}`,
-      tip: "Chats with an agent working now, or waiting for background work it started. Open chats are chats you have not archived.",
-    },
-    {
-      id: "open-tasks",
-      label: "Open tasks",
-      value: open,
-      unit: plural(open ?? 0, "task", "tasks"),
-      note: home
-        ? [
-            `${home.counts.inProgress.toLocaleString("en-US")} in progress`,
-            ...(home.counts.blocked > 0
-              ? [`${home.counts.blocked.toLocaleString("en-US")} blocked`]
-              : []),
-          ].join(" · ")
-        : "Reading your task cards",
-      tip: "Task cards that are To do, In progress, In review or Blocked.",
-    },
-    {
-      id: "memory",
-      label: "Memory",
-      value: memory,
-      unit: plural(memory ?? 0, "item", "items"),
-      note: !home
-        ? "Reading your AIOS folder"
-        : areaCount === 0
-          ? "No AIOS folder connected yet"
-          : `Across ${areaCount} ${plural(areaCount, "area", "areas")}`,
-      tip: "Cards, notes, decisions, logs, skills and pages in your AIOS folder, added up across every area.",
-    },
-  ];
 }
 
 export type SegmentTone = "foreground" | "muted" | "info" | "warning";
@@ -261,59 +163,9 @@ export function updatedLabel(at: number, now: number): string {
   return `Updated ${changedLabel(at, now)}`;
 }
 
-/** A percent a goal's status text already states ("62%" or "18 of 29"). Null otherwise. */
-export function goalPercent(status: string): number | null {
-  const percent = /(\d{1,3}(?:\.\d+)?)\s*%/.exec(status);
-  if (percent) return Math.min(100, Math.round(Number(percent[1])));
-  const of = /(\d+)\s+of\s+(\d+)/i.exec(status);
-  return of ? ringPercent(Number(of[1]), Number(of[2])) : null;
-}
-
-export function eventsToday(events: ReadonlyArray<Pick<FoldedFeedEvent, "ts">>, now: number) {
-  const start = startOfDay(now);
-  return events.filter((event) => {
-    const at = Date.parse(event.ts);
-    return at >= start && at < start + DAY;
-  }).length;
-}
-
 export function oldestAt(events: ReadonlyArray<Pick<FoldedFeedEvent, "ts">>): number | null {
   const times = events.map((event) => Date.parse(event.ts)).filter(Number.isFinite);
   return times.length === 0 ? null : Math.min(...times);
-}
-
-export interface SummaryItem {
-  /** The number, shown bold. Empty when the sentence has none. */
-  readonly lead: string;
-  readonly rest: string;
-}
-
-/** "3 need you · 2 agents running · 2 of 5 done today", from the counts every page shares. */
-export function summaryItems(counts: {
-  readonly needsYou: number | null;
-  readonly running: number | null;
-  readonly today: { readonly done: number; readonly total: number } | null;
-}): SummaryItem[] {
-  const { needsYou, running, today } = counts;
-  // Empty until both counts are read: the page shows a skeleton, never a false "Nothing needs you".
-  if (needsYou === null || running === null) return [];
-  return [
-    needsYou === 0
-      ? { lead: "", rest: "Nothing needs you" }
-      : {
-          lead: needsYou.toLocaleString("en-US"),
-          rest: needsYou === 1 ? " needs you" : " need you",
-        },
-    running === 0
-      ? { lead: "", rest: "No agents running" }
-      : {
-          lead: running.toLocaleString("en-US"),
-          rest: ` ${plural(running, "agent", "agents")} running`,
-        },
-    ...(today === null || today.total === 0
-      ? []
-      : [{ lead: `${today.done} of ${today.total}`, rest: " done today" }]),
-  ];
 }
 
 /** The first `max` rows of a list and how many were left out. */
@@ -331,3 +183,68 @@ export function goalMeta(goal: { status: string; targetDate: string }): string {
     .filter(Boolean)
     .join(" · ");
 }
+
+/**
+ * A Needs you row in two lines. App events have a generic title ("Input needed") and the chat
+ * name in the body, so the chat name leads and the title moves to the second line.
+ */
+export function needsYouLine(event: {
+  readonly title: string;
+  readonly body?: string | undefined;
+  readonly actor: { readonly kind: string; readonly name: string };
+}): { readonly primary: string; readonly secondary: string } {
+  const body = event.body?.trim().split("\n")[0]?.trim() ?? "";
+  if (event.actor.kind === "app" && body !== "") {
+    return { primary: body, secondary: event.title };
+  }
+  return { primary: event.title, secondary: event.actor.name };
+}
+
+interface GlanceWindow {
+  readonly usedPercent: number;
+}
+interface GlanceAccount {
+  readonly id: string;
+  readonly label: string;
+  readonly displayName?: string | undefined;
+  readonly limits: { readonly windows: ReadonlyArray<GlanceWindow> };
+}
+
+/** The window closest to its limit: the one that stops work first. */
+export function fullestWindow<W extends GlanceWindow>(windows: ReadonlyArray<W>): W | null {
+  return windows.reduce<W | null>(
+    (best, window) => (best === null || window.usedPercent > best.usedPercent ? window : best),
+    null,
+  );
+}
+
+type Glance<A extends GlanceAccount> = {
+  readonly account: A;
+  readonly window: A["limits"]["windows"][number];
+};
+
+/**
+ * The Usage card: the account the next chat uses (else the fullest one) on the gauge, then the
+ * two next fullest accounts. Accounts that report no windows stay out.
+ */
+export function usageGlance<A extends GlanceAccount>(
+  active: ReadonlyArray<A>,
+  others: ReadonlyArray<A>,
+): { readonly main: Glance<A> | null; readonly rest: ReadonlyArray<Glance<A>> } {
+  const ranked = (accounts: ReadonlyArray<A>): Glance<A>[] =>
+    accounts
+      .flatMap((account) => {
+        const window = fullestWindow(account.limits.windows);
+        return window ? [{ account, window }] : [];
+      })
+      .toSorted((a, b) => b.window.usedPercent - a.window.usedPercent);
+  const mine = ranked(active);
+  const rest = ranked(others);
+  const main = mine[0] ?? rest[0] ?? null;
+  return { main, rest: (mine[0] ? rest : rest.slice(1)).slice(0, 2) };
+}
+
+export const accountName = (account: {
+  readonly label: string;
+  readonly displayName?: string | undefined;
+}): string => account.displayName?.trim() || account.label;

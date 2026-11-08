@@ -89,6 +89,26 @@ function dispatchActionLabel(action: "queue" | "steer" | "restart"): string {
   return action === "queue" ? "add to waiting messages" : "send now";
 }
 
+/** The round send button. The Command Center Ask box uses the same class, so both stay alike. */
+export const COMPOSER_SEND_BUTTON_CLASS = cn(
+  "relative isolate flex h-9 w-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 enabled:cursor-pointer enabled:inset-shadow-control-highlight hover:scale-105 active:inset-shadow-control-pressed active:shadow-none disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none disabled:hover:scale-100 sm:h-8 sm:w-8 [&_svg]:pointer-events-none",
+  "bg-primary text-primary-foreground hover:bg-primary/90",
+);
+/** The up arrow inside the send button. */
+export function ComposerSendIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path
+        d="M7 11.5V2.5M7 2.5L3 6.5M7 2.5L11 6.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   compact,
   canOperateThread,
@@ -313,10 +333,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   const sendButton = (
     <button
       type={showResume ? "button" : "submit"}
-      className={cn(
-        "relative isolate flex h-9 w-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 enabled:cursor-pointer enabled:inset-shadow-control-highlight hover:scale-105 active:inset-shadow-control-pressed active:shadow-none disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none disabled:hover:scale-100 sm:h-8 sm:w-8 [&_svg]:pointer-events-none",
-        "bg-primary text-primary-foreground hover:bg-primary/90",
-      )}
+      className={COMPOSER_SEND_BUTTON_CLASS}
       {...pointerFocusProps}
       onClick={showResume ? onResume : onSubmitMessage}
       disabled={
@@ -337,15 +354,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       ) : isRunning ? (
         <MorphIcon className="size-4" icon={isQueuing ? ListPlus : CornerUpRight} />
       ) : (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path
-            d="M7 11.5V2.5M7 2.5L3 6.5M7 2.5L11 6.5"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <ComposerSendIcon />
       )}
     </button>
   );
