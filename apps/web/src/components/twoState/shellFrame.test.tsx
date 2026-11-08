@@ -17,7 +17,7 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("~/components/workspace/useActiveAiosWorkspace", () => ({
   useActiveAiosWorkspace: () => ({ active: { type: "personal", name: "Jake" } }),
 }));
-vi.mock("~/components/workspace/WorkspaceSwitcher", () => ({ WorkspaceSwitcher: () => null }));
+vi.mock("~/components/workspace/WorkspaceSwitcher", () => ({ WorkspaceMenu: () => null }));
 vi.mock("~/hooks/useLocalStorage", async () => {
   const { EMPTY_SETUP_STATE } = await import("~/onboarding/setupState.logic");
   return { useLocalStorage: () => [EMPTY_SETUP_STATE, vi.fn()] };
