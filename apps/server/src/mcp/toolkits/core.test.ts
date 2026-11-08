@@ -117,7 +117,7 @@ it("publishes unique tool names with reference-free object-root inputs", () => {
         tool.name,
       ).toBe(true);
       for (const name of [tool.name, `mcp__leonidas__${tool.name}`, `T3-code.${tool.name}`]) {
-        expect(resolveT3McpToolPresentation(name)?.logo, name).toBe("t3-code");
+        expect(resolveT3McpToolPresentation(name)?.logo, name).toBe("leonidas");
         expect(resolveT3McpToolSummaryAction(name), name).not.toBeNull();
       }
     }

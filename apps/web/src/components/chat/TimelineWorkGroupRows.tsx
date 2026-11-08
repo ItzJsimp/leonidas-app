@@ -661,7 +661,7 @@ export function toolGroupSummaryIconName(
     case "command":
       return "terminal";
     case "thread-create":
-      return "t3-code";
+      return "leonidas";
     case "browser":
       return "browser";
     case "device":

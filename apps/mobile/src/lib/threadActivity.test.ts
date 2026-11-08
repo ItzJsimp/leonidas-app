@@ -1446,7 +1446,7 @@ describe("buildThreadFeed", () => {
     const activity = feed[0]?.type === "activity-group" ? feed[0].activities[0] : null;
 
     expect(activity?.summary).toBe("Read a chat");
-    expect(activity?.logo).toBe("t3-code");
+    expect(activity?.logo).toBe("leonidas");
     expect(activity?.getCopyText().split("\n")[0]).toBe("Read a chat");
   });
 
@@ -1538,7 +1538,7 @@ describe("buildThreadFeed", () => {
     expect(workEntryRowLabel(activities[0]!.workEntry)).toBe("Listed projects");
     expect(workEntryRowLabel(activities[1]!.workEntry)).toBe("Cloned a project");
     expect(workEntryRowLabel(activities[2]!.workEntry)).toBe("Failed to clone a project");
-    expect(activities.every((activity) => activity.logo === "t3-code")).toBe(true);
+    expect(activities.every((activity) => activity.logo === "leonidas")).toBe(true);
     const presented = deriveThreadFeedPresentation(
       feed,
       { runId, status: "running", startedAt: null, completedAt: null },

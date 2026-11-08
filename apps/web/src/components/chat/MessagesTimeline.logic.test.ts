@@ -829,7 +829,7 @@ describe("deriveMessagesTimelineRows", () => {
     expect(
       resolveTimelineToolPresentation(items[1]!.type === "dynamic_tool" ? items[1].toolName : null)
         ?.logo,
-    ).toBe("t3-code");
+    ).toBe("leonidas");
     const rows = deriveMessagesTimelineRows({
       timelineEntries: entries,
       isWorking: false,
@@ -3611,21 +3611,21 @@ describe("resolveTimelineToolPresentation", () => {
   it("pretty prints Claude and Cursor T3 MCP tool names", () => {
     expect(resolveTimelineToolPresentation("mcp__leonidas__leo_thread_read")).toEqual({
       displayName: "Read a chat",
-      logo: "t3-code",
+      logo: "leonidas",
     });
   });
 
   it("pretty prints Codex T3 MCP tool names", () => {
     expect(resolveTimelineToolPresentation("leonidas.leo_create_threads")).toEqual({
       displayName: "Create chats",
-      logo: "t3-code",
+      logo: "leonidas",
     });
   });
 
   it("pretty prints bare T3 MCP toolkit names", () => {
     expect(resolveTimelineToolPresentation("list_scheduled_tasks")).toEqual({
       displayName: "List scheduled tasks",
-      logo: "t3-code",
+      logo: "leonidas",
     });
   });
 

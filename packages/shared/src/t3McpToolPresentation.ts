@@ -1,6 +1,6 @@
 import { toCurrentMcpToolName } from "./mcpServerName.ts";
 
-export type T3McpToolLogo = "t3-code";
+export type T3McpToolLogo = "leonidas";
 
 export interface T3McpToolPresentation {
   readonly displayName: string;
@@ -95,14 +95,14 @@ export type T3McpToolSummaryAction =
 export interface T3McpToolDefinition {
   readonly displayName: string;
   readonly labels: readonly [action: string, running: string, completed: string, detail: string];
-  readonly icon: "t3-code" | "browser" | "device" | "pull-request";
+  readonly icon: "leonidas" | "browser" | "device" | "pull-request";
   readonly summaryAction: T3McpToolSummaryAction;
 }
 
 function tool(
   labels: T3McpToolDefinition["labels"],
   summaryAction: T3McpToolSummaryAction,
-  icon: T3McpToolDefinition["icon"] = "t3-code",
+  icon: T3McpToolDefinition["icon"] = "leonidas",
   displayName = `${labels[0]} ${labels[3]}`,
 ): T3McpToolDefinition {
   return { displayName, labels, icon, summaryAction };
@@ -556,7 +556,7 @@ export function resolveT3McpToolPresentation(
   input?: unknown,
 ): T3McpToolPresentation | null {
   const definition = resolveT3McpToolDefinition(toolName, input);
-  return definition === null ? null : { displayName: definition.displayName, logo: "t3-code" };
+  return definition === null ? null : { displayName: definition.displayName, logo: "leonidas" };
 }
 
 export function resolveT3McpToolSummaryAction(
