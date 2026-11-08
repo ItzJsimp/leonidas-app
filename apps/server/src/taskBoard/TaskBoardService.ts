@@ -24,6 +24,7 @@ import {
   type TaskBoardAiosDetectInput,
   type TaskBoardAiosDetectResult,
   type TaskBoardCardCreateInput,
+  type TaskBoardCapSetInput,
   type TaskBoardChangeSetInput,
   type TaskBoardChangeSetResult,
   type TaskBoardCardUpdateInput,
@@ -84,7 +85,15 @@ import {
 import { buildHome, cachedAreas } from "./aiosHome.ts";
 import { BRIEF_PATH, toggleBriefLine } from "./briefPriorityToggle.ts";
 import { cachedFolder } from "./aiosFolders.ts";
-import { capLevel, capRefusalMessage, parseCapRule, swapSuggestions } from "./capRules.ts";
+import {
+  capLevel,
+  capProblem,
+  capRefusalMessage,
+  isInbox,
+  parseCapRule,
+  swapSuggestions,
+  withCapLines,
+} from "./capRules.ts";
 import { planChangeSet, readLedger, sha256, writeLedger, type LedgerRow } from "./changeSets.ts";
 import {
   addFocusItem,
@@ -609,6 +618,11 @@ export class TaskBoardService extends Context.Service<
       input: TaskBoardChangeSetInput,
       projects: ReadonlyArray<Project>,
     ) => Effect.Effect<TaskBoardChangeSetResult, TaskBoardReadError | TaskBoardOperationError>;
+    /** Sets one project's open-task limit and warning in its project.md. */
+    readonly capSet: (
+      projects: ReadonlyArray<Project>,
+      input: TaskBoardCapSetInput,
+    ) => Effect.Effect<void, TaskBoardOperationError>;
     /** Publishes (or withdraws) AIOS cards on the project's shared board. */
     readonly share: (
       project: Project,
@@ -2391,6 +2405,40 @@ const make = Effect.gen(function* () {
       return { workspaces: found.map((state) => summarize(state, projects, defaultRoot)) };
     });
 
+  const capSet = (projects: ReadonlyArray<Project>, input: TaskBoardCapSetInput) =>
+    Effect.gen(function* () {
+      const invalid = (message: string) =>
+        new TaskBoardOperationError({ reason: "invalid_data", message });
+      const problem = capProblem(input.cap, input.warn);
+      if (problem) return yield* invalid(problem);
+      if (isInbox(input.projectSlug)) return yield* invalid("The Inbox limit is fixed at 30.");
+      // The same path capRuleFor reads. A slug with a folder part would reach another project.
+      if (NodePath.basename(input.projectSlug) !== input.projectSlug) {
+        return yield* invalid("This project name is not valid.");
+      }
+      const { root } = scopeFor(projects, { workspaceId: input.workspaceId });
+      if (root === null) return yield* storageError("No AIOS workspace is open.");
+      yield* Effect.try({
+        try: () => {
+          const dir = NodePath.join(root, "projects", input.projectSlug);
+          const file = NodePath.join(dir, "project.md");
+          const exists = NodeFS.existsSync(file);
+          if (exists && !NodeFS.lstatSync(file).isFile())
+            throw new Error("project.md is not a regular file.");
+          const text = withCapLines(
+            exists ? NodeFS.readFileSync(file, "utf8") : null,
+            input.cap,
+            input.warn,
+          );
+          NodeFS.mkdirSync(dir, { recursive: true });
+          if (exists) writeCardAtomically(file, text);
+          else NodeFS.writeFileSync(file, text, "utf8");
+        },
+        catch: (cause) =>
+          storageError(cause instanceof Error ? cause.message : "Could not write project.md."),
+      });
+    });
+
   const hiddenProjectsSet = (
     projects: ReadonlyArray<Project>,
     input: AiosWorkspaceHiddenProjectsInput,
@@ -2533,6 +2581,7 @@ const make = Effect.gen(function* () {
     cardUpdate,
     cardCreate,
     applyChangeSet,
+    capSet,
     inboxDrop,
     inboxUndo,
     share,

@@ -919,6 +919,46 @@ it.effect("ticks one brief priority in place and refuses a line that changed", (
   ).pipe(Effect.provide(boardLayer(noGithub))),
 );
 
+it.effect(
+  "sets a project's limit in project.md, keeps its other lines, and refuses bad values",
+  () =>
+    withAios(
+      { "a.md": cardFile("task-a", "Alpha"), "b.md": cardFile("task-b", "Bravo") },
+      (root, project) =>
+        Effect.gen(function* () {
+          const file = NodePath.join(root, "projects", "leonidas-code", "project.md");
+          NodeFS.writeFileSync(file, "---\ntype: project\nname: Code\ncap: 2\n---\nNotes stay.\n");
+          const board = yield* TaskBoardService.TaskBoardService;
+          const set = (cap: number, warn: number, projectSlug = "leonidas-code") =>
+            board.capSet([project], { projectSlug, cap, warn }).pipe(Effect.flip);
+
+          // The full project refuses a third card until the limit goes up.
+          const full = yield* board
+            .cardCreate({ title: "Charlie", actor: "Jake", projectSlug: "leonidas-code" }, [
+              project,
+            ])
+            .pipe(Effect.flip);
+          expect(full).toMatchObject({ reason: "project_full" });
+          yield* board.capSet([project], { projectSlug: "leonidas-code", cap: 3, warn: 2 });
+          expect(NodeFS.readFileSync(file, "utf8")).toBe(
+            "---\ntype: project\nname: Code\ncap: 3\nwarn: 2\n---\nNotes stay.\n",
+          );
+          yield* board.cardCreate(
+            { title: "Charlie", actor: "Jake", projectSlug: "leonidas-code" },
+            [project],
+          );
+
+          // A bad value or a name that is not a project writes nothing.
+          const before = NodeFS.readFileSync(file, "utf8");
+          expect(yield* set(0, 0)).toMatchObject({ reason: "invalid_data" });
+          expect(yield* set(5, 9)).toMatchObject({ reason: "invalid_data" });
+          expect(yield* set(5, 2, "inbox")).toMatchObject({ reason: "invalid_data" });
+          expect(yield* set(5, 2, "../leonidas-code")).toMatchObject({ reason: "invalid_data" });
+          expect(NodeFS.readFileSync(file, "utf8")).toBe(before);
+        }),
+    ).pipe(Effect.provide(boardLayer(noGithub))),
+);
+
 it.effect("refuses a create past the project cap and names cards to swap", () =>
   withAios(
     { "a.md": cardFile("task-a", "Alpha"), "b.md": cardFile("task-b", "Bravo") },

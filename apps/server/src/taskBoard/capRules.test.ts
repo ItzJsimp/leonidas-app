@@ -1,6 +1,53 @@
 import { describe, expect, it } from "@effect/vitest";
 
-import { capLevel, parseCapRule, swapSuggestions, type CapCard } from "./capRules.ts";
+import {
+  capLevel,
+  capProblem,
+  parseCapRule,
+  swapSuggestions,
+  withCapLines,
+  type CapCard,
+} from "./capRules.ts";
+
+describe("withCapLines", () => {
+  it("sets both lines and keeps every other line, so parseCapRule reads them back", () => {
+    const md = "---\ntype: project\nname: Demo\ncap: 3\n---\n\n# Demo\nNotes stay.\n";
+    const next = withCapLines(md, 8, 5);
+    expect(next).toBe(
+      "---\ntype: project\nname: Demo\ncap: 8\nwarn: 5\n---\n\n# Demo\nNotes stay.\n",
+    );
+    expect(parseCapRule(next, "demo")).toEqual({ cap: 8, warn: 5 });
+  });
+  it("adds a front matter block when the file has none, or when there is no file", () => {
+    expect(withCapLines("# Demo\n", 4, 2)).toBe("---\ncap: 4\nwarn: 2\n---\n# Demo\n");
+    expect(parseCapRule(withCapLines(null, 4, 2), "demo")).toEqual({ cap: 4, warn: 2 });
+  });
+  it("keeps Windows line endings and an empty front matter", () => {
+    expect(withCapLines("---\r\nname: Demo\r\n---\r\nBody\r\n", 6, 3)).toBe(
+      "---\r\nname: Demo\r\ncap: 6\r\nwarn: 3\r\n---\r\nBody\r\n",
+    );
+    expect(withCapLines("---\n---\nBody\n", 6, 3)).toBe("---\ncap: 6\nwarn: 3\n---\nBody\n");
+  });
+});
+
+describe("capProblem", () => {
+  it("accepts a good pair and refuses the rest in plain words", () => {
+    expect(capProblem(10, 6)).toBeNull();
+    expect(capProblem(10, 0)).toBeNull();
+    expect(capProblem(10, 10)).toBeNull();
+    for (const [cap, warn] of [
+      [0, 0],
+      [-3, 1],
+      [10, 11],
+      [10, -1],
+      [2.5, 1],
+      [10, Number.NaN],
+      [10_000, 5],
+    ] as const) {
+      expect(capProblem(cap, warn)).toEqual(expect.any(String));
+    }
+  });
+});
 
 const card = (n: number, over: Partial<CapCard> = {}): CapCard => ({
   id: `task-${n}`,

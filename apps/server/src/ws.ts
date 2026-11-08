@@ -3099,6 +3099,10 @@ const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.applyChangeSet(input, projects)),
           ),
+        [WS_METHODS.taskBoardCapSet]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.capSet(projects, input)),
+          ),
         [WS_METHODS.taskBoardCardCreate]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.cardCreate(input, projects)),
