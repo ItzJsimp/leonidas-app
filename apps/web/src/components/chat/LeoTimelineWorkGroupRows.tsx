@@ -34,7 +34,7 @@ import {
   remarkThoughtPreview,
   ThreadReadLabel,
   workEntryIconName,
-} from "./TimelineWorkEntryRow";
+} from "./LeoTimelineWorkEntryRow";
 import { formatDuration } from "@t3tools/shared/orchestrationTiming";
 import { type LegendListRef, LegendList } from "@legendapp/list/react";
 import { resolveWorkGroupScrollAnchor } from "@t3tools/client-runtime/work-log/scroll-anchor";
@@ -43,7 +43,7 @@ import { WorkLogList, WorkLogRow, WorkLogButton } from "./WorkLog";
 import { cn } from "~/lib/utils";
 import { getVirtualizedScrollFadeClassName } from "../ui/scroll-area";
 import { observeVisibleAnimation } from "../../lib/visibleAnimation";
-import { ActivityShimmerOverlay, TimelineRowTimestamp } from "./TimelineRowParts";
+import { ActivityShimmerOverlay, TimelineRowTimestamp } from "./LeoTimelineRowParts";
 import { type WorktreeSetupSnapshot, type ToolActivityIcon } from "@t3tools/contracts";
 import { Popover, PopoverTrigger, PopoverPopup } from "../ui/popover";
 import { Button } from "../ui/button";
@@ -55,7 +55,7 @@ import {
   toolIconAcceptsTint,
   failedToolIconClassName,
   ToolActivityIconView,
-} from "./TimelineToolActivityIcon";
+} from "./LeoTimelineToolActivityIcon";
 import {
   getQuestionTextPreview,
   hasQuestionAnswer,

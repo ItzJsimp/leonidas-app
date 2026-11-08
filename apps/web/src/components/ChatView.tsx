@@ -672,8 +672,8 @@ import {
   SCRIPT_TERMINAL_ROWS,
   type TerminalLaunchContext,
 } from "./chat/PersistentThreadTerminal";
-import { useLocalDispatchState } from "./chat/useLocalDispatchState";
-import { useDraftHeroLayoutTransition } from "./chat/useDraftHeroLayoutTransition";
+import { useLocalDispatchState } from "./chat/useLeoLocalDispatchState";
+import { useDraftHeroLayoutTransition } from "./chat/useLeoDraftHeroLayoutTransition";
 import {
   TYPE_TO_FOCUS_EDITABLE_SELECTOR,
   TYPE_TO_FOCUS_FLOATING_LAYER_SELECTOR,
@@ -681,7 +681,7 @@ import {
   pasteTextToFocusComposer,
   shouldRedirectInputToComposer,
   shouldTypeToFocusComposer,
-} from "./chat/composerFocusRedirect";
+} from "./chat/leoComposerFocusRedirect";
 const LeonidasVaultPanel = lazy(() =>
   import("./vault/LeonidasVaultPanel").then((module) => ({ default: module.LeonidasVaultPanel })),
 );

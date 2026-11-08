@@ -27,19 +27,19 @@ import {
   failedToolIconClassName,
   ToolActivityIconView,
   toolIconAcceptsTint,
-} from "./TimelineToolActivityIcon";
+} from "./LeoTimelineToolActivityIcon";
 import { formatWorkspaceRelativePath } from "../../filePathDisplay";
 import {
   resolveWorkEntryToolPresentation,
   workEntryViewedImagePath,
   resolveViewedImageAsset,
 } from "@t3tools/client-runtime/work-log/presentation";
-import { toolGroupSummaryIconName, WorkingTimer } from "./TimelineWorkGroupRows";
+import { toolGroupSummaryIconName, WorkingTimer } from "./LeoTimelineWorkGroupRows";
 import { type Root, type RootContent } from "mdast";
 import { use, memo, useState, useRef, useEffect, type KeyboardEvent, useMemo } from "react";
 import { WorkLogDetails, WorkLogRow } from "./WorkLog";
 import ChatMarkdown, { ChatMarkdownAssetImage } from "../ChatMarkdown";
-import { MESSAGE_HEADING_LEVEL, TimelineRowTimestamp } from "./TimelineRowParts";
+import { MESSAGE_HEADING_LEVEL, TimelineRowTimestamp } from "./LeoTimelineRowParts";
 import { notificationChildThreadId } from "@t3tools/client-runtime/state/thread-execution";
 import { SubagentNotificationLink } from "./V2LifecycleRow";
 import { useAtomValue } from "@effect/atom-react";

@@ -25,7 +25,7 @@ import { makeWorkspaceFileDropHandlers } from "../chat/workspaceFileDrop";
 import { Tooltip, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { ProjectFavicon } from "../ProjectFavicon";
-import { ReplyStatusMark, threadTimeLabel, SidebarThreadTooltip } from "./SidebarThreadRow";
+import { ReplyStatusMark, threadTimeLabel, SidebarThreadTooltip } from "./LeoSidebarThreadRow";
 import { ThreadSearchMatchExcerpt } from "../ThreadSearchMatch";
 
 export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props: {

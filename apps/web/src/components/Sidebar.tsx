@@ -246,10 +246,10 @@ import {
   type SidebarSweepAction,
   SortableThreadRow,
   type SortableThreadRowBag,
-} from "./sidebar/SidebarListMarkers";
+} from "./sidebar/LeoSidebarListMarkers";
 import { SidebarSearchResultRow } from "./sidebar/SidebarSearchResultRow";
-import { SidebarThreadRow } from "./sidebar/SidebarThreadRow";
-import { SidebarDraftBlock } from "./sidebar/SidebarDraftBlock";
+import { SidebarThreadRow } from "./sidebar/LeoSidebarThreadRow";
+import { SidebarDraftBlock } from "./sidebar/LeoSidebarDraftBlock";
 
 // Settled-tail paging: recent history is the common lookup; the deep tail
 // stays behind an explicit Show more.

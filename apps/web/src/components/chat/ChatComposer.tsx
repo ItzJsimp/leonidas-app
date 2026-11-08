@@ -425,14 +425,14 @@ import {
   ComposerFooterModeControls,
   ComposerFooterPrimaryActions,
   runtimeModeOptions,
-} from "./ComposerFooterControls";
-import { useRestingComposerControlsLayout } from "./useRestingComposerControlsLayout";
+} from "./LeoComposerFooterControls";
+import { useRestingComposerControlsLayout } from "./useLeoRestingComposerControlsLayout";
 import {
   COMPOSER_SCROLL_COLLAPSE_THRESHOLD_PX,
   COMPOSER_SCROLL_GESTURE_RESET_MS,
   useComposerRestingTransition,
-} from "./useComposerRestingTransition";
-import { ComposerCommandMenuLayer } from "./ComposerCommandMenuLayer";
+} from "./useLeoComposerRestingTransition";
+import { ComposerCommandMenuLayer } from "./LeoComposerCommandMenuLayer";
 import { ComposerVideoThumbnail, SnapShotAttachmentFrame } from "./ComposerMediaThumbnails";
 
 const WORKSPACE_SNAPSHOT_RETRY_COOLDOWN_MS = 10_000;

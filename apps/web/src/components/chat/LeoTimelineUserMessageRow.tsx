@@ -41,7 +41,7 @@ import ChatMarkdown, { type ChatMarkdownContextReference } from "../ChatMarkdown
 import { UserMessageContextReferenceChip } from "./TimelineUserMessageContext";
 import { Link } from "@tanstack/react-router";
 import { InlineButton, Button } from "../ui/button";
-import { MessageAuthorHeading, MESSAGE_HEADING_LEVEL } from "./TimelineRowParts";
+import { MessageAuthorHeading, MESSAGE_HEADING_LEVEL } from "./LeoTimelineRowParts";
 import { cn } from "~/lib/utils";
 import {
   SNAP_SHOT_ATTACHMENT_FRAME_CLASS,

@@ -43,7 +43,7 @@ import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments"
 import { isSvgAttachment } from "@t3tools/shared/image";
 import { TerminalContextInlineChip } from "./TerminalContextInlineChip";
 import { PullRequestGlyph } from "../pullRequest/pullRequestIcons";
-import { UserMessageReviewCommentCard } from "./TimelineUserMessageRow";
+import { UserMessageReviewCommentCard } from "./LeoTimelineUserMessageRow";
 import { formatComposerContextReference } from "@t3tools/shared/composerContextReferences";
 
 // ---------------------------------------------------------------------------

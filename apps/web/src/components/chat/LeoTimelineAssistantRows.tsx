@@ -2,7 +2,7 @@ import { type TimelineRow, TimelineRowCtx, TimelineRowActivityCtx } from "./Time
 import { use, useState, useMemo, memo } from "react";
 import { useAtomValue } from "@effect/atom-react";
 import { serverEnvironment } from "~/state/server";
-import { MessageAuthorHeading, MESSAGE_HEADING_LEVEL } from "./TimelineRowParts";
+import { MessageAuthorHeading, MESSAGE_HEADING_LEVEL } from "./LeoTimelineRowParts";
 import { AssistantCitationSource } from "./AssistantCitationSource";
 import { AssistantOutput } from "./AssistantOutput";
 import { shouldPreserveAssistantLineBreaks } from "@t3tools/shared/markdownPipeline";

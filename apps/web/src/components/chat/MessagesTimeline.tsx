@@ -127,19 +127,19 @@ import {
   WorkGroupToggleTimelineRow,
   WorkingTimelineRow,
   useStableRows,
-} from "./TimelineWorkGroupRows";
-import { TimelineMinimap } from "./TimelineMinimap";
-import { UserTimelineRow } from "./TimelineUserMessageRow";
+} from "./LeoTimelineWorkGroupRows";
+import { TimelineMinimap } from "./LeoTimelineMinimap";
+import { UserTimelineRow } from "./LeoTimelineUserMessageRow";
 import {
   AssistantMetaTimelineRow,
   AssistantTimelineRow,
   HtmlRenderTimelineRow,
   McpAppTimelineRow,
   ProposedPlanTimelineRow,
-} from "./TimelineAssistantRows";
-import { V2EventTimelineRow } from "./TimelineV2EventRow";
-import { ActivityShimmerOverlay, TimelineRowTimestamp } from "./TimelineRowParts";
-export { resolvePreviewAnnotationImage } from "./TimelineUserMessageRow";
+} from "./LeoTimelineAssistantRows";
+import { V2EventTimelineRow } from "./LeoTimelineV2EventRow";
+import { ActivityShimmerOverlay, TimelineRowTimestamp } from "./LeoTimelineRowParts";
+export { resolvePreviewAnnotationImage } from "./LeoTimelineUserMessageRow";
 
 const TIMELINE_LIST_HEADER = <div className="h-3 sm:h-4" />;
 const TIMELINE_LIST_FADE_HEADER = (
