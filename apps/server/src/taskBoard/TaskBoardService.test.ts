@@ -954,6 +954,11 @@ it.effect(
           expect(yield* set(5, 9)).toMatchObject({ reason: "invalid_data" });
           expect(yield* set(5, 2, "inbox")).toMatchObject({ reason: "invalid_data" });
           expect(yield* set(5, 2, "../leonidas-code")).toMatchObject({ reason: "invalid_data" });
+          // "." and ".." have no folder part, but they reach projects/ and the AIOS root.
+          expect(yield* set(5, 2, "..")).toMatchObject({ reason: "invalid_data" });
+          expect(yield* set(5, 2, ".")).toMatchObject({ reason: "invalid_data" });
+          expect(NodeFS.existsSync(NodePath.join(root, "project.md"))).toBe(false);
+          expect(NodeFS.existsSync(NodePath.join(root, "projects", "project.md"))).toBe(false);
           expect(NodeFS.readFileSync(file, "utf8")).toBe(before);
         }),
     ).pipe(Effect.provide(boardLayer(noGithub))),

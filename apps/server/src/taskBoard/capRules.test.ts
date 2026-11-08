@@ -28,6 +28,31 @@ describe("withCapLines", () => {
     );
     expect(withCapLines("---\n---\nBody\n", 6, 3)).toBe("---\ncap: 6\nwarn: 3\n---\nBody\n");
   });
+  it("ends the front matter only at a line of three dashes, not at dashes inside a value", () => {
+    const md = "---\nname: a---b\nstatus: active\n---\nBody\n";
+    const next = withCapLines(md, 7, 4);
+    expect(next).toBe("---\nname: a---b\nstatus: active\ncap: 7\nwarn: 4\n---\nBody\n");
+    expect(parseCapRule(next, "demo")).toEqual({ cap: 7, warn: 4 });
+  });
+  it("keeps a byte-order mark first and edits the front matter after it", () => {
+    // 14 of the 18 project.md files in the author's AIOS start with a byte-order mark.
+    const md = "﻿---\ntype: project\nname: Demo\n---\nBody\n";
+    const next = withCapLines(md, 7, 4);
+    expect(next).toBe("﻿---\ntype: project\nname: Demo\ncap: 7\nwarn: 4\n---\nBody\n");
+    expect(parseCapRule(next, "demo")).toEqual({ cap: 7, warn: 4 });
+    expect(withCapLines("﻿# Demo\n", 4, 2)).toBe("﻿---\ncap: 4\nwarn: 2\n---\n# Demo\n");
+  });
+  it("reads the limit from a file with a byte-order mark and Windows line ends", () => {
+    expect(parseCapRule("﻿---\r\ncap: 9\r\nwarn: 5\r\n---\r\nBody\r\n", "demo")).toEqual({
+      cap: 9,
+      warn: 5,
+    });
+  });
+  it("does not take a rule line in the body for front matter", () => {
+    const next = withCapLines("# Notes\n\n---\ncap: 99\n---\nmore\n", 4, 2);
+    expect(next).toBe("---\ncap: 4\nwarn: 2\n---\n# Notes\n\n---\ncap: 99\n---\nmore\n");
+    expect(parseCapRule(next, "demo")).toEqual({ cap: 4, warn: 2 });
+  });
 });
 
 describe("capProblem", () => {

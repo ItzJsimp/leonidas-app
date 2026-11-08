@@ -26,9 +26,13 @@ export const isInbox = (slug: string | null | undefined) =>
 export const sameBucket = (card: CapCard, slug: string | null) =>
   isInbox(slug) ? isInbox(card.projectSlug) : card.projectSlug === slug;
 
+// The front matter: `---` on the first line (after an optional byte-order mark), then a line of
+// `---` alone. Dashes inside a value, or a rule line in the body, do not count.
+const FRONT_MATTER = /^﻿?---\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?=\r?\n|$)/;
+
 /** `projectMd` is the project.md text, or null when the project has none (or is the Inbox). */
 export function parseCapRule(projectMd: string | null, slug: string | null): CapRule {
-  const head = (!isInbox(slug) && projectMd?.split("---")[1]) || "";
+  const head = (!isInbox(slug) && projectMd !== null && FRONT_MATTER.exec(projectMd)?.[1]) || "";
   const read = (key: string) => {
     const match = new RegExp(`^${key}:\\s*(\\d+)\\s*$`, "m").exec(head);
     return match ? Number(match[1]) : undefined;
@@ -50,13 +54,16 @@ export function capProblem(cap: number, warn: number): string | null {
 
 /** The project.md text with `cap:` and `warn:` set in its front matter. Every other line stays. */
 export function withCapLines(projectMd: string | null, cap: number, warn: number): string {
-  const text = projectMd ?? "";
+  const raw = projectMd ?? "";
+  // Most project.md files start with a byte-order mark: it stays the first character.
+  const bom = raw.startsWith("﻿") ? "﻿" : "";
+  const text = raw.slice(bom.length);
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   const lines = [`cap: ${cap}`, `warn: ${warn}`];
-  const front = /^---\r?\n([\s\S]*?)\r?\n?---/.exec(text);
-  if (!front) return `---${eol}${lines.join(eol)}${eol}---${eol}${text}`;
+  const front = FRONT_MATTER.exec(text);
+  if (!front) return `${bom}---${eol}${lines.join(eol)}${eol}---${eol}${text}`;
   const kept = front[1] ? front[1].split(/\r?\n/).filter((line) => !/^(cap|warn):/.test(line)) : [];
-  return `---${eol}${[...kept, ...lines].join(eol)}${eol}---${text.slice(front[0].length)}`;
+  return `${bom}---${eol}${[...kept, ...lines].join(eol)}${eol}---${text.slice(front[0].length)}`;
 }
 
 export interface CapLevel extends CapRule {

@@ -2418,7 +2418,11 @@ const make = Effect.gen(function* () {
       if (problem) return yield* invalid(problem);
       if (isInbox(input.projectSlug)) return yield* invalid("The Inbox limit is fixed at 30.");
       // The same path capRuleFor reads. A slug with a folder part would reach another project.
-      if (NodePath.basename(input.projectSlug) !== input.projectSlug) {
+      if (
+        NodePath.basename(input.projectSlug) !== input.projectSlug ||
+        input.projectSlug === "." ||
+        input.projectSlug === ".."
+      ) {
         return yield* invalid("This project name is not valid.");
       }
       const { root } = scopeFor(projects, { workspaceId: input.workspaceId });
