@@ -131,7 +131,7 @@ export function parseThreadSegmentFromAttachmentId(attachmentId: string): string
 }
 
 /**
- * Attachments a thread's tool calls published: `html_render` pages and
+ * Attachments a thread's tool calls published: `leo_html_render` pages and
  * captured MCP App documents. Only ids minted for this thread count, so
  * deleting a fork never removes its source's pages.
  */

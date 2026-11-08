@@ -1,7 +1,7 @@
 /**
  * `@name` in a user message routes that one request to a subagent. The
  * message keeps the user's words; a routing note follows it so every
- * provider gets the same instruction to call `delegate_task` with `subagent`.
+ * provider gets the same instruction to call `leo_delegate_task` with `subagent`.
  */
 
 /** Whole whitespace-delimited `@name` tokens, the shape a subagent name has. */

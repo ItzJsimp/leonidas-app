@@ -12,7 +12,7 @@ describe("resolveT3McpToolPresentation", () => {
     for (const tool of T3_MCP_TOOL_NAMES) {
       const presentation = resolveT3McpToolPresentation(tool);
       for (const prefix of [
-        "mcp__t3-code__",
+        "mcp__leonidas__",
         "mcp__t3_code__",
         "mcp__t3code__",
         "T3-code.",
@@ -29,21 +29,21 @@ describe("resolveT3McpToolPresentation", () => {
     }
   });
   it("pretty prints Claude and Cursor T3 MCP tool names", () => {
-    expect(resolveT3McpToolPresentation("mcp__t3-code__t3_thread_read")).toEqual({
+    expect(resolveT3McpToolPresentation("mcp__leonidas__leo_thread_read")).toEqual({
       displayName: "Read a chat",
       logo: "t3-code",
     });
   });
 
   it("pretty prints Codex T3 MCP tool names", () => {
-    expect(resolveT3McpToolPresentation("t3-code.create_threads")).toEqual({
+    expect(resolveT3McpToolPresentation("leonidas.leo_create_threads")).toEqual({
       displayName: "Create chats",
       logo: "t3-code",
     });
   });
 
   it("pretty prints thread metadata updates", () => {
-    expect(resolveT3McpToolPresentation("mcp__t3-code__t3_thread_update")).toEqual({
+    expect(resolveT3McpToolPresentation("mcp__leonidas__leo_thread_update")).toEqual({
       displayName: "Update chat details",
       logo: "t3-code",
     });
@@ -57,11 +57,11 @@ describe("resolveT3McpToolPresentation", () => {
   });
 
   it("pretty prints worktree T3 MCP tool names", () => {
-    expect(resolveT3McpToolPresentation("mcp__t3-code__t3_worktree_handoff")).toEqual({
+    expect(resolveT3McpToolPresentation("mcp__leonidas__leo_worktree_handoff")).toEqual({
       displayName: "Hand off chat to a separate copy",
       logo: "t3-code",
     });
-    expect(resolveT3McpToolPresentation("t3-code.t3_worktree_status")).toEqual({
+    expect(resolveT3McpToolPresentation("leonidas.leo_worktree_status")).toEqual({
       displayName: "Get separate copy status",
       logo: "t3-code",
     });
@@ -72,7 +72,7 @@ describe("resolveT3McpToolPresentation", () => {
       displayName: "Open a page in the preview browser",
       logo: "t3-code",
     });
-    expect(resolveT3McpToolPresentation("mcp__t3-code__preview_status")).toEqual({
+    expect(resolveT3McpToolPresentation("mcp__leonidas__leo_preview_status")).toEqual({
       displayName: "Get preview browser status",
       logo: "t3-code",
     });
@@ -106,10 +106,10 @@ describe("resolveT3McpToolPresentation", () => {
 describe("resolveT3McpToolDefinition", () => {
   it("labels an action tool call as the action it ran", () => {
     expect(
-      resolveT3McpToolDefinition("mcp__t3-code__preview_act", { action: "type" })?.labels,
+      resolveT3McpToolDefinition("mcp__leonidas__leo_preview_act", { action: "type" })?.labels,
     ).toEqual(resolveT3McpToolDefinition("preview_type")?.labels);
-    expect(resolveT3McpToolDefinition("t3_thread_transfer", { action: "fork" })?.displayName).toBe(
-      resolveT3McpToolDefinition("t3_thread_fork")?.displayName,
+    expect(resolveT3McpToolDefinition("leo_thread_transfer", { action: "fork" })?.displayName).toBe(
+      resolveT3McpToolDefinition("leo_thread_fork")?.displayName,
     );
     expect(resolveT3McpToolDefinition("preview_act", { action: "unknown" })?.labels[2]).toBe(
       "Used",
@@ -119,14 +119,14 @@ describe("resolveT3McpToolDefinition", () => {
 
 describe("resolveT3McpSummaryAction", () => {
   it("summarizes an action tool by the action each call ran", () => {
-    expect(resolveT3McpSummaryAction("mcp__t3-code__t3_queue", { action: "list" })).toBe(
+    expect(resolveT3McpSummaryAction("mcp__leonidas__leo_queue", { action: "list" })).toBe(
       "queue-list",
     );
-    expect(resolveT3McpSummaryAction("t3_queue", { action: "edit" })).toBe("queue-edit");
-    expect(resolveT3McpSummaryAction("t3_thread_transfer", { action: "status" })).toBe(
+    expect(resolveT3McpSummaryAction("leo_queue", { action: "edit" })).toBe("queue-edit");
+    expect(resolveT3McpSummaryAction("leo_thread_transfer", { action: "status" })).toBe(
       "thread-transfers",
     );
-    expect(resolveT3McpSummaryAction("t3_thread_configure", {})).toBe("thread-configuration");
+    expect(resolveT3McpSummaryAction("leo_thread_configure", {})).toBe("thread-configuration");
     expect(resolveT3McpSummaryAction("schedule_task", { scheduledTaskId: "task-1" })).toBe(
       "schedule-update",
     );

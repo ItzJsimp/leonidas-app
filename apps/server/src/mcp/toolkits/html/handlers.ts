@@ -21,12 +21,12 @@ const toFailure = (error: { readonly _tag: string; readonly message: string }) =
   });
 
 const handlers = {
-  canvas: McpToolAccess.readsAsCaller((input) =>
+  leo_canvas: McpToolAccess.readsAsCaller((input) =>
     Effect.succeed({ html: buildCanvasDocument(input), title: input.title }),
   ),
   // The headless browser runs on the host and can open local files, so only
   // agents T3 launched, which already work on this machine, get it.
-  html_preview: McpToolAccess.readsAsCaller((input) =>
+  leo_html_preview: McpToolAccess.readsAsCaller((input) =>
     Effect.gen(function* () {
       const htmlRender = yield* HtmlRender.HtmlRender;
       const { png, ...preview } = yield* htmlRender.preview(input).pipe(Effect.mapError(toFailure));
@@ -42,10 +42,10 @@ const handlers = {
     }),
   ),
   // The page is stored in the calling thread, so it needs that thread's live run.
-  html_render: McpToolAccess.actsAsCaller((input) =>
+  leo_html_render: McpToolAccess.actsAsCaller((input) =>
     Effect.gen(function* () {
       const scope = yield* McpInvocationContext.McpInvocationContext;
-      const { thread } = yield* McpInvocationContext.requireThreadScope(scope, "html_render");
+      const { thread } = yield* McpInvocationContext.requireThreadScope(scope, "leo_html_render");
       const htmlRender = yield* HtmlRender.HtmlRender;
       const reference = yield* htmlRender
         .publish({ threadId: thread.threadId, ...input })
@@ -60,10 +60,10 @@ const handlers = {
 } satisfies McpToolAccess.Handlers<typeof HtmlToolkit.tools>;
 
 export const layerPreview = McpToolAccess.toLayer(HtmlPreviewToolkit, {
-  html_preview: handlers.html_preview,
+  leo_html_preview: handlers.leo_html_preview,
 });
 
 export const layerRender = McpToolAccess.toLayer(HtmlRenderToolkit, {
-  html_render: handlers.html_render,
-  canvas: handlers.canvas,
+  leo_html_render: handlers.leo_html_render,
+  leo_canvas: handlers.leo_canvas,
 });

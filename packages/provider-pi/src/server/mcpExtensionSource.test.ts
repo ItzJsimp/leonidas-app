@@ -57,7 +57,7 @@ describe("Pi MCP tool results", () => {
     ] as const;
     const result = { content, structuredContent: { count: 2 }, _meta: { private: true } };
     const bridge = await loadMcpBridge({ modern: true, result });
-    const tool = bridge.tools.find((tool) => tool.name === "mcp__t3-code__preview_snapshot")!;
+    const tool = bridge.tools.find((tool) => tool.name === "mcp__leonidas__leo_preview_snapshot")!;
     const output = await tool.execute("snapshot", {});
     assert.deepEqual(output.content, [
       content[0],
@@ -123,32 +123,23 @@ describe("Pi MCP tool exposure", () => {
       { systemPrompt: "Pi system prompt" },
       { ui: { notify: () => undefined } },
     );
-    assert.include(prompt.systemPrompt, "orchestrator_capabilities");
+    assert.include(prompt.systemPrompt, "leo_orchestrator_capabilities");
     assert.equal(bridge.servers.length, 0);
-    assert.equal(bridge.tools.length, 8);
+    assert.equal(bridge.tools.length, 4);
     assert.deepEqual(bridge.getActiveTools(), ["read", "tool_search"]);
     assert.deepEqual(
       bridge.tools
         .filter((tool) => tool.exposure !== "hidden")
         .map((tool) => [tool.name, tool.exposure]),
       [
-        ["mcp__t3-code__orchestrator_capabilities", "direct"],
-        ["mcp__t3-code__delegate_task", "direct"],
-        ["mcp__t3-code__task_status", "direct"],
-        ["mcp__t3-code__preview_snapshot", "deferred"],
-      ],
-    );
-    assert.deepEqual(
-      bridge.tools.filter((tool) => tool.exposure === "hidden").map((tool) => tool.name),
-      [
-        "mcp__t3_code__orchestrator_capabilities",
-        "mcp__t3_code__delegate_task",
-        "mcp__t3_code__task_status",
-        "mcp__t3_code__preview_snapshot",
+        ["mcp__leonidas__leo_orchestrator_capabilities", "direct"],
+        ["mcp__leonidas__leo_delegate_task", "direct"],
+        ["mcp__leonidas__leo_task_status", "direct"],
+        ["mcp__leonidas__leo_preview_snapshot", "deferred"],
       ],
     );
     const result = await bridge.tools
-      .find((tool) => tool.name === "mcp__t3-code__preview_snapshot")!
+      .find((tool) => tool.name === "mcp__leonidas__leo_preview_snapshot")!
       .execute("call-1", { depth: 2 });
     assert.equal(result.content[0]?.text, "browser snapshot");
     assert.equal(bridge.requests.at(-1)?.method, "tools/call");
@@ -172,7 +163,7 @@ describe("Pi MCP tool exposure", () => {
           .filter((tool) => tool.exposure !== "hidden")
           .every((tool) => tool.exposure === undefined || tool.exposure === "direct"),
       );
-      const tool = bridge.tools.find((tool) => tool.name === "mcp__t3-code__preview_snapshot");
+      const tool = bridge.tools.find((tool) => tool.name === "mcp__leonidas__leo_preview_snapshot");
       assert.isDefined(tool);
       const controller = new AbortController();
       const result = await tool!.execute("call-1", { depth: 2 }, controller.signal);
@@ -184,7 +175,7 @@ describe("Pi MCP tool exposure", () => {
         jsonrpc: "2.0",
         id: 3,
         method: "tools/call",
-        params: { name: "preview_snapshot", arguments: { depth: 2 } },
+        params: { name: "leo_preview_snapshot", arguments: { depth: 2 } },
       });
       assert.isUndefined(tool?.promptSnippet);
       assert.isUndefined(tool?.promptGuidelines);
@@ -196,7 +187,7 @@ describe("Pi MCP tool exposure", () => {
       modern: true,
       toolSearchAvailable: true,
       allowsTool: (name) =>
-        name === "read" || name === "tool_search" || name.startsWith("mcp__t3-code__"),
+        name === "read" || name === "tool_search" || name.startsWith("mcp__leonidas__"),
     });
     await bridge.handlers.get("session_start")!(
       { systemPrompt: "" },
@@ -204,7 +195,7 @@ describe("Pi MCP tool exposure", () => {
     );
     assert.equal(bridge.tools.length, 4);
     assert.equal(bridge.tools.filter((tool) => tool.exposure === "direct").length, 3);
-    const tool = bridge.tools.find((tool) => tool.name === "mcp__t3-code__preview_snapshot");
+    const tool = bridge.tools.find((tool) => tool.name === "mcp__leonidas__leo_preview_snapshot");
     assert.isDefined(tool);
     assert.equal((await tool!.execute("selected", {})).content[0]?.text, "browser snapshot");
   });
@@ -216,7 +207,7 @@ describe("Pi MCP tool exposure", () => {
         modern: true,
         toolSearchAvailable: true,
         allowsTool: (name) =>
-          name !== "mcp__t3-code__delegate_task" && (!excludeSearch || name !== "tool_search"),
+          name !== "mcp__leonidas__leo_delegate_task" && (!excludeSearch || name !== "tool_search"),
       });
       await bridge.handlers.get("session_start")!(
         { systemPrompt: "" },
@@ -224,21 +215,21 @@ describe("Pi MCP tool exposure", () => {
       );
       bridge.restoreActiveTools([
         "read",
-        "mcp__t3-code__task_status",
-        "mcp__t3-code__preview_snapshot",
+        "mcp__leonidas__leo_task_status",
+        "mcp__leonidas__leo_preview_snapshot",
       ]);
       const tree = bridge.handlers.get("session_tree");
       assert.isDefined(tree);
       await tree!({ systemPrompt: "" }, { ui: { notify: () => undefined } });
       assert.deepEqual(bridge.getActiveTools(), [
         "read",
-        "mcp__t3-code__task_status",
-        "mcp__t3-code__preview_snapshot",
+        "mcp__leonidas__leo_task_status",
+        "mcp__leonidas__leo_preview_snapshot",
         ...(!excludeSearch ? ["tool_search"] : []),
       ]);
       assert.isFalse(
         bridge.tools.some(
-          (tool) => tool.exposure !== "hidden" && tool.name.endsWith("__delegate_task"),
+          (tool) => tool.exposure !== "hidden" && tool.name.endsWith("__leo_delegate_task"),
         ),
       );
     },
@@ -263,24 +254,24 @@ describe("Pi tool discovery permissions", () => {
           },
         },
       };
-      for (const prefix of ["mcp__t3-code__", "mcp__t3_code__"]) {
+      for (const prefix of ["mcp__leonidas__"]) {
         assert.isUndefined(
-          await hook({ toolName: prefix + "orchestrator_capabilities", input: {} }, ctx),
+          await hook({ toolName: prefix + "leo_orchestrator_capabilities", input: {} }, ctx),
         );
         assert.equal(
-          (await hook({ toolName: prefix + "delegate_task", input: {} }, ctx))?.block,
+          (await hook({ toolName: prefix + "leo_delegate_task", input: {} }, ctx))?.block,
           true,
         );
         // task_status acknowledges result delivery, and is intentionally not read-only.
         assert.equal(
-          (await hook({ toolName: prefix + "task_status", input: {} }, ctx))?.block,
+          (await hook({ toolName: prefix + "leo_task_status", input: {} }, ctx))?.block,
           true,
         );
       }
-      assert.equal(confirmations.length, 4);
+      assert.equal(confirmations.length, 2);
       bridge.setBridgeSourcePath("/user/extensions/replacement.ts");
       assert.equal(
-        (await hook({ toolName: "mcp__t3-code__orchestrator_capabilities", input: {} }, ctx))
+        (await hook({ toolName: "mcp__leonidas__leo_orchestrator_capabilities", input: {} }, ctx))
           ?.block,
         true,
       );
@@ -288,7 +279,7 @@ describe("Pi tool discovery permissions", () => {
         (await hook({ toolName: "mcp__other__orchestrator_capabilities", input: {} }, ctx))?.block,
         true,
       );
-      assert.equal(confirmations.length, 6);
+      assert.equal(confirmations.length, 4);
     },
   );
 
@@ -340,9 +331,12 @@ describe("Pi tool discovery permissions", () => {
       await toolCall!({ toolName: "tool_search", input: { query: "preview_snapshot" } }, ctx),
     );
     assert.equal(confirmations.length, 0);
-    const result = await toolCall!({ toolName: "mcp__t3-code__preview_snapshot", input: {} }, ctx);
+    const result = await toolCall!(
+      { toolName: "mcp__leonidas__leo_preview_snapshot", input: {} },
+      ctx,
+    );
     assert.equal(result?.block, true);
-    assert.deepEqual(confirmations, ["Allow mcp__t3-code__preview_snapshot?"]);
+    assert.deepEqual(confirmations, ["Allow mcp__leonidas__leo_preview_snapshot?"]);
 
     // An extension that replaces the search builtin is not known to be read-only.
     searchPath = "/extensions/custom-search.ts";

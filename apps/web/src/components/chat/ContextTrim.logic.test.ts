@@ -190,18 +190,18 @@ describe("deriveTrimSuggestions unused MCP servers", () => {
   const fiveCalls = ["a", "b", "c", "d", "e"].map((id) => call(id, "Read"));
   const mcpTools = [
     { name: "x", server: "claude.ai Gmail", tokens: 1_200 },
-    { name: "y", server: "t3-code", tokens: 900 },
+    { name: "y", server: "leonidas", tokens: 900 },
   ];
 
   it("marks a server no call in this chat used, and keeps a used one plain", () => {
     const result = deriveTrimSuggestions({
       ...base,
       mcpTools,
-      toolCalls: [...fiveCalls, call("f", "mcp__t3-code__thread_list")],
+      toolCalls: [...fiveCalls, call("f", "mcp__leonidas__leo_thread_list")],
     });
     expect(result.map((s) => [s.label, s.unused])).toEqual([
       ["claude.ai Gmail", true],
-      ["t3-code", false],
+      ["leonidas", false],
     ]);
   });
 

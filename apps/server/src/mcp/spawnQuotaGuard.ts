@@ -1,5 +1,5 @@
 /**
- * The quota guard for every `delegate_task` spawn. A child on an account that
+ * The quota guard for every `leo_delegate_task` spawn. A child on an account that
  * has used `blockPercent` or more of any live window stops at the limit and
  * loses its work, so the spawn fails and the error names the accounts that
  * still have room. An account with no meter data passes: missing data must

@@ -1,7 +1,7 @@
 /**
  * The spawn gate for every delegated child (ADR-0082): a free-tier model
  * starts at once; a confirm-tier model waits for the user's card unless this
- * thread already allowed it. Named subagents and plain `delegate_task` both
+ * thread already allowed it. Named subagents and plain `leo_delegate_task` both
  * pass through it.
  */
 import {
@@ -97,7 +97,7 @@ const awaitSpawnCard = Effect.fnUntraced(function* (input: {
     case "still_waiting":
       return yield* new OrchestratorMcpFailure({
         code: "approval_pending",
-        message: `No task started. The user has not answered the approval card for ${subagent} on ${model} (${input.account}) yet. Do not start another task. Tell the user to answer the card in Leonidas. Then call delegate_task again with the same task and the same clientRequestId: the retry joins this card. Run t3_thread_list first if you are not sure.`,
+        message: `No task started. The user has not answered the approval card for ${subagent} on ${model} (${input.account}) yet. Do not start another task. Tell the user to answer the card in Leonidas. Then call delegate_task again with the same task and the same clientRequestId: the retry joins this card. Run leo_thread_list first if you are not sure.`,
       });
     case "allow_once":
     case "allow_thread":
@@ -173,11 +173,11 @@ export const confirmPersonaSpawn = Effect.fn("confirmPersonaSpawn")(function* (i
   });
 });
 
-/** The card label for a `delegate_task` that names no subagent. */
+/** The card label for a `leo_delegate_task` that names no subagent. */
 const DELEGATED_TASK_SPAWN_LABEL = "delegated task";
 
 /**
- * The same gate for a plain `delegate_task` (no subagent): a confirm-tier
+ * The same gate for a plain `leo_delegate_task` (no subagent): a confirm-tier
  * model waits for the user's card. `cwd` finds the AIOS model-tiers.json;
  * null uses the app's free list only.
  */

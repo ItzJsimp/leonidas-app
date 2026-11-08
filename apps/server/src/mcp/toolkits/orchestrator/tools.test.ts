@@ -16,14 +16,14 @@ describe("orchestrator MCP tool guidance", () => {
   it("directs subagent requests to delegation instead of ordinary threads", () => {
     assert.include(DelegateTaskTool.description ?? "", "Start one child agent");
     assert.include(CreateThreadsTool.description ?? "", "Not delegation");
-    assert.include(CreateThreadsTool.description ?? "", "t3_thread_launch");
+    assert.include(CreateThreadsTool.description ?? "", "leo_thread_launch");
     assert.include(DelegateTaskTool.description ?? "", "Keep `taskId`");
     assert.include(
-      OrchestratorToolkit.tools.t3_thread_send.description ?? "",
+      OrchestratorToolkit.tools.leo_thread_send.description ?? "",
       "starts a fresh task",
     );
     assert.include(
-      OrchestratorToolkit.tools.task_cancel.description ?? "",
+      OrchestratorToolkit.tools.leo_task_cancel.description ?? "",
       "including later runs in its child thread",
     );
   });
@@ -88,7 +88,7 @@ describe("orchestrator MCP tool guidance", () => {
   });
 });
 
-describe("event_emit", () => {
+describe("leo_event_emit", () => {
   const decode = Schema.decodeUnknownExit(EventEmitTool.parametersSchema);
   const draft = {
     level: "failed",

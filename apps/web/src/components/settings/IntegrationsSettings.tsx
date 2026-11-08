@@ -7,7 +7,7 @@ import { DeviceHostsSettings } from "./DeviceHostsSettings";
 /**
  * Integrations settings - preferences for surfaces Leonidas embeds rather than
  * owns. Browser is the first section: the defaults a preview tab opens at,
- * applied to both hand-opened tabs and agent `preview_open` calls that don't
+ * applied to both hand-opened tabs and agent `leo_preview_open` calls that don't
  * state their own size.
  *
  * @module IntegrationsSettings

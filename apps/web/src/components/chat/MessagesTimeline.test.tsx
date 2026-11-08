@@ -2489,7 +2489,7 @@ describe("MessagesTimeline", () => {
       completedAt: null,
       updatedAt: {},
       type: "dynamic_tool",
-      toolName: "mcp__t3-code__t3_thread_read",
+      toolName: "mcp__leonidas__leo_thread_read",
       input: { threadId: "thread-child" },
       output: { messages: [] },
     } as const;
@@ -2542,7 +2542,7 @@ describe("MessagesTimeline", () => {
     // The Leonidas icon replaces the generic tool icon for app tool calls.
     expect(markup).toContain('href="/apple-touch-icon.png"');
     expect(markup).toContain("Read a chat");
-    expect(markup).not.toContain("mcp__t3-code__t3_thread_read");
+    expect(markup).not.toContain("mcp__leonidas__leo_thread_read");
   });
 
   it("formats changed file paths from the workspace root", async () => {

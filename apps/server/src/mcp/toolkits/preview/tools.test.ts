@@ -31,7 +31,7 @@ it("exports provider-compatible object schemas with described parameters", () =>
     expect(schema.type, `${tool.name} must export a top-level object schema`).toBe("object");
     expect(schema.anyOf, `${tool.name} must not export a root anyOf`).toBeUndefined();
     expect(schema.oneOf, `${tool.name} must not export a root oneOf`).toBeUndefined();
-    if (tool.name === "preview_navigate") {
+    if (tool.name === "leo_preview_navigate") {
       expect(schemaHasMultipleAllOfDescriptions(schema)).toBe(false);
     }
     expect(
@@ -42,7 +42,7 @@ it("exports provider-compatible object schemas with described parameters", () =>
 });
 
 it("exports exact object result schemas for preview actions", () => {
-  const actionNames = ["preview_wait_for"] as const;
+  const actionNames = ["leo_preview_wait_for"] as const;
   for (const name of actionNames) {
     // Effect's tool schemas follow the decoder default since rc.113 and leave
     // unmodeled result keys open.

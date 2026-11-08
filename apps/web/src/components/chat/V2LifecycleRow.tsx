@@ -694,7 +694,7 @@ function HandoffPreviewCard(props: {
         The new AI account does not get the old AI account's thinking or tool use. The AI can read
         the full history with{" "}
         <code className="rounded bg-muted/80 px-1 py-0.5 font-mono text-2xs text-foreground">
-          t3_thread_read
+          leo_thread_read
         </code>
         .
       </div>

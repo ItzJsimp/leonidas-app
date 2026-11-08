@@ -211,7 +211,7 @@ function watchesEqual(left: ThreadPullRequestWatch, right: ThreadPullRequestWatc
 }
 
 /**
- * Wakes a thread's agent when a pull request it watches (`watch_pull_request`) needs a look:
+ * Wakes a thread's agent when a pull request it watches (`leo_watch_pull_request`) needs a look:
  * checks finished on the head commit, someone else commented, or the branch started to
  * conflict. A pass every two minutes looks at each watched pull request once for all the threads
  * of a project that watch it. Where the host has a fingerprint, one batched read of those tells

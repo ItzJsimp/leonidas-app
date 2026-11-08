@@ -170,26 +170,26 @@ it.effect("production mcp layer lists worktree tools over http", () =>
       const payload = yield* decodeToolsListPayload(bodyText.match(/\{.*\}/s)![0]);
       const tools = payload.result.tools;
       const toolNames = tools.map((tool) => tool.name);
-      expect(toolNames).toContain("t3_worktree_handoff");
-      expect(toolNames).toContain("t3_worktree_status");
-      expect(toolNames).toContain("local_vm_list");
-      expect(toolNames).toContain("local_vm_input");
-      expect(toolNames).toContain("local_vm_screenshot");
+      expect(toolNames).toContain("leo_worktree_handoff");
+      expect(toolNames).toContain("leo_worktree_status");
+      expect(toolNames).toContain("leo_local_vm_list");
+      expect(toolNames).toContain("leo_local_vm_input");
+      expect(toolNames).toContain("leo_local_vm_screenshot");
       expect(toolNames).not.toContain("local_vm_connect");
       expect(toolNames).not.toContain("local_vm_pause");
       // The worktree registration merges alongside the other toolkits rather
       // than replacing them.
-      expect(toolNames).toContain("preview_status");
-      expect(toolNames).toContain("delegate_task");
+      expect(toolNames).toContain("leo_preview_status");
+      expect(toolNames).toContain("leo_delegate_task");
 
       // The handoff tool mutates thread state, reaches the network (origin
       // fetch), and runs project setup scripts, so its MCP hints must not
       // promise a read-only, closed-world, non-destructive tool.
-      const handoff = tools.find((tool) => tool.name === "t3_worktree_handoff");
+      const handoff = tools.find((tool) => tool.name === "leo_worktree_handoff");
       expect(handoff?.annotations?.readOnlyHint).toBe(false);
       expect(handoff?.annotations?.destructiveHint).toBe(true);
       expect(handoff?.annotations?.openWorldHint).toBe(true);
-      const status = tools.find((tool) => tool.name === "t3_worktree_status");
+      const status = tools.find((tool) => tool.name === "leo_worktree_status");
       expect(status?.annotations?.readOnlyHint).toBe(true);
       expect(status?.annotations?.destructiveHint).toBe(false);
 
@@ -208,7 +208,7 @@ it.effect("production mcp layer lists worktree tools over http", () =>
           ...(sessionId ? { "mcp-session-id": sessionId } : {}),
         },
         body: HttpBody.text(
-          '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"local_vm_screenshot","arguments":{}}}',
+          '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"leo_local_vm_screenshot","arguments":{}}}',
           "application/json",
         ),
       });

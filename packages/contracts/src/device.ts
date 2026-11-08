@@ -482,7 +482,7 @@ export type DeviceToolListResult = typeof DeviceToolListResult.Type;
 export const DeviceToolOpenInput = Schema.Struct({
   deviceId: Schema.optional(
     DeviceId.annotate({
-      description: "Device id from `device_list`. Default: the booted or last used device.",
+      description: "Device id from `leo_device_list`. Default: the booted or last used device.",
     }),
   ),
   platform: Schema.optional(
@@ -491,7 +491,7 @@ export const DeviceToolOpenInput = Schema.Struct({
     }),
   ),
   hostId: Schema.optional(
-    DeviceHostId.annotate({ description: "Host from `device_list`. Default local." }),
+    DeviceHostId.annotate({ description: "Host from `leo_device_list`. Default local." }),
   ),
 });
 export type DeviceToolOpenInput = typeof DeviceToolOpenInput.Type;

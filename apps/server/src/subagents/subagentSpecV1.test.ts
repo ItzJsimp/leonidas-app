@@ -25,7 +25,7 @@ const designer = (...extra: ReadonlyArray<string>) => [
   "---",
   "name: frontend-designer",
   "model: claude-opus-5-5",
-  "tools: [Read, Edit, mcp__t3-code__preview_open]",
+  "tools: [Read, Edit, mcp__leonidas__leo_preview_open]",
   ...extra,
   "---",
   "You design front-end UI.",
@@ -100,7 +100,7 @@ describe("extends", () => {
     expect(persona.spec).toMatchObject({
       name: "roblox-ui-designer",
       model: "claude-opus-5-5",
-      tools: ["Read", "Edit", "mcp__t3-code__preview_open"],
+      tools: ["Read", "Edit", "mcp__leonidas__leo_preview_open"],
       never: ["Commit.", "Use web fonts."],
     });
     expect(persona.spec.context.map((entry) => entry.path)).toEqual(["DESIGN.md", "GAME.md"]);

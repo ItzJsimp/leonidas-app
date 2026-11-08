@@ -201,7 +201,7 @@ describe("pull request toolkit handlers", () => {
     Effect.gen(function* () {
       const harness = yield* makeHarness();
       const error = yield* harness
-        .call("list_thread_pull_requests", {}, ["preview"])
+        .call("leo_list_thread_pull_requests", {}, ["preview"])
         .pipe(Effect.flip);
       expect(error).toMatchObject({
         _tag: "McpCapabilityUnavailableError",
@@ -215,7 +215,7 @@ describe("pull request toolkit handlers", () => {
   it.effect("links by URL with source agent on the token's thread", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness();
-      const result = yield* harness.call("link_pull_request", {
+      const result = yield* harness.call("leo_link_pull_request", {
         url: "https://github.com/T3Tools/T3Code/pull/123/files",
       });
       expect(result).toEqual({
@@ -241,7 +241,7 @@ describe("pull request toolkit handlers", () => {
   it.effect("watching an unlinked pull request links it first", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness();
-      const result = yield* harness.call("watch_pull_request", {
+      const result = yield* harness.call("leo_watch_pull_request", {
         url: "https://github.com/t3tools/t3code/pull/9",
       });
       // The harness thread never changes, so the result reports what it still holds.
@@ -279,11 +279,14 @@ describe("pull request toolkit handlers", () => {
         ]),
       });
       const error = yield* harness
-        .call("watch_pull_request", { repository: "t3tools/t3code", number: 1 })
+        .call("leo_watch_pull_request", { repository: "t3tools/t3code", number: 1 })
         .pipe(Effect.flip);
       expect(error).toMatchObject({ _tag: "PullRequestNotOpenError", state: "merged" });
       expect(
-        yield* harness.call("unwatch_pull_request", { repository: "t3tools/t3code", number: 3 }),
+        yield* harness.call("leo_unwatch_pull_request", {
+          repository: "t3tools/t3code",
+          number: 3,
+        }),
       ).toMatchObject({ wasWatching: true });
       expect(yield* Ref.get(harness.commands)).toMatchObject([
         { type: "thread.pull-request.watch", number: 3, watching: false },
@@ -299,7 +302,7 @@ describe("pull request toolkit handlers", () => {
           { ...closed, snapshot: closed.snapshot && { ...closed.snapshot, state: "closed" } },
         ]),
       });
-      yield* harness.call("watch_pull_request", { repository: "t3tools/t3code", number: 1 });
+      yield* harness.call("leo_watch_pull_request", { repository: "t3tools/t3code", number: 1 });
       expect(yield* Ref.get(harness.commands)).toMatchObject([
         { type: "thread.pull-request.watch", number: 1, watching: true },
       ]);
@@ -319,7 +322,7 @@ describe("pull request toolkit handlers", () => {
         },
       });
       const error = yield* harness
-        .call("watch_pull_request", { repository: "t3tools/t3code", number: 1 })
+        .call("leo_watch_pull_request", { repository: "t3tools/t3code", number: 1 })
         .pipe(Effect.flip);
       expect(error).toMatchObject({ _tag: "PullRequestWatchFromSubagentError" });
       expect(yield* Ref.get(harness.commands)).toEqual([]);
@@ -338,7 +341,7 @@ describe("pull request toolkit handlers", () => {
           },
         },
       });
-      const result = yield* harness.call("link_pull_request", {
+      const result = yield* harness.call("leo_link_pull_request", {
         url: "https://github.com/t3tools/t3code/pull/124",
       });
       expect(result).toMatchObject({ number: 124, next: CHILD_PULL_REQUEST_REPORT_NEXT });
@@ -348,7 +351,7 @@ describe("pull request toolkit handlers", () => {
   it.effect("links by repository and number, defaulting the host to the project's", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness();
-      const result = yield* harness.call("link_pull_request", {
+      const result = yield* harness.call("leo_link_pull_request", {
         repository: "T3Tools/Other",
         number: 7,
       });
@@ -376,7 +379,7 @@ describe("pull request toolkit handlers", () => {
           displayName: "group/sub/project",
         }),
       });
-      const result = yield* harness.call("link_pull_request", {
+      const result = yield* harness.call("leo_link_pull_request", {
         repository: "group/sub/project",
         number: 42,
       });
@@ -399,7 +402,7 @@ describe("pull request toolkit handlers", () => {
           displayName: "git/owner/repo",
         }),
       });
-      const result = yield* harness.call("link_pull_request", {
+      const result = yield* harness.call("leo_link_pull_request", {
         repository: "git/owner/repo",
         number: 42,
       });
@@ -410,7 +413,7 @@ describe("pull request toolkit handlers", () => {
         url: "http://forge.example:3000/git/owner/repo/pulls/42",
         alreadyLinked: false,
       });
-      const other = yield* harness.call("link_pull_request", {
+      const other = yield* harness.call("leo_link_pull_request", {
         host: "other.example",
         repository: "owner/repo",
         number: 42,
@@ -423,11 +426,11 @@ describe("pull request toolkit handlers", () => {
     Effect.gen(function* () {
       const harness = yield* makeHarness();
       const error = yield* harness
-        .call("link_pull_request", { repository: "x/y" })
+        .call("leo_link_pull_request", { repository: "x/y" })
         .pipe(Effect.flip);
       expect(error).toMatchObject({ _tag: "PullRequestTargetIncompleteError" });
       const unknown = yield* harness
-        .call("link_pull_request", {
+        .call("leo_link_pull_request", {
           url: "https://github.com/t3tools/t3code/issues/1?token=private-value",
         })
         .pipe(Effect.flip);
@@ -444,7 +447,7 @@ describe("pull request toolkit handlers", () => {
         reject: (command) =>
           command.type === "thread.pull-request.link" ? "already linked" : null,
       });
-      const result = yield* harness.call("link_pull_request", {
+      const result = yield* harness.call("leo_link_pull_request", {
         url: "https://github.com/t3tools/t3code/pull/123",
       });
       expect(result.alreadyLinked).toBe(true);
@@ -460,7 +463,7 @@ describe("pull request toolkit handlers", () => {
             ? "not linked"
             : null,
       });
-      const linked = yield* harness.call("unlink_pull_request", {
+      const linked = yield* harness.call("leo_unlink_pull_request", {
         repository: "t3tools/t3code",
         number: 5,
       });
@@ -470,7 +473,7 @@ describe("pull request toolkit handlers", () => {
         number: 5,
         wasLinked: true,
       });
-      const missing = yield* harness.call("unlink_pull_request", {
+      const missing = yield* harness.call("leo_unlink_pull_request", {
         url: "https://github.com/t3tools/t3code/pull/9",
       });
       expect(missing.wasLinked).toBe(false);
@@ -495,7 +498,7 @@ describe("pull request toolkit handlers", () => {
   it.effect("fails cleanly when the token's thread no longer exists", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness({ thread: null });
-      const error = yield* harness.call("list_thread_pull_requests", {}).pipe(Effect.flip);
+      const error = yield* harness.call("leo_list_thread_pull_requests", {}).pipe(Effect.flip);
       expect(error).toMatchObject({ _tag: "PullRequestThreadNotFoundError", threadId: THREAD_ID });
     }),
   );
@@ -511,7 +514,7 @@ describe("pull request toolkit handlers", () => {
           makeLink(10),
         ]),
       });
-      const result = yield* harness.call("list_thread_pull_requests", {});
+      const result = yield* harness.call("leo_list_thread_pull_requests", {});
       expect(result.pullRequests.map((entry) => entry.number)).toEqual([3, 1, 2, 10]);
       expect(result.pullRequests[0]).toEqual({
         host: "github.com",

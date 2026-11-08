@@ -157,8 +157,8 @@ describe("htmlRenderFromToolItem", () => {
 
   it("reads the reference from each provider's result envelope", () => {
     for (const [toolName, output] of [
-      ["mcp__t3-code__html_render", [{ type: "text", text: JSON.stringify(result) }]],
-      ["t3-code.html_render", { structuredContent: result, content: [] }],
+      ["mcp__leonidas__leo_html_render", [{ type: "text", text: JSON.stringify(result) }]],
+      ["leonidas.leo_html_render", { structuredContent: result, content: [] }],
       ["t3-code-thread_1_html_render", JSON.stringify(result)],
       ["html_render", result],
     ] as const) {
@@ -167,9 +167,9 @@ describe("htmlRenderFromToolItem", () => {
   });
 
   it("ignores other tools and failed calls", () => {
-    expect(htmlRenderFromToolItem({ toolName: "mcp__t3-code__html_preview", output: result })).toBe(
-      undefined,
-    );
+    expect(
+      htmlRenderFromToolItem({ toolName: "mcp__leonidas__leo_html_preview", output: result }),
+    ).toBe(undefined);
     expect(htmlRenderFromToolItem({ toolName: "mcp__other__html_render", output: result })).toBe(
       undefined,
     );

@@ -4,7 +4,7 @@
  * Settings → Integrations → Browser lets the user pick the viewport, zoom, and
  * appearance a preview tab should open at. Those preferences apply to every
  * entry point that opens a tab without stating its own: the user opening a
- * browser panel, and agents calling `preview_open` with no size.
+ * browser panel, and agents calling `leo_preview_open` with no size.
  *
  * The values live in client settings because the Chromium guest they configure
  * is desktop-local, so this module reads them through the same external store

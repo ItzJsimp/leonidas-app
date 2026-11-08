@@ -1506,15 +1506,15 @@ describe("extractMcpToolCallIdentity", () => {
       sessionUpdate: "tool_call",
       toolCallId: "exec-f4591587-0754-4bb4-990b-f2767894ba93",
       kind: "execute",
-      title: "mcp.t3-code.orchestrator_capabilities",
+      title: "mcp.leonidas.leo_orchestrator_capabilities",
       status: "in_progress",
-      rawInput: { server: "t3-code", tool: "orchestrator_capabilities", arguments: {} },
+      rawInput: { server: "leonidas", tool: "leo_orchestrator_capabilities", arguments: {} },
       _meta: { is_mcp_tool_call: true },
     });
 
     expect(extractMcpToolCallIdentity(toolCall)).toEqual({
-      server: "t3-code",
-      tool: "orchestrator_capabilities",
+      server: "leonidas",
+      tool: "leo_orchestrator_capabilities",
     });
   });
 
@@ -1530,10 +1530,10 @@ describe("extractMcpToolCallIdentity", () => {
     expect(
       extractMcpToolCallIdentity(toolCall, {
         embeddedTerminalCommands: [
-          '/usr/bin/node /srv/t3/bin.ts acp-mcp-call delegate_task {"task":"x"}',
+          '/usr/bin/node /srv/t3/bin.ts acp-mcp-call leo_delegate_task {"task":"x"}',
         ],
       }),
-    ).toEqual({ server: "t3-code", tool: "delegate_task", input: { task: "x" } });
+    ).toEqual({ server: "leonidas", tool: "leo_delegate_task", input: { task: "x" } });
   });
 
   it("recovers T3 identity from pi-acp title-only fallback execs", () => {
@@ -1545,7 +1545,7 @@ describe("extractMcpToolCallIdentity", () => {
       toolCallId: "call_JdxnvzjHHrbvyASTLVekLYWV|fc_08f5a805a7159aa6016a7ec4afad548191",
       kind: "execute",
       title:
-        '"$T3_ACP_MCP_NODE" "$T3_ACP_MCP_ENTRYPOINT" acp-mcp-call orchestrator_capabilities \'{}\'',
+        '"$T3_ACP_MCP_NODE" "$T3_ACP_MCP_ENTRYPOINT" acp-mcp-call leo_orchestrator_capabilities \'{}\'',
       status: "in_progress",
       rawInput: null,
       content: [
@@ -1558,8 +1558,8 @@ describe("extractMcpToolCallIdentity", () => {
 
     expect(toolCall.title).toBe("Ran command");
     expect(extractMcpToolCallIdentity(toolCall)).toEqual({
-      server: "t3-code",
-      tool: "orchestrator_capabilities",
+      server: "leonidas",
+      tool: "leo_orchestrator_capabilities",
       input: {},
     });
   });
@@ -1573,7 +1573,7 @@ describe("extractMcpToolCallIdentity", () => {
       sessionUpdate: "tool_call",
       toolCallId: "chatcmpl-tool-b2a6142ee1a510a5",
       kind: "other",
-      title: "t3-code_orchestrator_capabilities",
+      title: "leonidas_leo_orchestrator_capabilities",
       status: "pending",
       locations: [],
       rawInput: {},
@@ -1587,8 +1587,8 @@ describe("extractMcpToolCallIdentity", () => {
     const merged = mergeToolCallState(created, completed);
 
     expect(extractMcpToolCallIdentity(merged)).toEqual({
-      server: "t3-code",
-      tool: "orchestrator_capabilities",
+      server: "leonidas",
+      tool: "leo_orchestrator_capabilities",
     });
   });
 
@@ -1599,23 +1599,26 @@ describe("extractMcpToolCallIdentity", () => {
       sessionUpdate: "tool_call",
       toolCallId: "gemini-1",
       kind: "other",
-      title: "delegate_task (t3-code MCP Server)",
+      title: "leo_delegate_task (leonidas MCP Server)",
       status: "in_progress",
     });
     const qwen = toolCallFromUpdate({
       sessionUpdate: "tool_call",
       toolCallId: "qwen-1",
       kind: "other",
-      title: 'task_status (t3-code MCP Server): {"taskId":"node:delegated-task:1"}',
+      title: 'leo_task_status (leonidas MCP Server): {"taskId":"node:delegated-task:1"}',
       status: "pending",
       rawInput: { taskId: "node:delegated-task:1" },
     });
 
     expect(extractMcpToolCallIdentity(gemini)).toEqual({
-      server: "t3-code",
-      tool: "delegate_task",
+      server: "leonidas",
+      tool: "leo_delegate_task",
     });
-    expect(extractMcpToolCallIdentity(qwen)).toEqual({ server: "t3-code", tool: "task_status" });
+    expect(extractMcpToolCallIdentity(qwen)).toEqual({
+      server: "leonidas",
+      tool: "leo_task_status",
+    });
   });
 
   it("recovers T3 identity across the registry agents' naming conventions", () => {
@@ -1627,18 +1630,18 @@ describe("extractMcpToolCallIdentity", () => {
     // tail, cline args tail, Auggie tool-first suffix, fast-agent slash,
     // Kimi bare name with args tail.
     for (const title of [
-      "t3-code___delegate_task",
-      "t3-code-delegate_task",
-      'mcp__t3_code__delegate_task: {"mode":"async"}',
-      't3-code__delegate_task: {"mode":"async"}',
-      "delegate_task_t3-code",
-      "t3-code/delegate_task",
-      "delegate_task",
-      'delegate_task: {"mode":"async"}',
+      "leonidas___leo_delegate_task",
+      "leonidas-leo_delegate_task",
+      'mcp__leonidas__leo_delegate_task: {"mode":"async"}',
+      'leonidas__leo_delegate_task: {"mode":"async"}',
+      "leo_delegate_task_leonidas",
+      "leonidas/leo_delegate_task",
+      "leo_delegate_task",
+      'leo_delegate_task: {"mode":"async"}',
       // Kimi retitles on every streamed args chunk with the raw partial JSON,
       // and middle-truncates args longer than 50 characters.
-      'delegate_task: {"mode":"async","task":"Ru',
-      'delegate_task: {"mode":"async","task":"Ru...cho child-result-42\'"}',
+      'leo_delegate_task: {"mode":"async","task":"Ru',
+      'leo_delegate_task: {"mode":"async","task":"Ru...cho child-result-42\'"}',
     ]) {
       const toolCall = toolCallFromUpdate({
         sessionUpdate: "tool_call",
@@ -1648,19 +1651,19 @@ describe("extractMcpToolCallIdentity", () => {
         status: "pending",
       });
       expect(extractMcpToolCallIdentity(toolCall), title).toEqual({
-        server: "t3-code",
-        tool: "delegate_task",
+        server: "leonidas",
+        tool: "leo_delegate_task",
       });
     }
   });
 
   it("does not claim an agent's own tool that shares a T3 tool name", () => {
-    // Hermes' built-in delegate_task, titled "<tool>: <description>" like all its calls.
+    // Hermes' built-in leo_delegate_task, titled "<tool>: <description>" like all its calls.
     const toolCall = toolCallFromUpdate({
       sessionUpdate: "tool_call",
       toolCallId: "own-delegate-1",
       kind: "execute",
-      title: "delegate_task: 1 tasks: Run the terminal command 'echo child-result-42'",
+      title: "leo_delegate_task: 1 tasks: Run the terminal command 'echo child-result-42'",
       status: "pending",
     });
     expect(extractMcpToolCallIdentity(toolCall)).toBeUndefined();
@@ -1676,15 +1679,15 @@ describe("extractMcpToolCallIdentity", () => {
       status: "in_progress",
       _meta: {
         goose: {
-          toolCall: { toolName: "t3-code__task_status", extensionName: "t3-code" },
+          toolCall: { toolName: "leonidas__leo_task_status", extensionName: "leonidas" },
           messageId: "message-1",
         },
       },
     });
 
     expect(extractMcpToolCallIdentity(toolCall)).toEqual({
-      server: "t3-code",
-      tool: "task_status",
+      server: "leonidas",
+      tool: "leo_task_status",
     });
   });
 
@@ -1698,12 +1701,16 @@ describe("extractMcpToolCallIdentity", () => {
       kind: "other",
       title: "unrelated display title",
       status: "pending",
-      _meta: { toolName: "mcp::t3-code::t3_thread_send", serverId: "t3-code", provenance: "mcp" },
+      _meta: {
+        toolName: "mcp::leonidas::leo_thread_send",
+        serverId: "leonidas",
+        provenance: "mcp",
+      },
     });
 
     expect(extractMcpToolCallIdentity(toolCall)).toEqual({
-      server: "t3-code",
-      tool: "t3_thread_send",
+      server: "leonidas",
+      tool: "leo_thread_send",
     });
   });
 
@@ -1749,19 +1756,19 @@ describe("extractMcpToolCallIdentity", () => {
       sessionUpdate: "tool_call",
       toolCallId: "foreign-1",
       kind: "other",
-      title: "t3-code_delegate_task",
+      title: "leonidas_leo_delegate_task",
       status: "pending",
-      _meta: { toolName: "delegate_task", serverId: "other-orchestrator" },
+      _meta: { toolName: "leo_delegate_task", serverId: "other-orchestrator" },
     });
 
     expect(extractMcpToolCallIdentity(toolCall)).toEqual({
       server: "other-orchestrator",
-      tool: "delegate_task",
+      tool: "leo_delegate_task",
     });
   });
 
   it("does not brand path-like or unknown-tool titles", () => {
-    for (const title of ["t3-code/README.md", "t3-code_not_a_real_tool"]) {
+    for (const title of ["leonidas/README.md", "leonidas_not_a_real_tool"]) {
       const toolCall = toolCallFromUpdate({
         sessionUpdate: "tool_call",
         toolCallId: "path-1",

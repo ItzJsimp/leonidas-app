@@ -1437,7 +1437,7 @@ describe("buildThreadFeed", () => {
     const toolItem: OrchestrationV2TurnItem = {
       ...base("item-t3-tool", "2026-06-20T00:00:04.000Z", 3),
       type: "dynamic_tool",
-      toolName: "mcp__t3-code__t3_thread_read",
+      toolName: "mcp__leonidas__leo_thread_read",
       input: { threadId: "thread-child" },
       output: { messages: [] },
     };
@@ -1465,7 +1465,7 @@ describe("buildThreadFeed", () => {
   it("uses canonical T3 orchestration summaries in compact work groups", () => {
     const rows = [
       projected(command("2026-06-20T00:00:01.000Z"), 0),
-      ...["mcp__t3-code__t3_thread_send", "t3_code.t3_thread_send", "t3_thread_send"].map(
+      ...["mcp__leonidas__leo_thread_send", "leonidas.leo_thread_send", "leo_thread_send"].map(
         (toolName, index) =>
           projected(
             {
@@ -1510,7 +1510,7 @@ describe("buildThreadFeed", () => {
         ...base("list", "2026-09-19T00:00:01.000Z", 1),
         type: "dynamic_tool",
         title: "Custom provider title",
-        toolName: "T3-code.t3_project_list",
+        toolName: "T3-code.leo_project_list",
         input: {},
         output: { projects: [] },
       },
@@ -1526,7 +1526,7 @@ describe("buildThreadFeed", () => {
         ...base("failed-clone", "2026-09-19T00:00:03.000Z", 3),
         type: "dynamic_tool",
         title: "Custom provider title",
-        toolName: "t3_project_clone",
+        toolName: "leo_project_clone",
         input: {},
         output: { isError: true },
       },
@@ -1799,7 +1799,7 @@ describe("retained v2 feed presentation", () => {
             ...base("preview-click", "2026-06-20T00:00:02.000Z", 1),
             type: "dynamic_tool",
             status,
-            toolName: "mcp__t3-code__preview_click",
+            toolName: "mcp__leonidas__preview_click",
             input: { element: "button" },
             output: null,
           },
@@ -1852,7 +1852,7 @@ describe("retained v2 feed presentation", () => {
           {
             ...base(id, "2026-06-20T00:00:02.000Z", index),
             type: "dynamic_tool",
-            toolName: "t3-code.delegate_task",
+            toolName: "leonidas.leo_delegate_task",
             input: { task: "Identical task" },
             output,
             ...overrides,
@@ -2522,7 +2522,7 @@ describe("html renders", () => {
   ): OrchestrationV2TurnItem => ({
     ...base("item-render", "2026-06-20T00:00:02.500Z", 2),
     type: "dynamic_tool",
-    toolName: "mcp__t3-code__html_render",
+    toolName: "mcp__leonidas__leo_html_render",
     input: { title: page.title },
     output: { htmlRender: page },
     ...overrides,

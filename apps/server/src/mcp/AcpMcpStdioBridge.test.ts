@@ -38,7 +38,7 @@ describe("AcpMcpStdioBridge", () => {
       const failure = yield* callAcpMcpTool({
         endpoint: "http://127.0.0.1:1/mcp",
         authorization: "Bearer bridge-test",
-        tool: "orchestrator_capabilities",
+        tool: "leo_orchestrator_capabilities",
         arguments: {},
         fetchImplementation: () => Promise.reject(source),
       }).pipe(Effect.asVoid, Effect.flip);
@@ -54,7 +54,7 @@ describe("AcpMcpStdioBridge", () => {
       const result = yield* callAcpMcpTool({
         endpoint: "http://127.0.0.1:1/mcp",
         authorization: "Bearer bridge-test",
-        tool: "orchestrator_capabilities",
+        tool: "leo_orchestrator_capabilities",
         arguments: {},
         fetchImplementation: async (_url, init) => {
           const headers = new Headers(init?.headers);
@@ -87,7 +87,7 @@ describe("AcpMcpStdioBridge", () => {
       expect(requests[2]?.headers.get("mcp-protocol-version")).toBe("2025-06-18");
       expect(requests[2]?.body).toMatchObject({
         method: "tools/call",
-        params: { name: "orchestrator_capabilities", arguments: {} },
+        params: { name: "leo_orchestrator_capabilities", arguments: {} },
       });
     }),
   );

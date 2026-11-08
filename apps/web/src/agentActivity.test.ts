@@ -129,7 +129,7 @@ describe("agent activity", () => {
         ...base,
         id: TurnItemId.make("delegate"),
         type: "dynamic_tool",
-        toolName: "mcp__t3-code__delegate_task",
+        toolName: "mcp__leonidas__leo_delegate_task",
         input: { subagent: "explorer", task: "find the config" },
       } as OrchestrationV2TurnItem,
     ]);

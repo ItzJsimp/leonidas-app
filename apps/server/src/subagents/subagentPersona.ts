@@ -22,6 +22,7 @@
  * Merge for `extends`: the child's scalars and `tools` replace the base's;
  * `context` and `never` add to the base's; the child body follows the base.
  */
+import { toCurrentMcpToolRule } from "@t3tools/shared/mcpServerName";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
@@ -146,7 +147,7 @@ export function parseSubagentSpec(source: string, expectedName: string): Subagen
     account: account === "balanced" ? null : account,
     tier,
     enabled: fields.enabled === undefined ? null : (fields.enabled as boolean),
-    tools: stringList(fields.tools, "tools"),
+    tools: stringList(fields.tools, "tools")?.map(toCurrentMcpToolRule) ?? null,
     context: stringList(fields.context, "context") ?? [],
     never: stringList(fields.never, "never") ?? [],
     body,

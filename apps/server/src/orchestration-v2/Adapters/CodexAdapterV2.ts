@@ -1,3 +1,4 @@
+import { MCP_SERVER_NAME } from "@t3tools/shared/mcpServerName";
 import { revertCodexThread } from "../../provider/CodexThreadRevert.ts";
 import {
   activeAiLevel,
@@ -1352,7 +1353,7 @@ export function codexThreadRuntimeParams(input: {
         ? {}
         : {
             mcp_servers: {
-              "t3-code": {
+              [MCP_SERVER_NAME]: {
                 url: mcpSession.endpoint,
                 http_headers: {
                   Authorization: mcpSession.authorizationHeader,

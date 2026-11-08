@@ -118,11 +118,11 @@ describe("content tool kit", () => {
   it("holds read and draft tools only", () => {
     const names = Object.keys(ContentToolkit.tools).toSorted();
     expect(names).toEqual([
-      "content_deal_propose",
-      "content_read",
-      "content_script_save",
-      "content_stage_move",
-      "content_video_create",
+      "leo_content_deal_propose",
+      "leo_content_read",
+      "leo_content_script_save",
+      "leo_content_stage_move",
+      "leo_content_video_create",
     ]);
     expect(names.filter((name) => /approve|deliver|paid|film|delete/.test(name))).toEqual([]);
   });
@@ -130,7 +130,7 @@ describe("content tool kit", () => {
   it.effect("reads the deals, then one deal with its card and the voice bible", () => {
     const root = workspace();
     return Effect.gen(function* () {
-      const list = yield* call("content_read");
+      const list = yield* call("leo_content_read");
       expect(list.json.deals).toEqual([
         {
           slug: "acme-cases",
@@ -138,7 +138,7 @@ describe("content tool kit", () => {
           videos: [{ file: "01-drop-test", title: "Drop test", stage: "script_review" }],
         },
       ]);
-      const one = yield* call("content_read", { deal: "acme-cases" });
+      const one = yield* call("leo_content_read", { deal: "acme-cases" });
       expect(one.json.card).toContain("Terms: 2 videos.");
       expect(one.json.deal.doNot).toEqual(["cheap"]);
       expect(one.json.voiceBible).toContain("Talk plain.");
@@ -148,7 +148,7 @@ describe("content tool kit", () => {
   it.effect("drafts a new video from idea to script review", () => {
     const root = workspace();
     return Effect.gen(function* () {
-      const created = yield* call("content_video_create", {
+      const created = yield* call("leo_content_video_create", {
         deal: "acme-cases",
         title: "Case vs. Hammer!",
         idea: "Hit the case with a hammer.",
@@ -160,19 +160,19 @@ describe("content tool kit", () => {
       });
       // Not a Git repo here, so the file is saved and the history step says why it was skipped.
       expect(created.json.recorded).toBe(false);
-      yield* call("content_stage_move", {
+      yield* call("leo_content_stage_move", {
         deal: "acme-cases",
         file: "02-case-vs-hammer",
         to: "scripting",
       });
-      const saved = yield* call("content_script_save", {
+      const saved = yield* call("leo_content_script_save", {
         deal: "acme-cases",
         file: "02-case-vs-hammer",
         script: 'SPOKEN: "One hammer. Zero cracks."',
         hookScore: 8,
       });
       expect(saved.json.video.scorecard).toMatchObject({ hookScore: 8, blocks: [] });
-      const moved = yield* call("content_stage_move", {
+      const moved = yield* call("leo_content_stage_move", {
         deal: "acme-cases",
         file: "02-case-vs-hammer",
         to: "script_review",
@@ -185,17 +185,17 @@ describe("content tool kit", () => {
     const root = workspace();
     const brand = { brand: "Lumen Lamp", source: "Email from Alex, Oct 28" };
     return Effect.gen(function* () {
-      const refused = yield* call("content_deal_propose", brand);
+      const refused = yield* call("leo_content_deal_propose", brand);
       expect(refused.isError).toBe(true);
       expect(refused.json.message).toContain("manual");
       put(root, "deals/_lens/settings.json", '{"deal_intake":"propose"}');
-      const made = yield* call("content_deal_propose", brand);
+      const made = yield* call("leo_content_deal_propose", brand);
       expect(made.json).toMatchObject({
         intake: "propose",
         proposal: { slug: "lumen-lamp", source: "Email from Alex, Oct 28" },
       });
       expect(made.json.deal).toBeUndefined();
-      const list = yield* call("content_read");
+      const list = yield* call("leo_content_read");
       expect(list.json.deals.map((deal: { slug: string }) => deal.slug)).toEqual(["acme-cases"]);
     }).pipe(Effect.provide(server(root)));
   });
@@ -205,21 +205,29 @@ describe("content tool kit", () => {
     return Effect.gen(function* () {
       // The tool's own schema refuses the stage, before any file work.
       const approve = yield* Effect.exit(
-        call("content_stage_move", {
+        call("leo_content_stage_move", {
           deal: "acme-cases",
           file: "01-drop-test",
           to: "ready_to_film",
         }),
       );
       expect(approve._tag).toBe("Failure");
-      yield* call("content_video_create", { deal: "acme-cases", title: "Hype", idea: "Hype it." });
-      yield* call("content_stage_move", { deal: "acme-cases", file: "02-hype", to: "scripting" });
-      yield* call("content_script_save", {
+      yield* call("leo_content_video_create", {
+        deal: "acme-cases",
+        title: "Hype",
+        idea: "Hype it.",
+      });
+      yield* call("leo_content_stage_move", {
+        deal: "acme-cases",
+        file: "02-hype",
+        to: "scripting",
+      });
+      yield* call("leo_content_script_save", {
         deal: "acme-cases",
         file: "02-hype",
         script: 'SPOKEN: "A total game changer."',
       });
-      const blocked = yield* call("content_stage_move", {
+      const blocked = yield* call("leo_content_stage_move", {
         deal: "acme-cases",
         file: "02-hype",
         to: "script_review",

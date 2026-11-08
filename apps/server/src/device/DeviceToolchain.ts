@@ -6,7 +6,7 @@ import type { DeviceToolVersions } from "@t3tools/contracts";
  * drives them. Each is npm-installed separately after its matching consent
  * step into `<baseDir>/tools/<name>/<version>` and executed from there with the
  * resolved Node runtime, never `npx`: an ephemeral
- * npx cache would make every first `device_open` after a reboot depend on the
+ * npx cache would make every first `leo_device_open` after a reboot depend on the
  * registry, and the pinned versions are part of the contract the injected
  * agent instructions describe.
  *

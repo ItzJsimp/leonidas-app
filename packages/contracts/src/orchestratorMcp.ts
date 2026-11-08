@@ -102,7 +102,7 @@ export type OrchestratorMcpTargetOptions = typeof OrchestratorMcpTargetOptions.T
 export const OrchestratorMcpTarget = Schema.Struct({
   providerInstanceId: Schema.optional(
     ProviderInstanceId.annotate({
-      description: "Provider instance id from `orchestrator_capabilities`.",
+      description: "Provider instance id from `leo_orchestrator_capabilities`.",
     }),
   ),
   driverKind: Schema.optional(
@@ -114,7 +114,7 @@ export const OrchestratorMcpTarget = Schema.Struct({
   options: Schema.optional(
     OrchestratorMcpTargetOptions.annotate({
       description:
-        "Options from `orchestrator_capabilities`, such as {effort:'max'}. Omit to inherit when provider and model match the parent.",
+        "Options from `leo_orchestrator_capabilities`, such as {effort:'max'}. Omit to inherit when provider and model match the parent.",
     }),
   ),
 });
@@ -589,7 +589,7 @@ export const OrchestratorMcpScheduleTaskInput = Schema.Struct({
 });
 export type OrchestratorMcpScheduleTaskInput = typeof OrchestratorMcpScheduleTaskInput.Type;
 
-/** `schedule_task` creates a task, or updates one when `scheduledTaskId` is given. */
+/** `leo_schedule_task` creates a task, or updates one when `scheduledTaskId` is given. */
 export const OrchestratorMcpSaveScheduledTaskInput = Schema.Struct({
   ...OrchestratorMcpScheduleTaskInput.fields,
   scheduledTaskId: Schema.optional(ScheduledTaskId),

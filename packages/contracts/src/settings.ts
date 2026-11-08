@@ -336,7 +336,7 @@ export type DefaultThemePreference = typeof DefaultThemePreference.Type;
 /**
  * Defaults for the in-app preview browser, applied whenever a tab is opened
  * without an explicit viewport/zoom/appearance — by the user opening a browser
- * tab, or by an agent calling `preview_open` with no size. Recording quality is
+ * tab, or by an agent calling `leo_preview_open` with no size. Recording quality is
  * client-local for the same reason: the Chromium guest being captured belongs
  * to the desktop app.
  */
@@ -489,7 +489,7 @@ export const ClientSettingsSchema = Schema.Struct({
   /**
    * Whether an agent using a preview pops the floating mini player into
    * view. Only applies when the agent didn't ask either way — an explicit
-   * `open`/`show` on `preview_open` still wins, since that is the agent
+   * `open`/`show` on `leo_preview_open` still wins, since that is the agent
    * deliberately showing or hiding its work.
    */
   browserAutoShowFloatingPreview: Schema.Boolean.pipe(

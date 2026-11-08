@@ -41,7 +41,7 @@ it.effect("builds canvas HTML through production MCP and enforces skill loading 
     const server = yield* McpServer.McpServer;
     const call = (arguments_: Record<string, unknown>) =>
       server
-        .callTool({ name: "canvas", arguments: arguments_ })
+        .callTool({ name: "leo_canvas", arguments: arguments_ })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
           Effect.provideService(McpSchema.McpServerClient, client),

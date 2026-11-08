@@ -2227,7 +2227,7 @@ const make = Effect.gen(function* () {
     requestSecret: (scope, input) =>
       Effect.gen(function* () {
         // The card is shown in, and answered from, the caller's own thread.
-        const { scope: threadScope, parent } = yield* loadThreadCaller(scope, "request_secret");
+        const { scope: threadScope, parent } = yield* loadThreadCaller(scope, "leo_request_secret");
         const threadId = threadScope.thread.threadId;
         const run = ThreadManagementService.latestActiveRun(parent);
         if (
@@ -2434,7 +2434,7 @@ const make = Effect.gen(function* () {
       }),
     delegateTask: (callerScope, input) =>
       Effect.gen(function* () {
-        const { scope, parent } = yield* loadThreadCaller(callerScope, "delegate_task");
+        const { scope, parent } = yield* loadThreadCaller(callerScope, "leo_delegate_task");
         const parentRun = parent.runs
           .filter(ThreadManagementService.isActiveRun)
           .toSorted((left, right) => right.ordinal - left.ordinal)[0];
@@ -2738,12 +2738,12 @@ const make = Effect.gen(function* () {
       }),
     taskStatus: (callerScope, taskId) =>
       Effect.gen(function* () {
-        const scope = yield* requireThreadScope(callerScope, "task_status");
+        const scope = yield* requireThreadScope(callerScope, "leo_task_status");
         return yield* readTask(scope, taskId, false, true);
       }),
     cancelTask: (callerScope, input) =>
       Effect.gen(function* () {
-        const scope = yield* requireThreadScope(callerScope, "task_cancel");
+        const scope = yield* requireThreadScope(callerScope, "leo_task_cancel");
         const current = yield* readTask(scope, input.taskId);
         const key = yield* requestKey(input.clientRequestId);
         const parentProjection = yield* loadProjection(scope.thread.threadId);
@@ -2892,7 +2892,7 @@ const make = Effect.gen(function* () {
       }),
     createThreads: (callerScope, input) =>
       Effect.gen(function* () {
-        const { scope, parent } = yield* loadThreadCaller(callerScope, "create_threads");
+        const { scope, parent } = yield* loadThreadCaller(callerScope, "leo_create_threads");
         const parentRun = ThreadManagementService.latestActiveRun(parent);
         if (
           parentRun === undefined ||

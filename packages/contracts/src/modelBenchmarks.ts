@@ -89,7 +89,7 @@ export const ModelBenchmarkReport = Schema.Struct({
 });
 export type ModelBenchmarkReport = typeof ModelBenchmarkReport.Type;
 
-/** The models to rank; the RPC and the `model_benchmarks` MCP tool share it. */
+/** The models to rank; the RPC and the `leo_model_benchmarks` MCP tool share it. */
 export const ModelBenchmarkReportInput = Schema.Struct({
   models: Schema.Array(ModelBenchmarkQuery).check(Schema.isMaxLength(200)),
 });

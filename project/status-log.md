@@ -2,6 +2,7 @@
 
 Newest first, one line per session, who and what. Add your line at the top. Keep the newest 3 here; older entries go to [status-log-archive.md](./status-log-archive.md).
 
+- 2026-11-07 Jake's agent (Claude): MCP rename in worktree `C:/lcw/rename-mcp-server-leo`. Server is `leonidas`, all 95 tools are `leo_*`, old names still work, T3 MIT notice is on the Open source licenses screen. Scoped tests pass except failures that also fail on `origin/main`. Not live-checked in the dev copy yet.
 - 2026-11-06 Jake's agent (Codex): batch 1 rename is local, not shipped. App name: Leonidas. Chat tab: Leonidas Chat. Red helmet assets built. Windows Sandbox updated 0.124.49 to 0.125.0 through the mock server: same install entry and folder, replaced shortcuts, seeded thread kept in SQLite. Web typecheck, formatting and source server smoke passed. Release blocked: 41 failed tests, two suite errors and 25 lint diagnostics also occur on the unchanged baseline. Jake builds alone; Mob tests. Agent auto-ship rule is set, subject to passing checks.
 
 - 2026-10-21 Jake's agent (Claude Opus 5.5): reply style presets loader (ADR-0085). `LEONIDAS_OUTPUT_STANDARD` split into the render contract and the shipped Leonidas style. Simple shape deleted. `.agents/reply-styles/<slug>.md` loads per chat, then project, then Leonidas, with a fallback notice. New `replyStyles.list` RPC for the picker card. provider-core tests 234 passed, smoke PASS. Paired AIOS canon commit e04a7f07a.

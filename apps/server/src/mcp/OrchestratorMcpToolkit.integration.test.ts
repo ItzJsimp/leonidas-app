@@ -812,7 +812,7 @@ describe("orchestrator MCP toolkit", () => {
               invokeAs(invocation, name, args);
 
             // Settling would stop the session, so the agent's own turn keeps running.
-            const deferredSettle = yield* invoke("t3_thread_organize", { action: "settle" });
+            const deferredSettle = yield* invoke("leo_thread_organize", { action: "settle" });
             expect(deferredSettle.isError).toBe(false);
             expect(deferredSettle.structuredContent).toEqual({ settlesWhenTurnEnds: true });
             const afterDeferredSettle = yield* orchestrator.getThreadProjection(parentThreadId);
@@ -821,20 +821,21 @@ describe("orchestrator MCP toolkit", () => {
               "running",
             );
 
-            const pinned = yield* invoke("t3_thread_organize", { action: "pin" });
+            const pinned = yield* invoke("leo_thread_organize", { action: "pin" });
             expect(pinned.isError).toBe(false);
             expect(pinned.structuredContent).toHaveProperty("sequence");
             expect((yield* orchestrator.getThreadShell(parentThreadId))?.pinnedAt).not.toBeNull();
-            yield* invoke("t3_thread_organize", { action: "unpin" });
+            yield* invoke("leo_thread_organize", { action: "unpin" });
             expect((yield* orchestrator.getThreadShell(parentThreadId))?.pinnedAt).toBeNull();
 
             if (parentRun === undefined || parentRun.rootNodeId === null) {
               return yield* Effect.die(new Error("Parent run missing."));
             }
-            for (const name of ["t3_queue_edit", "t3_queue_cancel"]) {
-              const refusedQueueMutation = yield* invoke(name, {
+            for (const action of ["edit", "cancel"]) {
+              const refusedQueueMutation = yield* invoke("leo_queue", {
+                action,
                 queuedRunId: parentRun.id,
-                ...(name === "t3_queue_edit" ? { text: "Keep the active turn." } : {}),
+                ...(action === "edit" ? { text: "Keep the active turn." } : {}),
               });
               expect(refusedQueueMutation.isError).toBe(true);
               expect(refusedQueueMutation.structuredContent).toBeUndefined();
@@ -1064,7 +1065,7 @@ describe("orchestrator MCP toolkit", () => {
             expect(completionSteerError._tag).toBe("OrchestratorDispatchError");
 
             for (const taskId of coalescedTaskIds) {
-              const statusCall = yield* invoke("task_status", { taskId });
+              const statusCall = yield* invoke("leo_task_status", { taskId });
               expect(statusCall.isError).toBe(false);
             }
             const acknowledgedCoalesced = yield* waitForProjection(
@@ -1097,7 +1098,7 @@ describe("orchestrator MCP toolkit", () => {
               return yield* Effect.die(new Error("Direct-read child thread missing."));
             }
             const directChildThreadId = directRead.task.childThreadId;
-            const directChildWaitCall = yield* invoke("t3_thread_wait", {
+            const directChildWaitCall = yield* invoke("leo_thread_wait", {
               threadId: directChildThreadId,
               timeoutMs: 10_000,
             });
@@ -1118,7 +1119,7 @@ describe("orchestrator MCP toolkit", () => {
               pendingAfterWait.runs.find((run) => run.id === directRead.queuedRun.id)?.status,
             ).toBe("queued");
 
-            const childPromptReadCall = yield* invoke("t3_thread_read", {
+            const childPromptReadCall = yield* invoke("leo_thread_read", {
               threadId: directChildThreadId,
               limit: 1,
             });
@@ -1135,7 +1136,7 @@ describe("orchestrator MCP toolkit", () => {
               )?.completionDelivery?.state,
             ).toBe("claimed");
 
-            const truncatedResultReadCall = yield* invoke("t3_thread_read", {
+            const truncatedResultReadCall = yield* invoke("leo_thread_read", {
               threadId: directChildThreadId,
               afterPosition: childPromptRead.nextPosition,
               limit: 1,
@@ -1155,7 +1156,7 @@ describe("orchestrator MCP toolkit", () => {
 
             const firstChunk = truncatedResultRead.items[0]!;
             expect(firstChunk.nextTextOffset).toBe(1);
-            const remainderCall = yield* invoke("t3_thread_read", {
+            const remainderCall = yield* invoke("leo_thread_read", {
               threadId: directChildThreadId,
               itemId: firstChunk.itemId,
               textOffset: firstChunk.nextTextOffset,
@@ -1175,7 +1176,7 @@ describe("orchestrator MCP toolkit", () => {
               )?.completionDelivery?.state,
             ).toBe("claimed");
 
-            const terminalResultReadCall = yield* invoke("t3_thread_read", {
+            const terminalResultReadCall = yield* invoke("leo_thread_read", {
               threadId: directChildThreadId,
               afterPosition: childPromptRead.nextPosition,
               limit: 1,
@@ -1217,7 +1218,7 @@ describe("orchestrator MCP toolkit", () => {
             let recovered = "";
             let textOffset: number | null = 0;
             while (textOffset !== null) {
-              const pageCall = yield* invoke("t3_thread_read", {
+              const pageCall = yield* invoke("leo_thread_read", {
                 threadId: directChildThreadId,
                 itemId: oversizedItem.id,
                 textOffset,
@@ -1281,19 +1282,19 @@ describe("orchestrator MCP toolkit", () => {
             if (queuedUserRun === undefined) {
               return yield* Effect.die(new Error("Queued user follow-up missing."));
             }
-            const queueFirstPage = yield* invoke("t3_queue_list", { limit: 1 });
+            const queueFirstPage = yield* invoke("leo_queue_list", { limit: 1 });
             expect(queueFirstPage.isError).toBe(false);
             expect(queueFirstPage.structuredContent).toMatchObject({
               items: [{ queuedRunId: queueRace.queuedRun.id }],
               nextCursor: 1,
             });
-            const queueDefinition = server.tools.find(({ tool }) => tool.name === "t3_queue_list");
+            const queueDefinition = server.tools.find(({ tool }) => tool.name === "leo_queue_list");
             const validateQueue = new AjvJsonSchemaValidator().getValidator(
               queueDefinition!.tool.outputSchema! as JsonSchemaType,
             );
             expect(validateQueue(queueFirstPage.structuredContent).valid).toBe(true);
             const missingThreadId = ThreadId.make("00000000-0000-4000-8000-000000000000");
-            const missingThreadQueue = yield* invoke("t3_queue_list", {
+            const missingThreadQueue = yield* invoke("leo_queue_list", {
               threadId: missingThreadId,
               limit: 1,
             });
@@ -1305,27 +1306,27 @@ describe("orchestrator MCP toolkit", () => {
             });
             expect(missingThreadQueue.structuredContent).toBeUndefined();
             expect(validateQueue({ items: "invalid", nextCursor: null }).valid).toBe(false);
-            const missingThreadRead = yield* invoke("t3_thread_read", {
+            const missingThreadRead = yield* invoke("leo_thread_read", {
               threadId: missingThreadId,
             });
             expect(missingThreadRead.isError).toBe(true);
             expect(declaredFailure(missingThreadRead)).toMatchObject({
               _tag: "OrchestratorMcpFailure",
             });
-            const queueSecondPage = yield* invoke("t3_queue_list", { cursor: 1, limit: 1 });
+            const queueSecondPage = yield* invoke("leo_queue_list", { cursor: 1, limit: 1 });
             expect(queueSecondPage.structuredContent).toEqual({
               items: [{ queuedRunId: queuedUserRun.id, text: "🙂".repeat(1000), truncated: true }],
               nextCursor: null,
             });
-            const queueRead = yield* invoke("t3_queue_read", { queuedRunId: queuedUserRun.id });
+            const queueRead = yield* invoke("leo_queue_read", { queuedRunId: queuedUserRun.id });
             expect(queueRead.structuredContent).toEqual({
               queuedRunId: queuedUserRun.id,
               text: "🙂".repeat(16000),
               truncated: true,
             });
-            const missingQueueRead = yield* invoke("t3_queue_read", { queuedRunId: parentRun.id });
+            const missingQueueRead = yield* invoke("leo_queue_read", { queuedRunId: parentRun.id });
             expect(declaredFailure(missingQueueRead)).toMatchObject({ code: "invalid_request" });
-            const queueRaceStatus = yield* invoke("task_status", { taskId: queueRace.task.id });
+            const queueRaceStatus = yield* invoke("leo_task_status", { taskId: queueRace.task.id });
             expect(queueRaceStatus.isError).toBe(false);
             yield* waitForProjection(
               orchestrator,
@@ -1363,7 +1364,7 @@ describe("orchestrator MCP toolkit", () => {
               modelSelection: codexSelection,
               dispatchMode: { type: "steer_active", targetRunId: parentRun.id },
             });
-            const steerRaceStatus = yield* invoke("task_status", { taskId: steerRace.task.id });
+            const steerRaceStatus = yield* invoke("leo_task_status", { taskId: steerRace.task.id });
             expect(steerRaceStatus.isError).toBe(false);
             const acknowledgedSteerRace = yield* waitForProjection(
               orchestrator,
@@ -1422,7 +1423,7 @@ describe("orchestrator MCP toolkit", () => {
             }
             parentRootNodeId = currentParentRun.rootNodeId;
             expect(currentParentRun.delegatedCompletion?.disposition).toBe("open");
-            const restartRaceStatus = yield* invoke("task_status", {
+            const restartRaceStatus = yield* invoke("leo_task_status", {
               taskId: restartRace.task.id,
             });
             expect(restartRaceStatus.isError).toBe(false);
@@ -1441,27 +1442,27 @@ describe("orchestrator MCP toolkit", () => {
             yield* Ref.set(continuationOffers, []);
 
             const capabilitiesTool = server.tools.find(
-              ({ tool }) => tool.name === "orchestrator_capabilities",
+              ({ tool }) => tool.name === "leo_orchestrator_capabilities",
             );
             expect(capabilitiesTool?.tool.annotations?.readOnlyHint).toBe(true);
             expect(capabilitiesTool?.tool.annotations?.idempotentHint).toBe(true);
-            const delegateTool = server.tools.find(({ tool }) => tool.name === "delegate_task");
+            const delegateTool = server.tools.find(({ tool }) => tool.name === "leo_delegate_task");
             expect(delegateTool?.tool.annotations?.destructiveHint).toBe(true);
             expect(delegateTool?.tool.annotations?.openWorldHint).toBe(true);
-            const taskStatusTool = server.tools.find(({ tool }) => tool.name === "task_status");
+            const taskStatusTool = server.tools.find(({ tool }) => tool.name === "leo_task_status");
             expect(taskStatusTool?.tool.annotations?.readOnlyHint).toBe(false);
             expect(taskStatusTool?.tool.annotations?.idempotentHint).toBe(true);
             const createThreadsTool = server.tools.find(
-              ({ tool }) => tool.name === "create_threads",
+              ({ tool }) => tool.name === "leo_create_threads",
             );
             expect(createThreadsTool?.tool.annotations?.destructiveHint).toBe(true);
-            const threadListTool = server.tools.find(({ tool }) => tool.name === "t3_thread_list");
+            const threadListTool = server.tools.find(({ tool }) => tool.name === "leo_thread_list");
             expect(threadListTool?.tool.annotations?.readOnlyHint).toBe(true);
             expect(threadListTool?.tool.annotations?.idempotentHint).toBe(true);
-            const threadReadTool = server.tools.find(({ tool }) => tool.name === "t3_thread_read");
+            const threadReadTool = server.tools.find(({ tool }) => tool.name === "leo_thread_read");
             expect(threadReadTool?.tool.annotations?.readOnlyHint).toBe(false);
             const threadUpdateTool = server.tools.find(
-              ({ tool }) => tool.name === "t3_thread_update",
+              ({ tool }) => tool.name === "leo_thread_update",
             );
             expect(threadUpdateTool?.tool.annotations?.destructiveHint).toBe(true);
             expect(threadUpdateTool?.tool.annotations?.idempotentHint).toBe(false);
@@ -1475,23 +1476,23 @@ describe("orchestrator MCP toolkit", () => {
             });
             const deniedThreadUpdate = yield* invokeAs(
               { ...invocation, capabilities: new Set() },
-              "t3_thread_update",
+              "leo_thread_update",
               { action: "rename", title: "Denied title" },
             );
             expect(declaredFailure(deniedThreadUpdate)).toMatchObject({
               _tag: "OrchestratorMcpFailure",
               code: "capability_denied",
             });
-            const threadSendTool = server.tools.find(({ tool }) => tool.name === "t3_thread_send");
+            const threadSendTool = server.tools.find(({ tool }) => tool.name === "leo_thread_send");
             expect(threadSendTool?.tool.annotations?.destructiveHint).toBe(true);
-            const threadWaitTool = server.tools.find(({ tool }) => tool.name === "t3_thread_wait");
+            const threadWaitTool = server.tools.find(({ tool }) => tool.name === "leo_thread_wait");
             expect(threadWaitTool?.tool.annotations?.readOnlyHint).toBe(true);
             const threadInterruptTool = server.tools.find(
-              ({ tool }) => tool.name === "t3_thread_interrupt",
+              ({ tool }) => tool.name === "leo_thread_interrupt",
             );
             expect(threadInterruptTool?.tool.annotations?.destructiveHint).toBe(true);
 
-            const capabilities = yield* invoke("orchestrator_capabilities", {});
+            const capabilities = yield* invoke("leo_orchestrator_capabilities", {});
             expect(capabilities.isError).toBe(false);
             expect(capabilities.structuredContent).toMatchObject({
               inheritedProviderInstanceId: codexInstanceId,
@@ -1531,7 +1532,7 @@ describe("orchestrator MCP toolkit", () => {
 
             // Narrowing to one provider returns its option descriptors so agents can
             // discover valid target.options ids and values.
-            const codexCapabilities = yield* invoke("orchestrator_capabilities", {
+            const codexCapabilities = yield* invoke("leo_orchestrator_capabilities", {
               providerInstanceId: codexInstanceId,
             });
             expect(codexCapabilities.isError).toBe(false);
@@ -1550,9 +1551,9 @@ describe("orchestrator MCP toolkit", () => {
             });
             expect(codexCapabilities.structuredContent).not.toHaveProperty("modelOptionsOmitted");
 
-            const scheduleTool = server.tools.find(({ tool }) => tool.name === "schedule_task");
+            const scheduleTool = server.tools.find(({ tool }) => tool.name === "leo_schedule_task");
             expect(scheduleTool?.tool.annotations?.destructiveHint).toBe(true);
-            const scheduleCall = yield* invoke("schedule_task", {
+            const scheduleCall = yield* invoke("leo_schedule_task", {
               prompt: "wake up in this thread and say hello",
               schedule: { type: "interval", everyMs: 60_000 },
               clientRequestId: "schedule-hello-1",
@@ -1581,7 +1582,7 @@ describe("orchestrator MCP toolkit", () => {
             });
 
             // list_scheduled_tasks returns the task scoped to this project.
-            const scheduledListCall = yield* invoke("list_scheduled_tasks", {});
+            const scheduledListCall = yield* invoke("leo_list_scheduled_tasks", {});
             expect(scheduledListCall.isError).toBe(false);
             expect(scheduledListCall.structuredContent).toMatchObject({
               tasks: [{ scheduledTaskId, boundThreadId: parentThreadId }],
@@ -1599,7 +1600,9 @@ describe("orchestrator MCP toolkit", () => {
             });
 
             // delete_scheduled_task removes it entirely.
-            const scheduledDeleteCall = yield* invoke("delete_scheduled_task", { scheduledTaskId });
+            const scheduledDeleteCall = yield* invoke("leo_delete_scheduled_task", {
+              scheduledTaskId,
+            });
             expect(scheduledDeleteCall.isError).toBe(false);
             expect(scheduledDeleteCall.structuredContent).toMatchObject({
               scheduledTaskId,
@@ -1610,7 +1613,7 @@ describe("orchestrator MCP toolkit", () => {
             // OpenCode 1.15 has emitted this exact nested-object-as-JSON-string
             // shape. Decode it at the MCP boundary rather than failing a task
             // the model otherwise specified correctly.
-            const serializedScheduleCall = yield* invoke("schedule_task", {
+            const serializedScheduleCall = yield* invoke("leo_schedule_task", {
               prompt: "check for new pull requests",
               schedule: '{"type":"interval","everyMs":3600000}',
               clientRequestId: "schedule-opencode-compat-1",
@@ -1623,7 +1626,7 @@ describe("orchestrator MCP toolkit", () => {
             const serializedScheduledTaskId = (
               serializedScheduleCall.structuredContent as { scheduledTaskId: string }
             ).scheduledTaskId;
-            yield* invoke("delete_scheduled_task", {
+            yield* invoke("leo_delete_scheduled_task", {
               scheduledTaskId: serializedScheduledTaskId,
             });
             expect(yield* Ref.get(scheduledStore)).toHaveLength(0);
@@ -1632,7 +1635,7 @@ describe("orchestrator MCP toolkit", () => {
             // returns a one-use ref, never the value, which a signed webhook
             // task then consumes.
             const secretRequests = yield* SecretRequests.SecretRequests;
-            const secretFiber = yield* invoke("request_secret", {
+            const secretFiber = yield* invoke("leo_request_secret", {
               label: "GitHub webhook secret",
               reason: "Signs release webhooks. Enter the same value in GitHub's webhook settings.",
               placeholder: "Paste the webhook secret",
@@ -1712,7 +1715,7 @@ describe("orchestrator MCP toolkit", () => {
 
             // A retry that lost the first result gets the same answer, with no
             // second card for the user.
-            const retried = yield* invoke("request_secret", {
+            const retried = yield* invoke("leo_request_secret", {
               label: "GitHub webhook secret",
               reason: "Signs release webhooks. Enter the same value in GitHub's webhook settings.",
               clientRequestId: "release-webhook-secret",
@@ -1736,7 +1739,7 @@ describe("orchestrator MCP toolkit", () => {
               .pipe(Effect.flip);
             expect(reused.message).toContain("already used");
 
-            const delegatedCall = yield* invoke("delegate_task", {
+            const delegatedCall = yield* invoke("leo_delegate_task", {
               task: delegatedPrompt,
               target: {
                 providerInstanceId: claudeInstanceId,
@@ -1831,7 +1834,7 @@ describe("orchestrator MCP toolkit", () => {
               ),
             ).toBe(false);
 
-            const delegatedStatusCall = yield* invoke("task_status", {
+            const delegatedStatusCall = yield* invoke("leo_task_status", {
               taskId: delegated.taskId,
             });
             const delegatedStatus = yield* decodeDelegateTaskResult(
@@ -1867,7 +1870,7 @@ describe("orchestrator MCP toolkit", () => {
             // Wait-mode completion already returned its result while the parent was live.
             yield* expectOffersToStay(0);
 
-            const childFollowupCall = yield* invoke("t3_thread_send", {
+            const childFollowupCall = yield* invoke("leo_thread_send", {
               threadId: delegated.childThreadId,
               message: "Confirm the delegated API boundary remains inspected.",
               clientRequestId: "delegated-child-followup-1",
@@ -1875,7 +1878,7 @@ describe("orchestrator MCP toolkit", () => {
             const childFollowup = yield* decodeThreadSendResult(
               childFollowupCall.structuredContent,
             ).pipe(Effect.orDie);
-            const childFollowupWaitCall = yield* invoke("t3_thread_wait", {
+            const childFollowupWaitCall = yield* invoke("leo_thread_wait", {
               threadId: delegated.childThreadId,
               runId: childFollowup.runId,
               timeoutMs: 10_000,
@@ -1888,7 +1891,7 @@ describe("orchestrator MCP toolkit", () => {
               status: "completed",
               timedOut: false,
             });
-            const delegatedStatusAfterFollowupCall = yield* invoke("task_status", {
+            const delegatedStatusAfterFollowupCall = yield* invoke("leo_task_status", {
               taskId: delegated.taskId,
             });
             const delegatedStatusAfterFollowup = yield* decodeDelegateTaskResult(
@@ -1904,7 +1907,7 @@ describe("orchestrator MCP toolkit", () => {
             });
             expect(delegatedStatusAfterFollowup.latestTerminalSummary).not.toBeNull();
 
-            const activeChildFollowupCall = yield* invoke("t3_thread_send", {
+            const activeChildFollowupCall = yield* invoke("leo_thread_send", {
               threadId: delegated.childThreadId,
               message: cancellationPrompt,
               clientRequestId: "delegated-child-active-followup-1",
@@ -1917,7 +1920,7 @@ describe("orchestrator MCP toolkit", () => {
                 (run) => run.id === activeChildFollowup.runId && run.status === "running",
               ),
             );
-            const delegatedStatusDuringFollowupCall = yield* invoke("task_status", {
+            const delegatedStatusDuringFollowupCall = yield* invoke("leo_task_status", {
               taskId: delegated.taskId,
             });
             const delegatedStatusDuringFollowup = yield* decodeDelegateTaskResult(
@@ -1968,7 +1971,7 @@ describe("orchestrator MCP toolkit", () => {
                 legacyDelegatedRun,
               ),
             ).toBe(false);
-            const completedTaskCancelCall = yield* invoke("task_cancel", {
+            const completedTaskCancelCall = yield* invoke("leo_task_cancel", {
               taskId: delegated.taskId,
               reason: "Stop the child's later work too.",
               clientRequestId: "cancel-completed-delegated-task-1",
@@ -1994,7 +1997,7 @@ describe("orchestrator MCP toolkit", () => {
                 (run) => run.id === activeChildFollowup.runId && run.status === "interrupted",
               ),
             );
-            const delegatedStatusAfterCancelCall = yield* invoke("task_status", {
+            const delegatedStatusAfterCancelCall = yield* invoke("leo_task_status", {
               taskId: delegated.taskId,
             });
             const delegatedStatusAfterCancel = yield* decodeDelegateTaskResult(
@@ -2014,11 +2017,11 @@ describe("orchestrator MCP toolkit", () => {
             expect(activeChildFollowup.taskId).toBeDefined();
             yield* waitForContinuationOffers(2);
             yield* expectOffersToStay(2);
-            yield* invoke("task_status", { taskId: childFollowup.taskId });
-            yield* invoke("task_status", { taskId: activeChildFollowup.taskId });
+            yield* invoke("leo_task_status", { taskId: childFollowup.taskId });
+            yield* invoke("leo_task_status", { taskId: activeChildFollowup.taskId });
             yield* Ref.set(continuationOffers, []);
 
-            const repeatedDelegatedCall = yield* invoke("delegate_task", {
+            const repeatedDelegatedCall = yield* invoke("leo_delegate_task", {
               task: delegatedPrompt,
               target: {
                 providerInstanceId: claudeInstanceId,
@@ -2039,7 +2042,7 @@ describe("orchestrator MCP toolkit", () => {
 
             // Options outside the model's advertised descriptors are rejected
             // before any child thread is created.
-            const rejectedOptionsCall = yield* invoke("delegate_task", {
+            const rejectedOptionsCall = yield* invoke("leo_delegate_task", {
               task: cancellationPrompt,
               target: {
                 providerInstanceId: codexInstanceId,
@@ -2057,7 +2060,7 @@ describe("orchestrator MCP toolkit", () => {
 
             // Duplicate option ids fail fast: downstream consumers disagree on
             // whether the first or last value of a duplicated id wins.
-            const duplicateOptionsCall = yield* invoke("delegate_task", {
+            const duplicateOptionsCall = yield* invoke("leo_delegate_task", {
               task: cancellationPrompt,
               target: {
                 providerInstanceId: codexInstanceId,
@@ -2076,7 +2079,7 @@ describe("orchestrator MCP toolkit", () => {
               message: expect.stringContaining("more than once"),
             });
 
-            const cancellableCall = yield* invoke("delegate_task", {
+            const cancellableCall = yield* invoke("leo_delegate_task", {
               task: cancellationPrompt,
               target: {
                 providerInstanceId: codexInstanceId,
@@ -2096,7 +2099,7 @@ describe("orchestrator MCP toolkit", () => {
             yield* waitForProjection(orchestrator, cancellable.childThreadId, (projection) =>
               projection.providerTurns.some((turn) => turn.status === "running"),
             );
-            const statusWhileOriginalRunningCall = yield* invoke("task_status", {
+            const statusWhileOriginalRunningCall = yield* invoke("leo_task_status", {
               taskId: cancellable.taskId,
             });
             const statusWhileOriginalRunning = yield* decodeDelegateTaskResult(
@@ -2118,7 +2121,7 @@ describe("orchestrator MCP toolkit", () => {
               model: codexModel,
               options: [{ id: "reasoning", value: "low" }],
             });
-            const cancelCall = yield* invoke("task_cancel", {
+            const cancelCall = yield* invoke("leo_task_cancel", {
               taskId: cancellable.taskId,
               reason: "Parent no longer needs this work.",
               clientRequestId: "cancel-1",
@@ -2130,7 +2133,7 @@ describe("orchestrator MCP toolkit", () => {
             yield* waitForProjection(orchestrator, cancellable.childThreadId, (projection) =>
               projection.runs.some((run) => run.status === "interrupted"),
             );
-            const cancelledStatusCall = yield* invoke("task_status", {
+            const cancelledStatusCall = yield* invoke("leo_task_status", {
               taskId: cancellable.taskId,
             });
             const cancelledStatus = yield* decodeDelegateTaskResult(
@@ -2163,7 +2166,7 @@ describe("orchestrator MCP toolkit", () => {
                 },
               ],
             };
-            const createCall = yield* invoke("create_threads", createInput);
+            const createCall = yield* invoke("leo_create_threads", createInput);
             expect(createCall.isError).toBe(false);
             const created = yield* decodeCreateThreadsResult(createCall.structuredContent).pipe(
               Effect.orDie,
@@ -2206,7 +2209,7 @@ describe("orchestrator MCP toolkit", () => {
             expect(emptyProjection.thread.forkedFrom).toBeNull();
             expect(emptyProjection.runs).toEqual([]);
 
-            const defaultRenameCall = yield* invoke("t3_thread_update", {
+            const defaultRenameCall = yield* invoke("leo_thread_update", {
               action: "rename",
               title: "MCP parent metadata",
               clientRequestId: "metadata-default-thread-1",
@@ -2220,7 +2223,7 @@ describe("orchestrator MCP toolkit", () => {
               title: "MCP parent metadata",
             });
 
-            const renameCall = yield* invoke("t3_thread_update", {
+            const renameCall = yield* invoke("leo_thread_update", {
               threadId: emptyThread.threadId,
               action: "rename",
               title: "Metadata-managed thread",
@@ -2235,7 +2238,7 @@ describe("orchestrator MCP toolkit", () => {
               title: "Metadata-managed thread",
               linkedPullRequest: null,
             });
-            const repeatedRenameCall = yield* invoke("t3_thread_update", {
+            const repeatedRenameCall = yield* invoke("leo_thread_update", {
               threadId: emptyThread.threadId,
               action: "rename",
               title: "Metadata-managed thread",
@@ -2247,9 +2250,9 @@ describe("orchestrator MCP toolkit", () => {
             expect(repeatedRename.commandId).toBe(renamed.commandId);
             expect(repeatedRename.sequence).toBe(renamed.sequence);
 
-            const linkedCall = yield* invoke("t3_thread_update", {
+            const linkedCall = yield* invoke("leo_thread_update", {
               threadId: emptyThread.threadId,
-              action: "link_pull_request",
+              action: "leo_link_pull_request",
               pullRequest: {
                 repository: "pingdotgg/t3code",
                 number: 8689,
@@ -2266,7 +2269,7 @@ describe("orchestrator MCP toolkit", () => {
               number: 8689,
               url: "https://github.com/pingdotgg/t3code/pull/8689",
             });
-            const metadataReadCall = yield* invoke("t3_thread_read", {
+            const metadataReadCall = yield* invoke("leo_thread_read", {
               threadId: emptyThread.threadId,
             });
             const metadataRead = yield* decodeThreadReadResult(
@@ -2276,7 +2279,7 @@ describe("orchestrator MCP toolkit", () => {
               title: "Metadata-managed thread",
               linkedPullRequest: linked.linkedPullRequest,
             });
-            const metadataListCall = yield* invoke("t3_thread_list", { limit: 100 });
+            const metadataListCall = yield* invoke("leo_thread_list", { limit: 100 });
             const metadataList = yield* decodeThreadListResult(
               metadataListCall.structuredContent,
             ).pipe(Effect.orDie);
@@ -2296,7 +2299,7 @@ describe("orchestrator MCP toolkit", () => {
               threadId: emptyThread.threadId,
               settledAt: DateTime.makeUnsafe("2026-01-01T00:00:00.000Z"),
             });
-            const settledReadCall = yield* invoke("t3_thread_read", {
+            const settledReadCall = yield* invoke("leo_thread_read", {
               threadId: emptyThread.threadId,
             });
             const settledRead = yield* decodeThreadReadResult(
@@ -2306,7 +2309,7 @@ describe("orchestrator MCP toolkit", () => {
               settled: true,
               settledAt: "2026-01-01T00:00:00.000Z",
             });
-            const settledListCall = yield* invoke("t3_thread_list", { settled: true, limit: 100 });
+            const settledListCall = yield* invoke("leo_thread_list", { settled: true, limit: 100 });
             const settledList = yield* decodeThreadListResult(
               settledListCall.structuredContent,
             ).pipe(Effect.orDie);
@@ -2317,7 +2320,7 @@ describe("orchestrator MCP toolkit", () => {
               settled: true,
               settledAt: "2026-01-01T00:00:00.000Z",
             });
-            const activeListCall = yield* invoke("t3_thread_list", { settled: false, limit: 100 });
+            const activeListCall = yield* invoke("leo_thread_list", { settled: false, limit: 100 });
             const activeList = yield* decodeThreadListResult(activeListCall.structuredContent).pipe(
               Effect.orDie,
             );
@@ -2338,7 +2341,7 @@ describe("orchestrator MCP toolkit", () => {
               threadId: emptyThread.threadId,
               snoozedUntil: "2099-01-01T00:00:00.000Z",
             });
-            const snoozedListCall = yield* invoke("t3_thread_list", { snoozed: true, limit: 100 });
+            const snoozedListCall = yield* invoke("leo_thread_list", { snoozed: true, limit: 100 });
             const snoozedList = yield* decodeThreadListResult(
               snoozedListCall.structuredContent,
             ).pipe(Effect.orDie);
@@ -2349,7 +2352,7 @@ describe("orchestrator MCP toolkit", () => {
               snoozed: true,
               snoozedUntil: "2099-01-01T00:00:00.000Z",
             });
-            const snoozedReadCall = yield* invoke("t3_thread_read", {
+            const snoozedReadCall = yield* invoke("leo_thread_read", {
               threadId: emptyThread.threadId,
             });
             const snoozedRead = yield* decodeThreadReadResult(
@@ -2366,9 +2369,9 @@ describe("orchestrator MCP toolkit", () => {
               reason: "user",
             });
 
-            const unlinkedCall = yield* invoke("t3_thread_update", {
+            const unlinkedCall = yield* invoke("leo_thread_update", {
               threadId: emptyThread.threadId,
-              action: "unlink_pull_request",
+              action: "leo_unlink_pull_request",
               clientRequestId: "metadata-unlink-1",
             });
             const unlinked = yield* decodeThreadUpdateResult(unlinkedCall.structuredContent).pipe(
@@ -2376,7 +2379,7 @@ describe("orchestrator MCP toolkit", () => {
             );
             expect(unlinked.linkedPullRequest).toBeNull();
 
-            const regenerateCall = yield* invoke("t3_thread_update", {
+            const regenerateCall = yield* invoke("leo_thread_update", {
               threadId: emptyThread.threadId,
               action: "regenerate_title",
               clientRequestId: "metadata-regenerate-title-1",
@@ -2430,7 +2433,7 @@ describe("orchestrator MCP toolkit", () => {
               },
             ]);
 
-            const repeatedCreateCall = yield* invoke("create_threads", createInput);
+            const repeatedCreateCall = yield* invoke("leo_create_threads", createInput);
             const repeatedCreated = yield* decodeCreateThreadsResult(
               repeatedCreateCall.structuredContent,
             ).pipe(Effect.orDie);
@@ -2447,7 +2450,7 @@ describe("orchestrator MCP toolkit", () => {
               ),
             ).toHaveLength(2);
 
-            const promptedReadCall = yield* invoke("t3_thread_read", {
+            const promptedReadCall = yield* invoke("leo_thread_read", {
               threadId: promptedThread.threadId,
               limit: 1,
             });
@@ -2465,7 +2468,7 @@ describe("orchestrator MCP toolkit", () => {
               creationSource: "mcp",
             });
             expect(promptedRead.hasMore).toBe(true);
-            const promptedReadNextCall = yield* invoke("t3_thread_read", {
+            const promptedReadNextCall = yield* invoke("leo_thread_read", {
               threadId: promptedThread.threadId,
               afterPosition: promptedRead.nextPosition,
               limit: 1,
@@ -2499,7 +2502,7 @@ describe("orchestrator MCP toolkit", () => {
               ),
             ).toBe(true);
 
-            const forkedReadCall = yield* invoke("t3_thread_read", {
+            const forkedReadCall = yield* invoke("leo_thread_read", {
               threadId: forkedThreadId,
             });
             const forkedRead = yield* decodeThreadReadResult(forkedReadCall.structuredContent).pipe(
@@ -2514,7 +2517,7 @@ describe("orchestrator MCP toolkit", () => {
             });
 
             const ordinaryLoopPrompt = "Run an ordinary thread loop iteration.";
-            const sendCall = yield* invoke("t3_thread_send", {
+            const sendCall = yield* invoke("leo_thread_send", {
               threadId: emptyThread.threadId,
               message: ordinaryLoopPrompt,
               clientRequestId: "ordinary-loop-send-1",
@@ -2536,7 +2539,7 @@ describe("orchestrator MCP toolkit", () => {
               senderThreadId: parentThreadId,
             });
             expect(sent.delivery).toBe("started");
-            const waitCall = yield* invoke("t3_thread_wait", {
+            const waitCall = yield* invoke("leo_thread_wait", {
               threadId: emptyThread.threadId,
               runId: sent.runId,
               timeoutMs: 10_000,
@@ -2549,7 +2552,7 @@ describe("orchestrator MCP toolkit", () => {
               status: "completed",
               timedOut: false,
             });
-            const repeatedSendCall = yield* invoke("t3_thread_send", {
+            const repeatedSendCall = yield* invoke("leo_thread_send", {
               threadId: emptyThread.threadId,
               message: ordinaryLoopPrompt,
               clientRequestId: "ordinary-loop-send-1",
@@ -2562,7 +2565,7 @@ describe("orchestrator MCP toolkit", () => {
               (yield* orchestrator.getThreadProjection(emptyThread.threadId)).runs,
             ).toHaveLength(1);
 
-            const activeThreadCall = yield* invoke("create_threads", {
+            const activeThreadCall = yield* invoke("leo_create_threads", {
               threads: [{ prompt: cancellationPrompt, title: "Managed active thread" }],
               clientRequestId: "managed-active-thread-1",
             });
@@ -2593,7 +2596,7 @@ describe("orchestrator MCP toolkit", () => {
                 projection.providerTurns.some((turn) => turn.status === "running"),
             );
             const activeRun = activeProjection.runs[0]!;
-            const activeTimeoutCall = yield* invoke("t3_thread_wait", {
+            const activeTimeoutCall = yield* invoke("leo_thread_wait", {
               threadId: activeThread.threadId,
               runId: activeRun.id,
               timeoutMs: 1,
@@ -2606,7 +2609,7 @@ describe("orchestrator MCP toolkit", () => {
               status: "running",
               timedOut: true,
             });
-            const steerCall = yield* invoke("t3_thread_send", {
+            const steerCall = yield* invoke("leo_thread_send", {
               threadId: activeThread.threadId,
               message: "Include the latest parent guidance before finishing.",
               mode: "steer",
@@ -2632,7 +2635,7 @@ describe("orchestrator MCP toolkit", () => {
             ).toMatchObject({
               senderThreadId: parentThreadId,
             });
-            const interruptCall = yield* invoke("t3_thread_interrupt", {
+            const interruptCall = yield* invoke("leo_thread_interrupt", {
               threadId: activeThread.threadId,
               reason: "The orchestration loop has enough evidence.",
               clientRequestId: "managed-active-interrupt-1",
@@ -2644,7 +2647,7 @@ describe("orchestrator MCP toolkit", () => {
               runId: activeRun.id,
               status: "interrupt_requested",
             });
-            const interruptedWaitCall = yield* invoke("t3_thread_wait", {
+            const interruptedWaitCall = yield* invoke("leo_thread_wait", {
               threadId: activeThread.threadId,
               runId: activeRun.id,
               timeoutMs: 10_000,
@@ -2653,7 +2656,7 @@ describe("orchestrator MCP toolkit", () => {
               interruptedWaitCall.structuredContent,
             ).pipe(Effect.orDie);
             expect(interruptedWait.status).toBe("interrupted");
-            const repeatedInterruptCall = yield* invoke("t3_thread_interrupt", {
+            const repeatedInterruptCall = yield* invoke("leo_thread_interrupt", {
               threadId: activeThread.threadId,
               runId: activeRun.id,
             });
@@ -2678,20 +2681,20 @@ describe("orchestrator MCP toolkit", () => {
               worktreePath: cwd,
             });
             // Targets reach the whole environment; the caller's modes still cap writes.
-            const foreignOrganizeCall = yield* invoke("t3_thread_organize", {
+            const foreignOrganizeCall = yield* invoke("leo_thread_organize", {
               threadId: foreignThreadId,
               action: "pin",
             });
             expect(foreignOrganizeCall.isError).toBe(false);
             expect((yield* orchestrator.getThreadShell(foreignThreadId))?.pinnedAt).not.toBeNull();
 
-            const foreignReadCall = yield* invoke("t3_thread_read", {
+            const foreignReadCall = yield* invoke("leo_thread_read", {
               threadId: foreignThreadId,
             });
             expect(foreignReadCall.structuredContent).toMatchObject({
               thread: { threadId: foreignThreadId, projectId: "project:mcp-foreign" },
             });
-            const foreignUpdateCall = yield* invoke("t3_thread_update", {
+            const foreignUpdateCall = yield* invoke("leo_thread_update", {
               threadId: foreignThreadId,
               action: "rename",
               title: "Renamed from another project",
@@ -2700,7 +2703,7 @@ describe("orchestrator MCP toolkit", () => {
               threadId: foreignThreadId,
               title: "Renamed from another project",
             });
-            const foreignListCall = yield* invoke("t3_thread_list", {
+            const foreignListCall = yield* invoke("leo_thread_list", {
               projectId: "project:mcp-foreign",
             });
             const foreignListed = yield* decodeThreadListResult(
@@ -2709,7 +2712,7 @@ describe("orchestrator MCP toolkit", () => {
             expect(foreignListed.threads.map((thread) => thread.threadId)).toEqual([
               foreignThreadId,
             ]);
-            const listCall = yield* invoke("t3_thread_list", {
+            const listCall = yield* invoke("leo_thread_list", {
               includeSubagents: false,
               limit: 100,
             });
@@ -2741,7 +2744,7 @@ describe("orchestrator MCP toolkit", () => {
             // A wait-mode delegation whose blocking wait times out no longer
             // owns delivery, so delegate_task upgrades the task to "always".
             // Its terminal then wakes the parent even mid-turn.
-            const upgradedCall = yield* invoke("delegate_task", {
+            const upgradedCall = yield* invoke("leo_delegate_task", {
               task: cancellationPrompt,
               target: {
                 providerInstanceId: codexInstanceId,
@@ -2763,7 +2766,7 @@ describe("orchestrator MCP toolkit", () => {
                 (task) => task.id === upgradedDelegated.taskId,
               )?.completionWake,
             ).toBe("always");
-            const upgradeCancelCall = yield* invoke("task_cancel", {
+            const upgradeCancelCall = yield* invoke("leo_task_cancel", {
               taskId: upgradedDelegated.taskId,
               reason: "Terminalize while the parent run is live.",
               clientRequestId: "cancel-wait-upgrade-1",
@@ -3994,7 +3997,7 @@ describe("orchestrator MCP toolkit", () => {
 
           const delegationStartSequence =
             yield* orchestrator.getThreadEventSequence(parentThreadId);
-          const delegatedCall = yield* invoke("delegate_task", {
+          const delegatedCall = yield* invoke("leo_delegate_task", {
             task: delegatedPrompt,
             target: {
               providerInstanceId: codexInstanceId,
@@ -4028,7 +4031,7 @@ describe("orchestrator MCP toolkit", () => {
                 }),
               ),
             );
-          const delegatedStatusCall = yield* invoke("task_status", {
+          const delegatedStatusCall = yield* invoke("leo_task_status", {
             taskId: delegatedStart.taskId,
           });
           const delegated = yield* decodeDelegateTaskResult(
@@ -4056,7 +4059,7 @@ describe("orchestrator MCP toolkit", () => {
           const followupStartSequence = yield* orchestrator.getThreadEventSequence(
             delegated.childThreadId,
           );
-          const runningFollowupCall = yield* invoke("t3_thread_send", {
+          const runningFollowupCall = yield* invoke("leo_thread_send", {
             threadId: delegated.childThreadId,
             message: cancellationPrompt,
             clientRequestId: "delegated-child-replay-running-1",
@@ -4084,7 +4087,7 @@ describe("orchestrator MCP toolkit", () => {
               ),
             );
 
-          const queuedFollowupCall = yield* invoke("t3_thread_send", {
+          const queuedFollowupCall = yield* invoke("leo_thread_send", {
             threadId: delegated.childThreadId,
             message: queuedFollowupPrompt,
             mode: "queue",
@@ -4128,7 +4131,7 @@ describe("orchestrator MCP toolkit", () => {
             ),
           ).toBe(true);
 
-          const pendingStatusCall = yield* invoke("task_status", {
+          const pendingStatusCall = yield* invoke("leo_task_status", {
             taskId: delegated.taskId,
           });
           const pendingStatus = yield* decodeDelegateTaskResult(
@@ -4147,7 +4150,7 @@ describe("orchestrator MCP toolkit", () => {
           });
 
           const finalSequence = yield* orchestrator.getThreadEventSequence(delegated.childThreadId);
-          const interruptCall = yield* invoke("t3_thread_interrupt", {
+          const interruptCall = yield* invoke("leo_thread_interrupt", {
             threadId: delegated.childThreadId,
             runId: runningFollowup.runId,
             reason: "Allow the queued replay follow-up to run.",
@@ -4229,7 +4232,7 @@ describe("orchestrator MCP toolkit", () => {
             finishedParent.subagents.find((task) => task.id === followupTasks[1]!.id)
               ?.completionDelivery?.state,
           ).toBe("claimed");
-          const finalStatusCall = yield* invoke("task_status", {
+          const finalStatusCall = yield* invoke("leo_task_status", {
             taskId: delegated.taskId,
           });
           const finalStatus = yield* decodeDelegateTaskResult(
@@ -4246,7 +4249,7 @@ describe("orchestrator MCP toolkit", () => {
             latestTerminalSummary: queuedFollowupResult,
           });
           expect(finalStatus.latestTerminalResultContextTransferId).not.toBeNull();
-          const read = yield* invoke("t3_thread_read", {
+          const read = yield* invoke("leo_thread_read", {
             threadId: delegated.childThreadId,
             limit: 100,
           });

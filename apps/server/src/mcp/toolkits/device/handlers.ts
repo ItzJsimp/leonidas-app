@@ -27,7 +27,7 @@ export function agentDeviceTargetArgs(device: DeviceSummary): ReadonlyArray<stri
 }
 
 /**
- * Just-in-time guidance returned from `device_open`. This is the one place
+ * Just-in-time guidance returned from `leo_device_open`. This is the one place
  * the agent learns how to drive the device, so it lives with the tool result
  * rather than in the always-on prompt block; threads that never open a device
  * never pay for it.
@@ -120,7 +120,7 @@ const pickDevice = (
 const toolError = (error: DeviceError | DeviceToolUnavailableError) => error;
 
 const handlers = {
-  device_list: McpToolAccess.readsAsCaller((input) =>
+  leo_device_list: McpToolAccess.readsAsCaller((input) =>
     Effect.gen(function* () {
       const scope = yield* requireDeviceAccess;
       const devices = yield* DeviceService.DeviceService;
@@ -147,7 +147,7 @@ const handlers = {
       };
     }).pipe(Effect.mapError(toolError)),
   ),
-  device_open: McpToolAccess.actsAsCaller((input) =>
+  leo_device_open: McpToolAccess.actsAsCaller((input) =>
     Effect.gen(function* () {
       const scope = yield* requireDeviceAccess;
       const devices = yield* DeviceService.DeviceService;
@@ -206,7 +206,7 @@ const handlers = {
       };
     }).pipe(Effect.mapError(toolError)),
   ),
-  device_screenshot: McpToolAccess.readsAsCaller((input) =>
+  leo_device_screenshot: McpToolAccess.readsAsCaller((input) =>
     Effect.gen(function* () {
       const scope = yield* requireDeviceAccess;
       const devices = yield* DeviceService.DeviceService;
@@ -238,7 +238,7 @@ const handlers = {
       };
     }).pipe(Effect.mapError(toolError)),
   ),
-  device_close: McpToolAccess.actsAsCaller((input) =>
+  leo_device_close: McpToolAccess.actsAsCaller((input) =>
     Effect.gen(function* () {
       const scope = yield* requireDeviceAccess;
       const devices = yield* DeviceService.DeviceService;
@@ -266,10 +266,10 @@ export function pngDimensions(png: Uint8Array): { width: number; height: number 
     : { width: 0, height: 0 };
 }
 
-const { device_screenshot, ...standardHandlers } = handlers;
+const { leo_device_screenshot, ...standardHandlers } = handlers;
 
 export const layerStandard = McpToolAccess.toLayer(DeviceStandardToolkit, standardHandlers);
 
 export const layerScreenshot = McpToolAccess.toLayer(DeviceScreenshotToolkit, {
-  device_screenshot,
+  leo_device_screenshot,
 });

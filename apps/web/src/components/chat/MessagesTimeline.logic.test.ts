@@ -181,7 +181,7 @@ describe("work entry labels", () => {
       toolLifecycleStatus,
       structuredPayload: {
         type: "dynamic_tool",
-        toolName: "t3-code.t3_thread_read",
+        toolName: "leonidas.leo_thread_read",
         input: { threadId: " thread-child ", view: "activity" },
       } as never,
     };
@@ -194,9 +194,9 @@ describe("work entry labels", () => {
     const payload = (toolName: string, input: unknown) => ({
       structuredPayload: { type: "dynamic_tool", toolName, input } as never,
     });
-    expect(threadReadTargetId(payload("t3-code.t3_thread_wait", { threadId: "t" }))).toBeNull();
-    expect(threadReadTargetId(payload("t3-code.t3_thread_read", { threadId: "  " }))).toBeNull();
-    expect(threadReadTargetId(payload("t3-code.t3_thread_read", null))).toBeNull();
+    expect(threadReadTargetId(payload("leonidas.leo_thread_wait", { threadId: "t" }))).toBeNull();
+    expect(threadReadTargetId(payload("leonidas.leo_thread_read", { threadId: "  " }))).toBeNull();
+    expect(threadReadTargetId(payload("leonidas.leo_thread_read", null))).toBeNull();
   });
 
   it("uses the active summary state for legacy tools without a lifecycle status", () => {
@@ -788,7 +788,7 @@ describe("deriveMessagesTimelineRows", () => {
         id: TurnItemId.make("list"),
         status: "completed",
         title: "Custom provider title",
-        toolName: "T3-code.t3_project_list",
+        toolName: "T3-code.leo_project_list",
         input: {},
         output: { projects: [] },
       },
@@ -808,7 +808,7 @@ describe("deriveMessagesTimelineRows", () => {
         id: TurnItemId.make("failed-clone"),
         status: "completed",
         title: "Custom provider title",
-        toolName: "t3_project_clone",
+        toolName: "leo_project_clone",
         input: {},
         output: { isError: true },
       },
@@ -3246,7 +3246,7 @@ describe("deriveMessagesTimelineRows", () => {
           toolCallId: `call-${index}`,
           createdAt,
           runId,
-          label: "t3-code.preview_snapshot",
+          label: "leonidas.leo_preview_snapshot",
           tone: "tool" as const,
           toolLifecycleStatus:
             isWorking && index === 999 ? ("inProgress" as const) : ("completed" as const),
@@ -3609,14 +3609,14 @@ describe("computeStableMessagesTimelineRows", () => {
 
 describe("resolveTimelineToolPresentation", () => {
   it("pretty prints Claude and Cursor T3 MCP tool names", () => {
-    expect(resolveTimelineToolPresentation("mcp__t3-code__t3_thread_read")).toEqual({
+    expect(resolveTimelineToolPresentation("mcp__leonidas__leo_thread_read")).toEqual({
       displayName: "Read a chat",
       logo: "t3-code",
     });
   });
 
   it("pretty prints Codex T3 MCP tool names", () => {
-    expect(resolveTimelineToolPresentation("t3-code.create_threads")).toEqual({
+    expect(resolveTimelineToolPresentation("leonidas.leo_create_threads")).toEqual({
       displayName: "Create chats",
       logo: "t3-code",
     });
@@ -4662,7 +4662,7 @@ describe("linked timeline resources", () => {
               runId,
               type: "dynamic_tool",
               status: failed ? "failed" : status,
-              toolName: "t3-code.delegate_task",
+              toolName: "leonidas.leo_delegate_task",
               input: { task: taskId === "b" ? "a" : taskId, role },
               ...(status === "completed"
                 ? {

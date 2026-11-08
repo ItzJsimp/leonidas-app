@@ -17,6 +17,7 @@ import { OrchestratorMcpFailure, PreviewAutomationError } from "@t3tools/contrac
 
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
+import * as LegacyToolNames from "./LegacyToolNames.ts";
 import * as LocalVmService from "../localVm/LocalVmService.ts";
 import * as LocalVmHandlers from "./toolkits/localVm/handlers.ts";
 import {
@@ -174,7 +175,7 @@ const makeMcpAuthMiddleware = Effect.gen(function* () {
         : undefined);
     if (!invocation) {
       // Without this the only symptom of a dead credential is the agent
-      // quietly losing the whole `t3-code` toolkit for the rest of its
+      // quietly losing the whole `leonidas` toolkit for the rest of its
       // session, with nothing on the server to explain why.
       yield* Effect.logWarning("rejected MCP request with an unusable credential", {
         reason: token.length === 0 ? "missing_bearer_token" : "unknown_or_expired_token",
@@ -185,7 +186,7 @@ const makeMcpAuthMiddleware = Effect.gen(function* () {
         offerOAuth: Option.isSome(clients) && !looksLikeProviderToken(token),
       });
     }
-    return yield* httpEffect.pipe(
+    return yield* LegacyToolNames.withCurrentToolNames(request, httpEffect).pipe(
       Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
       Effect.map(normalizeMcpHttpResponse),
     );
@@ -494,7 +495,7 @@ const registerPreviewSnapshot = Effect.fn("McpHttpServer.registerPreviewSnapshot
           fiber.context,
           McpInvocationContext.McpInvocationContext,
         );
-        return built.handle("preview_snapshot", payload).pipe(
+        return built.handle("leo_preview_snapshot", payload).pipe(
           Stream.unwrap,
           Stream.run(Sink.last()),
           Effect.flatMap(Effect.fromOption),
@@ -735,7 +736,7 @@ const registerLocalVmScreenshot = Effect.fn("McpHttpServer.registerLocalVmScreen
       LocalVmScreenshotTool,
       (payload) =>
         built
-          .handle("local_vm_screenshot", payload)
+          .handle("leo_local_vm_screenshot", payload)
           .pipe(Stream.unwrap, Stream.run(Sink.last()), Effect.flatMap(Effect.fromOption)),
       (effect) =>
         effect.pipe(
@@ -756,7 +757,7 @@ const registerDeviceScreenshot = Effect.fn("McpHttpServer.registerDeviceScreensh
     DeviceScreenshotTool,
     (payload) =>
       built
-        .handle("device_screenshot", payload)
+        .handle("leo_device_screenshot", payload)
         .pipe(Stream.unwrap, Stream.run(Sink.last()), Effect.flatMap(Effect.fromOption)),
     (effect) =>
       effect.pipe(
@@ -778,7 +779,7 @@ const registerHtmlPreview = Effect.fn("McpHttpServer.registerHtmlPreview")(funct
     HtmlPreviewTool,
     (payload) =>
       built
-        .handle("html_preview", payload)
+        .handle("leo_html_preview", payload)
         .pipe(Stream.unwrap, Stream.run(Sink.last()), Effect.flatMap(Effect.fromOption)),
     (effect) =>
       effect.pipe(

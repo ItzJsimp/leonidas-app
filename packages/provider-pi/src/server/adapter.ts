@@ -183,7 +183,7 @@ const PiProviderCapabilitiesV2 = {
     planDeltasHaveItemIds: false,
   },
   subagents: {
-    // T3 delegation uses the shared MCP `delegate_task` path. Installed Pi
+    // T3 delegation uses the shared MCP `leo_delegate_task` path. Installed Pi
     // subagent extensions are observed best-effort, but their official tool
     // runs children with --no-session and exposes no resumable child id.
     supportsSubagents: true,

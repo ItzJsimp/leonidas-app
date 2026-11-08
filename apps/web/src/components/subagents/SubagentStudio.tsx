@@ -504,7 +504,7 @@ function SubagentDetail({
                   {entry.tools.map((tool) => (
                     <li key={tool}>
                       <Badge variant="outline" size="sm">
-                        {tool.replace("mcp__t3-code__", "")}
+                        {tool.replace("mcp__leonidas__", "")}
                       </Badge>
                     </li>
                   ))}

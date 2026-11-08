@@ -191,7 +191,7 @@ export function HtmlRenderWebView(props: {
   );
 }
 
-/** A completed `html_render` call in the thread feed: the page itself, at a fixed height. */
+/** A completed `leo_html_render` call in the thread feed: the page itself, at a fixed height. */
 export function ThreadHtmlRender(props: {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;

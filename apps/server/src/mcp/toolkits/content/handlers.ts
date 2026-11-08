@@ -54,7 +54,7 @@ const write = (
   });
 
 const handlers = {
-  content_read: McpToolAccess.reads((input) =>
+  leo_content_read: McpToolAccess.reads((input) =>
     Effect.map(
       onRoot((root, signingKey) => {
         const voiceBible = ContentFiles.readVoiceBible(root).text;
@@ -77,7 +77,7 @@ const handlers = {
       ({ value }) => value,
     ),
   ),
-  content_deal_propose: McpToolAccess.writes((input) =>
+  leo_content_deal_propose: McpToolAccess.writes((input) =>
     Effect.gen(function* () {
       const actor = yield* caller;
       const { root, value } = yield* onRoot((root, signingKey) =>
@@ -99,17 +99,17 @@ const handlers = {
       return { ...value, recorded: committed, detail };
     }),
   ),
-  content_video_create: McpToolAccess.writes((input) =>
+  leo_content_video_create: McpToolAccess.writes((input) =>
     write("video", (root, signingKey, actor, now) =>
       ContentFiles.createVideo(root, signingKey, input, actor, now),
     ),
   ),
-  content_script_save: McpToolAccess.writes((input) =>
+  leo_content_script_save: McpToolAccess.writes((input) =>
     write("script", (root, signingKey, actor, now) =>
       ContentFiles.saveScript(root, signingKey, input, actor, now),
     ),
   ),
-  content_stage_move: McpToolAccess.writes((input) =>
+  leo_content_stage_move: McpToolAccess.writes((input) =>
     write("stage", (root, signingKey, actor, now) =>
       ContentFiles.moveStage(root, signingKey, input, actor, now),
     ),

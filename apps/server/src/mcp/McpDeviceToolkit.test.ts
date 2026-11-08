@@ -129,20 +129,25 @@ it.effect("registers the device tools and returns the screenshot as image conten
     Effect.gen(function* () {
       const server = yield* McpServer.McpServer;
       const names = server.tools.map(({ tool }) => tool.name).toSorted();
-      expect(names).toEqual(["device_close", "device_list", "device_open", "device_screenshot"]);
+      expect(names).toEqual([
+        "leo_device_close",
+        "leo_device_list",
+        "leo_device_open",
+        "leo_device_screenshot",
+      ]);
 
       const callWith = (capabilities: ReadonlyArray<McpInvocationContext.McpCapability>) =>
         Effect.provideService(McpInvocationContext.McpInvocationContext, invocation(capabilities));
 
       const opened = yield* server
-        .callTool({ name: "device_open", arguments: { platform: "ios" } })
+        .callTool({ name: "leo_device_open", arguments: { platform: "ios" } })
         .pipe(callWith(["device"]), Effect.provideService(McpSchema.McpServerClient, client));
       expect(opened.isError).toBe(false);
       const openedContent = opened.structuredContent as { quickStart: string };
       expect(openedContent.quickStart).toContain("--udid UDID-1");
 
       const shot = yield* server
-        .callTool({ name: "device_screenshot", arguments: { deviceId: "UDID-1" } })
+        .callTool({ name: "leo_device_screenshot", arguments: { deviceId: "UDID-1" } })
         .pipe(callWith(["device"]), Effect.provideService(McpSchema.McpServerClient, client));
       expect(shot.isError).toBe(false);
       expect(shot.content.map((entry) => entry.type)).toEqual(["text", "image"]);
@@ -151,13 +156,13 @@ it.effect("registers the device tools and returns the screenshot as image conten
       });
 
       const foreign = yield* server
-        .callTool({ name: "device_screenshot", arguments: { deviceId: "UDID-2" } })
+        .callTool({ name: "leo_device_screenshot", arguments: { deviceId: "UDID-2" } })
         .pipe(callWith(["device"]), Effect.provideService(McpSchema.McpServerClient, client));
       expect(foreign.isError).toBe(true);
       expect(foreign.content.map((entry) => entry.type)).toEqual(["text"]);
 
       const denied = yield* server
-        .callTool({ name: "device_list", arguments: {} })
+        .callTool({ name: "leo_device_list", arguments: {} })
         .pipe(callWith(["preview"]), Effect.provideService(McpSchema.McpServerClient, client));
       expect(denied.isError).toBe(true);
     }),
@@ -176,7 +181,7 @@ it.effect("rejects unavailable agent access before booting or opening a device",
   return Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
     const result = yield* server
-      .callTool({ name: "device_open", arguments: { platform: "ios" } })
+      .callTool({ name: "leo_device_open", arguments: { platform: "ios" } })
       .pipe(
         Effect.provideService(McpInvocationContext.McpInvocationContext, invocation(["device"])),
         Effect.provideService(McpSchema.McpServerClient, client),

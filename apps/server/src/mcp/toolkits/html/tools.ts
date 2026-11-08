@@ -24,7 +24,7 @@ const PAGE_RULES =
 
 const CanvasText = Schema.String.check(Schema.isMaxLength(2000));
 const CanvasCell = Schema.String.check(Schema.isMaxLength(80));
-const CanvasTool = Tool.make("canvas", {
+const CanvasTool = Tool.make("leo_canvas", {
   description:
     "Build an offline Leonidas canvas from structured sections: accessible pill tabs, KPI cards, an SVG flow, and tables. First read leonidas-canvas/SKILL.md. This returns HTML, not a published page. Check the HTML with html_preview at wide and narrow widths, then publish it with html_render before replying.",
   parameters: Schema.Struct({
@@ -79,7 +79,7 @@ const CanvasTool = Tool.make("canvas", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-export const HtmlPreviewTool = Tool.make("html_preview", {
+export const HtmlPreviewTool = Tool.make("leo_html_preview", {
   description: `Check an HTML page before html_render. Returns PNG, contentHeight, and console output. If it says the browser is still installing, call again in a minute. ${PAGE_RULES} Theme and layout rules are in html_render.`,
   parameters: Schema.Struct({
     html: Html,

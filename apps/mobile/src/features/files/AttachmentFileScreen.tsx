@@ -39,7 +39,7 @@ export type AttachmentFileRouteParams = {
   readonly sizeBytes: string;
   /** Present for a draft attachment, which may still live only on this device. */
   readonly draftKey?: string;
-  /** Present for a page an agent published with `html_render`, which takes the app theme. */
+  /** Present for a page an agent published with `leo_html_render`, which takes the app theme. */
   readonly htmlRender?: "1";
 };
 

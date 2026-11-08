@@ -1,3 +1,4 @@
+import { MCP_SERVER_NAME } from "@t3tools/shared/mcpServerName";
 import type {
   AgentMessage,
   AgentOptions,
@@ -209,7 +210,7 @@ export function cursorMcpServers(
     return undefined;
   }
   return {
-    "t3-code": {
+    [MCP_SERVER_NAME]: {
       type: "http",
       url: session.endpoint,
       headers: {

@@ -12,17 +12,17 @@ import {
 
 describe("T3 orchestration provider instructions", () => {
   it("distinguishes delegated subagents from ordinary top-level threads", () => {
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "`delegate_task` for another provider");
+    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "`leo_delegate_task` for another provider");
     assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "make new top-level threads");
     assert.include(
       T3_CODE_ORCHESTRATION_INSTRUCTIONS,
       '"Subagent", "delegate", and "parallel" never mean one',
     );
     assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "another provider");
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "is a new `delegate_task`");
+    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "is a new `leo_delegate_task`");
     assert.include(
       T3_CODE_ORCHESTRATION_INSTRUCTIONS,
-      "Never continue a review with `t3_thread_send` on `childThreadId`",
+      "Never continue a review with `leo_thread_send` on `childThreadId`",
     );
   });
 
@@ -32,7 +32,7 @@ describe("T3 orchestration provider instructions", () => {
       T3_CODE_ORCHESTRATION_INSTRUCTIONS,
       "Keep planning, architecture, integration, and final review",
     );
-    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "from `orchestrator_capabilities`");
+    assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "from `leo_orchestrator_capabilities`");
     assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "Track every delegated task by `taskId`");
     assert.include(T3_CODE_ORCHESTRATION_INSTRUCTIONS, "Report checks that could not run");
   });
@@ -114,7 +114,7 @@ describe("T3 orchestration provider instructions", () => {
     });
 
     assert.include(withMcp, "ACP fallback:");
-    assert.include(withMcp, "acp-mcp-call delegate_task");
+    assert.include(withMcp, "acp-mcp-call leo_delegate_task");
     assert.notInclude(withoutMcp, "T3_ACP_MCP_NODE");
   });
 

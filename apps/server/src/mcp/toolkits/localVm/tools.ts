@@ -17,7 +17,7 @@ const dependencies = [
   ThreadManagementService.ThreadManagementService,
 ];
 const failure = Schema.Union([LocalVmError, OrchestratorMcpFailure]);
-const list = Tool.make("local_vm_list", {
+const list = Tool.make("leo_local_vm_list", {
   description:
     "List existing VirtualBox VMs on the Windows environment server and this thread's AI Desktop connection. The user must connect a running VM in AI Desktop to grant control. Agents cannot claim a VM or resume paused input. These tools only target the guest, never the host desktop.",
   parameters: Schema.Struct({ inspect: Schema.optional(Schema.Boolean) }),
@@ -29,7 +29,7 @@ const list = Tool.make("local_vm_list", {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
-const input = Tool.make("local_vm_input", {
+const input = Tool.make("leo_local_vm_input", {
   description:
     "Send a click, move, scroll, printable ASCII text or supported key to this thread's connected VirtualBox guest. Observe local_vm_screenshot first and use its pixel coordinates. Refuses input when paused or unconnected. No host mouse, clipboard or window control is used.",
   parameters: Schema.Struct({ action: LocalVmAction }),
@@ -41,7 +41,7 @@ const input = Tool.make("local_vm_input", {
   .annotate(Tool.Destructive, true)
   .annotate(Tool.Idempotent, false)
   .annotate(Tool.OpenWorld, true);
-export const LocalVmScreenshotTool = Tool.make("local_vm_screenshot", {
+export const LocalVmScreenshotTool = Tool.make("leo_local_vm_screenshot", {
   description:
     "Return a PNG image of this thread's connected VirtualBox guest. Works while AI input is paused. Requires a human connection through AI Desktop.",
   parameters: Schema.Struct({ includeImage: Schema.optional(Schema.Boolean) }),

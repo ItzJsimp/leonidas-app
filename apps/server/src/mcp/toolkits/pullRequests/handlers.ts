@@ -271,7 +271,7 @@ const make = Effect.gen(function* () {
   ) => McpToolAccess.writesThreads((params: P) => [params.threadId], handle);
 
   return {
-    link_pull_request: writesThread((input) =>
+    leo_link_pull_request: writesThread((input) =>
       Effect.gen(function* () {
         const thread = yield* requireThread(PullRequestLinkFailedError, input.threadId);
         const next =
@@ -306,7 +306,7 @@ const make = Effect.gen(function* () {
         return { ...target, alreadyLinked, ...next };
       }),
     ),
-    unlink_pull_request: writesThread((input) =>
+    leo_unlink_pull_request: writesThread((input) =>
       Effect.gen(function* () {
         const thread = yield* requireThread(PullRequestUnlinkFailedError, input.threadId);
         const project = yield* projectOf(thread, PullRequestUnlinkFailedError);
@@ -340,13 +340,13 @@ const make = Effect.gen(function* () {
         };
       }),
     ),
-    list_thread_pull_requests: McpToolAccess.reads((input) =>
+    leo_list_thread_pull_requests: McpToolAccess.reads((input) =>
       requireThread(PullRequestListFailedError, input.threadId).pipe(
         Effect.map(listThreadPullRequests),
       ),
     ),
-    watch_pull_request: writesThread((input) => setWatching(input, true)),
-    unwatch_pull_request: writesThread((input) => setWatching(input, false)),
+    leo_watch_pull_request: writesThread((input) => setWatching(input, true)),
+    leo_unwatch_pull_request: writesThread((input) => setWatching(input, false)),
   } satisfies McpToolAccess.Handlers<typeof PullRequestsToolkit.tools>;
 });
 

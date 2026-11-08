@@ -7,8 +7,8 @@
  * platforms into one device shape and is the process that has to know a
  * device is booted before it can stream it. Sessions are the server's own
  * bookkeeping — which thread is looking at which device — so the panel and
- * the `device_*` tools agree, and so a `device_open` from an agent surfaces in
- * every connected client the way `preview_open` does.
+ * the `device_*` tools agree, and so a `leo_device_open` from an agent surfaces in
+ * every connected client the way `leo_preview_open` does.
  */
 import {
   type DeviceActionInput,

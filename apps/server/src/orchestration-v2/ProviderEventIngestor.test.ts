@@ -1277,14 +1277,19 @@ layer("ProviderEventIngestorV2", (it) => {
         type: "image",
         file: { base64: readBase64, type: "image/png", originalSize: 30_000 },
       });
-      const screenshot = toolItem("turn-item:screenshot", 2, "mcp__t3-code__device_screenshot", {
-        content: [
-          {
-            type: "image",
-            source: { type: "base64", media_type: "image/png", data: screenshotBase64 },
-          },
-        ],
-      });
+      const screenshot = toolItem(
+        "turn-item:screenshot",
+        2,
+        "mcp__leonidas__leo_device_screenshot",
+        {
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: "image/png", data: screenshotBase64 },
+            },
+          ],
+        },
+      );
 
       yield* eventSink.write({ events: [threadEvent] });
       for (const turnItem of [read, screenshot]) {

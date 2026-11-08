@@ -80,7 +80,7 @@ describe("estimatePersonaStartTokens", () => {
     const lean = estimatePersonaStartTokens({ systemPromptChars: 4_000, tools: ["Read", "Grep"] });
     const withMcp = estimatePersonaStartTokens({
       systemPromptChars: 4_000,
-      tools: ["Read", "Grep", "mcp__t3-code__preview_open", "mcp__t3-code__preview_click"],
+      tools: ["Read", "Grep", "mcp__leonidas__leo_preview_open", "mcp__leonidas__preview_click"],
     });
     expect(withMcp - lean).toBe(2_600);
   });
@@ -96,7 +96,7 @@ describe("estimatePersonaStartTokens", () => {
         "Grep",
         "Bash",
         ...["open", "navigate", "snapshot", "click", "resize"].map(
-          (n) => `mcp__t3-code__preview_${n}`,
+          (n) => `mcp__leonidas__preview_${n}`,
         ),
       ],
     });

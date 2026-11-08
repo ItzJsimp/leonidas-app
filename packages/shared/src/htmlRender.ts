@@ -7,18 +7,18 @@ import {
 
 /**
  * Agent-authored HTML pages ("HTML renders") are self-contained documents an
- * agent publishes into a thread with T3's `html_render` MCP tool. The server
+ * agent publishes into a thread with T3's `leo_html_render` MCP tool. The server
  * stores each one as a thread attachment with a small bootstrap injected into
  * its head; clients show it in a sandboxed iframe (web, desktop) or WebView
  * (mobile) and hand it the active theme as CSS custom properties.
  */
 
-export const HTML_RENDER_TOOL_NAME = "html_render";
+export const HTML_RENDER_TOOL_NAME = "leo_html_render";
 export const HTML_RENDER_MIN_HEIGHT = 80;
 export const HTML_RENDER_MAX_HEIGHT = 2000;
 export const HTML_RENDER_MAX_TITLE_LENGTH = 200;
 
-/** What the `html_render` tool result carries so clients can show the page. */
+/** What the `leo_html_render` tool result carries so clients can show the page. */
 export interface HtmlRenderReference {
   readonly attachmentId: string;
   readonly title: string;

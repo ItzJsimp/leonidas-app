@@ -41,7 +41,7 @@ import { PreviewSnapshotToolkit, PreviewStandardToolkit, PreviewToolkit } from "
  * Deliberately leaves an unstated `open` unstated. Whether a preview the agent
  * said nothing about surfaces is the user's `browserAutoShowFloatingPreview`
  * preference, which is desktop-local and unreadable from here — filling in
- * `true` would silently override it for every `preview_open`.
+ * `true` would silently override it for every `leo_preview_open`.
  */
 export function normalizePreviewOpenInput(
   input: PreviewAutomationOpenInput,
@@ -196,30 +196,30 @@ export const claimPreviewRecording = Effect.fn("PreviewToolkit.claimRecording")(
 });
 
 const handlers = {
-  preview_dialog: McpToolAccess.actsAsCaller((input) =>
+  leo_preview_dialog: McpToolAccess.actsAsCaller((input) =>
     invokeTargeted<PreviewAutomationStatus>("dialog", input),
   ),
-  preview_status: McpToolAccess.readsAsCaller((input) =>
+  leo_preview_status: McpToolAccess.readsAsCaller((input) =>
     invokeTargeted<PreviewAutomationStatus>("status", input ?? {}),
   ),
-  preview_open: McpToolAccess.actsAsCaller((input) =>
+  leo_preview_open: McpToolAccess.actsAsCaller((input) =>
     invokeTargeted<PreviewAutomationStatus>("open", normalizePreviewOpenInput(input)),
   ),
-  preview_navigate: McpToolAccess.actsAsCaller((input) =>
+  leo_preview_navigate: McpToolAccess.actsAsCaller((input) =>
     invokeTargeted<PreviewAutomationStatus>("navigate", input, input.timeoutMs),
   ),
-  preview_resize: McpToolAccess.actsAsCaller((input) =>
+  leo_preview_resize: McpToolAccess.actsAsCaller((input) =>
     invokeTargeted<PreviewAutomationResizeResult>("resize", input, input.timeoutMs),
   ),
-  preview_set_appearance: McpToolAccess.actsAsCaller((input) =>
+  leo_preview_set_appearance: McpToolAccess.actsAsCaller((input) =>
     invokeTargeted<PreviewAutomationSetColorSchemeResult>("setColorScheme", input),
   ),
-  preview_snapshot: McpToolAccess.readsAsCaller((input) => {
+  leo_preview_snapshot: McpToolAccess.readsAsCaller((input) => {
     // Output selection and saving are MCP-only; the browser still produces a complete snapshot.
     const { includeImage: _includeImage, save: _save, ...operationInput } = input ?? {};
     return invokeTargeted<PreviewAutomationSnapshot>("snapshot", operationInput);
   }),
-  preview_act: McpToolAccess.actsAsCaller(({ action, ...input }) =>
+  leo_preview_act: McpToolAccess.actsAsCaller(({ action, ...input }) =>
     decodeActInput[action](input).pipe(
       Effect.mapError(
         (cause) => new OrchestratorMcpFailure({ code: "invalid_request", message: cause.message }),
@@ -233,7 +233,7 @@ const handlers = {
       ),
     ),
   ),
-  preview_evaluate: McpToolAccess.actsAsCaller(({ tabId, ...input }) =>
+  leo_preview_evaluate: McpToolAccess.actsAsCaller(({ tabId, ...input }) =>
     invoke<unknown>("evaluate", input, undefined, tabId).pipe(
       Effect.map(({ result, toolIcon }) => ({
         value: result ?? null,
@@ -241,13 +241,13 @@ const handlers = {
       })),
     ),
   ),
-  preview_wait_for: McpToolAccess.readsAsCaller((input) =>
+  leo_preview_wait_for: McpToolAccess.readsAsCaller((input) =>
     invokeTargeted<object>("waitFor", input, input.timeoutMs),
   ),
-  preview_recording_start: McpToolAccess.actsAsCaller((input) =>
+  leo_preview_recording_start: McpToolAccess.actsAsCaller((input) =>
     invokeTargeted<PreviewAutomationRecordingStatus>("recordingStart", input ?? {}),
   ),
-  preview_recording_stop: McpToolAccess.actsAsCaller((input) =>
+  leo_preview_recording_stop: McpToolAccess.actsAsCaller((input) =>
     Effect.gen(function* () {
       const scope = yield* McpInvocationContext.requireThreadMcpCapability("preview");
       const { tabId, ...operationInput } = input;
@@ -263,10 +263,10 @@ const handlers = {
   ),
 } satisfies McpToolAccess.Handlers<typeof PreviewToolkit.tools>;
 
-const { preview_snapshot, ...standardHandlers } = handlers;
+const { leo_preview_snapshot, ...standardHandlers } = handlers;
 
 export const layerStandard = McpToolAccess.toLayer(PreviewStandardToolkit, standardHandlers);
 
 export const layerSnapshot = McpToolAccess.toLayer(PreviewSnapshotToolkit, {
-  preview_snapshot,
+  leo_preview_snapshot,
 });

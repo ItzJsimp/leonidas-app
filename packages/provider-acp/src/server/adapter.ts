@@ -1,5 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off
 
+import { MCP_SERVER_NAME } from "@t3tools/shared/mcpServerName";
 import {
   type ChatAttachment,
   type ModelSelection,
@@ -722,7 +723,7 @@ function acpMcpContext(
   return {
     servers: [
       {
-        name: "t3-code",
+        name: MCP_SERVER_NAME,
         command: self.command,
         args: [...selfInvocationArgs(self, ["acp-mcp-bridge"])],
         env: [
@@ -732,7 +733,7 @@ function acpMcpContext(
         ],
       },
     ],
-    acpServers: [{ type: "acp", name: "t3-code", serverId: "t3-code" }],
+    acpServers: [{ type: "acp", name: MCP_SERVER_NAME, serverId: MCP_SERVER_NAME }],
     endpoint: session.endpoint,
     authorization: session.authorizationHeader,
     browserToolsAvailable: session.browserToolsAvailable,

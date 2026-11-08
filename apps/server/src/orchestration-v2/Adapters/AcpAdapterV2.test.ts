@@ -761,7 +761,7 @@ describe("AcpAdapterV2", () => {
 
       const mcpServer = runtimeInput?.mcpServers[0];
       if (mcpServer === undefined || !("command" in mcpServer)) {
-        return yield* Effect.die("ACP runtime must receive the t3-code stdio MCP server");
+        return yield* Effect.die("ACP runtime must receive the leonidas stdio MCP server");
       }
       assert.equal(mcpServer.command, process.execPath);
       assert.deepEqual(mcpServer.args, ["acp-mcp-bridge"]);
@@ -1433,7 +1433,10 @@ describe("AcpAdapterV2", () => {
                   assert.isDefined(handler);
                   assert.isDefined(createTerminal);
                   const fallbackTerminal = yield* createTerminal(
-                    { sessionId: "mock-session-1", command: "true acp-mcp-call task_status {}" },
+                    {
+                      sessionId: "mock-session-1",
+                      command: "true acp-mcp-call leo_task_status {}",
+                    },
                     { requestId: "child-mcp-terminal", method: "terminal/create" },
                   );
                   // Production thread 54aeb6d7 split after "(command". Metadata shapes
@@ -1667,7 +1670,7 @@ describe("AcpAdapterV2", () => {
           (item) =>
             item.threadId === task?.childThreadId &&
             item.type === "dynamic_tool" &&
-            item.toolName === "t3-code.task_status",
+            item.toolName === "leonidas.leo_task_status",
         ),
       );
       const childMcp = items.find(
@@ -2880,7 +2883,7 @@ describe("AcpAdapterV2", () => {
         mcpServers: [
           {
             type: "stdio",
-            name: "t3-code",
+            name: "leonidas",
             command: process.execPath,
             args: [
               process.argv[1] === undefined ? "t3" : NodePath.resolve(process.argv[1]),

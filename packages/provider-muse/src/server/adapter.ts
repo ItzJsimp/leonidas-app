@@ -1,3 +1,4 @@
+import { MCP_SERVER_NAME } from "@t3tools/shared/mcpServerName";
 import { MspError, type SendUserTurnOptions } from "@muse-code/sdk";
 import {
   MUSE_DEFAULT_MODEL,
@@ -1511,7 +1512,7 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
                 mcpServers: {
                   // Muse defaults to "required", which fails the whole run when T3's
                   // tools cannot be reached. The agent should still work without them.
-                  "t3-code": {
+                  [MCP_SERVER_NAME]: {
                     transport: "streamableHttp",
                     mode: "optional",
                     url: mcpSession.endpoint,

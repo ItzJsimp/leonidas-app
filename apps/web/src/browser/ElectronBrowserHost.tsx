@@ -165,7 +165,7 @@ function AuthorizedBrowserWebview(props: ComponentProps<typeof HostedBrowserWebv
 }
 
 /**
- * Agent `preview_open` normally carries the profile clients reported (see
+ * Agent `leo_preview_open` normally carries the profile clients reported (see
  * BrowserProfileReporter). An agent tab opened before any client reported has
  * none, so it falls back to the configured default here. It is latched once
  * settings load: Electron fixes the partition when the guest attaches, so a

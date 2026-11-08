@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - one tiny synchronous stats write per spawn, same as subagentPersona.
 /**
  * SpawnApprovals - confirm-tier subagent spawns that wait for the user
- * (ADR-0082). `delegate_task` parks here until the user answers the card;
+ * (ADR-0082). `leo_delegate_task` parks here until the user answers the card;
  * the web streams the open list. State is in memory: a pending spawn dies
  * with the tool call that asked, and "Allow for this thread" lasts until the
  * server restarts.
@@ -264,7 +264,7 @@ export const makeSpawnApprovals = Effect.gen(function* () {
 });
 
 /**
- * One broker per server process, shared by `delegate_task` and the web RPCs
+ * One broker per server process, shared by `leo_delegate_task` and the web RPCs
  * without extra layer wiring. Tests may provide their own.
  */
 export class SpawnApprovals extends Context.Reference<SpawnApprovalsShape>(

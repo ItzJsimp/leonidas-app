@@ -25,7 +25,7 @@ const designer = [
   "---",
   "name: frontend-designer",
   "model: claude-opus-5-5",
-  "tools: [Read, Edit, mcp__t3-code__preview_open]",
+  "tools: [Read, Edit, mcp__leonidas__leo_preview_open]",
   "context: [DESIGN.md]",
   "---",
   "You design front-end UI.",
@@ -39,7 +39,7 @@ describe("parseSubagentSpec", () => {
   it("reads model, tools, context and the persona body", () => {
     const spec = parseSubagentSpec(designer, "frontend-designer");
     expect(spec.model).toBe("claude-opus-5-5");
-    expect(spec.tools).toEqual(["Read", "Edit", "mcp__t3-code__preview_open"]);
+    expect(spec.tools).toEqual(["Read", "Edit", "mcp__leonidas__leo_preview_open"]);
     expect(spec.context).toEqual(["DESIGN.md"]);
     expect(spec.body).toBe("You design front-end UI.");
   });

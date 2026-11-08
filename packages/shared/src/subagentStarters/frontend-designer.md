@@ -12,11 +12,11 @@ tools:
     Glob,
     Grep,
     Bash,
-    mcp__t3-code__preview_open,
-    mcp__t3-code__preview_navigate,
-    mcp__t3-code__preview_snapshot,
-    mcp__t3-code__preview_act,
-    mcp__t3-code__preview_resize,
+    mcp__leonidas__leo_preview_open,
+    mcp__leonidas__leo_preview_navigate,
+    mcp__leonidas__leo_preview_snapshot,
+    mcp__leonidas__leo_preview_act,
+    mcp__leonidas__leo_preview_resize,
   ]
 context: []
 never:

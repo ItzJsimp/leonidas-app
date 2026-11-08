@@ -34,9 +34,9 @@ const DeviceToolFailure = Schema.Union([DeviceToolError, OrchestratorMcpFailure]
  * semantic snapshot model agents need and stays current with its own
  * releases. Wrapping its commands here would only lag behind it.
  */
-const DeviceListTool = Tool.make("device_list", {
+const DeviceListTool = Tool.make("leo_device_list", {
   description:
-    "List iOS Simulators and Android Emulators here, what each host can run, and what is open in this thread's Device panel. Call before `device_open` when you do not know a device id.",
+    "List iOS Simulators and Android Emulators here, what each host can run, and what is open in this thread's Device panel. Call before `leo_device_open` when you do not know a device id.",
   // An empty struct serializes as `anyOf [object, array]`, which some
   // providers reject and then drop every tool on the server with it.
   parameters: Schema.Struct({
@@ -54,7 +54,7 @@ const DeviceListTool = Tool.make("device_list", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-const DeviceOpenTool = Tool.make("device_open", {
+const DeviceOpenTool = Tool.make("leo_device_open", {
   description:
     "Open a simulator or emulator for this thread. Boots it if needed and shows it in the user's Device panel. Returns the `agent-device` CLI call pinned to that device. Drive the device with that CLI.",
   parameters: DeviceToolOpenInput,
@@ -68,7 +68,7 @@ const DeviceOpenTool = Tool.make("device_open", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, true);
 
-export const DeviceScreenshotTool = Tool.make("device_screenshot", {
+export const DeviceScreenshotTool = Tool.make("leo_device_screenshot", {
   description:
     "Get a PNG of an open device's screen. For taps and text, use the `agent-device` CLI.",
   parameters: DeviceToolTargetInput,
@@ -82,7 +82,7 @@ export const DeviceScreenshotTool = Tool.make("device_screenshot", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, true);
 
-const DeviceCloseTool = Tool.make("device_close", {
+const DeviceCloseTool = Tool.make("leo_device_close", {
   description:
     "Remove a device from this thread's Device panel. `shutdown=true` also turns it off.",
   parameters: DeviceToolCloseInput,

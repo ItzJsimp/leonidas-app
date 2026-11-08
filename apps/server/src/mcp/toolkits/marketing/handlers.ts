@@ -13,7 +13,7 @@ import { MarketingToolkit } from "./tools.ts";
 const failure = (code: "invalid_request" | "orchestration_error", message: string) =>
   new OrchestratorMcpFailure({ code, message });
 
-/** The workspace (AIOS) folder that holds `marketing/`, found the same way as `event_emit`. */
+/** The workspace (AIOS) folder that holds `marketing/`, found the same way as `leo_event_emit`. */
 export const workspaceRoot = Effect.gen(function* () {
   const projects = yield* ProjectService.ProjectService;
   const taskBoard = yield* TaskBoardService.TaskBoardService;
@@ -49,13 +49,13 @@ const signingKey = approvalKey.pipe(
 );
 
 const handlers = {
-  marketing_brands: McpToolAccess.reads(() =>
+  leo_marketing_brands: McpToolAccess.reads(() =>
     onRoot((root) => {
       const { records, bad } = MarketingFiles.readBrands(root);
       return { brands: records, bad };
     }),
   ),
-  marketing_posts: McpToolAccess.reads((input) =>
+  leo_marketing_posts: McpToolAccess.reads((input) =>
     Effect.flatMap(signingKey, (key) =>
       onRoot((root) => {
         const { records, bad } = MarketingFiles.readPosts(root);
@@ -80,7 +80,7 @@ const handlers = {
       }),
     ),
   ),
-  marketing_metrics: McpToolAccess.reads((input) =>
+  leo_marketing_metrics: McpToolAccess.reads((input) =>
     onRoot((root) => {
       const { records, bad } = MarketingFiles.readMetrics(root);
       const snapshots = records
@@ -93,13 +93,13 @@ const handlers = {
       return { snapshots, bad };
     }),
   ),
-  marketing_metrics_sync: McpToolAccess.writes(() => onRoot((root) => syncMetrics(root))),
-  marketing_draft_save: McpToolAccess.writes((input) =>
+  leo_marketing_metrics_sync: McpToolAccess.writes(() => onRoot((root) => syncMetrics(root))),
+  leo_marketing_draft_save: McpToolAccess.writes((input) =>
     Effect.flatMap(caller, (author) =>
       onRoot((root) => MarketingFiles.saveDraft(root, input, author)),
     ),
   ),
-  marketing_approval_request: McpToolAccess.writes((input) =>
+  leo_marketing_approval_request: McpToolAccess.writes((input) =>
     Effect.flatMap(caller, (requestedBy) =>
       onRoot((root) => MarketingFiles.requestApproval(root, input, requestedBy)),
     ),

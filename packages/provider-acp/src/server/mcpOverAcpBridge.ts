@@ -1,5 +1,6 @@
 // The bridge forwards opaque JSON-RPC values without interpreting their schemas.
 // @effect-diagnostics preferSchemaOverJson:off
+import { MCP_SERVER_NAME } from "@t3tools/shared/mcpServerName";
 import * as Effect from "effect/Effect";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
@@ -188,7 +189,7 @@ export const makeAcpMcpOverAcpBridge = Effect.fn("AcpMcpOverAcpBridge.make")(fun
   return {
     connect: (request) =>
       Effect.gen(function* () {
-        if (request.serverId !== "t3-code") {
+        if (request.serverId !== MCP_SERVER_NAME) {
           return yield* Effect.fail(
             new AcpMcpOverAcpError(`Unknown ACP MCP server "${request.serverId}".`),
           );

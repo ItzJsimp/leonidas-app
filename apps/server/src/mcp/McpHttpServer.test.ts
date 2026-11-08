@@ -132,7 +132,7 @@ const callSnapshot = (args: Record<string, unknown>) =>
   Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
     return yield* server
-      .callTool({ name: "preview_snapshot", arguments: args })
+      .callTool({ name: "leo_preview_snapshot", arguments: args })
       .pipe(
         Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
         Effect.provideService(McpSchema.McpServerClient, client),
@@ -143,7 +143,7 @@ const callPreviewAct = (args: Record<string, unknown>) =>
   Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
     return yield* server
-      .callTool({ name: "preview_act", arguments: args })
+      .callTool({ name: "leo_preview_act", arguments: args })
       .pipe(
         Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
         Effect.provideService(McpSchema.McpServerClient, client),
@@ -191,7 +191,7 @@ it.effect.each([{}, { includeImage: false }])(
         yield* Effect.yieldNow;
 
         const snapshot = yield* server
-          .callTool({ name: "preview_snapshot", arguments: input })
+          .callTool({ name: "leo_preview_snapshot", arguments: input })
           .pipe(
             Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
             Effect.provideService(McpSchema.McpServerClient, client),
@@ -326,7 +326,7 @@ it.effect.each([
       for (const call of [1, 2, 3, 4, 5, 6]) {
         const snapshot = yield* server
           .callTool({
-            name: "preview_snapshot",
+            name: "leo_preview_snapshot",
             arguments: { ...input, tabId: alternateTabId },
           })
           .pipe(
@@ -365,7 +365,7 @@ it.effect.each([
       // Output selection belongs to this call, not the MCP session's history.
       const nextDefault = yield* server
         .callTool({
-          name: "preview_snapshot",
+          name: "leo_preview_snapshot",
           arguments: { tabId: alternateTabId },
         })
         .pipe(
@@ -390,7 +390,7 @@ it.effect("refuses preview tools to a client outside a thread before they run", 
       client: { sessionId: "session-1", label: "Claude Code", access: "read-only" as const },
     };
     const click = yield* server
-      .callTool({ name: "preview_act", arguments: { action: "click", locator: "text=Send" } })
+      .callTool({ name: "leo_preview_act", arguments: { action: "click", locator: "text=Send" } })
       .pipe(
         Effect.provideService(McpInvocationContext.McpInvocationContext, readOnly),
         Effect.provideService(McpSchema.McpServerClient, client),
@@ -411,7 +411,7 @@ it.effect("rejects non-boolean snapshot image options before selecting a browser
     for (const includeImage of ["false", 0, null]) {
       const result = yield* server
         .callTool({
-          name: "preview_snapshot",
+          name: "leo_preview_snapshot",
           arguments: { includeImage },
         })
         .pipe(
@@ -523,10 +523,10 @@ it.effect("reports a tagged error when the screenshot cannot be saved", () =>
 );
 
 it("keeps cross-tool routing out of the delegate_task description", () => {
-  const description = OrchestratorToolkit.tools.delegate_task.description ?? "";
+  const description = OrchestratorToolkit.tools.leo_delegate_task.description ?? "";
   expect(description).toContain("Start one child agent with only `task`");
   // Review rounds, follow-ups, and polling are routed in the system text.
-  expect(description).not.toContain("t3_thread_send");
+  expect(description).not.toContain("leo_thread_send");
   expect(description).not.toContain("Do not poll");
   expect(description).not.toContain("Prefer native");
 });
@@ -539,19 +539,19 @@ it.effect(
       const names = server.tools.map(({ tool }) => tool.name);
       expect(names).toEqual(
         expect.arrayContaining([
-          "link_pull_request",
-          "unlink_pull_request",
-          "list_thread_pull_requests",
+          "leo_link_pull_request",
+          "leo_unlink_pull_request",
+          "leo_list_thread_pull_requests",
         ]),
       );
-      const linkTool = server.tools.find(({ tool }) => tool.name === "link_pull_request");
+      const linkTool = server.tools.find(({ tool }) => tool.name === "leo_link_pull_request");
       expect(linkTool?.tool.annotations?.idempotentHint).toBe(true);
       expect(linkTool?.tool.annotations?.openWorldHint).toBe(false);
       expect(linkTool?.tool.description).toContain("Link a PR to this thread");
       expect(linkTool?.tool.description).toContain("settles the thread on merge");
 
       const denied = yield* server
-        .callTool({ name: "list_thread_pull_requests", arguments: {} })
+        .callTool({ name: "leo_list_thread_pull_requests", arguments: {} })
         .pipe(
           // A preview-only credential: the token predates the toolkit or was minted elsewhere.
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
@@ -929,27 +929,27 @@ it.effect("registers annotated tools and preserves authenticated request context
       }).pipe(Effect.forkScoped);
       yield* Effect.yieldNow;
 
-      const statusTool = server.tools.find(({ tool }) => tool.name === "preview_status");
+      const statusTool = server.tools.find(({ tool }) => tool.name === "leo_preview_status");
       expect(statusTool?.tool.annotations?.readOnlyHint).toBe(true);
       expect(statusTool?.tool.annotations?.idempotentHint).toBe(true);
       expect(statusTool?.tool.annotations?.destructiveHint).toBe(false);
 
-      const snapshotTool = server.tools.find(({ tool }) => tool.name === "preview_snapshot");
+      const snapshotTool = server.tools.find(({ tool }) => tool.name === "leo_preview_snapshot");
       expect(snapshotTool?.tool.annotations?.readOnlyHint).toBe(false);
       expect(snapshotTool?.tool.annotations?.idempotentHint).toBe(false);
       expect(snapshotTool?.tool.annotations?.openWorldHint).toBe(true);
 
-      const actTool = server.tools.find(({ tool }) => tool.name === "preview_act");
+      const actTool = server.tools.find(({ tool }) => tool.name === "leo_preview_act");
       expect(actTool?.tool.annotations?.readOnlyHint).toBe(false);
       expect(actTool?.tool.annotations?.destructiveHint).toBe(true);
       expect(actTool?.tool.annotations?.openWorldHint).toBe(true);
 
-      const navigateTool = server.tools.find(({ tool }) => tool.name === "preview_navigate");
+      const navigateTool = server.tools.find(({ tool }) => tool.name === "leo_preview_navigate");
       expect(navigateTool?.tool.annotations?.destructiveHint).toBe(false);
       expect(navigateTool?.tool.annotations?.openWorldHint).toBe(true);
 
       const status = yield* server
-        .callTool({ name: "preview_status", arguments: {} })
+        .callTool({ name: "leo_preview_status", arguments: {} })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
           Effect.provideService(McpSchema.McpServerClient, client),
@@ -961,7 +961,7 @@ it.effect("registers annotated tools and preserves authenticated request context
       });
 
       const malformed = yield* server
-        .callTool({ name: "preview_act", arguments: { action: "click", selector: "" } })
+        .callTool({ name: "leo_preview_act", arguments: { action: "click", selector: "" } })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
           Effect.provideService(McpSchema.McpServerClient, client),
@@ -971,7 +971,7 @@ it.effect("registers annotated tools and preserves authenticated request context
 
       const snapshot = yield* server
         .callTool({
-          name: "preview_snapshot",
+          name: "leo_preview_snapshot",
           arguments: { tabId: alternateTabId, includeImage: true },
         })
         .pipe(
@@ -989,10 +989,10 @@ it.effect("registers annotated tools and preserves authenticated request context
 
       // Arrays and primitives are wrapped so structuredContent stays a JSON object.
       // Claude Code rejects the whole result otherwise.
-      const evaluateTool = server.tools.find(({ tool }) => tool.name === "preview_evaluate");
+      const evaluateTool = server.tools.find(({ tool }) => tool.name === "leo_preview_evaluate");
       expect(evaluateTool?.tool.outputSchema).toMatchObject({ type: "object" });
       const evaluated = yield* server
-        .callTool({ name: "preview_evaluate", arguments: { expression: "buttons()" } })
+        .callTool({ name: "leo_preview_evaluate", arguments: { expression: "buttons()" } })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
           Effect.provideService(McpSchema.McpServerClient, client),
@@ -1006,11 +1006,11 @@ it.effect("registers annotated tools and preserves authenticated request context
       });
 
       const actionRequests = [
-        { name: "preview_act", arguments: { action: "click", x: 10, y: 10 } },
-        { name: "preview_act", arguments: { action: "type", text: "Hello" } },
-        { name: "preview_act", arguments: { action: "press", key: "Enter" } },
-        { name: "preview_act", arguments: { action: "scroll", deltaY: 100 } },
-        { name: "preview_wait_for", arguments: { text: "Example" } },
+        { name: "leo_preview_act", arguments: { action: "click", x: 10, y: 10 } },
+        { name: "leo_preview_act", arguments: { action: "type", text: "Hello" } },
+        { name: "leo_preview_act", arguments: { action: "press", key: "Enter" } },
+        { name: "leo_preview_act", arguments: { action: "scroll", deltaY: 100 } },
+        { name: "leo_preview_wait_for", arguments: { text: "Example" } },
       ];
       for (const request of actionRequests) {
         const result = yield* server

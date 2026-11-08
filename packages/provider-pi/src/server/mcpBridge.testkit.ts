@@ -56,17 +56,17 @@ export async function loadMcpBridge(
   const servers: Array<{ readonly name: string; readonly config: Record<string, unknown> }> = [];
   const catalog = [
     {
-      name: "orchestrator_capabilities",
+      name: "leo_orchestrator_capabilities",
       description: "Discover available providers and models.",
       annotations: { readOnlyHint: true },
     },
-    { name: "delegate_task", description: "Delegate work to another agent." },
+    { name: "leo_delegate_task", description: "Delegate work to another agent." },
     {
-      name: "task_status",
+      name: "leo_task_status",
       description: "Check delegated work.",
       annotations: { readOnlyHint: false },
     },
-    { name: "preview_snapshot", description: "Inspect the collaborative browser." },
+    { name: "leo_preview_snapshot", description: "Inspect the collaborative browser." },
   ].map((tool) => ({
     ...tool,
     inputSchema: { type: "object", properties: {} },

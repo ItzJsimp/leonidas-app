@@ -39,7 +39,7 @@ const PostWithApproval = Schema.Struct({
   approval: Schema.Literals(["none", "pending", "approved", "rejected", "content_changed"]),
 });
 
-const MarketingBrandsTool = Tool.make("marketing_brands", {
+const MarketingBrandsTool = Tool.make("leo_marketing_brands", {
   description:
     "List the brand profiles of this workspace: customer, voice do, voice don't, banned words and spend cap. Read the brand before you write a draft for it.",
   parameters: Tool.EmptyParams,
@@ -57,7 +57,7 @@ const MarketingBrandsTool = Tool.make("marketing_brands", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-const MarketingPostsTool = Tool.make("marketing_posts", {
+const MarketingPostsTool = Tool.make("leo_marketing_posts", {
   description:
     "List marketing posts (drafts and posted items) with the approval state of each. Filter by brand, channel or status.",
   parameters: Schema.Struct({
@@ -79,7 +79,7 @@ const MarketingPostsTool = Tool.make("marketing_posts", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-const MarketingMetricsTool = Tool.make("marketing_metrics", {
+const MarketingMetricsTool = Tool.make("leo_marketing_metrics", {
   description:
     "Read the saved metric snapshots (impressions, likes, replies, reposts) for posts. Call marketing_metrics_sync first to import the newest data.",
   parameters: Schema.Struct({
@@ -103,7 +103,7 @@ const MarketingMetricsTool = Tool.make("marketing_metrics", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-const MarketingMetricsSyncTool = Tool.make("marketing_metrics_sync", {
+const MarketingMetricsSyncTool = Tool.make("leo_marketing_metrics_sync", {
   description:
     "Import new metrics from the connected sources into the workspace files. It makes no paid calls. Bad records are skipped and listed in errors.",
   parameters: Tool.EmptyParams,
@@ -118,7 +118,7 @@ const MarketingMetricsSyncTool = Tool.make("marketing_metrics_sync", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-const MarketingDraftSaveTool = Tool.make("marketing_draft_save", {
+const MarketingDraftSaveTool = Tool.make("leo_marketing_draft_save", {
   description:
     "Create a draft post, or edit a draft when you pass its id. Write the text in the brand's voice. An edit voids any approval the draft already has.",
   parameters: Schema.Struct({
@@ -140,7 +140,7 @@ const MarketingDraftSaveTool = Tool.make("marketing_draft_save", {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.OpenWorld, false);
 
-const MarketingApprovalRequestTool = Tool.make("marketing_approval_request", {
+const MarketingApprovalRequestTool = Tool.make("leo_marketing_approval_request", {
   description:
     "Ask a person to approve one public act (publish, send or spend) for one draft. Give an honest cost estimate in USD, 0 when free. Only a person can approve; the ticket waits in the approval queue.",
   parameters: Schema.Struct({

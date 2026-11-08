@@ -176,7 +176,7 @@ function humanize(name: string): string {
   return name.replace(/[-_]+/g, " ").trim();
 }
 
-/** `mcp__t3-code__thread_list` and `t3-code.thread_list` both read as server `t3 code`, tool `thread list`. */
+/** `mcp__leonidas__thread_list` and `t3-code.thread_list` both read as server `t3 code`, tool `thread list`. */
 function splitMcpToolName(toolName: string): { server: string; tool: string } | null {
   const claude = /^mcp__(.+?)__(.+)$/.exec(toolName);
   if (claude) return { server: humanize(claude[1]!), tool: humanize(claude[2]!) };

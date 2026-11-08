@@ -313,17 +313,17 @@ describe("resolveWorkEntryToolPresentation", () => {
   });
 
   it.each([
-    ["t3_project_list", "Listing projects", "Listed projects"],
-    ["t3_project_clone", "Cloning a project", "Cloned a project"],
-    ["t3_project_create", "Adding a project", "Added a project"],
-    ["t3_thread_launch", "Launching a chat for a project", "Launched a chat for a project"],
-    ["t3_queue_edit", "Editing a waiting message", "Edited a waiting message"],
-    ["t3_pending_request_respond", "Answering questions", "Answered questions"],
-    ["t3_thread_configure", "Setting chat model", "Set chat model"],
-    ["t3_thread_fork", "Copying this chat", "Requested a copy of this chat"],
-    ["t3_thread_send_attachments", "Sending attachments", "Sent attachments"],
+    ["leo_project_list", "Listing projects", "Listed projects"],
+    ["leo_project_clone", "Cloning a project", "Cloned a project"],
+    ["leo_project_create", "Adding a project", "Added a project"],
+    ["leo_thread_launch", "Launching a chat for a project", "Launched a chat for a project"],
+    ["leo_queue_edit", "Editing a waiting message", "Edited a waiting message"],
+    ["leo_pending_request_respond", "Answering questions", "Answered questions"],
+    ["leo_thread_configure", "Setting chat model", "Set chat model"],
+    ["leo_thread_fork", "Copying this chat", "Requested a copy of this chat"],
+    ["leo_thread_send_attachments", "Sending attachments", "Sent attachments"],
     ["run_scheduled_task_now", "Running a scheduled task", "Requested a run of a scheduled task"],
-    ["t3_workflow_stop", "Stopping a helper group", "Requested a stop for a helper group"],
+    ["leo_workflow_stop", "Stopping a helper group", "Requested a stop for a helper group"],
   ])("labels %s through its lifecycle", (tool, running, completed) => {
     expect(resolveWorkEntryToolPresentation({ label: `T3-code.${tool}` })?.displayName).toBe(
       running,
@@ -346,7 +346,7 @@ describe("resolveWorkEntryToolPresentation", () => {
       toolLifecycleStatus: "completed",
       toolData: {
         server: "t3-code",
-        tool: "t3_workflow_stop",
+        tool: "leo_workflow_stop",
         arguments: { threadId: "parent", subagentId: "workflow-1" },
         result: {},
       },
@@ -366,7 +366,7 @@ describe("resolveWorkEntryToolPresentation", () => {
           ...entry,
           toolData: {
             ...entry.toolData,
-            tool: "t3_thread_interrupt",
+            tool: "leo_thread_interrupt",
             arguments: { threadId: "parent" },
           },
         },
@@ -387,19 +387,19 @@ describe("resolveWorkEntryToolPresentation", () => {
       toolLifecycleStatus: "completed",
       toolData: {
         server: "t3-code",
-        tool: "t3_project_clone",
+        tool: "leo_project_clone",
         arguments: { url: "https://github.com/acme/repo" },
         result: { cwd: "/tmp/repo" },
       },
     };
-    const list = { ...entry, toolData: { server: "t3-code", tool: "t3_project_list" } };
+    const list = { ...entry, toolData: { server: "t3-code", tool: "leo_project_list" } };
     expect(summarizeToolGroup([list, entry])).toEqual({
       summary: "Listed projects 1 time and cloned 1 project",
       hasFailure: false,
     });
     const failed = {
       ...entry,
-      toolData: { toolName: "T3-code.t3_project_clone", rawOutput: { isError: true } },
+      toolData: { toolName: "T3-code.leo_project_clone", rawOutput: { isError: true } },
     };
     expect(summarizeToolGroup([entry, failed])).toEqual({
       summary: "Cloned 1 project",
@@ -412,9 +412,9 @@ describe("resolveWorkEntryToolPresentation", () => {
       id: "foreign",
       createdAt: "2026-09-19T00:00:00.000Z",
       tone: "tool",
-      label: "t3_project_clone",
+      label: "leo_project_clone",
       toolLifecycleStatus: "completed",
-      toolData: { server: "another-server", tool: "t3_project_clone" },
+      toolData: { server: "another-server", tool: "leo_project_clone" },
     };
     expect(summarizeToolGroup([entry]).summary).toBe("Used 1 tool");
   });
@@ -424,7 +424,7 @@ describe("resolveWorkEntryToolPresentation", () => {
       id: "clone",
       createdAt: "2026-09-19T00:00:00.000Z",
       tone: "tool",
-      label: "T3-code.t3_project_clone",
+      label: "T3-code.leo_project_clone",
       toolLifecycleStatus: "inProgress",
       itemType: "dynamic_tool",
       toolData: { output: { isError: true } },
@@ -442,7 +442,7 @@ describe("resolveWorkEntryToolPresentation", () => {
     expect(workEntryIndicatesToolSuccess(childFailure)).toBe(true);
   });
   it.each([
-    "mcp__t3-code__preview_click",
+    "mcp__leonidas__preview_click",
     "mcp__t3_code__preview_click",
     "mcp__t3code__preview_click",
     "T3-code.preview_click",
@@ -459,7 +459,7 @@ describe("resolveWorkEntryToolPresentation", () => {
   it("labels device tools with the device icon", () => {
     expect(
       resolveWorkEntryToolPresentation({
-        label: "mcp__t3-code__device_open",
+        label: "mcp__leonidas__leo_device_open",
         toolLifecycleStatus: "completed",
       }),
     ).toEqual({ displayName: "Opened a device in the Device panel", icon: "device" });
@@ -530,10 +530,10 @@ describe("resolveWorkEntryToolPresentation", () => {
       "Stopping recording the preview browser",
       "Stopped recording the preview browser",
     ],
-    ["t3_thread_read", "Reading a chat", "Read a chat"],
-    ["t3_thread_send", "Sending to a chat", "Sent to a chat"],
+    ["leo_thread_read", "Reading a chat", "Read a chat"],
+    ["leo_thread_send", "Sending to a chat", "Sent to a chat"],
     [
-      "t3_worktree_handoff",
+      "leo_worktree_handoff",
       "Handing off chat to a separate copy",
       "Handed off chat to a separate copy",
     ],
@@ -876,7 +876,7 @@ describe("resolveViewedImageAsset", () => {
 
 describe("pull request tool presentation", () => {
   it.each([
-    "mcp__t3-code__link_pull_request",
+    "mcp__leonidas__leo_link_pull_request",
     "mcp__t3_code__link_pull_request",
     "T3-code · link_pull_request",
     "t3code/link_pull_request",
@@ -923,7 +923,7 @@ describe("pull request tool presentation", () => {
         label: "MCP tool call",
         toolLifecycleStatus: "completed",
         toolData: {
-          toolName: "mcp__t3-code__unlink_pull_request",
+          toolName: "mcp__leonidas__leo_unlink_pull_request",
           rawInput: { repository: "acme/web", number: 42 },
         },
       }),

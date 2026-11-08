@@ -3,7 +3,7 @@ import * as Schema from "effect/Schema";
 import { TrimmedNonEmptyString } from "./baseSchemas.ts";
 
 /**
- * Input for the `t3_worktree_handoff` MCP tool.
+ * Input for the `leo_worktree_handoff` MCP tool.
  *
  * Creates a git worktree for the calling agent thread and re-points the
  * thread at it. Changing the thread's workspace detaches the live provider
@@ -95,7 +95,7 @@ export const WorktreeMcpStatusResult = Schema.Struct({
   branch: Schema.NullOr(TrimmedNonEmptyString),
   projectWorkspaceRoot: TrimmedNonEmptyString,
   defaultStartFromOrigin: Schema.Boolean.annotate({
-    description: "`startFromOrigin` default for `t3_worktree_handoff`.",
+    description: "`startFromOrigin` default for `leo_worktree_handoff`.",
   }),
 });
 export type WorktreeMcpStatusResult = typeof WorktreeMcpStatusResult.Type;

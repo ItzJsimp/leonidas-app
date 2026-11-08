@@ -8,7 +8,7 @@ const selection = {
   model: "claude-haiku-5-5",
 } satisfies ModelSelection;
 
-const appServer = { "t3-code": { type: "http", url: "http://127.0.0.1/mcp" } } as const;
+const appServer = { leonidas: { type: "http", url: "http://127.0.0.1/mcp" } } as const;
 
 describe("ClaudeAdapterV2 persona start (ADR-0082)", () => {
   it("replaces the preset prompt and loads no setting sources", () => {
@@ -45,17 +45,17 @@ describe("ClaudeAdapterV2 persona start (ADR-0082)", () => {
 
   it("keeps the app MCP server and allows only the listed MCP tools", () => {
     const shape = ClaudeAdapterV2.claudePersonaToolShape({
-      persona: { tools: ["Read", "Edit", "mcp__t3-code__preview_open"] },
+      persona: { tools: ["Read", "Edit", "mcp__leonidas__leo_preview_open"] },
       policyTools: undefined,
       mcpServers: appServer,
     });
     assert.deepEqual(shape.tools, ["Read", "Edit"]);
-    assert.deepEqual(shape.allowedTools, ["mcp__t3-code__preview_open"]);
+    assert.deepEqual(shape.allowedTools, ["mcp__leonidas__leo_preview_open"]);
     assert.equal(shape.mcpServers, appServer);
     // Every other app tool is hidden so its definition does not load into the child.
-    assert.notInclude(shape.disallowedTools ?? [], "mcp__t3-code__preview_open");
-    assert.include(shape.disallowedTools ?? [], "mcp__t3-code__delegate_task");
-    assert.include(shape.disallowedTools ?? [], "mcp__t3-code__preview_act");
+    assert.notInclude(shape.disallowedTools ?? [], "mcp__leonidas__leo_preview_open");
+    assert.include(shape.disallowedTools ?? [], "mcp__leonidas__leo_delegate_task");
+    assert.include(shape.disallowedTools ?? [], "mcp__leonidas__leo_preview_act");
   });
 
   it("narrows persona tools to a read-only policy", () => {

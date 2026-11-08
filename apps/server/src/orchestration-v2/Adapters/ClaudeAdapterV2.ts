@@ -1,3 +1,4 @@
+import { MCP_SERVER_NAME, toCurrentMcpToolRule } from "@t3tools/shared/mcpServerName";
 import { makeProviderTextDeltaCoalescer } from "./ProviderTextDeltaCoalescer.ts";
 import { claudeTurnEnvironment } from "./claudeFreeModelRetries.ts";
 import {
@@ -328,7 +329,9 @@ export function claudePersonaToolShape(input: {
   readonly disallowedTools?: ReadonlyArray<string>;
 } {
   const builtIn = input.persona.tools.filter((tool) => !tool.startsWith("mcp__"));
-  const mcpTools = input.persona.tools.filter((tool) => tool.startsWith("mcp__"));
+  const mcpTools = input.persona.tools
+    .filter((tool) => tool.startsWith("mcp__"))
+    .map(toCurrentMcpToolRule);
   const policyList = Array.isArray(input.policyTools)
     ? (input.policyTools as ClaudeAgentSdkQueryToolList)
     : undefined;
@@ -338,7 +341,7 @@ export function claudePersonaToolShape(input: {
   // The server lists every app tool in context (about 40,000 tokens), so hide the ones not named.
   const listed = new Set(mcpTools);
   const disallowedTools = [...T3_MCP_TOOL_NAMES]
-    .map((name) => `mcp__t3-code__${name}`)
+    .map((name) => `mcp__leonidas__${name}`)
     .filter((name) => !listed.has(name));
   return { tools, mcpServers: input.mcpServers, allowedTools: mcpTools, disallowedTools };
 }
@@ -1207,34 +1210,34 @@ export function makeClaudeQueryOptions(input: {
   return input.cwd === null ? withDirectories : { ...withDirectories, cwd: input.cwd };
 }
 
-export const CLAUDE_T3_MCP_TOOL_WILDCARD = "mcp__t3-code__*";
+export const CLAUDE_T3_MCP_TOOL_WILDCARD = "mcp__leonidas__*";
 
 // Must stay in sync with the Tool.Readonly annotations on OrchestratorToolkit;
 // ClaudeAdapterV2.test.ts cross-checks this list against the toolkit.
 export const CLAUDE_READ_ONLY_T3_MCP_ALLOWED_TOOLS: ReadonlyArray<string> = [
-  "mcp__t3-code__focus_list",
-  "mcp__t3-code__model_benchmarks",
-  "mcp__t3-code__saved_item_get",
-  "mcp__t3-code__saved_item_list",
-  "mcp__t3-code__orchestrator_capabilities",
-  "mcp__t3-code__list_scheduled_tasks",
-  "mcp__t3-code__board_task_list",
-  "mcp__t3-code__board_task_get",
-  "mcp__t3-code__t3_thread_list",
-  "mcp__t3-code__t3_thread_wait",
-  "mcp__t3-code__t3_worktree_status",
-  "mcp__t3-code__t3_worktree_list",
-  "mcp__t3-code__t3_project_list",
-  "mcp__t3-code__t3_project_read",
-  "mcp__t3-code__t3_thread_search",
-  "mcp__t3-code__t3_preview_list",
-  "mcp__t3-code__t3_environment_read",
-  "mcp__t3-code__html_preview",
-  "mcp__t3-code__html_render",
+  "mcp__leonidas__leo_focus_list",
+  "mcp__leonidas__leo_model_benchmarks",
+  "mcp__leonidas__leo_saved_item_get",
+  "mcp__leonidas__leo_saved_item_list",
+  "mcp__leonidas__leo_orchestrator_capabilities",
+  "mcp__leonidas__leo_list_scheduled_tasks",
+  "mcp__leonidas__leo_board_task_list",
+  "mcp__leonidas__leo_board_task_get",
+  "mcp__leonidas__leo_thread_list",
+  "mcp__leonidas__leo_thread_wait",
+  "mcp__leonidas__leo_worktree_status",
+  "mcp__leonidas__leo_worktree_list",
+  "mcp__leonidas__leo_project_list",
+  "mcp__leonidas__leo_project_read",
+  "mcp__leonidas__leo_thread_search",
+  "mcp__leonidas__leo_preview_list",
+  "mcp__leonidas__leo_environment_read",
+  "mcp__leonidas__leo_html_preview",
+  "mcp__leonidas__leo_html_render",
 ];
 
 // Claude Code aborts an HTTP MCP call after 60 s ("The operation timed out.")
-// unless the server config sets `timeout`. T3's wait tools (t3_thread_wait,
+// unless the server config sets `timeout`. T3's wait tools (leo_thread_wait,
 // delegate_task mode=wait) legitimately block for up to an hour
 // (MAX_WAIT_TIMEOUT_MS in OrchestratorMcpService), so the budget sits just
 // above that and the server's own wait timeout is what ends a long call.
@@ -1268,7 +1271,7 @@ export function claudeMcpQueryOverrides(input: {
   return {
     allowedTools: Array.from(new Set([...(input.allowedTools ?? []), ...mcpAllowedTools])),
     mcpServers: {
-      "t3-code": {
+      [MCP_SERVER_NAME]: {
         type: "http",
         url: session.endpoint,
         headers: {

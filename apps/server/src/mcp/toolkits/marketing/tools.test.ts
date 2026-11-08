@@ -111,15 +111,19 @@ describe("marketing tool kit", () => {
   it("holds read and draft tools only", () => {
     const names = Object.keys(MarketingToolkit.tools).toSorted();
     expect(names).toEqual([
-      "marketing_approval_request",
-      "marketing_brands",
-      "marketing_draft_save",
-      "marketing_metrics",
-      "marketing_metrics_sync",
-      "marketing_posts",
+      "leo_marketing_approval_request",
+      "leo_marketing_brands",
+      "leo_marketing_draft_save",
+      "leo_marketing_metrics",
+      "leo_marketing_metrics_sync",
+      "leo_marketing_posts",
     ]);
     expect(names.filter((name) => /publish|send|spend|approve$|post_now/.test(name))).toEqual([]);
-    for (const name of ["marketing_brands", "marketing_posts", "marketing_metrics"] as const) {
+    for (const name of [
+      "leo_marketing_brands",
+      "leo_marketing_posts",
+      "leo_marketing_metrics",
+    ] as const) {
       expect(Tool.getJsonSchema(MarketingToolkit.tools[name])).toBeDefined();
     }
   });
@@ -127,14 +131,14 @@ describe("marketing tool kit", () => {
   it.effect("lets an agent read metrics and draft a post, and the draft cannot publish", () => {
     const root = workspace();
     return Effect.gen(function* () {
-      const brands = yield* call("marketing_brands");
+      const brands = yield* call("leo_marketing_brands");
       expect(brands.json.brands.map((b: { slug: string }) => b.slug)).toEqual(["acme-games"]);
 
-      expect((yield* call("marketing_metrics_sync")).json).toEqual({ added: 1, errors: [] });
-      const metrics = yield* call("marketing_metrics", { channel: "x" });
+      expect((yield* call("leo_marketing_metrics_sync")).json).toEqual({ added: 1, errors: [] });
+      const metrics = yield* call("leo_marketing_metrics", { channel: "x" });
       expect(metrics.json.snapshots).toMatchObject([{ externalId: "999", impressions: 77 }]);
 
-      const saved = yield* call("marketing_draft_save", {
+      const saved = yield* call("leo_marketing_draft_save", {
         brand: "acme-games",
         channel: "x",
         text: "77 people saw our last post. Here is the next one.",
@@ -146,7 +150,7 @@ describe("marketing tool kit", () => {
         ok: false,
         reason: "no_ticket",
       });
-      const ticket = yield* call("marketing_approval_request", {
+      const ticket = yield* call("leo_marketing_approval_request", {
         postId,
         act: "publish",
         costEstimateUsd: 0.015,
@@ -154,7 +158,7 @@ describe("marketing tool kit", () => {
       expect(ticket.json).toMatchObject({ status: "pending", postId });
       expect(checkApproval(root, KEY, postId, "publish")).toEqual({ ok: false, reason: "pending" });
 
-      const posts = yield* call("marketing_posts", { brand: "acme-games" });
+      const posts = yield* call("leo_marketing_posts", { brand: "acme-games" });
       expect(posts.json.posts).toMatchObject([{ post: { id: postId }, approval: "pending" }]);
     }).pipe(Effect.provide(server(root)));
   });
@@ -162,7 +166,7 @@ describe("marketing tool kit", () => {
   it.effect("tells the agent to read the brands when the brand is unknown", () => {
     const root = workspace();
     return Effect.gen(function* () {
-      const result = yield* call("marketing_draft_save", {
+      const result = yield* call("leo_marketing_draft_save", {
         brand: "other",
         channel: "x",
         text: "Hi",

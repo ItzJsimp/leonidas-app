@@ -536,7 +536,7 @@ describe("CodexAdapterV2 runtime policy", () => {
       assert.equal(params.collaborationMode?.mode, "default");
       assert.include(
         params.additionalContext?.t3_code_orchestration?.value ?? "",
-        "Use `delegate_task` for another provider",
+        "Use `leo_delegate_task` for another provider",
       );
       assert.include(
         params.additionalContext?.t3_code_orchestration?.value ?? "",
@@ -692,7 +692,7 @@ describe("CodexAdapterV2 process spawning", () => {
         config: {
           "tools.update_plan.enabled": true,
           mcp_servers: {
-            "t3-code": {
+            leonidas: {
               url: "http://127.0.0.1:43123/mcp",
               http_headers: {
                 Authorization: "Bearer secret-codex-token",
@@ -995,8 +995,8 @@ describe("CodexAdapterV2 dynamic tool projection", () => {
       const projection = yield* CodexAdapterV2.projectCodexDynamicToolItem({
         type: "mcpToolCall",
         id: "call-create-threads",
-        server: "t3-code",
-        tool: "create_threads",
+        server: "leonidas",
+        tool: "leo_create_threads",
         status: "completed",
         arguments: {
           threads: [{ title: "Fixture child", prompt: "fixture child prompt" }],
@@ -1010,7 +1010,7 @@ describe("CodexAdapterV2 dynamic tool projection", () => {
       });
 
       assert.deepEqual(projection, {
-        toolName: "t3-code.create_threads",
+        toolName: "leonidas.leo_create_threads",
         input: {
           threads: [{ title: "Fixture child", prompt: "fixture child prompt" }],
         },
@@ -7343,7 +7343,7 @@ describe("CodexAdapterV2 post-settle continuation", () => {
               type: "mcpToolCall",
               id: COMPLETED_WAIT_ITEM,
               server: "t3-code",
-              tool: "t3_thread_wait",
+              tool: "leo_thread_wait",
               status: "inProgress",
               arguments: { threadId: "thread:completed-wait", timeoutMs: 30000 },
             },
@@ -7363,7 +7363,7 @@ describe("CodexAdapterV2 post-settle continuation", () => {
               type: "mcpToolCall",
               id: COMPLETED_WAIT_ITEM,
               server: "t3-code",
-              tool: "t3_thread_wait",
+              tool: "leo_thread_wait",
               status: "completed",
               arguments: { threadId: "thread:completed-wait", timeoutMs: 30000 },
               result: { content: [{ type: "text", text: "idle" }] },
@@ -7384,7 +7384,7 @@ describe("CodexAdapterV2 post-settle continuation", () => {
               type: "mcpToolCall",
               id: ORPHAN_WAIT_ITEM,
               server: "t3-code",
-              tool: "t3_thread_wait",
+              tool: "leo_thread_wait",
               status: "inProgress",
               arguments: {
                 threadId:

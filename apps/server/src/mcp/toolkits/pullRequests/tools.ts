@@ -229,7 +229,7 @@ export const ListThreadPullRequestsResult = Schema.Struct({
 });
 export type ListThreadPullRequestsResult = typeof ListThreadPullRequestsResult.Type;
 
-const LinkPullRequestTool = Tool.make("link_pull_request", {
+const LinkPullRequestTool = Tool.make("leo_link_pull_request", {
   description:
     "Link a PR to this thread. Leonidas shows its status and settles the thread on merge.",
   parameters: PullRequestTargetInput,
@@ -243,7 +243,7 @@ const LinkPullRequestTool = Tool.make("link_pull_request", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-const UnlinkPullRequestTool = Tool.make("unlink_pull_request", {
+const UnlinkPullRequestTool = Tool.make("leo_unlink_pull_request", {
   description:
     "Remove a PR link from this thread. Succeeds with `wasLinked=false` when it was not linked.",
   parameters: PullRequestTargetInput,
@@ -257,7 +257,7 @@ const UnlinkPullRequestTool = Tool.make("unlink_pull_request", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-const ListThreadPullRequestsTool = Tool.make("list_thread_pull_requests", {
+const ListThreadPullRequestsTool = Tool.make("leo_list_thread_pull_requests", {
   description:
     "List PRs linked to a thread, with last known state and stack order (bottom to top). Call only when you need that list. Never as an end-of-work check.",
   parameters: Schema.Struct({
@@ -273,7 +273,7 @@ const ListThreadPullRequestsTool = Tool.make("list_thread_pull_requests", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-const WatchPullRequestTool = Tool.make("watch_pull_request", {
+const WatchPullRequestTool = Tool.make("leo_watch_pull_request", {
   description:
     "Watch an open PR for this thread, linking it first if needed. Leonidas wakes you on failed checks, passed required checks, new comments or reviews, or conflicts. Handle old comments first. Only later ones wake you. After this call, end your turn. The watch stays on after each wake, so do not call this again on a wake. A wake is not a merge decision. Check readiness yourself.",
   parameters: PullRequestTargetInput,
@@ -287,7 +287,7 @@ const WatchPullRequestTool = Tool.make("watch_pull_request", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-const UnwatchPullRequestTool = Tool.make("unwatch_pull_request", {
+const UnwatchPullRequestTool = Tool.make("leo_unwatch_pull_request", {
   description: "Stop watching a PR for this thread. It stays linked.",
   parameters: PullRequestTargetInput,
   success: WatchPullRequestResult,
