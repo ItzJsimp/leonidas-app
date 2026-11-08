@@ -108,6 +108,27 @@ try {
     G $repo fetch -q origin
     Assert ((git -C $repo rev-parse origin/main).Trim() -eq $tip) 'origin/main does not move for a red branch'
     Assert (Test-Path (Join-Path $claims 'gamma.json')) 'red branch keeps its claim'
+    # 5. A worktree that something detached (Test-DevTip.ps1 does) is still found and removed, and a
+    # link inside it (a junction to a folder outside, here and in a deep folder) never costs the target a file.
+    Push-Location $repo
+    try {
+        pwsh -NoProfile -File scripts/Start-AgentTask.ps1 -Task epsilon -Owner agent-6 | Out-Null
+        $wtE = Join-Path $env:LEONIDAS_WORKTREE_ROOT 'epsilon'
+        Set-Content (Join-Path $wtE 'epsilon.txt') 'e'; G $wtE add epsilon.txt; G $wtE commit -q -m 'epsilon work'
+        G $wtE checkout -q --detach
+        $outside = Join-Path $root 'outside-skill'
+        New-Item -ItemType Directory -Force (Join-Path $outside 'sub') | Out-Null
+        Set-Content (Join-Path $outside 'SKILL.md') 'keep'; Set-Content (Join-Path $outside 'sub/a.txt') 'keep'
+        New-Item -ItemType Directory -Force (Join-Path $wtE 'node_modules/deep') | Out-Null
+        New-Item -ItemType Junction -Path (Join-Path $wtE 'node_modules/skill-link') -Target $outside | Out-Null
+        New-Item -ItemType Junction -Path (Join-Path $wtE 'node_modules/deep/link') -Target $outside | Out-Null
+        $out = pwsh -NoProfile -File scripts/Invoke-MergeQueue.ps1 -Branch task/epsilon -Task epsilon -Wait -WaitMinutes 1 | Out-String
+        $exit = $LASTEXITCODE
+    } finally { Pop-Location }
+    Assert ($exit -eq 0 -and $out -match 'result: landed') 'a detached worktree lands'
+    Assert (-not (Test-Path $wtE)) 'the detached worktree is removed'
+    Assert ($out -match 'epsilon removed') 'the queue says it removed the detached worktree'
+    Assert ((Test-Path (Join-Path $outside 'SKILL.md')) -and (Test-Path (Join-Path $outside 'sub/a.txt'))) 'links in the worktree never cost the target a file'
     'PASS'
 } finally {
     Get-Job | Remove-Job -Force
