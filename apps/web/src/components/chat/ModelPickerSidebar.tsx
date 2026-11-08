@@ -9,8 +9,8 @@ import { useNowMinute } from "../../hooks/useNowMinute";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { SparklesIcon, StarIcon } from "lucide-react";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
-import { ActiveAgentsOverlay } from "./ActiveAgentsBadge";
-import { useActiveAgentCounts } from "../../hooks/useActiveAgentCounts";
+import { AccountLoadBadge, accountLoadLabel } from "./AccountLoadBadge";
+import { useAccountLoad } from "../../hooks/useAccountLoad";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { ProviderLimitTooltip } from "./ProviderLimitTooltip";
@@ -74,7 +74,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
    */
   newBadgeInstanceIds?: ReadonlySet<ProviderInstanceId>;
 }) {
-  const activeAgentCount = useActiveAgentCounts();
+  const accountLoad = useAccountLoad();
   const nowMinute = useNowMinute();
   const handleSelect = (instanceId: ProviderInstanceId | "favorites") => {
     props.onSelectInstance(instanceId);
@@ -169,6 +169,10 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
             const isHovered = hoveredInstanceId === entry.instanceId;
             const showNewBadge = props.newBadgeInstanceIds?.has(entry.instanceId) ?? false;
             const showInstanceBadge = shouldShowInstanceBadge(entry, props.instanceEntries);
+            const load = props.environmentId
+              ? accountLoad(`${props.environmentId}:${entry.instanceId}`)
+              : { chats: 0, running: 0 };
+            const loadLabel = accountLoadLabel(load);
             const readiness = getProviderReadiness(entry.snapshot, {
               nowMs: Date.parse(`${nowMinute}:00Z`),
             });
@@ -203,11 +207,11 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                 aria-pressed={isSelected}
                 type="button"
                 aria-label={
-                  isUnavailable || isContextDisabled
+                  (isUnavailable || isContextDisabled
                     ? tooltip
                     : showNewBadge
                       ? `${entry.displayName}, new`
-                      : entry.displayName
+                      : entry.displayName) + (loadLabel ? `, ${loadLabel}` : "")
                 }
               >
                 <ProviderInstanceIcon
@@ -270,17 +274,14 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                       <span className="font-medium">
                         {tooltip}: {readiness.reason}
                       </span>
+                      {loadLabel ? (
+                        <span className="text-muted-foreground">{loadLabel}</span>
+                      ) : null}
                       <ProviderLimitTooltip provider={entry.snapshot} now={tooltipOpenedAt} />
                     </div>
                   </TooltipPopup>
                 </Tooltip>
-                <ActiveAgentsOverlay
-                  count={
-                    props.environmentId
-                      ? activeAgentCount(`${props.environmentId}:${entry.instanceId}`)
-                      : 0
-                  }
-                />
+                <AccountLoadBadge {...load} />
               </div>
             );
           })}
