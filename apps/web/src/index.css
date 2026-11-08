@@ -183,6 +183,17 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   );
 }
 
+/* Categorical colors for kinds in timelines and charts. They never mean state or action,
+   and each clears 3:1 on the card in both themes. */
+:root {
+  --series-1: oklch(0.52 0.09 195);
+  --series-2: oklch(0.5 0.16 300);
+}
+.dark {
+  --series-1: oklch(0.76 0.11 195);
+  --series-2: oklch(0.72 0.15 300);
+}
+
 /* The font tokens are declared outside the inline theme so utilities reference
    the variables and Settings -> Appearance can override them at runtime. The
    default stacks are mirrored in `appearanceFonts.ts`. */
@@ -268,6 +279,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --color-state: var(--state);
   --color-state-foreground: var(--state-foreground);
   --color-state-text: var(--state-text);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
   --color-input: var(--contrast-input);
   --color-border: var(--contrast-border);
   --color-destructive: var(--destructive);

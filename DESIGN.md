@@ -22,18 +22,19 @@ Every UI change in this app follows this file. Values live in one token file; th
 
 The default dark theme is **Graphite** (Jake's pick, 2026-11-06): the T3 Original dark values, lifted halfway toward the public "T3 Soft" theme. Light mode keeps Linen Sand paper.
 
-| Role (token file)                 | CSS / Tailwind                                     | Job                                                                                           |
-| --------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `canvas`, `chrome`, `toolbar`     | `bg-background`                                    | The window floor                                                                              |
-| `sidebar`                         | `bg-sidebar`                                       | Thread list and settings nav. One visible step above the canvas (1.06:1 or more)              |
-| `surface`                         | `bg-card`                                          | Cards and panels                                                                              |
-| `surfaceRaised`, `surfaceOverlay` | `bg-surface-raised`, `bg-popover`                  | Hover, menus, dialogs. Step up one level per layer                                            |
-| `border`, `input`                 | `border-border`, `border-input`                    | Hairlines and field edges                                                                     |
-| `text`, `textMuted`               | `text-foreground`, `text-muted-foreground`         | Body text and secondary text (4.5:1 or more)                                                  |
-| `messageAction`                   | `bg-primary`, `text-primary`, `border-primary`     | **Act:** send button, main buttons, active tab underline, active rail icon                    |
-| `accent`                          | `bg-state`, `text-state-text`, `stroke-state`      | **State:** switches on, checked boxes, progress rings and bars, Working and Connecting labels |
-| `focus`                           | `ring-ring`                                        | Focus outline. Quiet gray, never red or blue                                                  |
-| `error*`, `warning*`, `update*`   | `text-error-foreground`, `bg-warning` and siblings | Error rose, warning amber, update blue                                                        |
+| Role (token file)                  | CSS / Tailwind                                     | Job                                                                                            |
+| ---------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `canvas`, `chrome`, `toolbar`      | `bg-background`                                    | The window floor                                                                               |
+| `sidebar`                          | `bg-sidebar`                                       | Thread list and settings nav. One visible step above the canvas (1.06:1 or more)               |
+| `surface`                          | `bg-card`                                          | Cards and panels                                                                               |
+| `surfaceRaised`, `surfaceOverlay`  | `bg-surface-raised`, `bg-popover`                  | Hover, menus, dialogs. Step up one level per layer                                             |
+| `border`, `input`                  | `border-border`, `border-input`                    | Hairlines and field edges                                                                      |
+| `text`, `textMuted`                | `text-foreground`, `text-muted-foreground`         | Body text and secondary text (4.5:1 or more)                                                   |
+| `messageAction`                    | `bg-primary`, `text-primary`, `border-primary`     | **Act:** send button, main buttons, active tab underline, active rail icon                     |
+| `accent`                           | `bg-state`, `text-state-text`, `stroke-state`      | **State:** switches on, checked boxes, progress rings and bars, Working and Connecting labels  |
+| `focus`                            | `ring-ring`                                        | Focus outline. Quiet gray, never red or blue                                                   |
+| `series-1`, `series-2` (index.css) | `bg-series-1`, `text-series-2`                     | **Kind:** categories in timelines and charts (teal, violet), plus gray. Pair each with a shape |
+| `error*`, `warning*`, `update*`    | `text-error-foreground`, `bg-warning` and siblings | Error rose, warning amber, update blue                                                         |
 
 Rules:
 

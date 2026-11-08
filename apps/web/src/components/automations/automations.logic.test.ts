@@ -4,10 +4,13 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   filterRows,
   fromEntry,
+  groupMarks,
+  NOW_X,
   scheduleWords,
   statusOf,
   summarize,
   timeline,
+  timelineTicks,
 } from "./automations.logic";
 
 const NOW = Date.parse("2026-11-08T04:23:00Z");
@@ -99,11 +102,55 @@ describe("automations logic", () => {
     expect(summary.next?.id).toBe("repo-health");
   });
 
-  it("places 24 hourly runs and one Windows run on the timeline, none for stopped rows", () => {
+  it("places runs from 2 hours back to 22 hours ahead, none for stopped rows", () => {
     const lanes = timeline(rows, NOW);
-    expect(lanes.app).toHaveLength(24);
+    // Hourly from 58 minutes ahead to the window end, 22 hours ahead.
+    expect(lanes.app).toHaveLength(22);
+    expect(lanes.app.every((mark) => !mark.past)).toBe(true);
     expect(lanes.windows.map((mark) => mark.id)).toEqual(["task:AIOS-Daily-Briefing"]);
-    expect(lanes.windows[0]!.x).toBeCloseTo(9 / 24);
+    expect(lanes.windows[0]!.x).toBeCloseTo(11 / 24);
+    expect(NOW_X).toBeCloseTo(2 / 24);
+  });
+
+  it("draws a last run inside the window as a past mark left of now", () => {
+    const ran = fromEntry(
+      entry({ id: "w", kind: "watcher", name: "W", lastRunAt: new Date(NOW - HOUR).toISOString() }),
+    );
+    const [mark] = timeline([ran], NOW).app;
+    expect(mark).toMatchObject({ past: true });
+    expect(mark!.x).toBeCloseTo(1 / 24);
+  });
+
+  it("merges runs 15 minutes apart or less into one dot", () => {
+    const mark = (id: string, minutes: number, past = false) => ({
+      id,
+      name: id,
+      at: NOW + minutes * 60_000,
+      x: 0,
+      past,
+    });
+    const groups = groupMarks([
+      mark("a", 60),
+      mark("b", 60),
+      mark("c", 70),
+      mark("d", 120),
+      mark("e", 125, true),
+    ]);
+    expect(groups.map((group) => group.items.map((item) => item.id))).toEqual([
+      ["a", "b", "c"],
+      ["d"],
+      ["e"],
+    ]);
+  });
+
+  it("puts ticks on clock hours that divide by 3", () => {
+    const ticks = timelineTicks(NOW);
+    expect(ticks.length).toBe(8);
+    expect(
+      ticks.every(
+        (tick) => new Date(tick.at).getMinutes() === 0 && new Date(tick.at).getHours() % 3 === 0,
+      ),
+    ).toBe(true);
   });
 
   it("puts Stopped above the last result and words schedules in 12-hour time", () => {
