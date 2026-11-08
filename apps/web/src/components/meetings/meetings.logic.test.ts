@@ -11,6 +11,7 @@ import {
   mergeSegments,
   parseMeetingDetail,
   parseMeetingList,
+  parseMeetingTemplates,
   parseLive,
   parseDetect,
   parseDiscord,
@@ -39,6 +40,27 @@ const detail = parseMeetingDetail({
 })!;
 
 describe("meetings.logic", () => {
+  it("reads saved templates and rejects malformed or duplicate template choices", () => {
+    expect(parseMeetingDetail({ id: "a", template: "client-call" })?.meeting.template).toBe(
+      "client-call",
+    );
+    expect(parseMeetingDetail({ id: "a" })?.meeting.template).toBe("default");
+    expect(
+      parseMeetingTemplates({
+        items: [
+          { id: "default", name: "Standard notes" },
+          { id: "default", name: "Duplicate" },
+          { id: "broken" },
+          null,
+          { id: "brainstorm", name: "Brainstorm" },
+        ],
+      }),
+    ).toEqual([
+      { id: "default", name: "Standard notes" },
+      { id: "brainstorm", name: "Brainstorm" },
+    ]);
+    expect(parseMeetingTemplates(null)).toEqual([]);
+  });
   it("skips rows with no id and defaults a missing title and state", () => {
     const items = parseMeetingList({ items: [{ title: "no id" }, { id: "a" }, 5] });
     expect(items.map((item) => [item.id, item.title, item.state])).toEqual([
@@ -82,6 +104,22 @@ describe("meetings.logic", () => {
 
   it("builds the agent line from the folder", () => {
     expect(agentMention(detail)).toContain("in C:/meetings/m1");
+  });
+
+  it("combines meeting filters with search and clears them with All", () => {
+    const items = parseMeetingList({
+      items: [
+        { id: "a", title: "Planning", app: "Discord", pinned: true, hasTranscript: true },
+        { id: "b", title: "Planning", app: "discord.exe", pinned: false, hasTranscript: false },
+        { id: "c", title: "Sales", app: "Zoom", pinned: true, hasTranscript: false },
+      ],
+    });
+    expect(filterMeetings(items, "", ["discord"]).map((i) => i.id)).toEqual(["a", "b"]);
+    expect(filterMeetings(items, "", ["kept"]).map((i) => i.id)).toEqual(["a", "c"]);
+    expect(filterMeetings(items, "", ["missing"]).map((i) => i.id)).toEqual(["b", "c"]);
+    expect(filterMeetings(items, "planning", ["discord", "kept"]).map((i) => i.id)).toEqual(["a"]);
+    expect(filterMeetings(items, "sales", ["discord", "missing"])).toEqual([]);
+    expect(filterMeetings(items, "", [])).toEqual(items);
   });
 
   it("reads the live view and clamps levels", () => {
