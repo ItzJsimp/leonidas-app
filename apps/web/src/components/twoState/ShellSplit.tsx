@@ -64,16 +64,16 @@ export function ShellSplit({
       rememberLeftPage({ path: windowPath, tab: windowTab });
     }
   }, [windowPath, windowTab, rememberLeftPage]);
+  const layout = paneLayout({ width, split, routeKind: threadTarget ? "thread" : "window" });
+  const chatBeside = layout.mode === "split";
+  // Only the split view uses the row width. Outside it, a rail toggle must not re-render the pane.
   useLayoutEffect(() => {
     const element = rowRef.current;
-    if (!element) return;
+    if (!element || !chatBeside) return;
     return observeResize(element, ([entry]) => {
       if (entry) setRowWidth(entry.contentRect.width);
     });
-  }, []);
-
-  const layout = paneLayout({ width, split, routeKind: threadTarget ? "thread" : "window" });
-  const chatBeside = layout.mode === "split";
+  }, [chatBeside]);
   const value = useMemo(() => ({ rails: false, chatBeside }), [chatBeside]);
 
   const showLeft = layout.mode === "split" || layout.show === "left";

@@ -48,7 +48,7 @@ export function RailDrawer() {
       >
         <SheetTitle className="sr-only">Menu</SheetTitle>
         <SheetDescription className="sr-only">Open a page or switch workspace.</SheetDescription>
-        <AppRail expanded />
+        <AppRail drawer />
       </SheetPopup>
     </Sheet>
   );

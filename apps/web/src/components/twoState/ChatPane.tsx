@@ -54,7 +54,8 @@ export function ChatPane({
   readonly reserveTop?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  // A yes or no, not the pixel width: a rail toggle must not re-render the chat.
+  const [wide, setWide] = useState(false);
   const chatListOpen = useTwoStateStore((state) => state.chatListOpen);
   const setChatListOpen = useTwoStateStore((state) => state.setChatListOpen);
   const lastThread = useTwoStateStore((state) => state.lastThread);
@@ -66,7 +67,7 @@ export function ChatPane({
     const element = rootRef.current;
     if (!element) return;
     return observeResize(element, ([entry]) => {
-      if (entry) setWidth(entry.contentRect.width);
+      if (entry) setWide(entry.contentRect.width >= LIST_BESIDE_MIN_WIDTH);
     });
   }, []);
   // Choosing a chat opens another page: a floating list has done its job.
@@ -88,7 +89,7 @@ export function ChatPane({
       : null);
 
   const isShortTouchScreen = useIsShortTouchScreen();
-  const beside = width >= LIST_BESIDE_MIN_WIDTH && !isShortTouchScreen;
+  const beside = wide && !isShortTouchScreen;
   const open = beside ? chatListOpen : floatingOpen;
   const toggle = () => (beside ? setChatListOpen(!chatListOpen) : setFloatingOpen(!floatingOpen));
   const ToggleIcon = open ? PanelLeftCloseIcon : PanelLeftOpenIcon;

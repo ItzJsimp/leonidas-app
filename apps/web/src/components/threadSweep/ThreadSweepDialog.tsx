@@ -1,7 +1,6 @@
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ProjectId, ThreadId, ThreadSweepResult } from "@t3tools/contracts";
 import { useRouter } from "@tanstack/react-router";
-import { ListChecksIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useComposerDraftStore } from "../../composerDraftStore";
@@ -11,7 +10,6 @@ import { threadHandoffQuery, threadSweepQuery } from "../../state/threadSweep";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import { buildThreadRouteParams } from "../../threadRoutes";
 import { formatRelativeTimeLabel } from "../../timestampFormat";
-import { SidebarHeaderIconButton } from "../sidebar/SidebarThreadHeader";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import {
@@ -44,41 +42,14 @@ import {
   type IdleOptionId,
 } from "./threadSweep.logic";
 
-/** The header button and its dialog: sort idle chats, then archive the finished ones in one click. */
-export function ThreadSweepButton(props: {
-  readonly environmentId: EnvironmentId | null;
-  /** A project folder the AI model may run in when a chat needs a second opinion. */
-  readonly cwd: string | null;
-}) {
-  const [open, setOpen] = useState(false);
-  if (!props.environmentId || !props.cwd) return null;
-  return (
-    <>
-      <SidebarHeaderIconButton
-        label="Review old chats"
-        data-usage-id="thread_sweep"
-        onClick={() => setOpen(true)}
-      >
-        <ListChecksIcon />
-      </SidebarHeaderIconButton>
-      {open ? (
-        <ThreadSweepDialog
-          environmentId={props.environmentId}
-          cwd={props.cwd}
-          onClose={() => setOpen(false)}
-        />
-      ) : null}
-    </>
-  );
-}
-
 /** One finished request. `key` says which idle choice and try it answers. */
 interface Loaded {
   readonly key: string;
   readonly result: ThreadSweepResult | null;
 }
 
-function ThreadSweepDialog(props: {
+/** Review old chats: the AI model sorts idle chats into keep, archive and hand off. */
+export function ThreadSweepDialog(props: {
   readonly environmentId: EnvironmentId;
   readonly cwd: string;
   readonly onClose: () => void;

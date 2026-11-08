@@ -108,7 +108,7 @@ One shared component for every "long list plus detail" tab: Decisions, Logs, Wik
 
 ## Rail groups
 
-The rail groups tabs by job. Each tab has one job. Today's rail items live in [`railItems.ts`](./apps/web/src/components/twoState/railItems.ts); this table is the target.
+The rail groups tabs by job. Each tab has one job. [`railItems.ts`](./apps/web/src/components/twoState/railItems.ts) gives each item its group, in this order. The renames marked "was" are still targets.
 
 | Group         | Tab                             | Its one job                                            |
 | ------------- | ------------------------------- | ------------------------------------------------------ |
@@ -122,7 +122,8 @@ The rail groups tabs by job. Each tab has one job. Today's rail items live in [`
 | Brain         | Skills (was Library)            | Open, edit, create and switch skills                   |
 | Brain         | Agents (Subagents plus Helpers) | Build your agent team, see every run                   |
 | Brain         | Automations                     | See and control everything that runs alone             |
-| Create        | Scribe                          | Dictation, rewrite, meetings                           |
+| Create        | Scribe                          | Dictation and rewrite                                  |
+| Create        | Meetings                        | Record, read and share calls                           |
 | Create        | Images                          | Make pictures locally                                  |
 | Create        | Attachments (was Files)         | Every upload and agent output                          |
 | Business only | Team, Marketing, Content        | Business workspace tabs                                |
@@ -130,6 +131,10 @@ The rail groups tabs by job. Each tab has one job. Today's rail items live in [`
 | Bottom        | Usage, Settings                 |                                                        |
 
 Labels are one plain word. Business tabs follow the workspace template flag; Developer follows the builder flag.
+
+- **Expanded (default):** group names and labels. The header is the workspace picker (picture tile, name, Personal or Business chip) with the collapse icon beside it.
+- **Collapsed:** icons only, a thin divider between groups. The workspace picture sits on top, the expand icon under it, then a divider.
+- The app remembers the state. Every tab stays visible: a long business rail scrolls, it does not fold.
 
 ## Doop workflow
 

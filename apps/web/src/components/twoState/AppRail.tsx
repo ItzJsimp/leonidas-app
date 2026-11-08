@@ -1,13 +1,14 @@
 import { Link, useLocation, useParams } from "@tanstack/react-router";
+import * as Schema from "effect/Schema";
 import {
   AudioLinesIcon,
   BellIcon,
   BotIcon,
   BrainIcon,
   ChartNoAxesColumnIcon,
+  ChevronsUpDownIcon,
   ClapperboardIcon,
   FolderKanbanIcon,
-  FolderOpenIcon,
   ImageIcon,
   LayoutDashboardIcon,
   LibraryIcon,
@@ -15,6 +16,9 @@ import {
   MegaphoneIcon,
   MessageSquareIcon,
   MicIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  PaperclipIcon,
   SettingsIcon,
   SunIcon,
   TerminalSquareIcon,
@@ -22,14 +26,18 @@ import {
   ZapIcon,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { SidebarUpdatePill } from "~/components/sidebar/SidebarUpdatePill";
 import { Popover, PopoverPopup, PopoverTrigger } from "~/components/ui/popover";
 import { SidebarMenu } from "~/components/ui/sidebar";
-import { WorkspaceSwitcher } from "~/components/workspace/WorkspaceSwitcher";
+import { WorkspaceMenu } from "~/components/workspace/WorkspaceSwitcher";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
-import { useWorkspacePictures, WorkspacePicture } from "~/components/workspace/WorkspacePicture";
+import {
+  useWorkspacePictures,
+  WorkspacePicture,
+  WorkspaceTypeChip,
+} from "~/components/workspace/WorkspacePicture";
 import { isElectron } from "~/env";
 import { useLocalStorage } from "~/hooks/useLocalStorage";
 import { cn, isMacPlatform } from "~/lib/utils";
@@ -44,6 +52,7 @@ import { resolveThreadRouteTarget } from "~/threadRoutes";
 import {
   activeRailId,
   badgeAnnouncement,
+  RAIL_GROUP_LABELS,
   railItems,
   railLinkLabel,
   type RailItem,
@@ -56,8 +65,8 @@ import { useTwoStateCounts } from "./useTwoStateData";
 const ICONS: Readonly<Record<string, LucideIcon>> = {
   "command-center": LayoutDashboardIcon,
   chat: MessageSquareIcon,
-  scribe: AudioLinesIcon,
-  meetings: MicIcon,
+  scribe: MicIcon,
+  meetings: AudioLinesIcon,
   inbox: BellIcon,
   today: SunIcon,
   tasks: ListChecksIcon,
@@ -67,7 +76,7 @@ const ICONS: Readonly<Record<string, LucideIcon>> = {
   content: MegaphoneIcon,
   deals: ClapperboardIcon,
   images: ImageIcon,
-  files: FolderOpenIcon,
+  files: PaperclipIcon,
   automations: ZapIcon,
   subagents: BotIcon,
   team: UsersIcon,
@@ -80,12 +89,23 @@ const TARGET_CLASS =
   "relative inline-flex size-9 shrink-0 touch-hit items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none [-webkit-app-region:no-drag]";
 // The current page takes the action color on a faint tint (DESIGN.md "Rail").
 const ACTIVE_CLASS = "border-transparent bg-primary/14 text-primary hover:text-primary";
+const CONTROL_CLASS =
+  "inline-flex shrink-0 touch-hit items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none [-webkit-app-region:no-drag]";
+
+/** The rail remembers whether it shows labels. Labels by default (Jake's pick, 2026-11-07). */
+export const RAIL_EXPANDED_KEY = "leonidas:rail-expanded";
 
 /** "99+" past 99, so the badge stays small. */
 export const badgeText = (count: number) => (count > 99 ? "99+" : String(count));
 
-/** The only app navigation: one icon per page. Chat opens the last chat, else the chat start page. */
-export function AppRail({ expanded = false }: { readonly expanded?: boolean }) {
+/**
+ * The only app navigation, in flat groups. Expanded shows labels and group names. Collapsed shows
+ * icons with thin dividers. `drawer` is the narrow-window sheet: always expanded, no toggle.
+ * Chat opens the last chat, else the chat start page.
+ */
+export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
+  const [stored, setStored] = useLocalStorage(RAIL_EXPANDED_KEY, true, Schema.Boolean);
+  const expanded = drawer || stored;
   const { active } = useActiveAiosWorkspace();
   const [setup] = useLocalStorage(SETUP_STATE_STORAGE_KEY, EMPTY_SETUP_STATE, SetupStateSchema);
   const { shown: showAnyway } = useRailShowAnyway(active?.id);
@@ -130,30 +150,51 @@ export function AppRail({ expanded = false }: { readonly expanded?: boolean }) {
         "flex h-full shrink-0 flex-col gap-1 border-r border-border bg-card pb-2",
         // Empty rail space moves the window, as a title bar does. Its links and buttons stay clickable.
         isElectron && "drag-region",
-        expanded ? "w-full items-stretch px-2" : "w-[52px] items-center",
+        drawer ? "w-full px-2" : expanded ? "w-56 px-2" : "w-[52px] items-center",
         isElectron && isMacPlatform(navigator.platform) ? "pt-10" : "pt-2",
       )}
     >
-      <WorkspaceAvatar />
+      <RailHeader
+        expanded={expanded}
+        needsYou={unread}
+        onToggle={drawer ? null : () => setStored(!expanded)}
+      />
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>
       <div
-        className="mt-1 flex min-h-0 flex-1 flex-col items-center gap-1 scrollbar-gutter-both overflow-y-auto data-[expanded=true]:items-stretch"
-        data-expanded={expanded}
+        className={cn(
+          "mt-1 flex min-h-0 flex-1 flex-col gap-0.5 scrollbar-gutter-both overflow-y-auto",
+          !expanded && "items-center",
+        )}
       >
-        {main.map(renderItem)}
+        {main.map((item, index) => {
+          const first = index === 0 || main[index - 1]!.group !== item.group;
+          return (
+            <Fragment key={item.id}>
+              {first && expanded ? (
+                <p
+                  aria-hidden
+                  className={cn(
+                    "px-2.5 pb-1 text-3xs font-semibold tracking-wider text-muted-foreground uppercase",
+                    index === 0 ? "pt-1" : "pt-3",
+                  )}
+                >
+                  {RAIL_GROUP_LABELS[item.group]}
+                </p>
+              ) : null}
+              {first && !expanded && index > 0 ? (
+                <span aria-hidden className="my-1.5 h-px w-6 shrink-0 bg-border" />
+              ) : null}
+              {renderItem(item)}
+            </Fragment>
+          );
+        })}
       </div>
-      <div
-        className="flex flex-col items-center gap-1 data-[expanded=true]:items-stretch"
-        data-expanded={expanded}
-      >
+      <div className={cn("flex flex-col gap-0.5", !expanded && "items-center")}>
         {bottom.map(renderItem)}
         {/* Shows only while an update is on its way, directly under Settings. */}
-        <SidebarMenu
-          className="items-center empty:hidden data-[expanded=true]:items-start"
-          data-expanded={expanded}
-        >
+        <SidebarMenu className={cn("empty:hidden", expanded ? "items-start" : "items-center")}>
           <SidebarUpdatePill className="ml-0" />
         </SidebarMenu>
       </div>
@@ -181,18 +222,21 @@ function RailLink({
     "aria-current": current ? ("page" as const) : undefined,
     className: cn(
       TARGET_CLASS,
-      expanded && "h-11 w-full shrink-0 justify-start gap-3 px-2.5",
+      expanded && "h-9 w-full justify-start gap-3 px-2.5 hover:bg-accent",
       current && ACTIVE_CLASS,
     ),
   };
   const content: ReactNode = (
     <>
       <Icon aria-hidden className="size-5 shrink-0" />
-      {expanded ? <span className="text-sm">{item.label}</span> : null}
+      {expanded ? <span className="truncate text-sm">{item.label}</span> : null}
       {badge > 0 ? (
         <span
           aria-hidden
-          className="absolute -top-1 -right-1 min-w-4 rounded-full bg-warning px-1 text-center text-3xs leading-4 font-semibold text-background tabular-nums"
+          className={cn(
+            "min-w-4 rounded-full bg-warning px-1 text-center text-3xs leading-4 font-semibold text-background tabular-nums",
+            expanded ? "ml-auto" : "absolute -top-1 -right-1",
+          )}
         >
           {badgeText(badge)}
         </span>
@@ -218,20 +262,81 @@ function RailLink({
   );
 }
 
-/** The round workspace avatar. It opens the workspace switcher. */
-function WorkspaceAvatar() {
+/**
+ * Expanded: the workspace picker with the collapse icon beside it. Collapsed: the workspace
+ * picture, the expand icon under it, then a divider (Jake's "Option 1", 2026-11-07).
+ */
+function RailHeader({
+  expanded,
+  needsYou,
+  onToggle,
+}: {
+  readonly expanded: boolean;
+  readonly needsYou: number | null;
+  readonly onToggle: (() => void) | null;
+}) {
+  const toggleLabel = expanded ? "Collapse the menu" : "Expand the menu";
+  const toggle = onToggle ? (
+    <Tip text={toggleLabel}>
+      <button
+        type="button"
+        aria-label={toggleLabel}
+        aria-expanded={expanded}
+        onClick={onToggle}
+        className={cn(CONTROL_CLASS, "size-9")}
+      >
+        {expanded ? (
+          <PanelLeftCloseIcon aria-hidden className="size-5" />
+        ) : (
+          <PanelLeftOpenIcon aria-hidden className="size-5" />
+        )}
+      </button>
+    </Tip>
+  ) : null;
+  if (expanded) {
+    return (
+      // The drawer has no toggle, and its close button sits at the top right: leave it room.
+      <div className={cn("flex items-center gap-1", !toggle && "pr-8")}>
+        <WorkspacePicker expanded needsYou={needsYou} />
+        {toggle}
+      </div>
+    );
+  }
+  return (
+    <>
+      <WorkspacePicker expanded={false} needsYou={needsYou} />
+      {toggle}
+      <span aria-hidden className="my-1 h-px w-6 shrink-0 bg-border" />
+    </>
+  );
+}
+
+/** The workspace tile (and, expanded, its name and type). It opens the workspace menu. */
+function WorkspacePicker({
+  expanded,
+  needsYou,
+}: {
+  readonly expanded: boolean;
+  readonly needsYou: number | null;
+}) {
   const { active } = useActiveAiosWorkspace();
   const { pictures } = useWorkspacePictures();
+  const [open, setOpen] = useState(false);
   const name = active?.name ?? "Leonidas";
+  const business = active?.type === "business";
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <Tip text={`Workspace: ${name}`}>
         <PopoverTrigger
           render={
             <button
               type="button"
               aria-label={`Workspace: ${name}. Switch workspace`}
-              className="relative touch-hit inline-flex size-[30px] shrink-0 items-center justify-center rounded-full border border-border bg-surface-raised text-xs font-semibold text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [-webkit-app-region:no-drag]"
+              className={cn(
+                CONTROL_CLASS,
+                "text-foreground",
+                expanded ? "min-w-0 flex-1 justify-start gap-2.5 px-1.5 py-1" : "size-9",
+              )}
             />
           }
         >
@@ -239,13 +344,21 @@ function WorkspaceAvatar() {
             workspaceId={active?.id}
             name={name}
             pictures={pictures}
-            className="size-full overflow-hidden rounded-full text-xs"
+            className="size-8 rounded-lg border border-border text-xs"
           />
+          {expanded ? (
+            <>
+              <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                <span className="w-full truncate text-left text-sm font-semibold">{name}</span>
+                <WorkspaceTypeChip business={business} />
+              </span>
+              <ChevronsUpDownIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+            </>
+          ) : null}
         </PopoverTrigger>
       </Tip>
-      <PopoverPopup side="right" align="start" className="w-64">
-        <p className="px-2 pb-1 text-sm font-medium">{name}</p>
-        <WorkspaceSwitcher editPictures />
+      <PopoverPopup side={expanded ? "bottom" : "right"} align="start" className="w-80">
+        <WorkspaceMenu needsYou={needsYou} onDone={() => setOpen(false)} />
       </PopoverPopup>
     </Popover>
   );
