@@ -1,4 +1,3 @@
-import { resolveUsageAccess } from "@t3tools/client-runtime/state/usage-access";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -10,13 +9,10 @@ import { CopyIcon, FolderOpenIcon } from "lucide-react";
 import { useCallback, useState, type ReactNode } from "react";
 
 import { RefreshIcon } from "~/components/ui/refresh-icon";
-import { useEnvironments, usePrimaryEnvironmentId } from "~/state/environments";
 import { useOpenInPreferredEditor } from "../../editorPreferences";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { cn } from "../../lib/utils";
-import { useEnvironmentQuery } from "../../state/query";
-import { serverEnvironment } from "../../state/server";
-import { environmentSession, readEnvironmentScope, useEnvironmentScope } from "../../state/session";
+import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import { formatRelativeTimeLabel, getRelativeTimeState } from "../../timestampFormat";
 import { ExpandableText } from "../settings/ExpandableText";
 import { useRelativeTimeTick } from "../settings/settingsLayout";
@@ -24,6 +20,7 @@ import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { Card, ErrorNote, Segmented, Stat } from "./SystemCareCharts";
+import { useTraceDiagnostics } from "./useTraceDiagnostics";
 
 const NUMBER_FORMAT = new Intl.NumberFormat();
 
@@ -209,28 +206,20 @@ const LOG_VIEWS: ReadonlyArray<{ value: LogView; label: string }> = [
 
 /** Traces, failures and logs that Leonidas recorded on this computer. */
 export function LogsPanel() {
-  const environmentId = usePrimaryEnvironmentId();
-  const { environments } = useEnvironments();
-  const environment =
-    environments.find((candidate) => candidate.environmentId === environmentId) ?? null;
+  const {
+    environmentId,
+    environment,
+    diagnosticsAccess,
+    canReadDiagnostics,
+    data,
+    error,
+    isPending,
+    refresh,
+  } = useTraceDiagnostics();
   const observability = environment?.serverConfig?.observability;
   const availableEditors = environment?.serverConfig?.availableEditors;
   const canOpenHostEditor = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
-  const session = useEnvironmentQuery(
-    environmentId === null ? null : environmentSession.sessionStateAtom(environmentId),
-  );
-  const diagnosticsAccess = resolveUsageAccess({
-    connectionPhase: environment?.connection.phase ?? "available",
-    session: session.data,
-    hasSessionError: session.error !== null,
-  });
-  const canReadDiagnostics = diagnosticsAccess.canReadDiagnostics;
   const openInEditor = useOpenInPreferredEditor(environmentId, availableEditors ?? []);
-  const { data, error, isPending, refresh } = useEnvironmentQuery(
-    environmentId === null || !canReadDiagnostics
-      ? null
-      : serverEnvironment.traceDiagnostics({ environmentId, input: {} }),
-  );
   const [view, setView] = useState<LogView>("failures");
   const [isOpeningLogsDirectory, setIsOpeningLogsDirectory] = useState(false);
   const [openLogsDirectoryError, setOpenLogsDirectoryError] = useState<string | null>(null);

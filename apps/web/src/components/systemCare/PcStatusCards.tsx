@@ -14,10 +14,10 @@ const pctTone = (pct: number | null) =>
     : pct >= 95
       ? "bg-success"
       : pct >= 85
-        ? "bg-primary"
+        ? "bg-state"
         : pct >= 70
           ? "bg-warning"
-          : "bg-destructive";
+          : "bg-error";
 
 const speedText = (value: number | null, unit: SpeedRow["unit"]) =>
   value === null ? "-" : unit === "MHz" ? formatValue(value, "MHz") : `${Math.round(value)} MT/s`;
@@ -97,7 +97,8 @@ export function BottleneckCard(props: { findings: HardwarePcStatus["bottlenecks"
             <li key={finding.app} className="rounded-xl border bg-background/60 p-3">
               <div className="text-sm">
                 When <span className="font-medium">{finding.app}</span> is busy,{" "}
-                <span className="font-medium text-primary">{finding.resource}</span> fills up first.
+                <span className="font-medium text-foreground">{finding.resource}</span> fills up
+                first.
               </div>
               <div className="mt-0.5 text-xs text-muted-foreground">
                 {finding.fullMinutes} of {finding.activeMinutes} busy minutes.{" "}
@@ -142,7 +143,7 @@ export function SpeedTestsCard(props: { runs: HardwarePcStatus["benchmarks"] }) 
                     ? "bg-success"
                     : run.label === "before"
                       ? "bg-muted-foreground/40"
-                      : "bg-primary/60",
+                      : "bg-state/60",
                 )}
                 style={{ height: `${Math.max(4, ((run.cpuMultiScore ?? 0) / top) * 100)}%` }}
               />
@@ -179,7 +180,7 @@ export function SpeedTestsCard(props: { runs: HardwarePcStatus["benchmarks"] }) 
                             ? "text-muted-foreground"
                             : change > 0
                               ? "text-success"
-                              : "text-destructive",
+                              : "text-error-foreground",
                         )}
                       >
                         {change === null ? "-" : `${change > 0 ? "+" : ""}${change.toFixed(0)}%`}
@@ -221,7 +222,7 @@ export function TopAppsCard(props: { apps: HardwarePcStatus["topApps"]; measurin
                 </div>
                 <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-primary"
+                    className="h-full rounded-full bg-state"
                     style={{ width: `${(app.cpuPct / top) * 100}%` }}
                   />
                 </div>

@@ -1,16 +1,5 @@
 import type { HardwareInventory, HardwareSample } from "@t3tools/contracts";
-import {
-  ActivityIcon,
-  CpuIcon,
-  GaugeIcon,
-  HardDriveIcon,
-  LayoutGridIcon,
-  ScrollTextIcon,
-  MemoryStickIcon,
-  MonitorIcon,
-  SparklesIcon,
-  WrenchIcon,
-} from "lucide-react";
+import { CpuIcon, HardDriveIcon, LayoutGridIcon, MemoryStickIcon, MonitorIcon } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
@@ -27,60 +16,54 @@ import {
 } from "./pcInsights.logic";
 import { formatBytes, formatValue } from "./systemCare.logic";
 
+// Blue shows state; amber and rose only when the score drops.
 const scoreTone = (score: number | null) =>
   score === null
-    ? "text-muted-foreground stroke-muted-foreground/40"
-    : score >= 90
-      ? "text-success stroke-success"
-      : score >= 70
-        ? "text-primary stroke-primary"
-        : score >= 50
-          ? "text-warning stroke-warning"
-          : "text-destructive stroke-destructive";
+    ? "stroke-muted-foreground/40"
+    : score >= 70
+      ? "stroke-state"
+      : score >= 50
+        ? "stroke-warning"
+        : "stroke-error";
 
-/** The big health number in the page header. */
+/** The health number in the score card. */
 export function ScoreRing(props: { health: HealthScore }) {
   const { score } = props.health;
   const radius = 44;
   const circumference = 2 * Math.PI * radius;
   const fill = score === null ? 0 : score / 100;
   return (
-    <div className={cn("relative size-24 shrink-0", scoreTone(score))}>
+    <div className={cn("relative size-16 shrink-0", scoreTone(score))}>
       <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden="true">
-        <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="7" className="stroke-muted" />
+        <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="9" className="stroke-muted" />
         <circle
           cx="50"
           cy="50"
           r={radius}
           fill="none"
-          strokeWidth="7"
+          strokeWidth="9"
           strokeLinecap="round"
           strokeDasharray={`${fill * circumference} ${circumference}`}
           className="transition-[stroke-dasharray] duration-700 ease-out motion-reduce:transition-none"
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-semibold tabular-nums leading-none">{score ?? "-"}</span>
-        <span className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-          score
-        </span>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="sr-only">Health score </span>
+        <span className="text-xl font-semibold tabular-nums leading-none">{score ?? "-"}</span>
       </div>
     </div>
   );
 }
 
 const PC_TABS = [
-  { id: "overview", label: "Overview", icon: GaugeIcon },
-  { id: "parts", label: "Your parts", icon: LayoutGridIcon },
-  { id: "history", label: "History", icon: SparklesIcon },
-  { id: "app", label: "Leonidas", icon: ActivityIcon },
-  { id: "logs", label: "Logs and errors", icon: ScrollTextIcon },
-  { id: "settings", label: "Settings", icon: WrenchIcon },
+  { id: "overview", label: "Overview" },
+  { id: "parts", label: "Parts" },
+  { id: "app", label: "App" },
 ] as const;
 
 export type PcTab = (typeof PC_TABS)[number]["id"];
 
-/** Sticky tabs. Arrow keys, Home and End move between them. */
+/** The Machine sections switch. Arrow keys, Home and End move between them. */
 export function PcTabs(props: { value: PcTab; onChange: (tab: PcTab) => void }) {
   const select = (index: number) => {
     const tab = PC_TABS[(index + PC_TABS.length) % PC_TABS.length];
@@ -107,9 +90,9 @@ export function PcTabs(props: { value: PcTab; onChange: (tab: PcTab) => void }) 
   return (
     <div
       role="tablist"
-      aria-label="PC Tuning"
+      aria-label="Machine sections"
       onKeyDown={onKeyDown}
-      className="sticky top-0 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-xl border bg-background/85 p-1 backdrop-blur"
+      className="inline-flex w-fit gap-0.5 rounded-lg border p-0.5"
     >
       {PC_TABS.map((tab) => {
         const selected = tab.id === props.value;
@@ -124,13 +107,12 @@ export function PcTabs(props: { value: PcTab; onChange: (tab: PcTab) => void }) 
             tabIndex={selected ? 0 : -1}
             onClick={() => props.onChange(tab.id)}
             className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors motion-reduce:transition-none",
+              "rounded-md px-3 py-1 text-sm transition-colors motion-reduce:transition-none",
               selected
-                ? "bg-muted font-medium text-foreground"
+                ? "bg-surface-raised font-medium text-foreground"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
             )}
           >
-            <tab.icon className="size-4" />
             {tab.label}
           </button>
         );
@@ -160,7 +142,7 @@ export function CoreGrid(props: { loads: ReadonlyArray<number> }) {
             // oxlint-disable-next-line react/no-array-index-key
             key={index}
             title={`Thread ${index + 1}: ${Math.round(load)}%`}
-            className="h-3 rounded-sm bg-primary"
+            className="h-3 rounded-sm bg-state"
             style={{ opacity: 0.12 + Math.min(100, Math.max(0, load)) / 115 }}
           />
         ))}
@@ -189,7 +171,7 @@ function PartTile(props: {
   return (
     <div className="rounded-xl border bg-background/50 p-4">
       <div className="flex items-start gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
           <props.icon className="size-4.5" />
         </div>
         <div className="min-w-0">
@@ -409,8 +391,8 @@ export function PartsCard(props: {
 }
 
 const IMPACT_STYLE = {
-  high: "bg-destructive/12 text-destructive",
-  medium: "bg-warning/12 text-warning",
+  high: "bg-error text-primary-foreground",
+  medium: "bg-warning text-background",
   low: "bg-muted text-muted-foreground",
 } as const;
 
@@ -434,7 +416,7 @@ export function QuickWinsCard(props: {
     >
       {props.wins.length === 0 ? (
         <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-6 text-sm text-muted-foreground">
-          <span className="size-2.5 rounded-full bg-success" />
+          <span className="size-2.5 rounded-full bg-state" />
           No easy wins found. Run Tune my PC for a full check with a speed test.
         </div>
       ) : (
