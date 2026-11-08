@@ -1152,6 +1152,7 @@ interface ActiveTextSegment {
 interface ActiveTextStream {
   current: ActiveTextSegment | null;
   nextSegment: number;
+  completedChars: number;
 }
 
 interface AcpNativeBuildConfiguration {
@@ -2433,12 +2434,10 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         const rememberSnapshotMessage = (message: OrchestrationV2ConversationMessage) =>
           Ref.update(snapshot, (current) => {
             const key = String(message.id);
-            const exists = current.messages.has(key);
-            const messages = new Map(current.messages);
-            messages.set(key, message);
+            const messages = new Map(current.messages).set(key, message);
             return {
               ...current,
-              order: exists ? current.order : [...current.order, key],
+              order: current.messages.has(key) ? current.order : [...current.order, key],
               messages,
             };
           });
@@ -2453,6 +2452,60 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               ? context.assistant
               : context.reasoning;
 
+        const emitTurnUpdated = Effect.fnUntraced(function* (
+          context: ActiveAcpTurn,
+          status: OrchestrationV2ProviderTurn["status"],
+          completedAt: DateTime.Utc | null,
+        ) {
+          const turn = providerTurnPayload(context, status, completedAt);
+          yield* Ref.update(providerTurns, (m) => new Map(m).set(String(turn.id), turn));
+          yield* emitProviderEvent({
+            type: "provider_turn.updated",
+            driver,
+            threadId: context.input.threadId,
+            providerTurn: turn,
+          });
+        });
+        const emitPartialTurnTokenUsage = Effect.fnUntraced(function* (
+          context: ActiveAcpTurn,
+          now: DateTime.Utc,
+        ) {
+          if (context.finalized) return;
+          let toolChars = 0;
+          for (const tool of context.tools.values()) {
+            const raw = tool.data.rawInput;
+            const s = typeof raw === "string" ? raw : raw != null ? JSON.stringify(raw) : "";
+            if (s !== "{}") toolChars += s.length;
+          }
+          const aLen =
+            context.assistant.completedChars +
+            (context.assistant.current?.text.length ?? 0) +
+            toolChars;
+          const rLen =
+            context.reasoning.completedChars + (context.reasoning.current?.text.length ?? 0);
+          const reasoningTokens = rLen > 0 ? Math.max(1, Math.round(rLen / 3.8)) : 0;
+          const outputTokens =
+            (aLen > 0 ? Math.max(1, Math.round(aLen / 3.8)) : 0) + reasoningTokens;
+          const prev = context.turnTokenUsage;
+          if (
+            outputTokens <= 0 ||
+            (prev?.outputTokens === outputTokens && prev?.reasoningTokens === reasoningTokens)
+          )
+            return;
+          context.turnTokenUsage = {
+            usageStatus: "partial",
+            usageScope: "main_agent",
+            outputTokens,
+            reasoningTokens,
+            hasSubagents: context.subagents.size > 0,
+          };
+          context.tokenUsage = {
+            ...context.tokenUsage,
+            usedTokens: context.tokenUsage?.usedTokens ?? outputTokens,
+            updatedAt: DateTime.formatIso(now),
+          };
+          yield* emitTurnUpdated(context, "running", null);
+        });
         const emitTextSegment = Effect.fnUntraced(function* (
           context: ActiveAcpTurn,
           kind: "user" | "assistant" | "reasoning",
@@ -2471,39 +2524,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
             strength: "weak" as const,
           };
           if (kind !== "user") {
-            const assistantLen = context.assistant.current?.text.length ?? 0;
-            const reasoningLen = context.reasoning.current?.text.length ?? 0;
-            const reasoningTokens =
-              reasoningLen > 0 ? Math.max(1, Math.round(reasoningLen / 3.8)) : 0;
-            const assistantTokens =
-              assistantLen > 0 ? Math.max(1, Math.round(assistantLen / 3.8)) : 0;
-            const outputTokens = assistantTokens + reasoningTokens;
-            if (outputTokens > 0) {
-              context.turnTokenUsage = {
-                usageStatus: "partial",
-                usageScope: "main_agent",
-                outputTokens,
-                reasoningTokens,
-                hasSubagents: context.subagents.size > 0,
-              };
-              context.tokenUsage = {
-                ...context.tokenUsage,
-                usedTokens: context.tokenUsage?.usedTokens ?? outputTokens,
-                updatedAt: DateTime.formatIso(now),
-              };
-              const runningTurn = providerTurnPayload(context, "running", null);
-              yield* Ref.update(providerTurns, (current) => {
-                const updated = new Map(current);
-                updated.set(String(runningTurn.id), runningTurn);
-                return updated;
-              });
-              yield* emitProviderEvent({
-                type: "provider_turn.updated",
-                driver,
-                threadId: context.input.threadId,
-                providerTurn: runningTurn,
-              });
-            }
+            yield* emitPartialTurnTokenUsage(context, now);
             yield* emitProviderEvent({
               type: "node.updated",
               driver,
@@ -2632,7 +2653,9 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         ) {
           const stream = textStreamFor(context, kind);
           if (stream.current === null) return;
+          const closedChars = stream.current.text.length;
           yield* emitTextSegment(context, kind, true);
+          stream.completedChars += closedChars;
           stream.current = null;
         });
 
@@ -3450,9 +3473,6 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                 {},
               ...(rawOutput === undefined ? {} : { output: acpMcpToolCallOutput(rawOutput) }),
             };
-            yield* emitProviderEvent({ type: "turn_item.updated", driver, turnItem });
-            yield* rearmDeferredFinalize(context);
-            return;
           } else if (changes.length > 0) {
             turnItem = {
               ...base,
@@ -3598,6 +3618,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                 }
             }
           }
+          if (projectedStatus === undefined) yield* emitPartialTurnTokenUsage(context, now);
           yield* emitProviderEvent({ type: "turn_item.updated", driver, turnItem });
           yield* rearmDeferredFinalize(context);
         });
@@ -6851,18 +6872,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               };
             }
           }
-          const turn = providerTurnPayload(context, settledStatus, now);
-          yield* Ref.update(providerTurns, (current) => {
-            const updated = new Map(current);
-            updated.set(String(turn.id), turn);
-            return updated;
-          });
-          yield* emitProviderEvent({
-            type: "provider_turn.updated",
-            driver,
-            threadId: context.input.threadId,
-            providerTurn: turn,
-          });
+          yield* emitTurnUpdated(context, settledStatus, now);
           const updatedProviderThread: OrchestrationV2ProviderThread = {
             ...context.input.providerThread,
             providerSessionId: input.providerSessionId,
@@ -7227,9 +7237,9 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                 (yield* Ref.get(activeSessionSetup))?.initializeResult.protocolVersion === 2
                   ? promptParts?.prompt
                   : undefined,
-              user: { current: null, nextSegment: 0 },
-              assistant: { current: null, nextSegment: 0 },
-              reasoning: { current: null, nextSegment: 0 },
+              user: { current: null, nextSegment: 0, completedChars: 0 },
+              assistant: { current: null, nextSegment: 0, completedChars: 0 },
+              reasoning: { current: null, nextSegment: 0, completedChars: 0 },
               contextUsage: rememberedContextUsage ?? turnInput.providerThread.contextUsage ?? null,
               nativeMetadata: initialNativeMetadata,
               tools: new Map(),
@@ -7274,18 +7284,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
             // Direct Stop closes and recreates the old runtime before reaching
             // this reset. The quarantine remains session-scoped by design.
             yield* Ref.set(stoppedRunQuarantine, false);
-            const runningTurn = providerTurnPayload(context, "running", null);
-            yield* Ref.update(providerTurns, (current) => {
-              const updated = new Map(current);
-              updated.set(String(runningTurn.id), runningTurn);
-              return updated;
-            });
-            yield* emitProviderEvent({
-              type: "provider_turn.updated",
-              driver,
-              threadId: turnInput.threadId,
-              providerTurn: runningTurn,
-            });
+            yield* emitTurnUpdated(context, "running", null);
             const activeProviderThread: OrchestrationV2ProviderThread = {
               ...turnInput.providerThread,
               providerSessionId: input.providerSessionId,

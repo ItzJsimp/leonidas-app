@@ -141,6 +141,16 @@ function isToolCallItem(item: OrchestrationV2TurnItem): boolean {
   );
 }
 
+function isTurnWaitItem(item: OrchestrationV2TurnItem): boolean {
+  return (
+    isToolCallItem(item) ||
+    item.type === "user_input_request" ||
+    item.type === "approval_request" ||
+    item.type === "secret_request" ||
+    item.type === "subagent"
+  );
+}
+
 /**
  * Formats a clean human-readable title for a tool call item.
  */
@@ -238,7 +248,7 @@ function measureTurnTiming(
       firstOutputAt = firstOutputAt === null ? itemStart : Math.min(firstOutputAt, itemStart);
       continue;
     }
-    if (!isToolCallItem(item)) continue;
+    if (!isTurnWaitItem(item)) continue;
     const from = Math.max(itemStart, startMs);
     const to = Math.min(parseTimestamp(item.completedAt) ?? endMs, endMs);
     if (to > from) spans.push([from, to]);
@@ -325,7 +335,11 @@ export function deriveVelocitySummary(
 
   for (let i = 0; i < turns.length; i++) {
     const turn = turns[i]!;
-    if (turn.status === "completed" && turn.startedAt && turn.completedAt) {
+    if (
+      (turn.status === "completed" || turn.turnTokenUsage?.usageStatus === "complete") &&
+      turn.startedAt &&
+      turn.completedAt
+    ) {
       const startMs = parseTimestamp(turn.startedAt);
       const endMs = parseTimestamp(turn.completedAt);
 
