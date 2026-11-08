@@ -1726,8 +1726,11 @@ describe("ClaudeAdapterV2 question answers", () => {
         });
         const resolved = yield* Fiber.join(result);
         assert.equal(resolved?.behavior, "allow");
-        const answer =
-          resolved?.behavior === "allow" ? resolved.updatedInput?.answers?.[question] : undefined;
+        const answers =
+          resolved?.behavior === "allow"
+            ? (resolved.updatedInput?.answers as Record<string, string> | undefined)
+            : undefined;
+        const answer = answers?.[question];
         assert.include(String(answer), '<skill name="tdd"/>');
         assert.include(String(answer), "Write the test first.");
         assert.include(String(answer), "ARGUMENTS: the parser");
