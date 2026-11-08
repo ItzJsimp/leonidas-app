@@ -6,7 +6,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Effect from "effect/Effect";
-import { expandSkillMentionsFromDisk } from "./skillMentions.ts";
+import { expandSkillMentionsFromDisk, expandSkillsInAnswers } from "./skillMentions.ts";
 
 const temp = (label: string) =>
   NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), `skills-${label}-`));
@@ -83,5 +83,22 @@ it.effect("rejects names that try to leave the skill folder", () =>
     NodeFS.writeFileSync(NodePath.join(cwd, "SKILL.md"), "secret\n");
     const text = "$..";
     assert.equal(yield* run(text, cwd, temp("home")), text);
+  }),
+);
+
+it.effect("expands a skill typed in a question answer and leaves other answers alone", () =>
+  Effect.gen(function* () {
+    const bodies = new Map([["tdd", "Write the test first."]]);
+    const out = yield* expandSkillsInAnswers(
+      { Which: "$tdd the parser", Many: ["Yes", "$tdd now"], Flag: true, Plain: "No skill" },
+      () => Effect.succeed(bodies),
+    );
+    assert.include(String(out.Which), '<skill name="tdd"/>');
+    assert.include(String(out.Which), "ARGUMENTS: the parser");
+    const many = out.Many as string[];
+    assert.equal(many[0], "Yes");
+    assert.include(many[1] ?? "", "Write the test first.");
+    assert.equal(out.Flag, true);
+    assert.equal(out.Plain, "No skill");
   }),
 );
