@@ -36,6 +36,24 @@ describe("ElectronShell", () => {
     }).pipe(Effect.provide(ElectronShell.layer)),
   );
 
+  it.effect("opens only the fixed Doop app launcher", () =>
+    Effect.gen(function* () {
+      openExternalMock.mockResolvedValue(undefined);
+      const shell = yield* ElectronShell.ElectronShell;
+      assert.equal(yield* shell.openExternal("doop://open"), true);
+      for (const url of [
+        "doop://auth?token=x",
+        "doop://open?url=https://attacker.test",
+        "doop://open/path",
+        "doop://user@open",
+        "doop://open#auth",
+      ]) {
+        assert.equal(yield* shell.openExternal(url), false);
+      }
+      assert.deepEqual(openExternalMock.mock.calls, [["doop://open"]]);
+    }).pipe(Effect.provide(ElectronShell.layer)),
+  );
+
   it.effect("copies text to the system clipboard", () =>
     Effect.gen(function* () {
       writeTextMock.mockResolvedValue(undefined);
