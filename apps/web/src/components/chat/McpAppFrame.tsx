@@ -33,6 +33,7 @@ import { useTurnItemDetail } from "~/state/queries";
 import { mcpAppEnvironment } from "~/state/mcpApps";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { observeResize } from "~/lib/observeResize";
+import { DoopAppFrame } from "./DoopAppFrame";
 
 const commandFailure = (result: {
   readonly cause: Parameters<typeof squashAtomCommandFailure>[0]["cause"];
@@ -73,7 +74,7 @@ function saveBlob(blob: Blob, name: string) {
  * not mark read-only, chat messages, and downloads ask first. Full screen keeps
  * the same frame (and the app's state) and only restyles its box.
  */
-export function McpAppFrame(props: {
+type McpAppFrameProps = {
   readonly environmentId: EnvironmentId;
   /** The thread that produced the app, which its requests run against. */
   readonly threadId: ThreadId;
@@ -88,7 +89,22 @@ export function McpAppFrame(props: {
   readonly awaitingUser?: boolean;
   /** Told when the app enters or leaves full screen. */
   readonly onFullscreenChange?: (fullscreen: boolean) => void;
-}) {
+};
+
+export function McpAppFrame(props: McpAppFrameProps) {
+  return /^ui:\/\/doop\/frame-preview-\d+\.html$/.test(props.app.resourceUri) ? (
+    <DoopAppFrame
+      environmentId={props.environmentId}
+      threadId={props.threadId}
+      itemId={props.itemId}
+      revision={props.revision}
+    />
+  ) : (
+    <EmbeddedMcpAppFrame {...props} />
+  );
+}
+
+function EmbeddedMcpAppFrame(props: McpAppFrameProps) {
   const { app } = props;
   const theme = useHtmlRenderTheme();
   const frameRef = useRef<HTMLIFrameElement>(null);
