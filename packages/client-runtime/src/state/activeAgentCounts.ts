@@ -33,19 +33,28 @@ function isAgentActive(runtime: ThreadRuntimeSummary | null | undefined): boolea
   return runtime?.status === "running" || runtime?.status === "waiting";
 }
 
+export interface AccountLoad {
+  /** Chats the user has open on the account: not archived, and no idle subagent. */
+  readonly chats: number;
+  /** Agents running or waiting on the user, a subset of `chats`. */
+  readonly running: number;
+}
+
 /**
- * Active agents per account key. Delegated subagent tasks own threads, so
- * counting threads across every environment covers them too.
+ * Open chats and running agents per account key, to balance work across accounts.
+ * A subagent thread is no chat the user opened, so it counts only while it runs.
+ * Threads from every environment count, so delegated tasks are included.
  */
-export function countActiveAgentsByAccount(input: {
+export function countAccountLoad(input: {
   readonly providers: ReadonlyArray<AccountIdentity>;
   readonly threads: Iterable<{
     readonly modelSelection: { readonly instanceId: ProviderInstanceId };
     readonly runtime: ThreadRuntimeSummary | null;
     readonly archivedAt?: string | null;
+    readonly lineage?: { readonly relationshipToParent?: string | null };
     readonly environmentId?: string;
   }>;
-}): ReadonlyMap<string, number> {
+}): ReadonlyMap<string, AccountLoad> {
   const keyByInstance = new Map<string, string>();
   for (const provider of input.providers) {
     keyByInstance.set(
@@ -53,13 +62,16 @@ export function countActiveAgentsByAccount(input: {
       resolveAccountKey(provider),
     );
   }
-  const counts = new Map<string, number>();
+  const load = new Map<string, AccountLoad>();
   for (const thread of input.threads) {
-    if (thread.archivedAt || !isAgentActive(thread.runtime)) continue;
+    if (thread.archivedAt) continue;
+    const running = isAgentActive(thread.runtime);
+    if (!running && thread.lineage?.relationshipToParent === "subagent") continue;
     const instanceId = thread.runtime?.providerInstanceId ?? thread.modelSelection.instanceId;
     const scopedId = scoped(thread.environmentId, instanceId);
     const key = keyByInstance.get(scopedId) ?? `instance:${scopedId}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const current = load.get(key) ?? { chats: 0, running: 0 };
+    load.set(key, { chats: current.chats + 1, running: current.running + (running ? 1 : 0) });
   }
-  return counts;
+  return load;
 }
