@@ -473,6 +473,50 @@ describe("AgentVelocityMeter.logic", () => {
         expect(summary.modelStreamTps).toBeNull();
       });
 
+      it("subtracts user_input_request, approval_request, secret_request, and subagent waits from modelStreamTps without inflating tool counts", () => {
+        const longTurn = {
+          ...turn,
+          startedAt: "2026-10-10T12:00:00Z",
+          completedAt: "2026-10-10T12:41:00Z", // 2,460,000ms (41m)
+          turnTokenUsage: {
+            usageStatus: "complete",
+            usageScope: "main_agent",
+            hasSubagents: false,
+            outputTokens: 1_000,
+          },
+        } as unknown as OrchestrationV2ProviderTurn;
+        const summary = deriveVelocitySummary(
+          [longTurn],
+          [
+            item("user_input_request", "t", "2026-10-10T12:00:05Z", "2026-10-10T12:40:55Z"), // 2,450,000ms (40m50s)
+          ],
+        );
+        // Active model time is 10s (60,000ms - 50,000ms = 10,000ms), so 1,000 tokens / 10s = 100 t/s (not 0.4 t/s)
+        expect(summary.toolWaitMs).toBe(2_450_000);
+        expect(summary.modelStreamTps).toBe(100);
+        expect(summary.rolling5Tps).toBe(100);
+        expect(summary.totalToolCallsTracked).toBe(0);
+      });
+
+      it("includes interrupted turns with complete turnTokenUsage in rolling velocity samples", () => {
+        const steeredTurn = {
+          ...turn,
+          id: "steered",
+          status: "interrupted",
+          startedAt: "2026-10-10T12:00:00Z",
+          completedAt: "2026-10-10T12:00:10Z",
+          turnTokenUsage: {
+            usageStatus: "complete",
+            usageScope: "main_agent",
+            hasSubagents: false,
+            outputTokens: 800,
+          },
+        } as unknown as OrchestrationV2ProviderTurn;
+        const summary = deriveVelocitySummary([steeredTurn], []);
+        expect(summary.totalTurnsTracked).toBe(1);
+        expect(summary.rolling5Tps).toBe(80);
+      });
+
       it("matches whole-turn pace when the turn used no tools", () => {
         const summary = deriveVelocitySummary([turn], []);
         expect(summary.toolWaitMs).toBe(0);
