@@ -70,6 +70,8 @@ import { HtmlPreviewTool, HtmlPreviewToolkit, HtmlRenderToolkit } from "./toolki
 import * as MarketingHandlers from "./toolkits/marketing/handlers.ts";
 import { MarketingToolkit } from "./toolkits/marketing/tools.ts";
 import * as ContentHandlers from "./toolkits/content/handlers.ts";
+import * as InsightHandlers from "./toolkits/insight/handlers.ts";
+import { InsightToolkit } from "./toolkits/insight/tools.ts";
 import { ContentToolkit } from "./toolkits/content/tools.ts";
 
 /** Where an MCP client discovers how to sign in (RFC 9728), at this request's own origin. */
@@ -949,6 +951,7 @@ export const layerTools = Layer.mergeAll(
   layerHtmlToolkit,
   toolkitRegistration(MarketingToolkit, MarketingHandlers.layer),
   toolkitRegistration(ContentToolkit, ContentHandlers.layer),
+  toolkitRegistration(InsightToolkit, InsightHandlers.layer),
 );
 
 export const layer = layerTools.pipe(Layer.provideMerge(layerMcpTransport));
