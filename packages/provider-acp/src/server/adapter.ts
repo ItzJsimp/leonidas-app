@@ -7383,21 +7383,30 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               return;
             }
             let promptGeneration = yield* Ref.get(runtimeCallbackGeneration);
+            // Restart the agent, resume the session and send `prompt` there.
+            const promptOnFreshRuntime = (prompt: Parameters<typeof runtime.prompt>[0]["prompt"]) =>
+              Effect.gen(function* () {
+                yield* Ref.set(runtimeRestartRequired, true);
+                yield* restartRuntimeAfterTeardownIfRequired(turnInput.threadId);
+                const activated = yield* activateSession(requestedSessionId, turnInput.threadId);
+                yield* Ref.set(activeSessionId, activated.sessionId);
+                yield* Ref.set(activeSessionSetup, activated);
+                yield* configureSession(
+                  activated,
+                  turnInput.modelSelection,
+                  turnInput.runtimePolicy,
+                );
+                yield* Ref.set(activeSelection, turnInput.modelSelection);
+                yield* Ref.set(activeInteractionMode, turnInput.runtimePolicy.interactionMode);
+                promptGeneration = yield* Ref.get(runtimeCallbackGeneration);
+                return yield* runtime.prompt({ prompt });
+              });
             // The agent answers a dead connection with plain text and a normal
             // stop. Restart it, resume the session and send the same prompt once.
-            const replayAfterConnectionLost = Effect.gen(function* () {
+            const replayAfterConnectionLost = Effect.suspend(() => {
               context.connectionReplayed = true;
               context.connectionLostSeen = false;
-              yield* Ref.set(runtimeRestartRequired, true);
-              yield* restartRuntimeAfterTeardownIfRequired(turnInput.threadId);
-              const activated = yield* activateSession(requestedSessionId, turnInput.threadId);
-              yield* Ref.set(activeSessionId, activated.sessionId);
-              yield* Ref.set(activeSessionSetup, activated);
-              yield* configureSession(activated, turnInput.modelSelection, turnInput.runtimePolicy);
-              yield* Ref.set(activeSelection, turnInput.modelSelection);
-              yield* Ref.set(activeInteractionMode, turnInput.runtimePolicy.interactionMode);
-              promptGeneration = yield* Ref.get(runtimeCallbackGeneration);
-              return yield* runtime.prompt({ prompt: promptParts!.prompt });
+              return promptOnFreshRuntime(promptParts!.prompt);
             });
             const promptWithReplay = runtime.prompt({ prompt: promptParts!.prompt }).pipe(
               Effect.flatMap((result) =>
@@ -7408,8 +7417,9 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                   ? replayAfterConnectionLost
                   : Effect.succeed(result),
               ),
-              // The turn ended on a tool call with no reply: send one follow-up on the
-              // same session so the user sees an answer instead of a silent stop.
+              // The turn ended on a tool call with no reply: send one follow-up so the
+              // user sees an answer instead of a silent stop. The stalled agent process
+              // drops or hangs every later prompt, so the follow-up goes to a new one.
               Effect.flatMap((result) => {
                 const continuation = flavor.silentStopContinuation;
                 if (
@@ -7422,8 +7432,17 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                   return Effect.succeed(result);
                 }
                 context.silentStopContinued = true;
-                return runtime.prompt({ prompt: [{ type: "text", text: continuation }] });
+                return promptOnFreshRuntime([{ type: "text", text: continuation }]);
               }),
+              // The follow-up also ended with no reply: this agent is stalled, so the
+              // next turn starts a new process instead of hanging on it.
+              Effect.tap(() =>
+                context.silentStopContinued &&
+                context.awaitingReplyAfterTool &&
+                !context.interrupted
+                  ? Ref.set(runtimeRestartRequired, true)
+                  : Effect.void,
+              ),
             );
             yield* promptWithReplay.pipe(
               Effect.tap(() =>
