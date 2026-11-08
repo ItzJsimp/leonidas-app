@@ -33,7 +33,7 @@ At the tip (one full merge): 1,236 files. Judgment 1,086 (1,009 content, 79 add/
 - **Hot stages:** v0.1.1a (373), v0.1.2 (244, with 66 mechanical), v0.1.3 (175). Plan the most time there.
 - **Web is the largest area** at 483 files, then server 276 and packages 210. Mobile is 159 files, so a mobile decision (keep or skip) cuts about 13 percent.
 - **modify/delete:** 144. 138 of them are files that upstream deleted and Leonidas modified (web 78, mobile 34, server 16, packages 5, scripts 4, desktop 3). Only 6 are files that Leonidas deleted and upstream modified (marketing 1, server 2, web 2, and 1 other). So the answer to "areas Leonidas does not use" is 6 files. The 138 need a decision per file: drop our edit or move it to the new upstream home.
-- **add/add: 79.** Both sides added the same path with different content. Many are ports of an upstream file that Leonidas copied early (for example `outboundHttp.ts`, `modelSwitch.ts`, `assetImageSource.ts`). Batch 15 also gave new Leonidas files names that upstream already uses (`TimelineUserMessageRow.tsx`, `TimelineWorkGroupRows.tsx`, `TimelineWorkEntryRow.tsx`, `SidebarThreadRow.tsx`). Those four collide with upstream files of the same name. Rename ours before stage 1 or the collision shows up in 4 of the 20 hardest files.
+- **add/add: 79.** Both sides added the same path with different content. Many are ports of an upstream file that Leonidas copied early (for example `outboundHttp.ts`, `modelSwitch.ts`, `assetImageSource.ts`). Batch 15 also gave 18 new Leonidas files names that upstream already uses (the 8 `Timeline*` row files, 3 `Sidebar*` files, 2 composer parts and 5 hooks). Correction (2026-11-08): the first draft said four. Fixed in `b49ae2ed6e`: the 18 files now carry a `Leo` prefix. Full-merge conflicts went from 1,236 to 1,218 files and add/add from 79 to 64.
 
 ## The 20 hardest files (conflict hunks in the full-merge tip result)
 
@@ -42,18 +42,18 @@ At the tip (one full merge): 1,236 files. Judgment 1,086 (1,009 content, 79 add/
 | 77 | `apps/web/src/components/chat/ChatComposer.tsx` | Leonidas wiring vs upstream hook split |
 | 77 | `apps/web/src/components/ChatView.tsx` | `onSend` and 111-variable closure vs upstream hooks |
 | 58 | `apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts` | both sides rewrote the Claude adapter |
-| 55 | `apps/web/src/components/sidebar/SidebarThreadRow.tsx` | name collision: our 1,855-line row vs upstream row |
+| 55 | `apps/web/src/components/sidebar/SidebarThreadRow.tsx` | name collision: our 1,855-line row vs upstream row (renamed `LeoSidebarThreadRow.tsx` after this run) |
 | 53 | `apps/web/src/components/settings/settingsSearch.ts` | Leonidas plain-word settings vs new upstream entries |
 | 42 | `apps/web/src/components/Sidebar.tsx` | protected sidebar structure vs upstream sidebar work |
 | 40 | `apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts` | follows the adapter |
-| 31 | `apps/web/src/components/chat/TimelineWorkGroupRows.tsx` | name collision with upstream file |
+| 31 | `apps/web/src/components/chat/TimelineWorkGroupRows.tsx` | name collision, since renamed with a `Leo` prefix |
 | 27 | `apps/web/src/components/chat/MessagesTimeline.tsx` | Leonidas timeline rows vs upstream row files |
-| 26 | `apps/web/src/components/chat/TimelineUserMessageRow.tsx` | name collision with upstream file |
+| 26 | `apps/web/src/components/chat/TimelineUserMessageRow.tsx` | name collision, since renamed with a `Leo` prefix |
 | 26 | `apps/server/src/mcp/OrchestratorMcpService.test.ts` | Leonidas `leo_*` tools vs upstream MCP changes |
 | 25 | `packages/contracts/src/settings.ts` | both sides added settings keys |
 | 24 | `apps/web/src/components/settings/SettingsPanels.tsx` | protected Settings pages |
 | 24 | `apps/web/src/components/CommandPalette.tsx` | Leonidas shortcuts and commands |
-| 23 | `apps/web/src/components/chat/TimelineWorkEntryRow.tsx` | name collision with upstream file |
+| 23 | `apps/web/src/components/chat/TimelineWorkEntryRow.tsx` | name collision, since renamed with a `Leo` prefix |
 | 21 | `apps/server/src/ws.ts` | RPC list changed on both sides |
 | 20 | `packages/contracts/src/orchestratorMcp.ts` | `leo_*` tool contracts vs upstream |
 | 20 | `apps/web/src/components/settings/ConnectionsSettings.tsx` | protected Settings, new upstream connections |
