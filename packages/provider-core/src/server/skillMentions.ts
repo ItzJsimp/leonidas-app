@@ -51,3 +51,25 @@ export const expandSkillMentionsFromDisk = Effect.fn("expandSkillMentionsFromDis
     return expandSkills(input.text, bodies) ?? input.text;
   },
 );
+
+/**
+ * A question answer is read by the agent like a message, so a `$skill` the user
+ * typed in the answer box must expand the same way. `bodiesFor` is the
+ * provider's own skill lookup. Answers that are not text pass through.
+ */
+export const expandSkillsInAnswers = <E, R>(
+  answers: Readonly<Record<string, unknown>>,
+  bodiesFor: (text: string) => Effect.Effect<ReadonlyMap<string, string> | undefined, E, R>,
+): Effect.Effect<Record<string, unknown>, E, R> => {
+  const expand = (value: unknown): Effect.Effect<unknown, E, R> =>
+    typeof value === "string" && mayMentionSkill(value)
+      ? bodiesFor(value).pipe(
+          Effect.map((bodies) => (bodies ? (expandSkills(value, bodies) ?? value) : value)),
+        )
+      : Effect.succeed(value);
+  return Effect.forEach(Object.entries(answers), ([key, value]) =>
+    (Array.isArray(value) ? Effect.forEach(value, expand) : expand(value)).pipe(
+      Effect.map((expanded) => [key, expanded] as const),
+    ),
+  ).pipe(Effect.map(Object.fromEntries));
+};

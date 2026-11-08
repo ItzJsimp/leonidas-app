@@ -116,6 +116,7 @@ import {
   withInstalledClaudeOnPath,
 } from "../../provider/Drivers/ClaudeExecutable.ts";
 import { expandSkills, mayMentionSkill } from "@t3tools/shared/skillExpansion";
+import { expandSkillsInAnswers } from "@t3tools/provider-core/server/skillMentions";
 import {
   claudeLaunchArgDirectories,
   discoverClaudeSkills,
@@ -8390,6 +8391,10 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               ),
             );
             if (!(yield* Deferred.isDone(answers))) yield* cancelWithdrawnRequest(artifacts);
+            // A `$skill` typed in the answer box expands like it does in a message.
+            const expandedAnswers = yield* expandSkillsInAnswers(resolvedAnswers, (text) =>
+              invocableSkillBodies(context.input.runtimePolicy.cwd, text),
+            );
             return callbackOptions.signal.aborted
               ? ({
                   behavior: "deny",
@@ -8399,7 +8404,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                   behavior: "allow",
                   updatedInput: {
                     questions: toolInput.questions,
-                    answers: claudeSdkUserInputAnswers(resolvedAnswers),
+                    answers: claudeSdkUserInputAnswers(expandedAnswers),
                   },
                   toolUseID: callbackOptions.toolUseID,
                 } satisfies PermissionResult);

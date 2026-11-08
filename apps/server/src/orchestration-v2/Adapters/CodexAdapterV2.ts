@@ -41,6 +41,7 @@ import {
 } from "@t3tools/contracts";
 import { SKILL_MENTION_PATTERN } from "@t3tools/shared/composerInlineTokens";
 import { expandSkills, mayMentionSkill } from "@t3tools/shared/skillExpansion";
+import { expandSkillsInAnswers } from "@t3tools/provider-core/server/skillMentions";
 import { AgentScope } from "@t3tools/shared/AgentScope";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { dynamicToolTitle } from "@t3tools/shared/toolActivity";
@@ -5610,9 +5611,11 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 }),
               ),
             );
+            // A `$skill` typed in the answer box expands like it does in a message.
+            const expanded = yield* expandSkillsInAnswers(resolved, codexSkillBodies);
             return {
               answers: toCodexUserInputAnswers(
-                resolved,
+                expanded,
                 new Set(payload.questions.map((question) => question.id)),
               ),
             } satisfies CodexSchema.ToolRequestUserInputResponse;
