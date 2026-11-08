@@ -204,6 +204,22 @@ describe("capBadge", () => {
     expect(capBadge({ open: 5 })).toBeNull();
   });
 
+  it("badges the server's folder count, not the board count that includes native cards", () => {
+    const projects = [project("leonidas-code", { cap: 8, warn: 5, capOpen: 1 })];
+    const tasks = mergeTasks([task("a"), task("n", { sourceRoot: "native" })], []);
+    const entry = buildRailEntries(tasks, projects).find((e) => e.slug === "leonidas-code");
+    expect(entry).toMatchObject({ open: 2, capOpen: 1 });
+    expect(entry && capBadge(entry)).toEqual({ label: "1/8", tone: "ok" });
+  });
+
+  it("falls back to the open count when the server sends no folder count", () => {
+    expect(capBadge({ open: 3, cap: 8, warn: 5 })).toEqual({ label: "3/8", tone: "ok" });
+    expect(capBadge({ open: 6, cap: 8, warn: 5, capOpen: 8 })).toEqual({
+      label: "8/8",
+      tone: "full",
+    });
+  });
+
   it("rail entries carry the project's rule; No project uses the Inbox rule", () => {
     const projects = [project("leonidas-code", { cap: 8, warn: 5 })];
     const tasks = mergeTasks([task("a"), task("c", { projectSlug: null, project: "General" })], []);

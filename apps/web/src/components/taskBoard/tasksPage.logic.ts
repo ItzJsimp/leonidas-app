@@ -201,6 +201,8 @@ export type RailEntry = {
   /** From `projects/<slug>/project.md`; absent when the server sent no rule. */
   cap?: number | undefined;
   warn?: number | undefined;
+  /** What the cap refuses against: open cards in the AIOS folder. `open` also has native and shared cards. */
+  capOpen?: number | undefined;
 };
 
 // The Inbox rule (cards without a project) mirrors `parseCapRule` on the server.
@@ -213,11 +215,13 @@ export function capBadge(entry: {
   open: number;
   cap?: number | undefined;
   warn?: number | undefined;
+  capOpen?: number | undefined;
 }): CapBadge | null {
   if (entry.cap === undefined) return null;
+  const open = entry.capOpen ?? entry.open;
   const warn = entry.warn ?? entry.cap;
-  const tone = entry.open >= entry.cap ? "full" : entry.open >= warn ? "warn" : "ok";
-  return { label: `${entry.open}/${entry.cap}`, tone };
+  const tone = open >= entry.cap ? "full" : open >= warn ? "warn" : "ok";
+  return { label: `${open}/${entry.cap}`, tone };
 }
 
 /**
@@ -230,7 +234,9 @@ export function buildRailEntries(
 ): RailEntry[] {
   const rules = new Map(
     projects.flatMap((p) =>
-      p.cap === undefined ? [] : [[p.slug, { cap: p.cap, warn: p.warn }] as const],
+      p.cap === undefined
+        ? []
+        : [[p.slug, { cap: p.cap, warn: p.warn, capOpen: p.capOpen }] as const],
     ),
   );
   return groupBySection(tasks, projects)

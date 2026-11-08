@@ -261,6 +261,8 @@ export const TaskBoardWorkspaceProject = Schema.Struct({
   // The open-card cap and warning line from `projects/<slug>/project.md`; absent without an AIOS.
   cap: Schema.optional(Schema.Number),
   warn: Schema.optional(Schema.Number),
+  // Open cards in the AIOS folder: what the cap refuses against. `open` also counts native cards.
+  capOpen: Schema.optional(Schema.Number),
 });
 export type TaskBoardWorkspaceProject = typeof TaskBoardWorkspaceProject.Type;
 
@@ -480,6 +482,16 @@ export const AiosWorkspaceHiddenProjectsInput = Schema.Struct({
   ),
 });
 export type AiosWorkspaceHiddenProjectsInput = typeof AiosWorkspaceHiddenProjectsInput.Type;
+
+// Sets one project's open-task limit and warning in its project.md. Whole numbers: the server
+// checks the range and answers in plain words, so a bad value never reaches the file.
+export const TaskBoardCapSetInput = Schema.Struct({
+  ...workspaceScope,
+  projectSlug: TrimmedNonEmptyString.check(Schema.isMaxLength(100)),
+  cap: Schema.Number,
+  warn: Schema.Number,
+});
+export type TaskBoardCapSetInput = typeof TaskBoardCapSetInput.Type;
 
 // The setup prompt: writes workspace.json into a folder the app already lists.
 export const AiosWorkspaceInitInput = Schema.Struct({

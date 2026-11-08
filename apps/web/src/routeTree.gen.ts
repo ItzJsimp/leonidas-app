@@ -50,6 +50,7 @@ import { Route as ChatSettingsProjectsRouteImport } from './routes/_chat.setting
 import { Route as ChatSettingsOpenSourceLicensesRouteImport } from './routes/_chat.settings.open-source-licenses'
 import { Route as ChatSettingsModelsRouteImport } from './routes/_chat.settings.models'
 import { Route as ChatSettingsMaintenanceRouteImport } from './routes/_chat.settings.maintenance'
+import { Route as ChatSettingsLimitsRouteImport } from './routes/_chat.settings.limits'
 import { Route as ChatSettingsLabsRouteImport } from './routes/_chat.settings.labs'
 import { Route as ChatSettingsKeybindingsRouteImport } from './routes/_chat.settings.keybindings'
 import { Route as ChatSettingsIntegrationsRouteImport } from './routes/_chat.settings.integrations'
@@ -274,6 +275,11 @@ const ChatSettingsMaintenanceRoute = ChatSettingsMaintenanceRouteImport.update({
   path: '/maintenance',
   getParentRoute: () => ChatSettingsRoute,
 } as any)
+const ChatSettingsLimitsRoute = ChatSettingsLimitsRouteImport.update({
+  id: '/limits',
+  path: '/limits',
+  getParentRoute: () => ChatSettingsRoute,
+} as any)
 const ChatSettingsLabsRoute = ChatSettingsLabsRouteImport.update({
   id: '/labs',
   path: '/labs',
@@ -404,6 +410,7 @@ export interface FileRoutesByFullPath {
   '/settings/integrations': typeof ChatSettingsIntegrationsRoute
   '/settings/keybindings': typeof ChatSettingsKeybindingsRoute
   '/settings/labs': typeof ChatSettingsLabsRoute
+  '/settings/limits': typeof ChatSettingsLimitsRoute
   '/settings/maintenance': typeof ChatSettingsMaintenanceRoute
   '/settings/models': typeof ChatSettingsModelsRoute
   '/settings/open-source-licenses': typeof ChatSettingsOpenSourceLicensesRoute
@@ -462,6 +469,7 @@ export interface FileRoutesByTo {
   '/settings/integrations': typeof ChatSettingsIntegrationsRoute
   '/settings/keybindings': typeof ChatSettingsKeybindingsRoute
   '/settings/labs': typeof ChatSettingsLabsRoute
+  '/settings/limits': typeof ChatSettingsLimitsRoute
   '/settings/maintenance': typeof ChatSettingsMaintenanceRoute
   '/settings/models': typeof ChatSettingsModelsRoute
   '/settings/open-source-licenses': typeof ChatSettingsOpenSourceLicensesRoute
@@ -522,6 +530,7 @@ export interface FileRoutesById {
   '/_chat/settings/integrations': typeof ChatSettingsIntegrationsRoute
   '/_chat/settings/keybindings': typeof ChatSettingsKeybindingsRoute
   '/_chat/settings/labs': typeof ChatSettingsLabsRoute
+  '/_chat/settings/limits': typeof ChatSettingsLimitsRoute
   '/_chat/settings/maintenance': typeof ChatSettingsMaintenanceRoute
   '/_chat/settings/models': typeof ChatSettingsModelsRoute
   '/_chat/settings/open-source-licenses': typeof ChatSettingsOpenSourceLicensesRoute
@@ -582,6 +591,7 @@ export interface FileRouteTypes {
     | '/settings/integrations'
     | '/settings/keybindings'
     | '/settings/labs'
+    | '/settings/limits'
     | '/settings/maintenance'
     | '/settings/models'
     | '/settings/open-source-licenses'
@@ -640,6 +650,7 @@ export interface FileRouteTypes {
     | '/settings/integrations'
     | '/settings/keybindings'
     | '/settings/labs'
+    | '/settings/limits'
     | '/settings/maintenance'
     | '/settings/models'
     | '/settings/open-source-licenses'
@@ -699,6 +710,7 @@ export interface FileRouteTypes {
     | '/_chat/settings/integrations'
     | '/_chat/settings/keybindings'
     | '/_chat/settings/labs'
+    | '/_chat/settings/limits'
     | '/_chat/settings/maintenance'
     | '/_chat/settings/models'
     | '/_chat/settings/open-source-licenses'
@@ -1010,6 +1022,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatSettingsMaintenanceRouteImport
       parentRoute: typeof ChatSettingsRoute
     }
+    '/_chat/settings/limits': {
+      id: '/_chat/settings/limits'
+      path: '/limits'
+      fullPath: '/settings/limits'
+      preLoaderRoute: typeof ChatSettingsLimitsRouteImport
+      parentRoute: typeof ChatSettingsRoute
+    }
     '/_chat/settings/labs': {
       id: '/_chat/settings/labs'
       path: '/labs'
@@ -1140,6 +1159,7 @@ interface ChatSettingsRouteChildren {
   ChatSettingsIntegrationsRoute: typeof ChatSettingsIntegrationsRoute
   ChatSettingsKeybindingsRoute: typeof ChatSettingsKeybindingsRoute
   ChatSettingsLabsRoute: typeof ChatSettingsLabsRoute
+  ChatSettingsLimitsRoute: typeof ChatSettingsLimitsRoute
   ChatSettingsMaintenanceRoute: typeof ChatSettingsMaintenanceRoute
   ChatSettingsModelsRoute: typeof ChatSettingsModelsRoute
   ChatSettingsOpenSourceLicensesRoute: typeof ChatSettingsOpenSourceLicensesRoute
@@ -1168,6 +1188,7 @@ const ChatSettingsRouteChildren: ChatSettingsRouteChildren = {
   ChatSettingsIntegrationsRoute: ChatSettingsIntegrationsRoute,
   ChatSettingsKeybindingsRoute: ChatSettingsKeybindingsRoute,
   ChatSettingsLabsRoute: ChatSettingsLabsRoute,
+  ChatSettingsLimitsRoute: ChatSettingsLimitsRoute,
   ChatSettingsMaintenanceRoute: ChatSettingsMaintenanceRoute,
   ChatSettingsModelsRoute: ChatSettingsModelsRoute,
   ChatSettingsOpenSourceLicensesRoute: ChatSettingsOpenSourceLicensesRoute,

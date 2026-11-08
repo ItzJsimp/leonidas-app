@@ -82,6 +82,7 @@ import {
   TaskBoardWorkspaceInput,
   TaskBoardWorkspaceSnapshot,
   TaskBoardCardUpdateInput,
+  TaskBoardCapSetInput,
   TaskBoardChangeSetInput,
   TaskBoardChangeSetResult,
   TaskBoardCardCreateInput,
@@ -699,6 +700,7 @@ export const WS_METHODS = {
   taskBoardCardUpdate: "taskBoard.cardUpdate",
   taskBoardCardCreate: "taskBoard.cardCreate",
   taskBoardApplyChangeSet: "taskBoard.applyChangeSet",
+  taskBoardCapSet: "taskBoard.capSet",
   taskBoardShare: "taskBoard.share",
   taskBoardAiosDetect: "taskBoard.aiosDetect",
   taskBoardAiosConfirm: "taskBoard.aiosConfirm",
@@ -1929,6 +1931,12 @@ const WsSubagentRunsListRpc = Rpc.make(WS_METHODS.subagentRunsList, {
 const WsTaskBoardCardUpdateRpc = Rpc.make(WS_METHODS.taskBoardCardUpdate, {
   payload: TaskBoardCardUpdateInput,
   success: TaskBoardTask,
+  error: Schema.Union([TaskBoardReadError, TaskBoardOperationError, EnvironmentAuthorizationError]),
+});
+
+const WsTaskBoardCapSetRpc = Rpc.make(WS_METHODS.taskBoardCapSet, {
+  payload: TaskBoardCapSetInput,
+  success: Schema.Void,
   error: Schema.Union([TaskBoardReadError, TaskBoardOperationError, EnvironmentAuthorizationError]),
 });
 
@@ -3538,6 +3546,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsTaskBoardCardUpdateRpc,
   WsTaskBoardCardCreateRpc,
   WsTaskBoardApplyChangeSetRpc,
+  WsTaskBoardCapSetRpc,
   WsTaskBoardShareRpc,
   WsTaskBoardAiosDetectRpc,
   WsTaskBoardAiosConfirmRpc,

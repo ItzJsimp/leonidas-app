@@ -31,6 +31,7 @@ export type SettingsPath =
   | "/settings/worktrees"
   | "/settings/environments"
   | "/settings/access"
+  | "/settings/limits"
   | "/settings/maintenance"
   | "/settings/labs"
   | "/settings/about"
@@ -118,6 +119,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/worktrees": "Separate copies",
   "/settings/environments": "Computers",
   "/settings/access": "Sharing and access",
+  "/settings/limits": "Limits",
   "/settings/maintenance": "Maintenance",
   "/settings/labs": "Labs",
   "/settings/about": "About",
@@ -161,7 +163,13 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
   { heading: "Connections", paths: ["/settings/environments", "/settings/access"] },
   {
     heading: null,
-    paths: ["/settings/maintenance", "/settings/labs", "/settings/about", "/settings/archived"],
+    paths: [
+      "/settings/limits",
+      "/settings/maintenance",
+      "/settings/labs",
+      "/settings/about",
+      "/settings/archived",
+    ],
   },
 ];
 
@@ -1255,6 +1263,7 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/maintenance": "environment-defaults",
   "/settings/environments": "connections",
   "/settings/access": "connections",
+  "/settings/limits": null,
   "/settings/labs": null,
   "/settings/about": null,
   "/settings/scheduled-tasks": null,

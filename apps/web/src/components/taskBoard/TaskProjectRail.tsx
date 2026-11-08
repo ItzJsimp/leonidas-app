@@ -1,7 +1,9 @@
+import type { EnvironmentId } from "@t3tools/contracts";
 import { ChevronRightIcon, EyeIcon, EyeOffIcon, LayersIcon, UsersIcon } from "lucide-react";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 
 import { Button } from "~/components/ui/button";
+import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "~/components/ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import {
   Select,
@@ -11,7 +13,14 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 
-import { capBadge, splitRail, type CapBadge, type RailEntry, type TaskFocus } from "./tasksPage.logic";
+import { CapEditor } from "./CapEditor";
+import {
+  capBadge,
+  splitRail,
+  type CapBadge,
+  type RailEntry,
+  type TaskFocus,
+} from "./tasksPage.logic";
 
 const BADGE_TONE = {
   ok: "text-muted-foreground",
@@ -29,6 +38,8 @@ function RailRow(props: {
   readonly selected: boolean;
   readonly shareable?: boolean;
   readonly badge?: CapBadge | null;
+  /** A badge editor sits over the badge: keep its room, hide its text. */
+  readonly badgeCovered?: boolean;
   readonly onSelect: () => void;
 }) {
   return (
@@ -55,13 +66,61 @@ function RailRow(props: {
         </Tooltip>
       ) : null}
       <span
-        className={`shrink-0 text-xs tabular-nums ${BADGE_TONE[props.badge?.tone ?? "ok"]}`}
+        className={`shrink-0 text-xs tabular-nums ${BADGE_TONE[props.badge?.tone ?? "ok"]} ${props.badgeCovered ? "invisible" : ""}`}
         title={props.badge?.tone === "full" ? "At the open-task cap" : undefined}
       >
         {props.badge?.label ?? props.count.toLocaleString("en-US")}
         {props.badge?.tone === "full" ? <span className="sr-only"> (project is full)</span> : null}
       </span>
     </Button>
+  );
+}
+
+/** The badge as a button: a click opens the limit editor. It sits over the row's own badge. */
+function CapBadgeEditor(props: {
+  readonly entry: RailEntry;
+  readonly cap: number;
+  readonly badge: CapBadge;
+  readonly environmentId: EnvironmentId | null;
+  readonly onSaved: () => void;
+}) {
+  const { entry, onSaved } = props;
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <span className="absolute top-1/2 right-0.5 -translate-y-1/2">
+        <PopoverTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="xs"
+              aria-label={`Open-task limit for ${entry.name}: ${props.badge.label}. Change`}
+            />
+          }
+        >
+          <span className={`text-xs tabular-nums ${BADGE_TONE[props.badge.tone]}`}>
+            {props.badge.label}
+          </span>
+        </PopoverTrigger>
+      </span>
+      <PopoverPopup align="end" width="sm">
+        <div className="flex flex-col gap-3">
+          <PopoverTitle>{entry.name}</PopoverTitle>
+          <CapEditor
+            environmentId={props.environmentId}
+            projectSlug={entry.slug}
+            cap={props.cap}
+            warn={entry.warn ?? props.cap}
+            open={entry.capOpen ?? entry.open}
+            saveOn="button"
+            onSaved={() => {
+              setOpen(false);
+              onSaved();
+            }}
+          />
+        </div>
+      </PopoverPopup>
+    </Popover>
   );
 }
 
@@ -78,36 +137,55 @@ export const TaskProjectRail = memo(function TaskProjectRail(props: {
   readonly hidden: ReadonlyArray<string>;
   /** Null when there is no workspace file to save the hidden list in. */
   readonly onHide: ((slug: string, hide: boolean) => void) | null;
+  /** Null until the environment is known; the limit editors need it. */
+  readonly environmentId: EnvironmentId | null;
+  /** Reads the board again after a limit changes. */
+  readonly onCapSaved: () => void;
 }) {
   const { onSelect, onHide } = props;
   const split = useMemo(
     () => splitRail(props.entries, props.hidden),
     [props.entries, props.hidden],
   );
-  const row = (entry: RailEntry, hide: boolean) => (
-    <div key={entry.slug} className="group/rail relative">
-      <RailRow
-        label={entry.name}
-        count={entry.open}
-        badge={capBadge(entry)}
-        selected={props.focus === "all" && props.selectedSlug === entry.slug}
-        shareable={entry.repository !== null && entry.projectId !== null}
-        onSelect={() => onSelect(entry.slug)}
-      />
-      {onHide ? (
-        <span className="absolute top-1/2 right-9 -translate-y-1/2 opacity-0 focus-within:opacity-100 group-hover/rail:opacity-100 pointer-coarse:opacity-100">
-          <Button
-            variant="ghost-muted"
-            size="icon-xs"
-            aria-label={`${hide ? "Hide" : "Show"} ${entry.name}`}
-            onClick={() => onHide(entry.slug, hide)}
-          >
-            {hide ? <EyeOffIcon /> : <EyeIcon />}
-          </Button>
-        </span>
-      ) : null}
-    </div>
-  );
+  const row = (entry: RailEntry, hide: boolean) => {
+    const badge = capBadge(entry);
+    // The Inbox limit is fixed, so it gets no editor.
+    const cap = entry.slug === "general" ? undefined : entry.cap;
+    return (
+      <div key={entry.slug} className="group/rail relative">
+        <RailRow
+          label={entry.name}
+          count={entry.open}
+          badge={badge}
+          badgeCovered={badge !== null && cap !== undefined}
+          selected={props.focus === "all" && props.selectedSlug === entry.slug}
+          shareable={entry.repository !== null && entry.projectId !== null}
+          onSelect={() => onSelect(entry.slug)}
+        />
+        {badge !== null && cap !== undefined ? (
+          <CapBadgeEditor
+            entry={entry}
+            cap={cap}
+            badge={badge}
+            environmentId={props.environmentId}
+            onSaved={props.onCapSaved}
+          />
+        ) : null}
+        {onHide ? (
+          <span className="absolute top-1/2 right-9 -translate-y-1/2 opacity-0 focus-within:opacity-100 group-hover/rail:opacity-100 pointer-coarse:opacity-100">
+            <Button
+              variant="ghost-muted"
+              size="icon-xs"
+              aria-label={`${hide ? "Hide" : "Show"} ${entry.name}`}
+              onClick={() => onHide(entry.slug, hide)}
+            >
+              {hide ? <EyeOffIcon /> : <EyeIcon />}
+            </Button>
+          </span>
+        ) : null}
+      </div>
+    );
+  };
   return (
     <nav aria-label="Projects" className="flex flex-col gap-0.5">
       {DAILY_FOCUSES.map((focus) => (
