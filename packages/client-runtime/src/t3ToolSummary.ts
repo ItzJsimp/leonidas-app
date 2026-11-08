@@ -342,6 +342,21 @@ export function summarizeT3ToolCalls(
     case "review-diff":
       label = phrase("Read", "read", `code changes ${times}`);
       break;
+    case "calendar-events":
+      label = phrase("Read", "read", `your calendar ${times}`);
+      break;
+    case "scribe-insights":
+      label = phrase("Read", "read", `voice typing stats ${times}`);
+      break;
+    case "local-models-advice":
+      label = phrase("Picked", "pick", `a local model ${times}`);
+      break;
+    case "scribe-dictionary-add":
+      label = phrase("Added", "add", `a voice dictionary word ${times}`);
+      break;
+    case "local-models-run":
+      label = phrase("Ran", "run", `a local model ${times}`);
+      break;
     case "perf-report":
       label = phrase("Read", "read", `run speed ${times}`);
       break;

@@ -39,7 +39,7 @@ import * as DateTime from "effect/DateTime";
 import * as SqlClient from "effect/sql/SqlClient";
 import { buildTokenReport } from "./tokenReport.ts";
 import { readTokenReportRows } from "./tokenReportSource.ts";
-import { ModelCompare } from "./ModelCompare.ts";
+import { ModelCompare, type ModelAnswer } from "./ModelCompare.ts";
 import { readAdvice } from "./modelAdvisor.ts";
 import { LocalModelsEngine, type LocalModelsHardware } from "./LocalModelsEngine.ts";
 
@@ -70,6 +70,11 @@ export class LocalModelsService extends Context.Service<
     readonly compare: (
       input: LocalModelsCompareInput,
     ) => Effect.Effect<LocalModelsCompareResult, LocalModelsError>;
+    /** One prompt on one installed model. It never pulls a model: a missing model is an error. */
+    readonly answer: (input: {
+      readonly model: string;
+      readonly prompt: string;
+    }) => Effect.Effect<ModelAnswer, LocalModelsError>;
     readonly comparePick: (
       input: LocalModelsPickInput,
     ) => Effect.Effect<LocalModelsPickResult, LocalModelsError>;
@@ -274,6 +279,12 @@ const make = Effect.gen(function* () {
     ),
     compare: (input) =>
       Effect.tryPromise({ try: () => modelCompare.compare(input), catch: asError }),
+    // The engine knows the installed models only after a refresh, and the Models tab may be closed.
+    answer: (input) =>
+      Effect.andThen(
+        refresh,
+        Effect.tryPromise({ try: () => engine.answer(input.model, input.prompt), catch: asError }),
+      ),
     comparePick: (input) => Effect.try({ try: () => modelCompare.pick(input), catch: asError }),
     tokenReport: (input) =>
       Effect.gen(function* () {
