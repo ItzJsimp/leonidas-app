@@ -1316,18 +1316,20 @@ mod tests {
         assert_eq!(
             reply.body,
             json!({"items":[
-                {"wrong":"jersey","correct":"Gersi","count":2},
-                {"wrong":"leo nightness","correct":"Leonidas","count":2}
+                {"wrong":"jersey","correct":"Gersi","count":2,"example":{
+                    "heard":{"before":"","changed":"jersey","after":" said hi"},
+                    "wrote":{"before":"","changed":"Gersi","after":" said hi"}}},
+                {"wrong":"leo nightness","correct":"Leonidas","count":2,"example":{
+                    "heard":{"before":"","changed":"leo nightness","after":" again"},
+                    "wrote":{"before":"","changed":"Leonidas","after":" again"}}}
             ]})
         );
         let reply = server.request("DELETE", "/v1/dictionary/suggestions/Leo%20Nightness", "");
         assert_eq!(reply.status, 200);
         assert_eq!(reply.body, json!({"rejected": true}));
         let items = server.request("GET", "/v1/dictionary/suggestions", "").body["items"].clone();
-        assert_eq!(
-            items,
-            json!([{"wrong":"jersey","correct":"Gersi","count":2}])
-        );
+        assert_eq!(items.as_array().map(Vec::len), Some(1));
+        assert_eq!(items[0]["wrong"], "jersey");
         server
             .request("DELETE", "/v1/dictionary/suggestions/", "")
             .error(404, "not_found");

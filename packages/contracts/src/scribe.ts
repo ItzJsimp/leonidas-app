@@ -219,10 +219,27 @@ export const ScribeDictionary = Schema.Struct({
 });
 export type ScribeDictionary = typeof ScribeDictionary.Type;
 
-/** A run of words the engine saw polish fix in 2 or more dictations (`GET /v1/dictionary/suggestions`). */
+/** A cut of text: `before + changed + after` is the text, and `changed` is the part to mark. */
+const ScribeSuggestionExcerpt = Schema.Struct({
+  before: Schema.String,
+  changed: Schema.String,
+  after: Schema.String,
+});
+
+/**
+ * A run of words the engine saw polish fix in 2 or more dictations (`GET /v1/dictionary/suggestions`).
+ * `example` (v1.7) comes from the newest dictation with the fix. An older engine leaves it out.
+ */
 export const ScribeSuggestionList = Schema.Struct({
   items: Schema.Array(
-    Schema.Struct({ wrong: Schema.String, correct: Schema.String, count: Schema.Number }),
+    Schema.Struct({
+      wrong: Schema.String,
+      correct: Schema.String,
+      count: Schema.Number,
+      example: Schema.optional(
+        Schema.Struct({ heard: ScribeSuggestionExcerpt, wrote: ScribeSuggestionExcerpt }),
+      ),
+    }),
   ),
 });
 export type ScribeSuggestionList = typeof ScribeSuggestionList.Type;

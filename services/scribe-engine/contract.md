@@ -1,4 +1,6 @@
-# Scribe engine contract (v1.6)
+# Scribe engine contract (v1.7)
+
+v1.7 (2026-11-08): each suggestion adds `example`, one sample from the newest dictation with the fix. See `GET /v1/dictionary/suggestions`. Additive: an older engine leaves it out.
 
 v1.6 (2026-11-07, Meetings): meeting recording, transcripts, speakers, notes and Ask. See the Meetings section at the end. Additive: nothing older changes.
 
@@ -138,12 +140,33 @@ Reply 200 `{"deleted":true}`, or 404 `not_found` for an unknown id, or 500 `stor
 ### `GET /v1/dictionary/suggestions` (v1.2)
 
 ```json
-{ "items": [{ "wrong": "jersey", "correct": "Gersi", "count": 3 }] }
+{
+  "items": [
+    {
+      "wrong": "jersey",
+      "correct": "Gersi",
+      "count": 3,
+      "example": {
+        "heard": {
+          "before": "I talked to ",
+          "changed": "jersey",
+          "after": " today about the new demo"
+        },
+        "wrote": {
+          "before": "I talked to ",
+          "changed": "Gersi",
+          "after": " today about the new demo"
+        }
+      }
+    }
+  ]
+}
 ```
 
 - Mined from the newest 500 history items: a run of 1 to 3 raw words that polish replaced with the same 1 to 3 words in 2 or more dictations. Case and punctuation changes do not count.
 - v1.5: the correct side must hold a term (an inner capital, a letter next to a digit, or a capital that a sentence start does not explain). Style edits such as "gonna" to "going to" are never suggested.
 - `wrong` is lower case. Runs already in the dictionary or rejected are left out. At most 50 items, most often first.
+- v1.7: `example` shows the fix in the newest dictation that holds it. `heard` is the raw text and `wrote` is the cleaned text, each cut to the run plus up to 6 words on each side. `before + changed + after` is the cut text, and `changed` is the run to mark. A side that was cut short carries an ellipsis. Punctuation at the edge of a word is dropped. A client must accept a missing `example` (an older engine).
 - Accept a suggestion with `PUT /v1/dictionary`.
 
 ### `DELETE /v1/dictionary/suggestions/{wrong}` (v1.2, engine addition)
