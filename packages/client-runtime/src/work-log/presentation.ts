@@ -651,6 +651,8 @@ function summaryActionPriority(action: ToolGroupAction | T3McpToolSummaryAction)
     case "saved-item-launch":
     case "saved-item-schedule":
     case "saved-item-task":
+    case "scribe-dictionary-add":
+    case "local-models-run":
       return 0;
     case "other":
     case "update":

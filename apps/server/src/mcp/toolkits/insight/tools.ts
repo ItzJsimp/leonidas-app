@@ -1,7 +1,10 @@
 import { OrchestratorMcpFailure, ReleaseStatus, ThreadId } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import { Tool, Toolkit } from "effect/ai";
+import * as Calendar from "#server/calendar/Calendar.ts";
 import * as HardwareWatch from "#server/hardwareWatch/HardwareWatch.ts";
+import * as LocalModelsService from "#server/localModels/LocalModelsService.ts";
+import * as ScribeEngine from "#server/scribe/ScribeEngine.ts";
 import * as ThreadManagementService from "#server/orchestration-v2/ThreadManagementService.ts";
 import * as ProjectService from "#server/project/ProjectService.ts";
 import * as ProviderRegistry from "#server/provider/ProviderRegistry.ts";
@@ -258,6 +261,104 @@ const PerfTurnReportTool = Tool.make("leo_perf_turn_report", {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, true);
 
+const CalendarEventsTool = Tool.make("leo_calendar_events", {
+  ...shared,
+  dependencies: [McpInvocationContext.McpInvocationContext, Calendar.Calendar],
+  description:
+    "Read the user's calendar events that start between two ISO timestamps (`from` before `to`, at most 92 days). Times are local wall-clock in `timeZone`. Plan work around them.",
+  parameters: Schema.Struct({ from: Schema.String, to: Schema.String }),
+  success: Schema.Struct({
+    timeZone: Schema.String,
+    events: Schema.Array(
+      Schema.Struct({
+        title: Schema.String,
+        allDay: Schema.Boolean,
+        start: Schema.String,
+        end: Schema.String,
+        location: Schema.optional(Schema.String),
+        hasJoinLink: Schema.Boolean,
+      }),
+    ),
+  }),
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true);
+
+const ScribeInsightsTool = Tool.make("leo_scribe_insights", {
+  ...shared,
+  dependencies: [McpInvocationContext.McpInvocationContext, ScribeEngine.ScribeEngine],
+  description:
+    "Read the user's voice dictation numbers from Scribe: words, streaks, speed and daily goal. Counts only, never transcripts.",
+  success: Schema.Struct({
+    insights: Schema.Struct({
+      words: Schema.Number,
+      transcripts: Schema.Number,
+      daysActive: Schema.Number,
+      todayWords: Schema.Number,
+      todayTranscripts: Schema.Number,
+      streakDays: Schema.Number,
+      weekAvgWords: Schema.Number,
+      week: Schema.Struct({
+        words: Schema.Number,
+        prevWords: Schema.Number,
+        topApp: Schema.String,
+      }),
+      p50Ms: Schema.Number,
+      p90Ms: Schema.Number,
+      byMode: Schema.Array(Schema.Struct({ key: Schema.String, count: Schema.Number })),
+      byApp: Schema.Array(Schema.Struct({ key: Schema.String, count: Schema.Number })),
+      truncated: Schema.Boolean,
+    }),
+    goals: Schema.Struct({
+      level: Schema.Number,
+      rank: Schema.String,
+      xp: Schema.Number,
+      today: Schema.Struct({
+        words: Schema.Number,
+        goal: Schema.Number,
+        dictations: Schema.Number,
+      }),
+      streak: Schema.Number,
+      bestStreak: Schema.Number,
+      questsDone: Schema.Number,
+    }),
+  }),
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true);
+
+const LocalModelsAdviceTool = Tool.make("leo_local_models_advice", {
+  ...shared,
+  dependencies: [McpInvocationContext.McpInvocationContext, LocalModelsService.LocalModelsService],
+  description:
+    "Pick the best installed local model for a task `size` (small = fastest, large = best score, default medium). Models too big for this PC never win. Run it with `leo_local_models_run`.",
+  parameters: Schema.Struct({
+    size: Schema.optional(Schema.Literals(["small", "medium", "large"])),
+  }),
+  success: Schema.Struct({
+    ollamaRunning: Schema.Boolean,
+    size: Schema.Literals(["small", "medium", "large"]),
+    best: Schema.NullOr(
+      Schema.Struct({
+        model: Schema.String,
+        sizeBytes: NullableNumber,
+        fit: Schema.String,
+        tokensPerSecond: NullableNumber,
+        benchLm: NullableNumber,
+        reason: Schema.String,
+      }),
+    ),
+    installed: Schema.Array(
+      Schema.Struct({ model: Schema.String, fit: Schema.String, loaded: Schema.Boolean }),
+    ),
+  }),
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true);
+
 export const InsightToolkit = Toolkit.make(
   MemorySearchTool,
   MemoryReadTool,
@@ -266,4 +367,7 @@ export const InsightToolkit = Toolkit.make(
   HardwareStatusTool,
   ReviewDiffTool,
   PerfTurnReportTool,
+  CalendarEventsTool,
+  ScribeInsightsTool,
+  LocalModelsAdviceTool,
 );

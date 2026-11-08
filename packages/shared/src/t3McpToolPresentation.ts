@@ -85,7 +85,12 @@ export type T3McpToolSummaryAction =
   | "release-status"
   | "hardware-status"
   | "review-diff"
-  | "perf-report";
+  | "perf-report"
+  | "calendar-events"
+  | "scribe-insights"
+  | "local-models-advice"
+  | "scribe-dictionary-add"
+  | "local-models-run";
 
 export interface T3McpToolDefinition {
   readonly displayName: string;
@@ -416,6 +421,17 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   leo_release_status: tool(["Check", "Checking", "Checked", "the release"], "release-status"),
   leo_hardware_status: tool(["Check", "Checking", "Checked", "computer health"], "hardware-status"),
   leo_review_diff_get: tool(["Read", "Reading", "Read", "code changes"], "review-diff"),
+  leo_calendar_events: tool(["Read", "Reading", "Read", "your calendar"], "calendar-events"),
+  leo_scribe_insights: tool(["Read", "Reading", "Read", "voice typing stats"], "scribe-insights"),
+  leo_local_models_advice: tool(
+    ["Pick", "Picking", "Picked", "a local model"],
+    "local-models-advice",
+  ),
+  leo_scribe_dictionary_add: tool(
+    ["Add", "Adding", "Added", "a voice dictionary word"],
+    "scribe-dictionary-add",
+  ),
+  leo_local_models_run: tool(["Run", "Running", "Ran", "a local model"], "local-models-run"),
   leo_perf_turn_report: tool(["Read", "Reading", "Read", "run speed"], "perf-report"),
   leo_canvas: tool(["Build", "Building", "Built", "a canvas"], "html-render"),
 };
