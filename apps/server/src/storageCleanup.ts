@@ -40,6 +40,7 @@ import * as ProjectionStore from "./orchestration-v2/ProjectionStore.ts";
 import { threadHasQueuedTurnStart } from "./orchestration-v2/ThreadSettlementService.ts";
 import { forkParked } from "./serverActivation.ts";
 import * as Settings from "./serverSettings.ts";
+import { cutWorktreeLinks } from "./vcs/worktreeLinks.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import { isFilesystemRoot, managedWorktreesDirectories } from "./worktreesDirectory.ts";
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
@@ -613,6 +614,18 @@ const make = Effect.gen(function* () {
           )
         )
           return keep("settings changed since check");
+        // Git deletes through a link into its target, so cut every link first (AIOS skill folders).
+        yield* Effect.tryPromise({
+          try: () => cutWorktreeLinks(worktreePath),
+          catch: (cause) =>
+            new GitCommandError({
+              operation: "StorageCleanup.cutWorktreeLinks",
+              command: "cut worktree links",
+              cwd: worktreePath,
+              detail: "could not cut a link in the worktree, nothing was removed",
+              cause,
+            }),
+        });
         // Clean only untracked files; Git must still refuse removal if a tracked
         // edit arrives after our last status check.
         if (settings.worktreeKeepWhen === "tracked-changes")

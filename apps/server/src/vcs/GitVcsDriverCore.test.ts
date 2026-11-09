@@ -3438,6 +3438,35 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
       }),
     );
 
+    it.effect("removes a worktree that links a folder without deleting the link target", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        const { initialBranch } = yield* initRepoWithCommit(cwd);
+        const pathService = yield* Path.Path;
+        const worktreePath = pathService.join(yield* makeTmpDir("git-worktrees-"), "linked");
+        const target = yield* makeTmpDir("git-link-target-");
+        yield* writeTextFile(target, "SKILL.md", "keep me");
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+        yield* driver.createWorktree({
+          cwd,
+          path: worktreePath,
+          refName: initialBranch,
+          newRefName: "feature/linked",
+        });
+        // The "junction" type only matters on Windows; other systems make a plain symlink.
+        NodeFS.symlinkSync(target, pathService.join(worktreePath, "linked-skill"), "junction");
+
+        yield* driver.removeWorktree({ cwd, path: worktreePath });
+
+        const fileSystem = yield* FileSystem.FileSystem;
+        assert.equal(yield* fileSystem.exists(worktreePath), false);
+        assert.equal(
+          yield* fileSystem.readFileString(pathService.join(target, "SKILL.md")),
+          "keep me",
+        );
+      }),
+    );
+
     it.effect("keeps a worktree whose untracked files status is configured to hide", () =>
       Effect.gen(function* () {
         const cwd = yield* makeTmpDir();

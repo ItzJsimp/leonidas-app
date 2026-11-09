@@ -38,6 +38,7 @@ import { parseT3ProjectFile } from "@t3tools/shared/t3ProjectFile";
 import { resolveProjectFileBackedSetting } from "@t3tools/shared/projectSettings";
 import { gitCommandDuration, gitCommandsTotal, withMetrics } from "../observability/Metrics.ts";
 import * as GitVcsDriver from "./GitVcsDriver.ts";
+import { cutWorktreeLinks } from "./worktreeLinks.ts";
 import { resolveWorktreesDirectory } from "../worktreesDirectory.ts";
 import {
   parseRemoteNames,
@@ -3897,6 +3898,16 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       args.push("--force");
     }
     args.push(input.path);
+    // Git deletes through a link into its target, so cut every link first (AIOS skill folders).
+    yield* Effect.tryPromise({
+      try: () => cutWorktreeLinks(input.path),
+      catch: (cause) =>
+        new GitCommandError({
+          ...gitCommandContext({ operation: "GitVcsDriver.removeWorktree", cwd: input.cwd, args }),
+          detail: "could not cut a link in the worktree, nothing was removed",
+          cause,
+        }),
+    });
     const result = yield* executeGitWithStableDiagnostics(
       "GitVcsDriver.removeWorktree",
       input.cwd,
