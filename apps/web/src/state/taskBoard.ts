@@ -36,6 +36,30 @@ export const taskBoardCapSet = createEnvironmentRpcCommand(connectionAtomRuntime
   tag: WS_METHODS.taskBoardCapSet,
 });
 
+export const aiosLimitsQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:aios-limits",
+  tag: WS_METHODS.aiosLimits,
+  staleTimeMs: 3_000,
+  idleTtlMs: 30_000,
+});
+
+export const aiosLimitSet = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:aios-limit-set",
+  tag: WS_METHODS.aiosLimitSet,
+});
+
+export const voiceLimitQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:voice-limit",
+  tag: WS_METHODS.voiceLimitGet,
+  staleTimeMs: 3_000,
+  idleTtlMs: 30_000,
+});
+
+export const voiceLimitSet = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:voice-limit-set",
+  tag: WS_METHODS.voiceLimitSet,
+});
+
 export const taskBoardCardCreate = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:task-board:card-create",
   tag: WS_METHODS.taskBoardCardCreate,

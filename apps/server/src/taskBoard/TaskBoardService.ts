@@ -25,6 +25,8 @@ import {
   type TaskBoardAiosDetectResult,
   type TaskBoardCardCreateInput,
   type TaskBoardCapSetInput,
+  type AiosLimit,
+  type AiosLimitSetInput,
   type TaskBoardChangeSetInput,
   type TaskBoardChangeSetResult,
   type TaskBoardCardUpdateInput,
@@ -85,6 +87,8 @@ import {
 import { buildHome, cachedAreas } from "./aiosHome.ts";
 import { BRIEF_PATH, toggleBriefLine } from "./briefPriorityToggle.ts";
 import { cachedFolder } from "./aiosFolders.ts";
+import { readLimits, updateLimit } from "./aiosLimits.ts";
+import { readVoiceLimit, setVoiceLimit } from "./voiceLimit.ts";
 import {
   capLevel,
   capProblem,
@@ -628,6 +632,16 @@ export class TaskBoardService extends Context.Service<
       projects: ReadonlyArray<Project>,
       input: TaskBoardCapSetInput,
     ) => Effect.Effect<void, TaskBoardOperationError>;
+    readonly aiosLimits: (
+      projects: ReadonlyArray<Project>,
+      workspaceId?: string,
+    ) => Effect.Effect<ReadonlyArray<AiosLimit>, TaskBoardOperationError>;
+    readonly aiosLimitSet: (
+      projects: ReadonlyArray<Project>,
+      input: AiosLimitSetInput,
+    ) => Effect.Effect<void, TaskBoardOperationError>;
+    readonly voiceLimitGet: () => Effect.Effect<number, TaskBoardOperationError>;
+    readonly voiceLimitSet: (seconds: number) => Effect.Effect<void, TaskBoardOperationError>;
     /** Publishes (or withdraws) AIOS cards on the project's shared board. */
     readonly share: (
       project: Project,
@@ -2410,6 +2424,50 @@ const make = Effect.gen(function* () {
       return { workspaces: found.map((state) => summarize(state, projects, defaultRoot)) };
     });
 
+  const limitsFile = (root: string) => {
+    const file = NodePath.join(root, "standards", "limits.json");
+    if (!NodeFS.lstatSync(file).isFile() || !isRealPathInside(root, file)) {
+      throw new Error("The AIOS limits file is not a regular file inside the workspace.");
+    }
+    return file;
+  };
+  const aiosLimits = (projects: ReadonlyArray<Project>, workspaceId?: string) =>
+    Effect.gen(function* () {
+      const { root } = scopeFor(projects, { workspaceId });
+      if (root === null) return yield* storageError("No AIOS workspace is open.");
+      return yield* Effect.try({
+        try: () => readLimits(NodeFS.readFileSync(limitsFile(root), "utf8")),
+        catch: (cause) =>
+          storageError(cause instanceof Error ? cause.message : "Could not read limits."),
+      });
+    });
+  const aiosLimitSet = (projects: ReadonlyArray<Project>, input: AiosLimitSetInput) =>
+    Effect.gen(function* () {
+      const { root } = scopeFor(projects, { workspaceId: input.workspaceId });
+      if (root === null) return yield* storageError("No AIOS workspace is open.");
+      yield* Effect.try({
+        try: () => {
+          const file = limitsFile(root);
+          const next = updateLimit(NodeFS.readFileSync(file, "utf8"), input.id, input.value);
+          writeCardAtomically(file, next);
+        },
+        catch: (cause) =>
+          storageError(cause instanceof Error ? cause.message : "Could not save limits."),
+      });
+    });
+
+  const voiceLimitGet = () =>
+    Effect.tryPromise({
+      try: () => readVoiceLimit(),
+      catch: () => storageError("Could not read the voice throttle. Check that voice is running."),
+    });
+  const voiceLimitSet = (seconds: number) =>
+    Effect.tryPromise({
+      try: () => setVoiceLimit(seconds),
+      catch: (cause) =>
+        storageError(cause instanceof Error ? cause.message : "Could not save the voice throttle."),
+    });
+
   const capSet = (projects: ReadonlyArray<Project>, input: TaskBoardCapSetInput) =>
     Effect.gen(function* () {
       const invalid = (message: string) =>
@@ -2591,6 +2649,10 @@ const make = Effect.gen(function* () {
     cardCreate,
     applyChangeSet,
     capSet,
+    aiosLimits,
+    aiosLimitSet,
+    voiceLimitGet,
+    voiceLimitSet,
     inboxDrop,
     inboxUndo,
     share,

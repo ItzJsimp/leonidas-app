@@ -39,6 +39,18 @@ import {
 import * as RpcAuthorization from "./RpcAuthorization.ts";
 
 describe("RPC authorization scopes", () => {
+  it("requires operate scope to change AIOS limits", () => {
+    expect(requiredScopeForRpcMethod(WS_METHODS.aiosLimits)).toBe(AuthOrchestrationReadScope);
+    expect(requiredScopeForRpcMethod(WS_METHODS.aiosLimitSet)).toBe(AuthOrchestrationOperateScope);
+    expect(clientRpcRequiredScopes(WS_METHODS.aiosLimitSet, undefined)).toEqual([
+      AuthOrchestrationOperateScope,
+    ]);
+    expect(requiredScopeForRpcMethod(WS_METHODS.voiceLimitGet)).toBe(AuthOrchestrationReadScope);
+    expect(requiredScopeForRpcMethod(WS_METHODS.voiceLimitSet)).toBe(AuthOrchestrationOperateScope);
+    expect(clientRpcRequiredScopes(WS_METHODS.voiceLimitSet, undefined)).toEqual([
+      AuthOrchestrationOperateScope,
+    ]);
+  });
   it("guards saved-item mutations while allowing saved-item reads", () => {
     for (const method of [
       WS_METHODS.savedItemsCreate,

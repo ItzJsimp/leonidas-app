@@ -3103,6 +3103,16 @@ const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.capSet(projects, input)),
           ),
+        [WS_METHODS.aiosLimits]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosLimits(projects, input.workspaceId)),
+          ),
+        [WS_METHODS.aiosLimitSet]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosLimitSet(projects, input)),
+          ),
+        [WS_METHODS.voiceLimitGet]: () => taskBoard.voiceLimitGet(),
+        [WS_METHODS.voiceLimitSet]: (input) => taskBoard.voiceLimitSet(input.seconds),
         [WS_METHODS.taskBoardCardCreate]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.cardCreate(input, projects)),
