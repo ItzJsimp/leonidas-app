@@ -7,7 +7,7 @@ import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 
 import type * as ProcessRunner from "../processRunner.ts";
-import { gitRunSummary, replyHeadOf, workedDraft } from "./TaskLedger.ts";
+import { gitRunSummary, replyHeadOf, taskMoveDraft, workedDraft } from "./TaskLedger.ts";
 
 const input = {
   task: { id: "task-1", title: "Persist task identity", assignee: "ItzJsimp" },
@@ -91,4 +91,40 @@ describe("gitRunSummary", () => {
       NodeFS.rmSync(dir, { recursive: true, force: true });
     }),
   );
+});
+
+describe("taskMoveDraft", () => {
+  const move = {
+    task: { id: "task-1", title: "Persist task identity", assignee: "ItzJsimp" },
+    from: "in_progress" as const,
+    to: "review" as const,
+    agent: "claudeAgent",
+    threadId: "thread-1",
+    note: "14 tests pass, typecheck clean.",
+    at: 1_700_000_000_000,
+  };
+
+  it("asks for the user on review, with an Open card action", () => {
+    const draft = taskMoveDraft(move)!;
+    expect(draft).toMatchObject({
+      level: "needs_you",
+      type: "task.review",
+      title: "Ready for review: Persist task identity",
+      body: "14 tests pass, typecheck clean.",
+      actor: { kind: "agent", name: "claudeAgent", member: "ItzJsimp" },
+      target: { task: "task-1", thread: "thread-1" },
+      actions: [{ label: "Open card", kind: "open_task", ref: "task-1" }],
+      dedupe: "task.review:task-1:1700000000000",
+    });
+  });
+
+  it("reports done as info, and skips every other move", () => {
+    expect(taskMoveDraft({ ...move, to: "done" })).toMatchObject({
+      level: "info",
+      type: "task.done",
+      title: "Done: Persist task identity",
+    });
+    expect(taskMoveDraft({ ...move, to: "in_progress", from: "todo" })).toBeNull();
+    expect(taskMoveDraft({ ...move, from: "review" })).toBeNull();
+  });
 });

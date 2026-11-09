@@ -15,7 +15,7 @@ type PresenceShell = Pick<
 >;
 
 /** Every thread a card links: the list, plus the older single-claim field. */
-const linkedThreadIds = (task: Pick<TaskBoardTask, "threadIds" | "claimedAgent">) => [
+export const linkedThreadIds = (task: Pick<TaskBoardTask, "threadIds" | "claimedAgent">) => [
   ...new Set([
     ...(task.threadIds ?? []),
     ...(task.claimedAgent?.threadId ? [task.claimedAgent.threadId] : []),

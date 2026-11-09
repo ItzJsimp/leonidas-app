@@ -71,6 +71,40 @@ export function workedDraft(input: WorkedInput): FeedEventDraft {
   };
 }
 
+export interface TaskMoveInput {
+  readonly task: Pick<TaskBoardTask, "id" | "title" | "assignee">;
+  readonly from: TaskBoardTask["status"] | undefined;
+  readonly to: TaskBoardTask["status"];
+  readonly agent: string;
+  readonly threadId: string | undefined;
+  readonly note: string | undefined;
+  readonly at: number;
+}
+
+/** The notice for an agent's move to review (needs the user) or done. Other moves write none. */
+export function taskMoveDraft(input: TaskMoveInput): FeedEventDraft | null {
+  if (input.from === input.to || (input.to !== "review" && input.to !== "done")) return null;
+  const review = input.to === "review";
+  const type = review ? "task.review" : "task.done";
+  return {
+    level: review ? "needs_you" : "info",
+    type,
+    title: clip(`${review ? "Ready for review" : "Done"}: ${input.task.title}`, MAX_TITLE),
+    ...(input.note?.trim() ? { body: clip(input.note.trim(), MAX_BODY) } : {}),
+    actor: {
+      kind: "agent",
+      name: input.agent,
+      ...(input.task.assignee ? { member: input.task.assignee } : {}),
+    },
+    target: {
+      task: input.task.id,
+      ...(input.threadId === undefined ? {} : { thread: input.threadId }),
+    },
+    actions: [{ label: "Open card", kind: "open_task", ref: input.task.id }],
+    dedupe: `${type}:${input.task.id}:${input.at}`,
+  };
+}
+
 export const replyHeadOf = (text: string | undefined) =>
   text === undefined || text.trim() === "" ? null : clip(text.trim(), REPLY_HEAD);
 

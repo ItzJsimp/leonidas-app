@@ -40,6 +40,8 @@ export interface AiosCardPatch {
   readonly actor: string;
   readonly agentLabel?: string | undefined;
   readonly threadId?: string | null | undefined;
+  /** Ticks (`done: true`) or clears `## Done when` items, numbered from 1 in file order. */
+  readonly check?: ReadonlyArray<{ readonly item: number; readonly done: boolean }> | undefined;
 }
 
 const ID_PATTERN = /^[A-Za-z0-9._-]{1,120}$/;
@@ -397,6 +399,59 @@ function findSection(
   return { headingStart: match.index, start, end };
 }
 
+const CHECK_ITEM = /^([ \t]*[-*][ \t]+\[)([ xX])(\][ \t]*)(.*?)\r?$/gm;
+
+/** One `## Done when` checkbox: its 1-based number, its text and whether it is ticked. */
+export interface DoneWhenItem {
+  readonly item: number;
+  readonly text: string;
+  readonly done: boolean;
+}
+
+/** The `## Done when` checkboxes of a card body, in file order. */
+export function doneWhenItems(body: string): DoneWhenItem[] {
+  const section = findSection(body, "Done when");
+  if (!section) return [];
+  return [...body.slice(section.start, section.end).matchAll(CHECK_ITEM)].map((match, index) => ({
+    item: index + 1,
+    text: match[4]!.trim(),
+    done: match[2] !== " ",
+  }));
+}
+
+/** Sets `## Done when` boxes by number. Throws `checklist_item` for a number the card lacks. */
+function tickDoneWhen(
+  body: string,
+  checks: NonNullable<AiosCardPatch["check"]>,
+): { body: string; summary: string[] } {
+  const section = findSection(body, "Done when");
+  const total = doneWhenItems(body).length;
+  const bad = checks.some(
+    (check) => !Number.isInteger(check.item) || check.item < 1 || check.item > total,
+  );
+  if (bad || !section) throw new Error(`checklist_item: the card has ${total} Done when items`);
+  const wanted = new Map(checks.map((check) => [check.item, check.done]));
+  const checked: number[] = [];
+  const unchecked: number[] = [];
+  let index = 0;
+  const next = body
+    .slice(section.start, section.end)
+    .replace(CHECK_ITEM, (line, open: string, mark: string) => {
+      index++;
+      const done = wanted.get(index);
+      if (done === undefined || done === (mark !== " ")) return line;
+      (done ? checked : unchecked).push(index);
+      return open + (done ? "x" : " ") + line.slice(open.length + 1);
+    });
+  return {
+    body: body.slice(0, section.start) + next + body.slice(section.end),
+    summary: [
+      ...(checked.length > 0 ? [`checked ${checked.join(", ")}`] : []),
+      ...(unchecked.length > 0 ? [`unchecked ${unchecked.join(", ")}`] : []),
+    ],
+  };
+}
+
 function parseActivity(taskId: string, section: string): TaskBoardHistoryEntry[] {
   const entries: TaskBoardHistoryEntry[] = [];
   for (const line of section.split(/\r?\n/)) {
@@ -466,19 +521,11 @@ export function cardToTask(input: {
   if (activity) body = body.slice(0, activity.headingStart) + body.slice(activity.end);
   const description = body.trim();
 
-  const doneWhen = findSection(parsed.body, "Done when");
-  let checklist: { done: number; total: number } | undefined;
-  if (doneWhen) {
-    let done = 0;
-    let total = 0;
-    for (const item of parsed.body
-      .slice(doneWhen.start, doneWhen.end)
-      .matchAll(/^[ \t]*[-*][ \t]+\[([ xX])\]/gm)) {
-      total++;
-      if (item[1] !== " ") done++;
-    }
-    if (total > 0) checklist = { done, total };
-  }
+  const items = doneWhenItems(parsed.body);
+  const checklist =
+    items.length > 0
+      ? { done: items.filter((item) => item.done).length, total: items.length }
+      : undefined;
 
   const lastTouched = dateMs(field(fields, "last_touched"));
   const updatedAt = Math.max(lastTouched ?? 0, input.mtimeMs) || input.now;
@@ -1011,16 +1058,26 @@ export function applyCardPatch(raw: string, patch: AiosCardPatch, now: number): 
     sharedSync !== undefined && (sharedSync ?? "") !== field(fields, "shared_sync");
   if (syncChanged) setKey("shared_sync", sharedSync);
 
+  let body = text.slice(span.bodyStart);
+  if (patch.check !== undefined && patch.check.length > 0) {
+    const ticked = tickDoneWhen(body, patch.check);
+    if (ticked.summary.length > 0) {
+      body = ticked.body;
+      other.push(...ticked.summary);
+      changed = true;
+    }
+  }
+
   let closing = text.slice(span.headerEnd, span.bodyStart);
   if (!game && !closing.endsWith("\n")) closing += eol;
   const header = () => bom + text.slice(0, span.headerStart) + lines.join("") + closing;
 
   // Game cards are edited byte-clean: only the changed lines differ, with no last_touched bump
   // and no Activity section.
-  if (game) return changed || syncChanged ? header() + text.slice(span.bodyStart) : raw;
+  if (game) return changed || syncChanged ? header() + body : raw;
 
   const note = patch.note === undefined ? "" : oneLine(patch.note);
-  if (!changed && !note) return syncChanged ? header() + text.slice(span.bodyStart) : raw;
+  if (!changed && !note) return syncChanged ? header() + body : raw;
 
   setKey("last_touched", localDate(now));
   const parts = [...lifecycle, ...claim, ...other];
@@ -1028,7 +1085,7 @@ export function applyCardPatch(raw: string, patch: AiosCardPatch, now: number): 
   const summary = (parts.length > 0 ? parts.join(", ") : "progress") + (note ? ` - ${note}` : "");
   const entry = `- ${localDate(now)} ${localTime(now)} ${oneLine(patch.actor)}${label ? ` (${label})` : ""}: ${summary}`;
 
-  return header() + appendActivity(text.slice(span.bodyStart), entry, eol);
+  return header() + appendActivity(body, entry, eol);
 }
 
 /** Writes a new task card to `<root>/tasks/<slug>.md` without ever overwriting a file. */

@@ -465,6 +465,7 @@ function cardPatchFor(input: TaskBoardCardUpdateInput, card: TaskBoardTask): Aio
     note: input.note,
     agentLabel: agentLabel(input.agent),
     threadId: input.agent?.threadId,
+    check: input.check,
   };
 }
 

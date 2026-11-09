@@ -1,3 +1,8 @@
+// @effect-diagnostics nodeBuiltinImport:off - temp folders hold the feed file for the notice test.
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import {
@@ -2636,6 +2641,7 @@ describe("OrchestratorMcpService board tasks", () => {
   const service = (
     tasks: ReadonlyArray<TaskBoardTask>,
     board: Partial<TaskBoardService.TaskBoardService["Service"]> = {},
+    shells: ReadonlyArray<OrchestrationV2ThreadShell> = [],
   ) =>
     serviceLayerUnderTest.pipe(
       Layer.provide(
@@ -2644,6 +2650,13 @@ describe("OrchestratorMcpService board tasks", () => {
           ServerSettings.layerTest(),
           Layer.mock(ThreadManagementService.ThreadManagementService)({
             getThreadRecords: () => Effect.succeed(idleThreadProjection(shell)),
+            getShellSnapshot: () =>
+              Effect.succeed({
+                schemaVersion: 1,
+                snapshotSequence: 0,
+                threads: shells,
+                archivedThreads: [],
+              }),
           }),
           Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
           Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
@@ -2780,6 +2793,74 @@ describe("OrchestratorMcpService board tasks", () => {
       assert.isNull(released?.claimedBy);
       assert.isUndefined(released?.status);
       assert.equal(released?.note, "paused");
+    }),
+  );
+
+  it.effect("shows live chats, finds this chat's card, ticks items, warns and notifies", () =>
+    Effect.gen(function* () {
+      const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "board-notice-"));
+      const other = {
+        ...liveThreadShell(ThreadId.make("thread-other")),
+        title: "Write the presence tests",
+        activityRunStatus: "running" as const,
+      };
+      const card = boardTask({
+        id: "a",
+        threadIds: ["thread-other", callerId],
+        description: ["## Done when", "", "- [x] One", "- [ ] Two", ""].join("\n"),
+      });
+      const received = yield* Ref.make<TaskBoardCardUpdateInput | undefined>(undefined);
+      const mcp = yield* OrchestratorMcpService.OrchestratorMcpService.pipe(
+        Effect.provide(
+          service(
+            [card, boardTask({ id: "b" })],
+            {
+              aiosRoot: () => Effect.succeed(root),
+              cardUpdate: (input) =>
+                Ref.set(received, input).pipe(
+                  Effect.as({ ...card, status: input.status ?? "in_progress", updatedAt: 7_000 }),
+                ),
+            },
+            [other, { ...shell, activityRunStatus: "running" as const }],
+          ),
+        ),
+      );
+
+      const listed = yield* mcp.boardTaskList(threadScope, { thisChat: true });
+      assert.deepEqual(
+        listed.tasks.map((row) => row.id),
+        ["a"],
+      );
+      assert.deepEqual(listed.tasks[0]?.otherChats, [
+        { threadId: "thread-other", title: "Write the presence tests", model: "gpt-5" },
+      ]);
+
+      const detail = yield* mcp.boardTaskGet(threadScope, { taskId: "a" });
+      assert.deepEqual(detail.checklistItems, [
+        { item: 1, text: "One", done: true },
+        { item: 2, text: "Two", done: false },
+      ]);
+
+      const claimed = yield* mcp.boardTaskUpdate(threadScope, {
+        taskId: "a",
+        claim: true,
+        check: [{ item: 2, done: true }],
+      });
+      assert.deepEqual((yield* Ref.get(received))?.check, [{ item: 2, done: true }]);
+      assert.include(claimed.warning ?? "", "Write the presence tests");
+
+      const reviewed = yield* mcp.boardTaskUpdate(threadScope, {
+        taskId: "a",
+        status: "review",
+        note: "2 tests pass",
+      });
+      assert.isUndefined(reviewed.warning);
+      const feed = NodeFS.readdirSync(NodePath.join(root, "events"))
+        .map((name) => NodeFS.readFileSync(NodePath.join(root, "events", name), "utf8"))
+        .join("");
+      assert.include(feed, '"type":"task.review"');
+      assert.include(feed, '"level":"needs_you"');
+      NodeFS.rmSync(root, { recursive: true, force: true });
     }),
   );
 

@@ -8,6 +8,7 @@ import {
   cardToTask,
   createCardFile,
   discoverProjects,
+  doneWhenItems,
   findAiosRoot,
   findCardFile,
   parseFrontmatter,
@@ -1005,5 +1006,67 @@ describe("game card board fields", () => {
     expect(applyCardPatch(before, { actor: "J", status: "in_progress" }, NOW)).toBe(
       before.replace("status: todo", "status: doing"),
     );
+  });
+});
+
+describe("Done when checklist", () => {
+  const body = [
+    "# A",
+    "",
+    "## Done when",
+    "",
+    "- [x] Chip shows the card",
+    "- [ ] Review pops a notice",
+    "  * [ ] Gate passes",
+    "",
+    "## Notes",
+    "",
+    "- [ ] not a gate",
+    "",
+  ].join("\n");
+  const header = ["type: task", "id: task-a", 'name: "A"', 'status: "In progress"'].join("\n");
+
+  it("lists only the Done when items, numbered from 1", () => {
+    expect(doneWhenItems(body)).toEqual([
+      { item: 1, text: "Chip shows the card", done: true },
+      { item: 2, text: "Review pops a notice", done: false },
+      { item: 3, text: "Gate passes", done: false },
+    ]);
+    expect(doneWhenItems("# A\n\nNo gates.\n")).toEqual([]);
+  });
+
+  it("ticks and clears items by number and logs them", () => {
+    const next = applyCardPatch(
+      card(header, body),
+      {
+        actor: "Jake",
+        check: [
+          { item: 2, done: true },
+          { item: 1, done: false },
+        ],
+      },
+      NOW,
+    );
+    expect(doneWhenItems(next)).toEqual([
+      { item: 1, text: "Chip shows the card", done: false },
+      { item: 2, text: "Review pops a notice", done: true },
+      { item: 3, text: "Gate passes", done: false },
+    ]);
+    expect(next).toContain("  * [ ] Gate passes");
+    expect(next).toContain("- [ ] not a gate");
+    expect(next).toContain("checked 2, unchecked 1");
+  });
+
+  it("rejects an item number the card does not have", () => {
+    expect(() =>
+      applyCardPatch(card(header, body), { actor: "Jake", check: [{ item: 4, done: true }] }, NOW),
+    ).toThrow("checklist_item");
+  });
+
+  it("keeps CRLF line endings and skips a tick that changes nothing", () => {
+    const raw = card(header, body, "\r\n");
+    expect(applyCardPatch(raw, { actor: "Jake", check: [{ item: 1, done: true }] }, NOW)).toBe(raw);
+    const next = applyCardPatch(raw, { actor: "Jake", check: [{ item: 2, done: true }] }, NOW);
+    expect(next).toContain("- [x] Review pops a notice\r\n");
   });
 });

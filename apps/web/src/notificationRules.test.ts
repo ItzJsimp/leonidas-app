@@ -38,6 +38,16 @@ describe("notification rules", () => {
     expect(popsUp(event({ type: "agent.failed", level: "failed" }), rules())).toBe(true);
   });
 
+  it("an agent's task move to review or done pops up by default", () => {
+    const agent = { kind: "agent", name: "claudeAgent" } as const;
+    expect(popsUp(event({ type: "task.review", actor: agent }), rules())).toBe(true);
+    expect(popsUp(event({ type: "task.done", level: "info", actor: agent }), rules())).toBe(true);
+    expect(popsUp(event({ type: "task.worked", level: "info", actor: agent }), rules())).toBe(
+      false,
+    );
+    expect(typeLabel("task.review")).toBe("Task ready for review");
+  });
+
   it("a type set to Toast pops up even when its default is Inbox only", () => {
     const worked = event({
       type: "task.worked",

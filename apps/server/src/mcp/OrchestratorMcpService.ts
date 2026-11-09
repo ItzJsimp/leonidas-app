@@ -85,6 +85,7 @@ import { instanceForModel } from "../subagents/instanceForModel.ts";
 import { personaEngineSupport } from "../subagents/personaEngines.ts";
 import { loadSubagentPersona } from "../subagents/subagentPersona.ts";
 import { runRanAfter } from "@t3tools/shared/orchestrationV2ThreadError";
+import { linkedThreadIds, taskPresence } from "@t3tools/shared/taskPresence";
 import {
   evaluatePredictiveQuota,
   type PredictiveQuotaAccountCandidate,
@@ -110,6 +111,8 @@ import * as Stream from "effect/Stream";
 import * as ProviderAdapterRegistry from "../orchestration-v2/ProviderAdapterRegistry.ts";
 import { DelegatedTaskAcceptance } from "./DelegatedTaskAcceptance.ts";
 import { DelegatedTaskLedger } from "./DelegatedTaskLedger.ts";
+import { doneWhenItems } from "../taskBoard/aiosCards.ts";
+import { taskMoveDraft } from "../taskBoard/TaskLedger.ts";
 import { delegatedTaskUsage } from "./delegatedTaskUsage.ts";
 import { spawnQuotaBlock } from "./spawnQuotaGuard.ts";
 import {
@@ -335,7 +338,15 @@ function callerBoardSlug(
 
 const isoTime = (epochMs: number): string => DateTime.formatIso(DateTime.makeUnsafe(epochMs));
 
-function boardTaskRow(task: TaskBoardTask): OrchestratorMcpBoardTaskRow {
+/** Active thread shells by id, for live presence on agent task rows. */
+type LiveShells = ReadonlyMap<string, OrchestrationV2ThreadShell>;
+const NO_SHELLS: LiveShells = new Map();
+
+function boardTaskRow(
+  task: TaskBoardTask,
+  live: LiveShells = NO_SHELLS,
+  self?: string,
+): OrchestratorMcpBoardTaskRow {
   return {
     id: task.id,
     title: task.title,
@@ -347,12 +358,20 @@ function boardTaskRow(task: TaskBoardTask): OrchestratorMcpBoardTaskRow {
     milestone: task.milestone ?? null,
     checklist: task.checklist ?? null,
     updatedAt: isoTime(task.updatedAt),
+    otherChats: taskPresence(task, live)
+      .filter((chat) => chat.threadId !== self)
+      .map(({ threadId, title, model }) => ({ threadId, title, model })),
   };
 }
 
-function boardTaskDetail(task: TaskBoardTask): OrchestratorMcpBoardTaskDetail {
+function boardTaskDetail(
+  task: TaskBoardTask,
+  live: LiveShells,
+  self?: string,
+): OrchestratorMcpBoardTaskDetail {
   return {
-    ...boardTaskRow(task),
+    ...boardTaskRow(task, live, self),
+    checklistItems: doneWhenItems(task.description),
     description: task.description,
     verify: task.verify ?? null,
     startFiles: task.startFiles ?? [],
@@ -1056,6 +1075,15 @@ function timelineItem(input: {
 const make = Effect.gen(function* () {
   const crypto = yield* Crypto.Crypto;
   const threadManagement = yield* ThreadManagementService.ThreadManagementService;
+  // Presence is advice for agents; without a shell snapshot the rows list no other chats.
+  const liveShells = Effect.suspend(() =>
+    threadManagement.getShellSnapshot({ location: "active" }),
+  ).pipe(
+    Effect.map(
+      (snapshot): LiveShells => new Map(snapshot.threads.map((shell) => [shell.id, shell])),
+    ),
+    Effect.orElseSucceed(() => NO_SHELLS),
+  );
   const providerRegistry = yield* ProviderRegistry.ProviderRegistry;
   const providerAdapters = yield* ProviderAdapterRegistry.ProviderAdapterRegistryV2;
   const scheduledTasks = yield* ScheduledTaskService.ScheduledTaskService;
@@ -2024,18 +2052,25 @@ const make = Effect.gen(function* () {
       Effect.gen(function* () {
         const { parent } = yield* loadCaller(scope);
         const workspace = yield* boardWorkspace;
-        const slug = input.projectSlug ?? callerBoardSlug(workspace, parent?.thread.projectId);
+        const self = scope.thread?.threadId;
+        const thisChat = input.thisChat === true;
+        // A chat's card may sit in another project, so thisChat ignores the caller's project.
+        const slug = thisChat
+          ? input.projectSlug
+          : (input.projectSlug ?? callerBoardSlug(workspace, parent?.thread.projectId));
         const statuses =
           input.status === undefined || input.status.length === 0
             ? BOARD_OPEN_STATUSES
             : input.status;
         const query = input.query?.toLowerCase();
+        const live = yield* liveShells;
         const matching = workspace.tasks
           .filter(
             (task) =>
               statuses.includes(task.status) &&
               (slug === undefined || task.projectSlug === slug) &&
               (input.mine !== true || task.claimedBy === workspace.member) &&
+              (!thisChat || (self !== undefined && linkedThreadIds(task).includes(self))) &&
               (query === undefined ||
                 task.title.toLowerCase().includes(query) ||
                 task.id.toLowerCase().includes(query)),
@@ -2044,7 +2079,9 @@ const make = Effect.gen(function* () {
         return {
           member: workspace.member,
           total: matching.length,
-          tasks: matching.slice(0, input.limit ?? BOARD_DEFAULT_LIMIT).map(boardTaskRow),
+          tasks: matching
+            .slice(0, input.limit ?? BOARD_DEFAULT_LIMIT)
+            .map((task) => boardTaskRow(task, live, self)),
         };
       }),
     boardTaskGet: (scope, input) =>
@@ -2055,7 +2092,7 @@ const make = Effect.gen(function* () {
         if (task === undefined) {
           return yield* failure("task_not_found", `No task card ${input.taskId} was found.`);
         }
-        return boardTaskDetail(task);
+        return boardTaskDetail(task, yield* liveShells, scope.thread?.threadId);
       }),
     boardTaskUpdate: (scope, input) =>
       Effect.gen(function* () {
@@ -2091,6 +2128,7 @@ const make = Effect.gen(function* () {
               ...(input.projectSlug === undefined ? {} : { projectSlug: input.projectSlug }),
               ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
               ...(input.note === undefined ? {} : { note: input.note }),
+              ...(input.check === undefined ? {} : { check: input.check }),
               ...(input.claim === true
                 ? { claimedBy: workspace.member }
                 : input.release === true
@@ -2100,7 +2138,36 @@ const make = Effect.gen(function* () {
             projectList,
           )
           .pipe(Effect.mapError(boardTaskFailure));
-        return boardTaskRow(updated);
+        const self = scope.thread?.threadId;
+        const draft = taskMoveDraft({
+          task: updated,
+          from: existing?.status,
+          to: updated.status,
+          agent: scope.thread?.providerInstanceId ?? "Agent",
+          threadId: self,
+          note: input.note,
+          at: updated.updatedAt,
+        });
+        if (draft !== null) {
+          // The card is written; a lost notice must not fail the agent's update.
+          yield* taskBoard.aiosRoot(projectList).pipe(
+            Effect.flatMap((root) => appendDraft(root, draft)),
+            Effect.catchTags({
+              FeedEventError: (error) =>
+                Effect.logWarning("Could not write the task notice", { error: error.message }),
+            }),
+          );
+        }
+        const row = boardTaskRow(updated, yield* liveShells, self);
+        const takes = input.claim === true || status === "in_progress";
+        return takes && row.otherChats.length > 0
+          ? {
+              ...row,
+              warning: `Other chats work on this card now: ${row.otherChats
+                .map((chat) => chat.title)
+                .join(", ")}. Do not repeat their work; read the card history first.`,
+            }
+          : row;
       }),
     boardTaskCreate: (scope, input) =>
       Effect.gen(function* () {
@@ -2129,9 +2196,9 @@ const make = Effect.gen(function* () {
       boardProjects.pipe(
         Effect.flatMap((list) => taskBoard.aiosRoot(list)),
         Effect.flatMap((root) => appendDraft(root, input)),
-        Effect.catchTag("FeedEventError", (error) =>
-          Effect.fail(failure("invalid_request", error.message)),
-        ),
+        Effect.catchTags({
+          FeedEventError: (error) => Effect.fail(failure("invalid_request", error.message)),
+        }),
       ),
     focusList: (scope, input) =>
       Effect.gen(function* () {

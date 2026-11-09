@@ -199,6 +199,8 @@ function usePresentFeedEvent(
         }
         return;
       }
+      // The task celebration toast already shows a finished card while the window is open.
+      if (event.type === "task.done") return;
       if (!settings.inAppNotificationsEnabled) return;
       if (
         thread !== undefined &&

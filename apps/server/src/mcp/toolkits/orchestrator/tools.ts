@@ -185,7 +185,7 @@ const DeleteScheduledTaskTool = Tool.make("leo_delete_scheduled_task", {
 
 const BoardTaskListTool = Tool.make("leo_board_task_list", {
   description:
-    "List the user's task cards, open work by default, in this thread's project unless you pass projectSlug. Rows are sorted by priority, then in-progress first, and carry the id to use with board_task_get and board_task_update. Pass mine=true for tasks claimed by the current user.",
+    "List the user's task cards, open work by default, in this thread's project unless you pass projectSlug. Rows are sorted by priority, then in-progress first, and carry the id to use with board_task_get and board_task_update. Pass mine=true for tasks claimed by the current user, or thisChat=true for the cards this chat works on. otherChats on a row lists chats that hold the card now.",
   parameters: OrchestratorMcpBoardTaskListInput,
   success: OrchestratorMcpBoardTaskListResult,
   failure: OrchestratorMcpFailure,
@@ -199,7 +199,7 @@ const BoardTaskListTool = Tool.make("leo_board_task_list", {
 
 const BoardTaskGetTool = Tool.make("leo_board_task_get", {
   description:
-    "Read one task card in full: description, how to verify it, files to start from, blockers, checklist progress and the latest activity. Use the id from board_task_list.",
+    "Read one task card in full: description, how to verify it, files to start from, blockers, numbered Done when items, live chats on it and the latest activity. Use the id from board_task_list.",
   parameters: OrchestratorMcpBoardTaskGetInput,
   success: OrchestratorMcpBoardTaskDetail,
   failure: OrchestratorMcpFailure,
@@ -213,7 +213,7 @@ const BoardTaskGetTool = Tool.make("leo_board_task_get", {
 
 const BoardTaskUpdateTool = Tool.make("leo_board_task_update", {
   description:
-    "Update a task card the user can see in the Tasks view. Keeping cards current is your job, not the user's: set in_progress when you start, add a note on meaningful progress, and always finish with review (needs a human check) or done, putting the verification result in note. Never leave a card for the user to close. Only the fields you pass change; claim=true takes the task for the current user.",
+    "Update a task card the user can see in the Tasks view. Keeping cards current is your job, not the user's: set in_progress when you start, add a note on meaningful progress, and always finish with review (needs a human check) or done, putting the verification result in note. Never leave a card for the user to close. Tick each Done when item you prove with check. Only the fields you pass change; claim=true takes the task for the current user. A warning in the result means another live chat holds the card.",
   parameters: OrchestratorMcpBoardTaskUpdateInput,
   success: OrchestratorMcpBoardTaskRow,
   failure: OrchestratorMcpFailure,

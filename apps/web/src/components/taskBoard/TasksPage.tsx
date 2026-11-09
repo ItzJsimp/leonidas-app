@@ -10,6 +10,7 @@ import {
   RouteIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearch } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
 import { defaultDueForFocus } from "@t3tools/client-runtime/task-board/daily-planning";
 
@@ -140,7 +141,12 @@ export function TasksPage() {
   const [prefs, setPrefs] = useState<TasksPrefs>(readSavedPrefs);
   const { width: railWidth, handle: railHandle } = useRailWidth();
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const linkedTaskId = useSearch({ strict: false }).task;
+  const [selectedId, setSelectedId] = useState<string | null>(linkedTaskId ?? null);
+  // A chat chip or notice that links a card opens it, also when the page is already showing.
+  useEffect(() => {
+    if (linkedTaskId) setSelectedId(linkedTaskId);
+  }, [linkedTaskId]);
   const [createOpen, setCreateOpen] = useState(false);
   const [checked, setChecked] = useState<ReadonlySet<string>>(() => new Set());
 

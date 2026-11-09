@@ -298,6 +298,12 @@ export const TaskBoardWorkspaceInput = Schema.Struct({ ...workspaceScope });
 export type TaskBoardWorkspaceInput = typeof TaskBoardWorkspaceInput.Type;
 
 // Patches one AIOS card in place. `projectSlug: null` unlinks it from its project.
+export const TaskBoardChecklistTick = Schema.Struct({
+  item: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 200 })),
+  done: Schema.Boolean,
+});
+export type TaskBoardChecklistTick = typeof TaskBoardChecklistTick.Type;
+
 export const TaskBoardCardUpdateInput = Schema.Struct({
   ...workspaceScope,
   taskId: TrimmedNonEmptyString,
@@ -324,6 +330,8 @@ export const TaskBoardCardUpdateInput = Schema.Struct({
   privateArea: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   // Appended to the card's activity log.
   note: Schema.optional(Schema.String.check(Schema.isMaxLength(4_000))),
+  // Ticks (`done: true`) or clears `## Done when` items, numbered from 1 in file order.
+  check: Schema.optional(Schema.Array(TaskBoardChecklistTick).check(Schema.isMaxLength(50))),
 });
 export type TaskBoardCardUpdateInput = typeof TaskBoardCardUpdateInput.Type;
 

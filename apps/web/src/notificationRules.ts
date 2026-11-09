@@ -26,9 +26,9 @@ type RuleEvent = Pick<FeedEvent, "type" | "level" | "actor">;
 
 const APP_FINISHED = new Set(["agent.finished", "agent.child_finished"]);
 
-/** Questions and failures pop up. Info stays in Notifications, except chats the app saw finish. */
+/** Questions and failures pop up. Info stays in Notifications, except finished chats and cards. */
 export function defaultRule(event: RuleEvent): NotificationRule {
-  if (event.level !== "info") return "toast";
+  if (event.level !== "info" || event.type === "task.done") return "toast";
   return event.actor.kind === "app" && APP_FINISHED.has(event.type) ? "toast" : "inbox";
 }
 
@@ -51,6 +51,8 @@ const APP_TYPES: ReadonlyArray<RuleEvent> = [
   { type: "agent.failed", level: "failed", actor: { kind: "app", name: "Leonidas" } },
   { type: "agent.finished", level: "info", actor: { kind: "app", name: "Leonidas" } },
   { type: "agent.child_finished", level: "info", actor: { kind: "app", name: "Leonidas" } },
+  { type: "task.review", level: "needs_you", actor: { kind: "agent", name: "Leonidas" } },
+  { type: "task.done", level: "info", actor: { kind: "agent", name: "Leonidas" } },
 ];
 
 const TYPE_LABELS: Readonly<Record<string, string>> = {
@@ -61,6 +63,8 @@ const TYPE_LABELS: Readonly<Record<string, string>> = {
   "agent.finished": "Chat finished",
   "agent.child_finished": "Delegated task finished",
   "task.worked": "Task worked on",
+  "task.review": "Task ready for review",
+  "task.done": "Task done by an agent",
   "aios.changed": "AIOS changed",
 };
 

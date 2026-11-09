@@ -27,6 +27,7 @@ import {
   TaskBoardDueDate,
   TaskBoardMilestoneVersion,
   TaskBoardTaskPriority,
+  TaskBoardChecklistTick,
   TaskBoardTaskStatus,
 } from "./taskBoard.ts";
 import { ThreadLinkedPullRequest } from "./threadPullRequest.ts";
@@ -718,6 +719,12 @@ export const OrchestratorMcpBoardTaskListInput = Schema.Struct({
   mine: Schema.optional(
     Schema.Boolean.annotate({ description: "True lists only tasks claimed by the current user." }),
   ),
+  thisChat: Schema.optional(
+    Schema.Boolean.annotate({
+      description:
+        "True lists only cards linked to this chat, in any project. Use it to find your card after a handoff or compaction.",
+    }),
+  ),
   query: Schema.optional(
     TrimmedNonEmptyString.annotate({
       description: "Only tasks whose title or id contains this text (case-insensitive).",
@@ -743,6 +750,13 @@ export const OrchestratorMcpBoardTaskRow = Schema.Struct({
   milestone: Schema.optional(Schema.NullOr(TaskBoardMilestoneVersion)),
   checklist: Schema.NullOr(Schema.Struct({ done: Schema.Number, total: Schema.Number })),
   updatedAt: Schema.String.annotate({ description: "ISO timestamp." }),
+  otherChats: Schema.Array(
+    Schema.Struct({ threadId: Schema.String, title: Schema.String, model: Schema.String }),
+  ).annotate({
+    description:
+      "Other chats that run or wait on this card now. Do not start parallel work on a card another chat holds.",
+  }),
+  warning: Schema.optional(Schema.String),
 });
 export type OrchestratorMcpBoardTaskRow = typeof OrchestratorMcpBoardTaskRow.Type;
 
@@ -784,6 +798,12 @@ export const OrchestratorMcpBoardTaskDetail = Schema.Struct({
   startFiles: Schema.Array(Schema.String),
   blockedBy: Schema.Array(Schema.String),
   labels: Schema.Array(Schema.String),
+  checklistItems: Schema.Array(
+    Schema.Struct({ item: Schema.Number, text: Schema.String, done: Schema.Boolean }),
+  ).annotate({
+    description:
+      "The card's Done when items. Tick them with board_task_update check, by item number.",
+  }),
   history: Schema.Array(
     Schema.Struct({
       at: Schema.String,
@@ -816,6 +836,12 @@ export const OrchestratorMcpBoardTaskUpdateInput = Schema.Struct({
     }),
   ),
   priority: Schema.optional(TaskBoardTaskPriority),
+  check: Schema.optional(
+    Schema.Array(TaskBoardChecklistTick).check(Schema.isMaxLength(50)).annotate({
+      description:
+        "Done when items to tick (done: true) or clear (done: false), by the item number from board_task_get.",
+    }),
+  ),
   claim: Schema.optional(
     Schema.Boolean.annotate({
       description:

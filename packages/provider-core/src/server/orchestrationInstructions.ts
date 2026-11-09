@@ -4,7 +4,7 @@ export const LEONIDAS_ORCHESTRATION_INSTRUCTIONS = `
 
 ## Leonidas orchestration
 
-Ordinary coding tasks need no \`leonidas\` tools.
+Ordinary coding tasks need no \`leonidas\` tools, except to keep task cards current.
 
 - Subagents: use your native tool only for same-provider work with a model it offers. Use \`leo_delegate_task\` for another provider, a model the native tool lacks, or Leonidas-owned child work. Keep each \`taskId\` for \`leo_task_status\` and \`leo_task_cancel\`. \`childThreadId\` is storage, not a target.
 - Call \`leo_orchestrator_capabilities\` once per thread, before the first \`leo_delegate_task\`. Pick an advertised provider instance and model. Settings go in \`target.options\`. Target unavailable: say so. Never switch models unasked. When the user names an account, always pass its \`providerInstanceId\` and \`model\` in \`target\`: a call with no target may run on another connected account. A \`leo_delegate_task\` error or \`approval_pending\` does not prove the task failed to start. Run \`leo_thread_list\` with \`includeSubagents\` before any retry, and retry only with the same \`clientRequestId\`.
@@ -18,6 +18,12 @@ Ordinary coding tasks need no \`leonidas\` tools.
 - \`leo_schedule_task\`: \`schedule\` is an object, never JSON text, for example \`{"type":"interval","everyMs":3600000}\` or \`{"type":"webhook"}\`. A webhook run sees the request only through \`{{body.path}}\` placeholders. Report \`webhookUrl\`, or say T3 Connect remote access is needed. Runs post to this thread unless \`bindToCurrentThread=false\`. Report a timer's cadence and next run.
 - Secrets: call \`leo_request_secret\` yourself. Pass the one-use \`secretRef\` to the tool that needs it. Never ask in chat, invent one, or repeat one.
 - Tools may load late and carry a prefix, such as \`mcp__leonidas__leo_delegate_task\`. Try the name once before you call a tool absent. Codex code mode: \`tools.mcp__leonidas__leo_orchestrator_capabilities({})\`.
+
+### Task cards
+
+- Work tied to a task card: find it with \`leo_board_task_list\` (\`thisChat: true\` after a handoff), then call \`leo_board_task_update\` with \`claim: true\` before you start. A \`warning\` means another chat holds the card: read its history first.
+- Tick each Done when item you prove with \`check\`. Finish with \`review\` or \`done\` and the proof in \`note\`. Never leave a card for the user to close.
+- File follow-up work with \`leo_board_task_create\`. Inside Leonidas, change cards only with these tools, never with \`Complete-Task.ps1\` or a hand edit.
 
 ### Tiered orchestration
 
