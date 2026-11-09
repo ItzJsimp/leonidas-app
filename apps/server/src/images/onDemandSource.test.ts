@@ -10,9 +10,16 @@ import {
 
 const config: LaunchConfig = { command: "python main.py", folder: null, idleMinutes: 10 };
 
-function setup(options: { config?: LaunchConfig | null; startsOnLaunch?: boolean } = {}) {
+function setup(
+  options: {
+    config?: LaunchConfig | null;
+    startsOnLaunch?: boolean;
+    online?: boolean;
+    waitForLaunch?: Promise<void>;
+  } = {},
+) {
   const log: string[] = [];
-  let online = false;
+  let online = options.online ?? false;
   let exited = false;
   const timers: Array<{ run: () => void; ms: number; live: boolean }> = [];
   const source = {
@@ -36,13 +43,14 @@ function setup(options: { config?: LaunchConfig | null; startsOnLaunch?: boolean
       log.push("launch");
       exited = false;
       if (options.startsOnLaunch !== false) online = true;
-      return {
+      const process = {
         hasExited: () => exited,
         kill: () => {
           log.push("kill");
           online = false;
         },
       };
+      return options.waitForLaunch ? options.waitForLaunch.then(() => process) : process;
     },
     setTimer: (run, ms) => {
       const timer = { run, ms, live: true };
@@ -68,6 +76,24 @@ function setup(options: { config?: LaunchConfig | null; startsOnLaunch?: boolean
 const request = { modelId: "m", prompt: "p", seed: 1 };
 
 describe("withOnDemandStart", () => {
+  it("stops a process whose asynchronous launch finishes after disposal", async () => {
+    let finish!: () => void;
+    const waitForLaunch = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const { wrapped, log } = setup({ config: { ...config, args: [] }, waitForLaunch });
+    const generation = wrapped.generate(request);
+    wrapped.dispose();
+    finish();
+    await expect(generation).rejects.toThrow(/stopped/);
+    expect(log).toEqual(["launch", "kill"]);
+  });
+  it("starts its private engine even when another engine answers on the old port", async () => {
+    const { wrapped, log } = setup({ online: true, config: { ...config, args: [] } });
+    await wrapped.generate(request);
+    expect(log).toEqual(["launch", "generate"]);
+    wrapped.dispose();
+  });
   it("starts a new process after the engine exits", async () => {
     const { wrapped, log, crash } = setup();
     await wrapped.generate(request);

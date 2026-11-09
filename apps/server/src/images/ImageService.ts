@@ -28,6 +28,7 @@ import * as NodeFSP from "node:fs/promises";
 import * as NodeChildProcess from "node:child_process";
 import * as NodePath from "node:path";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as NetService from "@t3tools/shared/Net";
 
 import * as ServerConfig from "../config.ts";
 import * as HardwareWatch from "../hardwareWatch/HardwareWatch.ts";
@@ -35,6 +36,8 @@ import { DEFAULT_COMFY_URL, createComfyAdapter, normalizeBaseUrl } from "./comfy
 import { ImagesEngine } from "./ImagesEngine.ts";
 import { withOnDemandStart, type LaunchConfig } from "./onDemandSource.ts";
 import { engineDownloadBytes, installImageEngine } from "./engineInstall.ts";
+import { modelDownloadBytes } from "@t3tools/shared/imageAssets";
+import { installImageModel, writeImageModelPaths } from "./modelInstall.ts";
 
 /** How often the panel re-checks that ComfyUI answers while it is open. */
 const STATUS_POLL_MS = 5_000;
@@ -143,6 +146,7 @@ const make = Effect.gen(function* () {
   const scope = yield* Effect.scope;
   const clock = yield* Clock.Clock;
   const config = yield* ServerConfig.ServerConfig;
+  const net = yield* NetService.NetService;
   const settingsFile = NodePath.join(config.stateDir, "images", "settings.json");
   let baseUrl = readSavedBaseUrl(settingsFile) ?? DEFAULT_COMFY_URL;
 
@@ -152,13 +156,30 @@ const make = Effect.gen(function* () {
     phase: readLaunchConfig(settingsFile)?.args ? "ready" : "not-installed",
     received: 0,
     total: platform === "win32" || platform === "darwin" ? engineDownloadBytes(platform) : 0,
-    folder: config.stateDir,
+    engineBytes: platform === "win32" || platform === "darwin" ? engineDownloadBytes(platform) : 0,
+    folder:
+      typeof readSettings(settingsFile)["installFolder"] === "string"
+        ? (readSettings(settingsFile)["installFolder"] as string)
+        : config.stateDir,
     error: null,
+    installedModelIds: Array.isArray(readSettings(settingsFile)["installedModelIds"])
+      ? (readSettings(settingsFile)["installedModelIds"] as string[]).filter(
+          (id) => typeof id === "string",
+        )
+      : [],
   };
   yield* Effect.addFinalizer(() => Effect.sync(() => setupController?.abort()));
   const source = withOnDemandStart(createComfyAdapter({ baseUrl: () => baseUrl }), {
     readConfig: () => readLaunchConfig(settingsFile),
-    launch: (launchConfig) => launchComfy(launchConfig, platform),
+    launch: async (launchConfig) => {
+      if (launchConfig.args === undefined) return launchComfy(launchConfig, platform);
+      const port = await Effect.runPromise(net.findAvailablePort(8189));
+      baseUrl = `http://127.0.0.1:${port}`;
+      return launchComfy(
+        { ...launchConfig, args: [...launchConfig.args, "--port", String(port)] },
+        platform,
+      );
+    },
     // Effect timers keep the timer and the wait on the same fiber system as the rest of the server.
     setTimer: (run, ms) => Effect.runFork(Effect.andThen(Effect.sleep(ms), Effect.sync(run))),
     clearTimer: (timer) => {
@@ -277,6 +298,12 @@ const make = Effect.gen(function* () {
   const setup = (input: ImagesSetupInput) =>
     Effect.gen(function* () {
       if (setupController) return setupState;
+      if (!NodePath.isAbsolute(input.folder)) {
+        return yield* new ImagesError({
+          reason: "invalid_input",
+          detail: "Choose an absolute installation folder.",
+        });
+      }
       const hardwareWatch = yield* HardwareWatch.HardwareWatch;
       const sample = yield* hardwareWatch.latestSample;
       const supportedGpu =
@@ -295,6 +322,9 @@ const make = Effect.gen(function* () {
         });
       }
       const controller = new AbortController();
+      const modelId = input.modelId ?? "flux2klein";
+      const engineBytes = engineDownloadBytes(platform === "darwin" ? "darwin" : "win32");
+      const totalBytes = engineBytes + modelDownloadBytes(modelId);
       setupController = controller;
       setupState = {
         ...setupState,
@@ -302,6 +332,7 @@ const make = Effect.gen(function* () {
         folder: input.folder,
         received: 0,
         error: null,
+        total: totalBytes,
       };
       PubSub.publishUnsafe(changes, undefined);
       const install = Effect.tryPromise({
@@ -316,7 +347,7 @@ const make = Effect.gen(function* () {
               setupState = {
                 ...setupState,
                 received,
-                total,
+                total: totalBytes,
                 phase: received === total ? "extracting" : "downloading",
               };
               if (clock.currentTimeMillisUnsafe() - lastUpdate >= 250 || received === total) {
@@ -325,18 +356,59 @@ const make = Effect.gen(function* () {
               }
             },
           });
+          const root = NodePath.join(input.folder, "LeonidasImages");
+          const savedSettings = readSettings(settingsFile);
+          const previousFolders = Array.isArray(savedSettings["modelFolders"])
+            ? (savedSettings["modelFolders"] as unknown[]).filter(
+                (folder): folder is string => typeof folder === "string",
+              )
+            : [];
+          if (typeof savedSettings["installFolder"] === "string") {
+            previousFolders.push(
+              NodePath.join(savedSettings["installFolder"], "LeonidasImages", "data", "models"),
+            );
+          }
+          const reused = await installImageModel({
+            modelId,
+            folder: NodePath.join(root, "data", "models"),
+            existingFolders: [...(input.existingFolders ?? []), ...previousFolders],
+            signal: controller.signal,
+            onProgress: (received) => {
+              setupState = {
+                ...setupState,
+                phase: "downloading",
+                received: engineBytes + received,
+              };
+              if (
+                clock.currentTimeMillisUnsafe() - lastUpdate >= 1000 ||
+                setupState.received === totalBytes
+              ) {
+                lastUpdate = clock.currentTimeMillisUnsafe();
+                PubSub.publishUnsafe(changes, undefined);
+              }
+            },
+          });
+          const extraPaths = NodePath.join(root, "model-paths.yaml");
+          const modelFolders = [...new Set([...previousFolders, ...reused])];
+          await writeImageModelPaths(extraPaths, modelFolders);
+          const installedModelIds = [
+            ...new Set([...(setupState.installedModelIds ?? []), modelId]),
+          ];
           await NodeFSP.mkdir(NodePath.dirname(settingsFile), { recursive: true });
           await NodeFSP.writeFile(
             settingsFile,
             JSON.stringify({
               ...readSettings(settingsFile),
               startCommand: launch.command,
-              startArgs: launch.args,
+              startArgs: [...launch.args, "--extra-model-paths-config", extraPaths],
               startFolder: launch.folder,
               idleMinutes: 1,
+              installedModelIds,
+              installFolder: input.folder,
+              modelFolders,
             }),
           );
-          setupState = { ...setupState, phase: "ready", error: null };
+          setupState = { ...setupState, phase: "ready", error: null, installedModelIds };
         },
         catch: storage,
       }).pipe(

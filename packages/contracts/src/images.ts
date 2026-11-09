@@ -82,13 +82,19 @@ export const ImagesSetupState = Schema.Struct({
   ]),
   received: NonNegativeInt,
   total: NonNegativeInt,
+  engineBytes: Schema.optional(NonNegativeInt),
   folder: Schema.String,
   error: Schema.NullOr(Schema.String),
+  installedModelIds: Schema.optional(Schema.Array(Schema.String)),
 });
 export type ImagesSetupState = typeof ImagesSetupState.Type;
 
 export const ImagesSetupInput = Schema.Struct({
   folder: TrimmedNonEmptyString.check(Schema.isMaxLength(1000)),
+  modelId: Schema.optional(Schema.Literals(["flux2klein", "zimage"])),
+  existingFolders: Schema.optional(
+    Schema.Array(TrimmedNonEmptyString).check(Schema.isMaxLength(8)),
+  ),
 });
 export type ImagesSetupInput = typeof ImagesSetupInput.Type;
 

@@ -23,7 +23,7 @@ export interface LaunchedProcess {
 export interface OnDemandDeps {
   /** Read on each request, so a change in the setting needs no restart. Null: never start. */
   readonly readConfig: () => LaunchConfig | null;
-  readonly launch: (config: LaunchConfig) => LaunchedProcess;
+  readonly launch: (config: LaunchConfig) => LaunchedProcess | Promise<LaunchedProcess>;
   readonly setTimer: (run: () => void, ms: number) => unknown;
   readonly clearTimer: (timer: unknown) => void;
   readonly sleep: (ms: number) => Promise<void>;
@@ -44,6 +44,7 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
   let starting: Promise<void> | null = null;
   let freeTimer: unknown = null;
   let stopTimer: unknown = null;
+  let disposed = false;
 
   const clearTimers = () => {
     if (freeTimer !== null) deps.clearTimer(freeTimer);
@@ -60,6 +61,7 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
 
   const armIdle = () => {
     clearTimers();
+    if (disposed) return;
     if (child === null) return;
     const config = deps.readConfig();
     freeTimer = deps.setTimer(() => {
@@ -75,6 +77,7 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
 
   const waitUntilOnline = async () => {
     for (let waited = 0; waited < START_TIMEOUT_MS; waited += START_POLL_MS) {
+      if (disposed) throw new Error("The image engine was stopped.");
       if (child?.hasExited()) {
         throw new Error(
           "The image engine stopped during startup. Check its installation and try again.",
@@ -87,15 +90,24 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
   };
 
   const ensureRunning = async () => {
-    if ((await source.status()).online) return;
+    if (disposed) throw new Error("The image engine was stopped.");
     const config = deps.readConfig();
+    if (child?.hasExited()) child = null;
+    if ((config?.args === undefined || child !== null) && (await source.status()).online) return;
     // No start command: keep the old behaviour, where the person starts ComfyUI by hand.
     if (config === null) return;
     if (starting === null) {
       starting = (async () => {
         try {
           if (child?.hasExited()) child = null;
-          child ??= deps.launch(config);
+          if (child === null) {
+            const launched = await deps.launch(config);
+            if (disposed) {
+              if (!launched.hasExited()) launched.kill();
+              throw new Error("The image engine was stopped.");
+            }
+            child = launched;
+          }
           await waitUntilOnline();
         } catch (cause) {
           stopChild();
@@ -120,6 +132,7 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
       }
     },
     dispose: () => {
+      disposed = true;
       clearTimers();
       stopChild();
     },
