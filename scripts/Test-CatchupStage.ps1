@@ -50,7 +50,7 @@ $planRev = if ($SaveBaseline) { $PlanFrom } else { 'HEAD' }
 $changedAll = @(git -C $Worktree diff --name-only $Base $planRev)
 $changed = @(git -C $Worktree diff --name-only --diff-filter=AM $Base $planRev)
 function Test-InRev([string]$path) { git -C $Worktree cat-file -e "${planRev}:$path" 2>$null; $LASTEXITCODE -eq 0 }
-if ($changed.Count -eq 0) { $notes.Add("nothing changed since $Base"); return Result 'green' }
+if ($changed.Count -eq 0 -and -not $SaveBaseline) { $notes.Add("nothing changed since $Base"); return Result 'green' }
 
 # Plan: typecheck keys, then test keys.
 $tsc = [System.Collections.Generic.SortedSet[string]]::new()

@@ -69,6 +69,13 @@ $f = @(); if (Test-Path (Join-Path $Worktree "fail.txt")) { $f = @(Get-Content (
     Assert ($r.Status -eq 'red' -and $r.FailKeys.Count -eq 1 -and $r.FailKeys[0] -eq 'tsc|apps/web') 'only the new key should count'
     Remove-Item (Join-Path $script:repo 'fail.txt')
 
+    # Scenario 4b: a baseline with nothing changed still runs the chat, sidebar and settings suites.
+    Remove-Item (Join-Path $script:repo 'calls.log') -ErrorAction SilentlyContinue
+    $r = & $gate -Worktree $script:repo -Base 'HEAD' -PlanFrom 'HEAD' -DevTipScript $fake -SaveBaseline -Stage '02'
+    Assert ($r.Status -eq 'green') 'baseline with no diff should be green'
+    Assert ((Get-Content (Join-Path $script:repo 'calls.log') -ErrorAction SilentlyContinue) -join ';' -like '*Composer.test.tsx*') 'baseline with no diff should still run the suites'
+    Remove-Item (Join-Path $common 'leonidas-catchup/baseline-02.json')
+
     # Scenario 5: the gate is unavailable when the inner gate cannot run.
     Set-Content (Join-Path $script:repo 'unavail.txt') 'x'
     $r = Run-Gate
