@@ -26,10 +26,18 @@ async function makeTarget(): Promise<string> {
 // The "junction" type only matters on Windows; other systems make a plain symlink.
 const linkType = "junction";
 
+// A linked worktree has a ".git" file at its root.
+async function makeWorktree(): Promise<string> {
+  const worktree = NodePath.join(base, "wt");
+  await NodeFSP.mkdir(worktree, { recursive: true });
+  await NodeFSP.writeFile(NodePath.join(worktree, ".git"), "gitdir: elsewhere");
+  return worktree;
+}
+
 describe("cutWorktreeLinks", () => {
   it("removes a link and keeps every file in its target", async () => {
     const target = await makeTarget();
-    const worktree = NodePath.join(base, "wt");
+    const worktree = await makeWorktree();
     await NodeFSP.mkdir(NodePath.join(worktree, ".agents", "skills"), { recursive: true });
     const link = NodePath.join(worktree, ".agents", "skills", "doop");
     await NodeFSP.symlink(target, link, linkType);
@@ -41,7 +49,7 @@ describe("cutWorktreeLinks", () => {
   });
 
   it("leaves a tree with no links unchanged", async () => {
-    const worktree = NodePath.join(base, "wt");
+    const worktree = await makeWorktree();
     await NodeFSP.mkdir(NodePath.join(worktree, "src"), { recursive: true });
     await NodeFSP.writeFile(NodePath.join(worktree, "src", "a.ts"), "x");
 
@@ -51,12 +59,23 @@ describe("cutWorktreeLinks", () => {
 
   it("does not enter node_modules", async () => {
     const target = await makeTarget();
-    const worktree = NodePath.join(base, "wt");
+    const worktree = await makeWorktree();
     await NodeFSP.mkdir(NodePath.join(worktree, "node_modules"), { recursive: true });
     const link = NodePath.join(worktree, "node_modules", "pkg");
     await NodeFSP.symlink(target, link, linkType);
 
     expect(await cutWorktreeLinks(worktree)).toBe(0);
+    expect((await NodeFSP.lstat(link)).isSymbolicLink()).toBe(true);
+  });
+
+  it("does not touch a folder that is not a worktree", async () => {
+    const target = await makeTarget();
+    const folder = NodePath.join(base, "plain");
+    await NodeFSP.mkdir(folder, { recursive: true });
+    const link = NodePath.join(folder, "linked");
+    await NodeFSP.symlink(target, link, linkType);
+
+    expect(await cutWorktreeLinks(folder)).toBe(0);
     expect((await NodeFSP.lstat(link)).isSymbolicLink()).toBe(true);
   });
 
