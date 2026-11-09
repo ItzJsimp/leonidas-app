@@ -33,6 +33,7 @@ import { WorkspaceBreadcrumbText } from "../WorkspaceBreadcrumb";
 import { cn } from "~/lib/utils";
 import { useChatHeaderLeading } from "./ChatHeaderLeading";
 import { LocalVmPanel } from "../localVm/LocalVmPanel";
+import { TaskChip } from "./TaskChip";
 import { userErrorToastFields } from "~/lib/userErrorToast";
 
 interface ChatHeaderProps {
@@ -358,6 +359,7 @@ export const ChatHeader = memo(function ChatHeader({
           </Tooltip>
         )}
       </div>
+      {isServerThread ? <TaskChip threadId={activeThreadId} /> : null}
       {goalControls}
       {isServerThread && aiDesktopOpen ? (
         <LocalVmPanel

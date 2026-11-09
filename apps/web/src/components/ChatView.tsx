@@ -482,6 +482,7 @@ import {
   resolveScrollToEndClearance,
 } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
+import { TaskReviewBlock } from "./chat/TaskReviewBlock";
 import { useRemoteOpenState } from "~/remoteOpen";
 import { shouldShowOpenInPicker } from "./chat/OpenInPicker.logic";
 import { useOpenFavoriteEditorShortcut } from "./chat/OpenInPickerShortcut";
@@ -11714,6 +11715,12 @@ export default function ChatView(props: ChatViewProps) {
                         aria-busy={isSavingQueuedEdit}
                       >
                         <div className="relative z-10">
+                          {isServerThread ? (
+                            <TaskReviewBlock
+                              environmentId={activeThread.environmentId}
+                              threadId={activeThread.id}
+                            />
+                          ) : null}
                           {showProviderSubagentBar ? (
                             <ProviderSubagentBar
                               provider={selectedProviderEntry ?? null}
