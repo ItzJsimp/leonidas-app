@@ -112,13 +112,22 @@ it("shows a plain error when the capture fails", async () => {
   );
 });
 
-it("renders nothing outside the Windows desktop app", async () => {
-  stubDesktop("MacIntel");
+it("renders nothing outside the Windows and macOS desktop apps", async () => {
+  stubDesktop("Linux x86_64");
   await render(vi.fn());
   expect(host.querySelector("button")).toBeNull();
   stubDesktop("Win32", false);
   await render(vi.fn());
   expect(host.querySelector("button")).toBeNull();
+  stubDesktop("MacIntel", false);
+  await render(vi.fn());
+  expect(host.querySelector("button")).toBeNull();
+});
+
+it("renders the button in the macOS desktop app", async () => {
+  stubDesktop("MacIntel");
+  await render(vi.fn());
+  expect(host.querySelector("button")).not.toBeNull();
 });
 
 async function openRecentMenu() {
