@@ -519,8 +519,8 @@ const layerUnusedScheduledTaskStub = Layer.succeed(
 );
 
 describe("orchestrator MCP toolkit", () => {
-  it.live(
-    "delegates cross-provider tasks, polls and cancels children, and creates ordinary threads",
+  const delegationScenario =
+    (finishedOnly = false) =>
     () =>
       Effect.scoped(
         Effect.gen(function* () {
@@ -534,8 +534,7 @@ describe("orchestrator MCP toolkit", () => {
             makeDeterministicAdapter({
               instanceId: codexInstanceId,
               driver: ProviderDriverKind.make("codex"),
-              // Exercise queued completion ownership on a session without native steering.
-              // Native mailbox delivery and its completion races have dedicated integration tests.
+              // Test queued completion here. Native mailbox races have separate integration tests.
               capabilities: {
                 ...CodexProviderCapabilitiesV2,
                 turns: { ...CodexProviderCapabilitiesV2.turns, supportsActiveSteering: false },
@@ -567,8 +566,7 @@ describe("orchestrator MCP toolkit", () => {
                   : `Claude completed: ${turn.message.text}`,
             }),
           ]);
-          // Captures parent-wake offers made when a delegated child
-          // terminalizes after the parent run settled.
+          // Capture parent wakes after a child finishes and its parent has settled.
           const continuationOffers = yield* Ref.make<
             ReadonlyArray<ProviderContinuationRequests.ProviderContinuationRequest>
           >([]);
@@ -593,8 +591,7 @@ describe("orchestrator MCP toolkit", () => {
               }
               return yield* Ref.get(continuationOffers);
             });
-          // Absence has no event to await, so sample repeatedly instead of
-          // trusting a single sleep to outlast a late offer.
+          // Sample repeatedly because absence has no event to await.
           const expectOffersToStay = (count: number) =>
             Effect.gen(function* () {
               for (let sample = 0; sample < 4; sample += 1) {
@@ -650,8 +647,7 @@ describe("orchestrator MCP toolkit", () => {
               model: "opencode/test",
             }),
           ]);
-          // In-memory ScheduledTaskService stub so the schedule/list/update/
-          // delete tools can be exercised without SQL/launch wiring.
+          // Exercise schedule tools without SQL or launch wiring.
           const scheduledStore = yield* Ref.make<ReadonlyArray<ScheduledTask>>([]);
           const layerScheduledTaskStub = Layer.succeed(
             ScheduledTaskService.ScheduledTaskService,
@@ -1063,11 +1059,11 @@ describe("orchestrator MCP toolkit", () => {
               })
               .pipe(Effect.flip);
             expect(completionSteerError._tag).toBe("OrchestratorDispatchError");
-
             for (const taskId of coalescedTaskIds) {
               const statusCall = yield* invoke("leo_task_status", { taskId });
-              expect(statusCall.isError).toBe(false);
+              expect(statusCall.structuredContent).toMatchObject({ taskId, status: "completed" });
             }
+            if (finishedOnly) return;
             const acknowledgedCoalesced = yield* waitForProjection(
               orchestrator,
               parentThreadId,
@@ -3870,7 +3866,11 @@ describe("orchestrator MCP toolkit", () => {
             );
           }).pipe(Effect.provide(layerTest));
         }),
-      ),
+      );
+  it.live("returns finished legacy helper replies as valid MCP JSON", delegationScenario(true));
+  it.live(
+    "delegates cross-provider tasks, polls and cancels children, and creates ordinary threads",
+    delegationScenario(),
   );
 
   it.live("reports running and queued child follow-ups from a Codex replay transcript", () =>

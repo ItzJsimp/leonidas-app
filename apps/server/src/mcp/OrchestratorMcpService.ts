@@ -1748,7 +1748,7 @@ const make = Effect.gen(function* () {
         hasPendingChildRuns: hasPendingChildRuns(childProjection, childRun),
         providerInstanceId: task.providerInstanceId,
         model: task.model,
-        routingReason: task.routingReason,
+        ...(task.routingReason === undefined ? {} : { routingReason: task.routingReason }),
         summary: derivedResult,
         resultContextTransferId: resultTransfer?.id ?? null,
         latestTerminalRunId: terminalRun?.id ?? null,
