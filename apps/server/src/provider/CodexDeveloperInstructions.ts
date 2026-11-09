@@ -1,6 +1,7 @@
 import type { ProviderInteractionMode } from "@t3tools/contracts";
 import type { V2TurnStartParams__AdditionalContextEntry } from "effect-codex-app-server/schema";
 import { buildRuntimeInstructions } from "@t3tools/provider-core/server/runtimeInstructions";
+import { leonidasOutputStandard } from "@t3tools/provider-core/server/outputStandard";
 
 import {
   T3_CODE_BROWSER_TOOL_INSTRUCTIONS,
@@ -214,13 +215,15 @@ export function buildCodexAdditionalContext(
   toolsAvailable: boolean | T3CodeToolAvailability = true,
 ): Record<string, V2TurnStartParams__AdditionalContextEntry> {
   const tools = toolInstructions(toolsAvailable);
+  const outputStandard = leonidasOutputStandard(runtime.replyStyle);
   // Separate keys keep each value under Codex's per-entry token cap.
   return {
     t3_code_orchestration: { kind: "application", value: LEONIDAS_ORCHESTRATION_INSTRUCTIONS },
     t3_code_runtime: {
       kind: "application",
-      value: buildRuntimeInstructions({ harness: "Codex", ...runtime }),
+      value: buildRuntimeInstructions({ harness: "Codex", ...runtime }).replace(outputStandard, ""),
     },
+    t3_code_output: { kind: "application", value: outputStandard },
     ...(tools ? { t3_code_tools: { kind: "application", value: tools } } : {}),
   };
 }
