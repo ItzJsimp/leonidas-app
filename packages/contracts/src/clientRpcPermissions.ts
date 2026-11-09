@@ -106,6 +106,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.imagesKeep]: AuthOrchestrationOperateScope,
   [WS_METHODS.imagesRetry]: AuthOrchestrationOperateScope,
   [WS_METHODS.imagesSetBaseUrl]: AuthSettingsWriteScope,
+  [WS_METHODS.imagesSetup]: AuthSettingsWriteScope,
   [WS_METHODS.localModelsPull]: AuthOrchestrationOperateScope,
   [WS_METHODS.localModelsCancelPull]: AuthOrchestrationOperateScope,
   [WS_METHODS.localModelsRun]: AuthOrchestrationOperateScope,

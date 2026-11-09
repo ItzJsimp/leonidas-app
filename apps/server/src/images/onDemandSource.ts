@@ -8,6 +8,7 @@ import type { ImageSource } from "./imageSource.ts";
 export interface LaunchConfig {
   /** Shell command that starts ComfyUI, for example `python main.py --port 8188`. */
   readonly command: string;
+  readonly args?: readonly string[];
   /** Folder to run the command in. Null runs it in the server folder. */
   readonly folder: string | null;
   /** Minutes without an image before ComfyUI stops. */

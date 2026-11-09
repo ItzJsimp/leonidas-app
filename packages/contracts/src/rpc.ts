@@ -166,6 +166,8 @@ import {
   ImagesKeepInput,
   ImagesRetryInput,
   ImagesSetBaseUrlInput,
+  ImagesSetupInput,
+  ImagesSetupState,
   ImagesState,
   ImagesSubscribeInput,
 } from "./images.ts";
@@ -780,6 +782,7 @@ export const WS_METHODS = {
   imagesKeep: "images.keep",
   imagesRetry: "images.retry",
   imagesSetBaseUrl: "images.setBaseUrl",
+  imagesSetup: "images.setup",
   localModelsSubscribe: "localModels.subscribe",
   localModelsPull: "localModels.pull",
   localModelsCancelPull: "localModels.cancelPull",
@@ -1834,6 +1837,12 @@ const WsImagesRetryRpc = Rpc.make(WS_METHODS.imagesRetry, {
 const WsImagesSetBaseUrlRpc = Rpc.make(WS_METHODS.imagesSetBaseUrl, {
   payload: ImagesSetBaseUrlInput,
   success: Schema.Struct({ baseUrl: Schema.String }),
+  error: ImagesRpcError,
+});
+
+const WsImagesSetupRpc = Rpc.make(WS_METHODS.imagesSetup, {
+  payload: ImagesSetupInput,
+  success: ImagesSetupState,
   error: ImagesRpcError,
 });
 
@@ -3635,6 +3644,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsImagesKeepRpc,
   WsImagesRetryRpc,
   WsImagesSetBaseUrlRpc,
+  WsImagesSetupRpc,
   WsLocalModelsSubscribeRpc,
   WsLocalModelsPullRpc,
   WsLocalModelsCancelPullRpc,

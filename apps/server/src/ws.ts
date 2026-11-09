@@ -3072,6 +3072,10 @@ const layerWsRpc = (
         [WS_METHODS.imagesRetry]: (input) =>
           withImagesProject(input.projectId, (project) => images.retry(project, input)),
         [WS_METHODS.imagesSetBaseUrl]: (input) => images.setBaseUrl(input),
+        [WS_METHODS.imagesSetup]: (input) =>
+          images
+            .setup(input)
+            .pipe(Effect.provideService(HardwareWatch.HardwareWatch, hardwareWatch)),
         [WS_METHODS.localModelsSubscribe]: () => localModels.subscribe,
         [WS_METHODS.localModelsPull]: (input) => localModels.pull(input),
         [WS_METHODS.localModelsCancelPull]: (input) => localModels.cancelPull(input),

@@ -71,7 +71,29 @@ export type ImageSourceStatus = typeof ImageSourceStatus.Type;
 /** The status message before the first connection check answers. */
 export const IMAGE_SOURCE_CHECKING = "Checking...";
 
+export const ImagesSetupState = Schema.Struct({
+  phase: Schema.Literals([
+    "not-installed",
+    "downloading",
+    "extracting",
+    "ready",
+    "error",
+    "cancelled",
+  ]),
+  received: NonNegativeInt,
+  total: NonNegativeInt,
+  folder: Schema.String,
+  error: Schema.NullOr(Schema.String),
+});
+export type ImagesSetupState = typeof ImagesSetupState.Type;
+
+export const ImagesSetupInput = Schema.Struct({
+  folder: TrimmedNonEmptyString.check(Schema.isMaxLength(1000)),
+});
+export type ImagesSetupInput = typeof ImagesSetupInput.Type;
+
 export const ImagesState = Schema.Struct({
+  setup: Schema.optional(ImagesSetupState),
   source: ImageSourceStatus,
   models: Schema.Array(ImageModel),
   /** Newest first. */

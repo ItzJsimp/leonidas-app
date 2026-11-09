@@ -270,6 +270,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.imagesKeep]: "workspace",
   [WS_METHODS.imagesRetry]: "workspace",
   [WS_METHODS.imagesSetBaseUrl]: "workspace",
+  [WS_METHODS.imagesSetup]: "workspace",
   [WS_METHODS.localModelsSubscribe]: "workspace",
   [WS_METHODS.localModelsPull]: "workspace",
   [WS_METHODS.localModelsCancelPull]: "workspace",

@@ -12,23 +12,29 @@ import {
   type ImagesRetryInput,
   type ImagesSetBaseUrlInput,
   type ImagesState,
+  type ImagesSetupInput,
+  type ImagesSetupState,
   type Project,
 } from "@t3tools/contracts";
 import * as Context from "effect/Context";
+import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as PubSub from "effect/PubSub";
 import * as Stream from "effect/Stream";
 import * as NodeFS from "node:fs";
+import * as NodeFSP from "node:fs/promises";
 import * as NodeChildProcess from "node:child_process";
 import * as NodePath from "node:path";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 
 import * as ServerConfig from "../config.ts";
+import * as HardwareWatch from "../hardwareWatch/HardwareWatch.ts";
 import { DEFAULT_COMFY_URL, createComfyAdapter, normalizeBaseUrl } from "./comfyAdapter.ts";
 import { ImagesEngine } from "./ImagesEngine.ts";
 import { withOnDemandStart, type LaunchConfig } from "./onDemandSource.ts";
+import { engineDownloadBytes, installImageEngine } from "./engineInstall.ts";
 
 /** How often the panel re-checks that ComfyUI answers while it is open. */
 const STATUS_POLL_MS = 5_000;
@@ -56,6 +62,9 @@ export class ImageService extends Context.Service<
     readonly setBaseUrl: (
       input: ImagesSetBaseUrlInput,
     ) => Effect.Effect<{ readonly baseUrl: string }, ImagesError>;
+    readonly setup: (
+      input: ImagesSetupInput,
+    ) => Effect.Effect<ImagesSetupState, ImagesError, HardwareWatch.HardwareWatch>;
   }
 >()("t3/images/ImageService") {}
 
@@ -90,6 +99,10 @@ const readLaunchConfig = (file: string): LaunchConfig | null => {
   const idle = settings["idleMinutes"];
   return {
     command,
+    ...(Array.isArray(settings["startArgs"]) &&
+    settings["startArgs"].every((arg) => typeof arg === "string")
+      ? { args: settings["startArgs"] as string[] }
+      : {}),
     folder: folder.length > 0 ? folder : null,
     idleMinutes: typeof idle === "number" && idle >= 1 ? Math.round(idle) : 10,
   };
@@ -97,9 +110,9 @@ const readLaunchConfig = (file: string): LaunchConfig | null => {
 
 /** Start the command in the background. The returned kill stops the whole process tree. */
 const launchComfy = (config: LaunchConfig, platform: NodeJS.Platform) => {
-  const child = NodeChildProcess.spawn(config.command, {
+  const child = NodeChildProcess.spawn(config.command, [...(config.args ?? [])], {
     cwd: config.folder ?? undefined,
-    shell: true,
+    shell: config.args === undefined,
     stdio: "ignore",
     windowsHide: true,
   });
@@ -126,11 +139,23 @@ const launchComfy = (config: LaunchConfig, platform: NodeJS.Platform) => {
 
 const make = Effect.gen(function* () {
   const platform = yield* HostProcess.Platform;
+  const arch = yield* HostProcess.Architecture;
+  const scope = yield* Effect.scope;
+  const clock = yield* Clock.Clock;
   const config = yield* ServerConfig.ServerConfig;
   const settingsFile = NodePath.join(config.stateDir, "images", "settings.json");
   let baseUrl = readSavedBaseUrl(settingsFile) ?? DEFAULT_COMFY_URL;
 
   const changes = yield* PubSub.sliding<void>(1);
+  let setupController: AbortController | null = null;
+  let setupState: ImagesSetupState = {
+    phase: readLaunchConfig(settingsFile)?.args ? "ready" : "not-installed",
+    received: 0,
+    total: platform === "win32" || platform === "darwin" ? engineDownloadBytes(platform) : 0,
+    folder: config.stateDir,
+    error: null,
+  };
+  yield* Effect.addFinalizer(() => Effect.sync(() => setupController?.abort()));
   const source = withOnDemandStart(createComfyAdapter({ baseUrl: () => baseUrl }), {
     readConfig: () => readLaunchConfig(settingsFile),
     launch: (launchConfig) => launchComfy(launchConfig, platform),
@@ -163,7 +188,10 @@ const make = Effect.gen(function* () {
           try: () => engine.hydrate(project.workspaceRoot),
           catch: storage,
         });
-        const snapshot = Effect.sync(() => engine.snapshot(project.workspaceRoot));
+        const snapshot = Effect.sync(() => ({
+          ...engine.snapshot(project.workspaceRoot),
+          setup: setupState,
+        }));
         // The first snapshot goes out at once. The tick checks the connection and publishes a change.
         const polling = Stream.tick(STATUS_POLL_MS).pipe(
           Stream.mapEffect(() => Effect.promise(() => engine.refreshStatus())),
@@ -246,14 +274,104 @@ const make = Effect.gen(function* () {
       return { baseUrl: next };
     });
 
+  const setup = (input: ImagesSetupInput) =>
+    Effect.gen(function* () {
+      if (setupController) return setupState;
+      const hardwareWatch = yield* HardwareWatch.HardwareWatch;
+      const sample = yield* hardwareWatch.latestSample;
+      const supportedGpu =
+        platform === "darwin" && arch === "arm64"
+          ? true
+          : platform === "win32" &&
+            arch === "x64" &&
+            sample?.gpus.some(
+              (gpu) => /nvidia/i.test(gpu.name) && (gpu.vramTotalBytes ?? 0) >= 6 * 1024 ** 3,
+            );
+      if (!supportedGpu || !sample || sample.memory.totalBytes < 8 * 1024 ** 3) {
+        return yield* new ImagesError({
+          reason: "invalid_input",
+          detail:
+            "Setup needs NVIDIA graphics with 6 GB or Apple Silicon, plus 8 GB of memory. Wait for the hardware check.",
+        });
+      }
+      const controller = new AbortController();
+      setupController = controller;
+      setupState = {
+        ...setupState,
+        phase: "downloading",
+        folder: input.folder,
+        received: 0,
+        error: null,
+      };
+      PubSub.publishUnsafe(changes, undefined);
+      const install = Effect.tryPromise({
+        try: async () => {
+          let lastUpdate = 0;
+          const launch = await installImageEngine({
+            folder: input.folder,
+            platform,
+            arch,
+            signal: controller.signal,
+            onProgress: (received, total) => {
+              setupState = {
+                ...setupState,
+                received,
+                total,
+                phase: received === total ? "extracting" : "downloading",
+              };
+              if (clock.currentTimeMillisUnsafe() - lastUpdate >= 250 || received === total) {
+                lastUpdate = clock.currentTimeMillisUnsafe();
+                PubSub.publishUnsafe(changes, undefined);
+              }
+            },
+          });
+          await NodeFSP.mkdir(NodePath.dirname(settingsFile), { recursive: true });
+          await NodeFSP.writeFile(
+            settingsFile,
+            JSON.stringify({
+              ...readSettings(settingsFile),
+              startCommand: launch.command,
+              startArgs: launch.args,
+              startFolder: launch.folder,
+              idleMinutes: 1,
+            }),
+          );
+          setupState = { ...setupState, phase: "ready", error: null };
+        },
+        catch: storage,
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.sync(() => {
+            setupState = {
+              ...setupState,
+              phase: controller.signal.aborted ? "cancelled" : "error",
+              error: error.detail ?? "Image setup failed. Try again.",
+            };
+          }),
+        ),
+        Effect.ensuring(
+          Effect.sync(() => {
+            setupController = null;
+            PubSub.publishUnsafe(changes, undefined);
+          }),
+        ),
+      );
+      yield* Effect.forkIn(install, scope);
+      return setupState;
+    });
+
   return ImageService.of({
     subscribe,
     generate,
     cancel: (input) =>
-      Effect.promise(() => engine.cancel(input)).pipe(Effect.map((cancelled) => ({ cancelled }))),
+      Effect.promise(() => {
+        if (input.stopRunning) setupController?.abort();
+        return engine.cancel(input);
+      }).pipe(Effect.map((cancelled) => ({ cancelled }))),
     keep,
     retry,
     setBaseUrl,
+    setup,
   });
 });
 
