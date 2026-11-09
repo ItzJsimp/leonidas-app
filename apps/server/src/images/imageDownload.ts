@@ -31,6 +31,16 @@ async function checksum(file: string, signal?: AbortSignal) {
   return hash.digest("hex");
 }
 
+/** Check an existing model without writing to it or requesting any network data. */
+export async function verifyImageAsset(
+  file: string,
+  size: number,
+  sha256: string,
+  signal?: AbortSignal,
+) {
+  return (await existingSize(file)) === size && (await checksum(file, signal)) === sha256;
+}
+
 /** Call once per destination. Partial files stay available after cancellation or network failure. */
 export async function downloadImageAsset(
   asset: ImageAsset,

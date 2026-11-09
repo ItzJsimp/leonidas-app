@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./imageAssets": {
+      "types": "./src/imageAssets.ts",
+      "import": "./src/imageAssets.ts"
+    },
     "./answerBlocks": {
       "types": "./src/answerBlocks.ts",
       "import": "./src/answerBlocks.ts"
