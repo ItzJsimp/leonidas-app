@@ -75,6 +75,32 @@ it.layer(NodeServices.layer)("readTradingState", (it) => {
     ),
   );
 
+  it.effect("reads a 5,000-event ledger in under 250 ms", () =>
+    withWorkspace("trading", (root) =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const rows = Array.from({ length: 5000 }, (_, index) =>
+          line({
+            id: `c${index}`,
+            at: stamp(1 + (index % 27)),
+            author: "Test",
+            kind: "cost.paid",
+            category: "data",
+            amount: 1,
+          }),
+        );
+        yield* fs.makeDirectory(path.join(root, "trading"), { recursive: true });
+        yield* fs.writeFileString(path.join(root, "trading", "ledger.jsonl"), rows.join(""));
+        const started = performance.now();
+        const result = yield* readTradingState(root);
+        const elapsed = performance.now() - started;
+        assert.strictEqual(result.state.totalCost, 5000);
+        assert.isBelow(elapsed, 250);
+      }),
+    ),
+  );
+
   it.effect("treats missing files as an empty ledger", () =>
     withWorkspace("trading", (root) =>
       Effect.gen(function* () {
