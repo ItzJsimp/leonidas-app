@@ -148,7 +148,7 @@ export interface AccountRow {
   readonly firm: string;
   readonly detail: string;
   /** 0 to 100, how far the account is toward its goal. */
-  readonly percent: number;
+  readonly percent: number | null;
   readonly room: string;
 }
 
@@ -164,7 +164,9 @@ export function accountPreview(state: TradingState) {
   );
   const rows: AccountRow[] = sorted.slice(0, ACCOUNT_PREVIEW_ROWS).map((account) => {
     const target = account.profitTarget;
-    const percent = target ? Math.max(0, Math.min(100, (account.balanceChange / target) * 100)) : 0;
+    const percent = target
+      ? Math.max(0, Math.min(100, (account.balanceChange / target) * 100))
+      : null;
     return {
       id: account.id,
       title: `${account.size} ${account.product} · ${account.last4}`,
@@ -172,8 +174,8 @@ export function accountPreview(state: TradingState) {
       detail: target
         ? `${formatMoney(account.balanceChange)} / ${formatMoney(target)}`
         : STAGE_NAME[account.stage],
-      percent: Math.round(percent),
-      room: account.roomToDrawdown === null ? "No limit" : formatMoney(account.roomToDrawdown),
+      percent: percent === null ? null : Math.round(percent),
+      room: account.roomToDrawdown === null ? "Not set" : formatMoney(account.roomToDrawdown),
     };
   });
   return { rows, total: open.length, hidden: Math.max(0, open.length - rows.length) };

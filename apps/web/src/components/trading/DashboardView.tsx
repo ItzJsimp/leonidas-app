@@ -77,7 +77,7 @@ function NetReturnChart({ state }: { readonly state: TradingState }) {
           <svg
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
             preserveAspectRatio="none"
-            className="block h-28 w-full sm:h-36"
+            className="block h-28 w-full sm:h-32"
             role="img"
             aria-label="Net return line chart"
           >
@@ -139,10 +139,12 @@ function AccountsPreview({ state }: { readonly state: TradingState }) {
                 <span className="truncate">{row.title}</span>
                 <span className="shrink-0 font-normal text-muted-foreground">{row.detail}</span>
               </div>
-              <ProgressBar
-                percent={row.percent}
-                label={`${row.title}, ${row.percent} percent to target`}
-              />
+              {row.percent === null ? null : (
+                <ProgressBar
+                  percent={row.percent}
+                  label={`${row.title}, ${row.percent} percent to target`}
+                />
+              )}
             </div>
             <span className="text-right text-sm font-semibold tabular-nums">{row.room}</span>
           </li>
@@ -234,7 +236,7 @@ function JourneyCard({ state }: { readonly state: TradingState }) {
 export function DashboardView({ state }: { readonly state: TradingState }) {
   const numbers = keyNumbers(state);
   return (
-    <div className="flex flex-col gap-3.5 p-4 sm:p-6">
+    <div className="flex flex-col gap-3 p-4">
       <section
         aria-label="Key numbers"
         className="grid grid-cols-2 rounded-xl border border-border bg-card sm:grid-cols-3 lg:grid-cols-5"
@@ -242,19 +244,17 @@ export function DashboardView({ state }: { readonly state: TradingState }) {
         {numbers.map((number) => (
           <div
             key={number.id}
-            className="flex min-w-0 flex-col gap-0.5 border-l border-border px-4 py-3 first:border-l-0 max-sm:nth-[n+3]:hidden"
+            className="flex min-w-0 flex-col gap-0.5 border-l border-border px-4 py-2.5 first:border-l-0 max-sm:nth-[n+3]:hidden"
           >
             <span className="text-2xs font-medium text-muted-foreground">{number.label}</span>
             <span className="truncate text-xl font-semibold tracking-tight tabular-nums">
               {number.value}
             </span>
-            <span className="truncate text-2xs text-muted-foreground max-sm:hidden">
-              {number.note}
-            </span>
+            <span className="text-2xs text-muted-foreground max-sm:hidden">{number.note}</span>
           </div>
         ))}
       </section>
-      <div className="grid gap-3.5 lg:grid-cols-[2fr_1fr]">
+      <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
         <NetReturnChart state={state} />
         <Card title="Today" aside="No pack linked">
           <p className="text-xs text-muted-foreground">
@@ -262,7 +262,7 @@ export function DashboardView({ state }: { readonly state: TradingState }) {
           </p>
         </Card>
       </div>
-      <div className="grid gap-3.5 lg:grid-cols-[1.25fr_1fr_1fr]">
+      <div className="grid gap-3 lg:grid-cols-[1.25fr_1fr_1fr]">
         <AccountsPreview state={state} />
         <SetupsCard state={state} />
         <Card title="Crew" aside="Clean streak">

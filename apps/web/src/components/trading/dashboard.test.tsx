@@ -145,6 +145,12 @@ describe("Accounts preview", () => {
     expect(renderToStaticMarkup(<DashboardView state={FILLED} />)).not.toContain("See all");
   });
 
+  it("draws no bar for an account whose target no pack states", () => {
+    const state = { ...FILLED, accounts: [{ ...account(1), profitTarget: null }] };
+    expect(accountPreview(state).rows[0]!.percent).toBeNull();
+    expect(accountPreview(FILLED).rows[0]!.percent).toBe(20);
+  });
+
   it("leaves closed accounts out", () => {
     const state = {
       ...FILLED,
