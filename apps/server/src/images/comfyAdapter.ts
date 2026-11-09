@@ -279,7 +279,7 @@ export function createComfyAdapter(options: ComfyAdapterOptions): ImageSource {
     const running = await get("/queue", 5_000)
       .then((response) => response.json() as Promise<{ queue_running?: ReadonlyArray<unknown[]> }>)
       .then((queue) => (queue.queue_running ?? []).some((entry) => entry[1] === promptId))
-      .catch(() => true);
+      .catch(() => false);
     if (running) {
       await post("/interrupt", { prompt_id: promptId }, 5_000).catch(() => undefined);
     } else {

@@ -254,6 +254,29 @@ describe("comfy adapter control calls", () => {
       expect(posts.filter((p) => p !== "POST /prompt" && p !== expected)).toEqual([]);
     }
   });
+
+  it("does not interrupt another app when the queue cannot be read", async () => {
+    const fake = fakeComfy({ history: [{}] });
+    const controller = new AbortController();
+    const adapter = createComfyAdapter({
+      baseUrl: () => "http://comfy.test",
+      fetch: (async (input, init) => {
+        if (new URL(String(input)).pathname === "/queue" && !init?.method) {
+          throw new Error("Queue unavailable");
+        }
+        return fake.fetchFake(input, init);
+      }) as typeof fetch,
+      sleep: async () => {
+        await adapter.interrupt();
+        controller.abort();
+      },
+    });
+    await expect(
+      adapter.generate({ modelId: "qwen", prompt: "x", seed: 1 }, { signal: controller.signal }),
+    ).rejects.toBeInstanceOf(ImageCancelledError);
+    expect(fake.calls.filter((call) => call.path === "/interrupt")).toEqual([]);
+    expect(fake.calls).toContainEqual({ method: "POST", path: "/queue", body: { delete: ["p1"] } });
+  });
 });
 
 describe("describeComfyError", () => {
