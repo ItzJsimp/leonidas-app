@@ -16,6 +16,7 @@ export interface LaunchConfig {
 
 export interface LaunchedProcess {
   readonly kill: () => void;
+  readonly hasExited: () => boolean;
 }
 
 export interface OnDemandDeps {
@@ -53,7 +54,7 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
   const stopChild = () => {
     const running = child;
     child = null;
-    running?.kill();
+    if (running && !running.hasExited()) running.kill();
   };
 
   const armIdle = () => {
@@ -73,6 +74,11 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
 
   const waitUntilOnline = async () => {
     for (let waited = 0; waited < START_TIMEOUT_MS; waited += START_POLL_MS) {
+      if (child?.hasExited()) {
+        throw new Error(
+          "The image engine stopped during startup. Check its installation and try again.",
+        );
+      }
       if ((await source.status()).online) return;
       await deps.sleep(START_POLL_MS);
     }
@@ -87,6 +93,7 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
     if (starting === null) {
       starting = (async () => {
         try {
+          if (child?.hasExited()) child = null;
           child ??= deps.launch(config);
           await waitUntilOnline();
         } catch (cause) {

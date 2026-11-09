@@ -13,6 +13,7 @@ const config: LaunchConfig = { command: "python main.py", folder: null, idleMinu
 function setup(options: { config?: LaunchConfig | null; startsOnLaunch?: boolean } = {}) {
   const log: string[] = [];
   let online = false;
+  let exited = false;
   const timers: Array<{ run: () => void; ms: number; live: boolean }> = [];
   const source = {
     id: "comfyui",
@@ -33,8 +34,10 @@ function setup(options: { config?: LaunchConfig | null; startsOnLaunch?: boolean
     readConfig: () => (options.config === undefined ? config : options.config),
     launch: () => {
       log.push("launch");
+      exited = false;
       if (options.startsOnLaunch !== false) online = true;
       return {
+        hasExited: () => exited,
         kill: () => {
           log.push("kill");
           online = false;
@@ -51,12 +54,36 @@ function setup(options: { config?: LaunchConfig | null; startsOnLaunch?: boolean
     },
     sleep: async () => {},
   };
-  return { wrapped: withOnDemandStart(source, deps), log, timers };
+  return {
+    wrapped: withOnDemandStart(source, deps),
+    log,
+    timers,
+    crash: () => {
+      exited = true;
+      online = false;
+    },
+  };
 }
 
 const request = { modelId: "m", prompt: "p", seed: 1 };
 
 describe("withOnDemandStart", () => {
+  it("starts a new process after the engine exits", async () => {
+    const { wrapped, log, crash } = setup();
+    await wrapped.generate(request);
+    crash();
+    await wrapped.generate(request);
+    expect(log).toEqual(["launch", "generate", "launch", "generate"]);
+    wrapped.dispose();
+  });
+
+  it("does not kill an exited process when disposed", async () => {
+    const { wrapped, log, crash } = setup();
+    await wrapped.generate(request);
+    crash();
+    wrapped.dispose();
+    expect(log).not.toContain("kill");
+  });
   it("starts ComfyUI on the first image, then frees memory and stops it when idle", async () => {
     const { wrapped, log, timers } = setup();
     await wrapped.generate(request);

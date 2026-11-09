@@ -23,6 +23,7 @@ import * as Stream from "effect/Stream";
 import * as NodeFS from "node:fs";
 import * as NodeChildProcess from "node:child_process";
 import * as NodePath from "node:path";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 
 import * as ServerConfig from "../config.ts";
 import { DEFAULT_COMFY_URL, createComfyAdapter, normalizeBaseUrl } from "./comfyAdapter.ts";
@@ -95,19 +96,26 @@ const readLaunchConfig = (file: string): LaunchConfig | null => {
 };
 
 /** Start the command in the background. The returned kill stops the whole process tree. */
-const launchComfy = (config: LaunchConfig) => {
+const launchComfy = (config: LaunchConfig, platform: NodeJS.Platform) => {
   const child = NodeChildProcess.spawn(config.command, {
     cwd: config.folder ?? undefined,
     shell: true,
     stdio: "ignore",
     windowsHide: true,
   });
-  child.once("error", () => undefined);
+  let exited = false;
+  child.once("error", () => {
+    exited = true;
+  });
+  child.once("exit", () => {
+    exited = true;
+  });
   const pid = child.pid;
   return {
+    hasExited: () => exited,
     kill: () => {
-      if (pid === undefined) return;
-      if (process.platform === "win32") {
+      if (pid === undefined || exited) return;
+      if (platform === "win32") {
         NodeChildProcess.execFile("taskkill", ["/PID", String(pid), "/T", "/F"], () => undefined);
       } else {
         child.kill();
@@ -117,6 +125,7 @@ const launchComfy = (config: LaunchConfig) => {
 };
 
 const make = Effect.gen(function* () {
+  const platform = yield* HostProcess.Platform;
   const config = yield* ServerConfig.ServerConfig;
   const settingsFile = NodePath.join(config.stateDir, "images", "settings.json");
   let baseUrl = readSavedBaseUrl(settingsFile) ?? DEFAULT_COMFY_URL;
@@ -124,7 +133,7 @@ const make = Effect.gen(function* () {
   const changes = yield* PubSub.sliding<void>(1);
   const source = withOnDemandStart(createComfyAdapter({ baseUrl: () => baseUrl }), {
     readConfig: () => readLaunchConfig(settingsFile),
-    launch: launchComfy,
+    launch: (launchConfig) => launchComfy(launchConfig, platform),
     // Effect timers keep the timer and the wait on the same fiber system as the rest of the server.
     setTimer: (run, ms) => Effect.runFork(Effect.andThen(Effect.sleep(ms), Effect.sync(run))),
     clearTimer: (timer) => {
