@@ -107,44 +107,6 @@ export function Ring({
   );
 }
 
-const GAUGE_LENGTH = Math.PI * 52;
-
-/** A half ring for one goal: a muted track and a state-color fill. */
-export function HalfGauge({
-  percent,
-  label,
-}: {
-  readonly percent: number;
-  readonly label: string;
-}) {
-  return (
-    <div role="img" aria-label={label} className="relative h-[6.5rem] w-44 shrink-0">
-      <svg viewBox="0 0 120 66" className="size-full" aria-hidden>
-        <path
-          d="M 8 60 A 52 52 0 0 1 112 60"
-          fill="none"
-          strokeWidth="6"
-          strokeLinecap="round"
-          className="stroke-muted-foreground/70"
-        />
-        <path
-          d="M 8 60 A 52 52 0 0 1 112 60"
-          fill="none"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={GAUGE_LENGTH}
-          strokeDashoffset={GAUGE_LENGTH * (1 - percent / 100)}
-          className="stroke-state"
-        />
-      </svg>
-      <span className="absolute inset-x-0 bottom-0 text-center font-display text-4xl leading-none font-semibold tabular-nums">
-        {percent}
-        <span className="text-sm text-muted-foreground">%</span>
-      </span>
-    </div>
-  );
-}
-
 const BAR_AREA = 96;
 const TASKS_DONE = ["task done", "tasks done"] as const;
 

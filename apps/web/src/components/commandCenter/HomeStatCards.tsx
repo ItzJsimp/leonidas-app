@@ -1,67 +1,80 @@
+import type { EnvironmentId } from "@t3tools/contracts";
 import { useMemo } from "react";
 
+import { useComposerDraftStore } from "~/composerDraftStore";
+import { useConnectedUsageAccounts } from "~/hooks/useConnectedUsageAccounts";
+import { formatResetLabel, limitLabel, usedPercentLabel } from "~/lib/usageLimitsPopover";
 import { cn } from "~/lib/utils";
+import { usePrimaryEnvironmentId } from "~/state/environments";
 
 import { statusOf, summarize } from "../automations/automations.logic";
 import { useAutomations } from "../automations/state";
 import { changedLabel } from "../twoState/areaRows";
 import { useProjectRows } from "../windows/projects/useProjectRows";
-import { SegmentBar, toneClass } from "./charts";
-import { areaBars, doneSeries, statusSegments } from "./commandCenter.logic";
-import { BigNumber, HomeBody, HomeCard, MeterRow, WidgetError, WidgetSkeleton } from "./HomeWidget";
-import { useNowMs, useTaskCards } from "./useHomeReads";
+import { accountName, areaBars, usageGlance } from "./commandCenter.logic";
+import {
+  BigNumber,
+  HomeBody,
+  HomeCard,
+  MeterRow,
+  WidgetEmpty,
+  WidgetError,
+  WidgetSkeleton,
+} from "./HomeWidget";
+import { useNowMs } from "./useHomeReads";
 
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
 const timeOf = (at: number) =>
   new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
-/** Open task cards: the total, one bar split by status, and what got done this week. */
-export function TasksCard() {
-  const cards = useTaskCards().data;
+/** The account the next chat uses as a big number, then up to three more accounts. */
+export function UsageCard() {
+  const environmentId = usePrimaryEnvironmentId();
+  const instanceId = useComposerDraftStore((store) => store.stickyActiveProvider);
+  const accounts = useConnectedUsageAccounts((environmentId ?? "") as EnvironmentId, instanceId);
   const now = useNowMs();
-  const week = useMemo(() => (cards ? doneSeries(cards.tasks, now).week : null), [cards, now]);
+  const glance = useMemo(
+    () => usageGlance(accounts.active, accounts.others),
+    [accounts.active, accounts.others],
+  );
+  const main = glance.main;
   return (
     <HomeCard
-      tab="tasks"
-      tip="Task cards that are To do, In progress, In review or Blocked."
+      tab="usage"
+      tip="How much of each plan limit you have used. The big number is the account your next chat uses."
       stretch
     >
-      <HomeBody>
-        {(home) => {
-          const { total, segments, legend } = statusSegments(home.counts);
-          return (
-            <div className="grid gap-3">
-              <BigNumber
-                value={total}
-                unit="open"
-                note={[
-                  `${home.counts.inProgress.toLocaleString("en-US")} in progress`,
-                  ...(week === null ? [] : [`${week} done this week`]),
-                ].join(" · ")}
-              />
-              {total > 0 ? (
-                <>
-                  <SegmentBar segments={segments} label={`${total} open tasks by status`} />
-                  <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    {legend
-                      .filter((row) => row.value > 0)
-                      .map((row) => (
-                        <li key={row.key} className="flex items-center gap-1.5">
-                          <span
-                            aria-hidden
-                            className={cn("size-2 rounded-full", toneClass(row.tone))}
-                          />
-                          <span className="tabular-nums">{row.value.toLocaleString("en-US")}</span>{" "}
-                          {row.label.toLowerCase()}
-                        </li>
-                      ))}
-                  </ul>
-                </>
-              ) : null}
-            </div>
-          );
-        }}
-      </HomeBody>
+      {main === null ? (
+        <WidgetEmpty>No AI account has reported its limits yet.</WidgetEmpty>
+      ) : (
+        <div className="grid gap-3">
+          <BigNumber
+            value={`${usedPercentLabel(main.window.usedPercent)}%`}
+            unit={`${accountName(main.account)} · ${limitLabel(main.window, "glance").toLowerCase()}`}
+            note={
+              formatResetLabel(main.window.resetsAt, now, (at) =>
+                new Date(at).toLocaleString("en-US", {
+                  weekday: "long",
+                  hour: "numeric",
+                  minute: "2-digit",
+                }),
+              ) ?? undefined
+            }
+          />
+          {glance.rest.length > 0 ? (
+            <ul aria-label="Other accounts" className="grid gap-1.5">
+              {glance.rest.map(({ account, window }) => (
+                <MeterRow
+                  key={account.id}
+                  label={accountName(account)}
+                  percent={window.usedPercent}
+                  value={`${usedPercentLabel(window.usedPercent)}%`}
+                />
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
     </HomeCard>
   );
 }

@@ -1,3 +1,4 @@
+import { useSearch } from "@tanstack/react-router";
 import {
   CircleCheckIcon,
   CloudUploadIcon,
@@ -140,7 +141,11 @@ export function TasksPage() {
   const [prefs, setPrefs] = useState<TasksPrefs>(readSavedPrefs);
   const { width: railWidth, handle: railHandle } = useRailWidth();
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // A Command Center link (`/tasks?task=<id>`) opens that task.
+  const linkedTask = (useSearch({ strict: false }) as { readonly task?: unknown }).task;
+  const [selectedId, setSelectedId] = useState<string | null>(
+    typeof linkedTask === "string" ? linkedTask : null,
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [checked, setChecked] = useState<ReadonlySet<string>>(() => new Set());
 

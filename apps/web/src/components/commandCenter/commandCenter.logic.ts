@@ -225,7 +225,7 @@ type Glance<A extends GlanceAccount> = {
 
 /**
  * The Usage card: the account the next chat uses (else the fullest one) on the gauge, then up to
- * four more accounts, fullest first. Accounts that report no windows stay out.
+ * three more accounts, fullest first. Accounts that report no windows stay out.
  */
 export function usageGlance<A extends GlanceAccount>(
   active: ReadonlyArray<A>,
@@ -241,10 +241,70 @@ export function usageGlance<A extends GlanceAccount>(
   const mine = ranked(active);
   const rest = ranked(others);
   const main = mine[0] ?? rest[0] ?? null;
-  return { main, rest: (mine[0] ? rest : rest.slice(1)).slice(0, 4) };
+  return { main, rest: (mine[0] ? rest : rest.slice(1)).slice(0, 3) };
 }
 
 export const accountName = (account: {
   readonly label: string;
   readonly displayName?: string | undefined;
 }): string => account.displayName?.trim() || account.label;
+
+interface RankedTask {
+  readonly status: string;
+  readonly priority: string;
+  readonly due?: string | null | undefined;
+  readonly updatedAt: number;
+  readonly kind?: string | undefined;
+}
+
+/** Work in progress first. The rest of the open tasks share one rank. */
+const OPEN_RANK: Readonly<Record<string, number>> = {
+  in_progress: 0,
+  blocked: 1,
+  review: 1,
+  todo: 1,
+};
+const PRIORITY_RANK: Readonly<Record<string, number>> = { critical: 0, high: 1, medium: 2, low: 3 };
+const STATUS_LABEL: Readonly<Record<string, string>> = {
+  in_progress: "In progress",
+  blocked: "Blocked",
+  review: "In review",
+  todo: "To do",
+};
+const dueAt = (due: string | null | undefined): number => {
+  const at = due ? Date.parse(due) : Number.NaN;
+  return Number.isFinite(at) ? at : Number.POSITIVE_INFINITY;
+};
+
+/** The open tasks to look at first: in progress, then priority, then due date, then newest. */
+export function topTasks<T extends RankedTask>(tasks: ReadonlyArray<T>, max: number): T[] {
+  return tasks
+    .filter((task) => OPEN_RANK[task.status] !== undefined && task.kind !== "agent_run")
+    .toSorted(
+      (a, b) =>
+        OPEN_RANK[a.status]! - OPEN_RANK[b.status]! ||
+        (PRIORITY_RANK[a.priority] ?? 4) - (PRIORITY_RANK[b.priority] ?? 4) ||
+        dueAt(a.due) - dueAt(b.due) ||
+        b.updatedAt - a.updatedAt,
+    )
+    .slice(0, max);
+}
+
+/** "In progress · High priority · due Nov 10". Low and medium priority stay out. */
+export function taskLine(task: Pick<RankedTask, "status" | "priority" | "due">): string {
+  const due = dueAt(task.due);
+  return [
+    STATUS_LABEL[task.status] ?? task.status,
+    ...(task.priority === "critical"
+      ? ["Critical"]
+      : task.priority === "high"
+        ? ["High priority"]
+        : []),
+    // A due date is a calendar day, so it prints in UTC to keep the day it names.
+    ...(Number.isFinite(due)
+      ? [
+          `due ${new Date(due).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`,
+        ]
+      : []),
+  ].join(" · ");
+}

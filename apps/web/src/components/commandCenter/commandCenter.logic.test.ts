@@ -9,6 +9,8 @@ import {
   oldestAt,
   ringPercent,
   statusSegments,
+  taskLine,
+  topTasks,
   updatedLabel,
   usageGlance,
 } from "./commandCenter.logic";
@@ -202,7 +204,7 @@ describe("usageGlance", () => {
     label: id,
     limits: { windows: used.map((usedPercent) => ({ usedPercent })) },
   });
-  it("puts the active account on the gauge and up to four others under it, fullest first", () => {
+  it("puts the active account on the gauge and up to three others under it, fullest first", () => {
     const glance = usageGlance(
       [account("claude", 10, 38)],
       [account("codex", 0, 68), account("grok"), account("router", 100), account("pi", 5)],
@@ -216,5 +218,49 @@ describe("usageGlance", () => {
     expect(glance.main?.account.id).toBe("codex");
     expect(glance.rest.map((row) => row.account.id)).toEqual(["pi"]);
     expect(usageGlance([], []).main).toBeNull();
+  });
+});
+
+describe("topTasks", () => {
+  const task = (
+    id: string,
+    status: string,
+    priority: string,
+    extra: { due?: string; updatedAt?: number; kind?: string } = {},
+  ) => ({
+    id,
+    status,
+    priority,
+    updatedAt: extra.updatedAt ?? 0,
+    ...(extra.due === undefined ? {} : { due: extra.due }),
+    ...(extra.kind === undefined ? {} : { kind: extra.kind }),
+  });
+  it("puts work in progress first, then priority, then the nearest due date", () => {
+    const ranked = topTasks(
+      [
+        task("low-todo", "todo", "low"),
+        task("high-late", "todo", "high", { due: "2026-11-20" }),
+        task("high-soon", "review", "high", { due: "2026-11-10" }),
+        task("doing", "in_progress", "medium"),
+        task("blocked-critical", "blocked", "critical"),
+        task("done", "done", "critical"),
+        task("run", "todo", "critical", { kind: "agent_run" }),
+      ],
+      5,
+    );
+    expect(ranked.map((row) => row.id)).toEqual([
+      "doing",
+      "blocked-critical",
+      "high-soon",
+      "high-late",
+      "low-todo",
+    ]);
+    expect(topTasks([task("a", "todo", "low"), task("b", "todo", "low")], 1)).toHaveLength(1);
+  });
+  it("says the status, a high priority and the due day in one line", () => {
+    expect(taskLine({ status: "in_progress", priority: "high", due: "2026-11-10" })).toBe(
+      "In progress · High priority · due Nov 10",
+    );
+    expect(taskLine({ status: "todo", priority: "medium", due: null })).toBe("To do");
   });
 });

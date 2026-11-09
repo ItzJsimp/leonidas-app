@@ -1,21 +1,17 @@
 import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
-import type { EnvironmentId, FoldedFeedEvent } from "@t3tools/contracts";
+import type { FoldedFeedEvent } from "@t3tools/contracts";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { CircleCheckIcon } from "lucide-react";
 import { useMemo } from "react";
 
 import { groupCommandCenterThreads } from "~/commandCenter";
-import { useComposerDraftStore } from "~/composerDraftStore";
 import { Button } from "~/components/ui/button";
 import { toastManager } from "~/components/ui/toast";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
 import { openFeedEvent } from "~/eventFeedOpen";
 import { useEventFeedStore } from "~/eventFeedStore";
-import { useConnectedUsageAccounts } from "~/hooks/useConnectedUsageAccounts";
-import { formatResetLabel, limitLabel, usedPercentLabel } from "~/lib/usageLimitsPopover";
 import { cn } from "~/lib/utils";
 import { useAllEnvironmentShellsBootstrapped, useThreadShells } from "~/state/entities";
-import { usePrimaryEnvironmentId } from "~/state/environments";
 import { buildThreadRouteParams } from "~/threadRoutes";
 
 import { changedLabel } from "../twoState/areaRows";
@@ -25,36 +21,44 @@ import { useFeedStatus } from "../twoState/useTwoStateData";
 import { PriorityChecklist } from "../windows/today/PriorityChecklist";
 import { dueRows, localDay } from "../windows/today/today.logic";
 import { usePriorities } from "../windows/today/usePriorities";
-import { DoneBars, HalfGauge, Ring } from "./charts";
+import { DoneBars, Ring, SegmentBar, toneClass } from "./charts";
 import {
-  accountName,
   capRows,
   doneSeries,
   needsYouLine,
   oldestAt,
   ringPercent,
   sinceLabel,
-  usageGlance,
+  statusSegments,
+  taskLine,
+  topTasks,
 } from "./commandCenter.logic";
 import {
   BigNumber,
   HomeBody,
   HomeCard,
-  MeterRow,
   WidgetEmpty,
   WidgetError,
   WidgetSkeleton,
 } from "./HomeWidget";
-import { AutomationsCard, MemoryCard, ProjectsCard, TasksCard } from "./HomeStatCards";
+import { AutomationsCard, MemoryCard, ProjectsCard, UsageCard } from "./HomeStatCards";
 import { HomeComposer } from "./HomeComposer";
 import { useNowMs, useTaskCards } from "./useHomeReads";
 
 const NEEDS_YOU_ROWS = 5;
+const TOP_TASKS = 5;
+/** The row dots use the same colors as the status legend above the list. */
+const TASK_DOT: Readonly<Record<string, string>> = {
+  in_progress: toneClass("foreground"),
+  todo: toneClass("muted"),
+  review: toneClass("info"),
+  blocked: toneClass("warning"),
+};
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
 
 /**
- * The Command Center cards. Needs you and Usage are the tall cards on the left and right; Today
- * and Agents stack between them. Tasks, Projects, Memory and Automations make the row under
+ * The Command Center cards. Needs you and Tasks are the tall lists on the left and right; Today
+ * and Agents stack between them. Usage, Projects, Memory and Automations make the row under
  * them, and the Ask box closes the page.
  */
 export function HomeDashboard() {
@@ -62,14 +66,14 @@ export function HomeDashboard() {
   const { chatBeside } = useCodeForward();
   return (
     <div className="@container">
-      <div className="grid gap-3 @xl:grid-cols-2 @4xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid grid-flow-row-dense gap-3 @xl:grid-cols-2 @4xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <NeedsYouCard className="@xl:col-span-2 @4xl:col-span-1 @4xl:row-span-2" />
         <TodayCard />
-        <UsageCard className="@4xl:row-span-2" />
-        <AgentsCard className="@xl:col-span-2 @4xl:col-span-1" />
+        <TasksCard className="@xl:col-span-2 @4xl:col-span-1 @4xl:row-span-2" />
+        <AgentsCard />
       </div>
       <div className="mt-3 grid gap-3 @lg:grid-cols-2 @5xl:grid-cols-4">
-        <TasksCard />
+        <UsageCard />
         <ProjectsCard />
         <MemoryCard />
         <AutomationsCard />
@@ -260,68 +264,107 @@ function TodayCard() {
   );
 }
 
-/** The account the next chat uses on a half gauge, then the other accounts, fullest first. */
-function UsageCard({ className }: { readonly className?: string }) {
-  const environmentId = usePrimaryEnvironmentId();
-  const instanceId = useComposerDraftStore((store) => store.stickyActiveProvider);
-  const accounts = useConnectedUsageAccounts((environmentId ?? "") as EnvironmentId, instanceId);
+/** Open task cards: the total, the split by status, and the five to look at first. */
+function TasksCard({ className }: { readonly className?: string }) {
+  const cards = useTaskCards().data;
   const now = useNowMs();
-  const glance = useMemo(
-    () => usageGlance(accounts.active, accounts.others),
-    [accounts.active, accounts.others],
-  );
-  const main = glance.main;
+  const week = useMemo(() => (cards ? doneSeries(cards.tasks, now).week : null), [cards, now]);
+  const top = useMemo(() => (cards ? topTasks(cards.tasks, TOP_TASKS) : null), [cards]);
   return (
     <HomeCard
-      tab="usage"
-      tip="How much of each plan limit you have used. The gauge is the account your next chat uses."
-      stretch
+      tab="tasks"
+      tip="Task cards that are To do, In progress, In review or Blocked. The list shows work in progress first, then the highest priority and the nearest due date."
       className={className}
     >
-      {main === null ? (
-        <WidgetEmpty>No AI account has reported its limits yet.</WidgetEmpty>
-      ) : (
-        <div className="flex flex-1 flex-col gap-5">
-          <div className="flex flex-1 flex-col items-center justify-center py-2">
-            <HalfGauge
-              percent={usedPercentLabel(main.window.usedPercent)}
-              label={`${accountName(main.account)}: ${usedPercentLabel(main.window.usedPercent)} percent of the ${limitLabel(main.window, "glance").toLowerCase()} used`}
-            />
-            <p className="mt-3 max-w-full truncate text-center text-sm font-medium">
-              {accountName(main.account)}
-            </p>
-            <p className="max-w-full truncate text-center text-xs text-muted-foreground">
-              {limitLabel(main.window, "glance")}
-            </p>
-            {main.window.resetsAt ? (
-              <p className="text-center text-xs text-muted-foreground">
-                {formatResetLabel(main.window.resetsAt, now, (at) =>
-                  new Date(at).toLocaleString("en-US", {
-                    weekday: "long",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  }),
-                )}
-              </p>
-            ) : null}
-          </div>
-          {glance.rest.length > 0 ? (
-            <ul
-              aria-label="Other accounts"
-              className="mt-auto grid gap-2 border-t border-border/60 pt-4"
-            >
-              {glance.rest.map(({ account, window }) => (
-                <MeterRow
-                  key={account.id}
-                  label={accountName(account)}
-                  percent={window.usedPercent}
-                  value={`${usedPercentLabel(window.usedPercent)}%`}
-                />
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      )}
+      <HomeBody rows={5}>
+        {(home) => {
+          const { total, segments, legend } = statusSegments(home.counts);
+          return (
+            <>
+              <BigNumber
+                value={total}
+                unit="open"
+                note={[
+                  `${home.counts.inProgress.toLocaleString("en-US")} in progress`,
+                  ...(week === null ? [] : [`${week} done this week`]),
+                ].join(" · ")}
+              />
+              {total > 0 ? (
+                <div className="mt-3 grid gap-2">
+                  <SegmentBar segments={segments} label={`${total} open tasks by status`} />
+                  <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {legend
+                      .filter((row) => row.value > 0)
+                      .map((row) => (
+                        <li key={row.key} className="flex items-center gap-1.5">
+                          <span
+                            aria-hidden
+                            className={cn("size-2 rounded-full", toneClass(row.tone))}
+                          />
+                          <span className="tabular-nums">{row.value.toLocaleString("en-US")}</span>{" "}
+                          {row.label.toLowerCase()}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ) : null}
+              {top === null ? (
+                <div className="mt-4">
+                  <WidgetSkeleton rows={4} />
+                </div>
+              ) : top.length === 0 ? (
+                <div className="mt-4">
+                  <WidgetEmpty>
+                    No open tasks.{" "}
+                    <Link
+                      to="/tasks"
+                      className="rounded-sm font-medium text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      Add a task
+                    </Link>
+                  </WidgetEmpty>
+                </div>
+              ) : (
+                <ul
+                  aria-label="Tasks to look at first"
+                  className="mt-3 -mx-2 divide-y divide-border/60"
+                >
+                  {top.map((task) => (
+                    <li key={task.id}>
+                      <Link
+                        to="/tasks"
+                        search={{ task: task.id }}
+                        className="flex min-w-0 items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+                      >
+                        <span
+                          aria-hidden
+                          className={cn("size-2 shrink-0 rounded-full", TASK_DOT[task.status])}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{task.title}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {taskLine(task)}
+                          </span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {top !== null && total > top.length ? (
+                <div className="mt-auto pt-3 text-sm">
+                  <Link
+                    to="/tasks"
+                    className="rounded-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    {(total - top.length).toLocaleString("en-US")} more in Tasks
+                  </Link>
+                </div>
+              ) : null}
+            </>
+          );
+        }}
+      </HomeBody>
     </HomeCard>
   );
 }
