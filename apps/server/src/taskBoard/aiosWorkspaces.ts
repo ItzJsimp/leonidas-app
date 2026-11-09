@@ -12,7 +12,7 @@ const WORKSPACE_FILE = "workspace.json";
 const SCHEMA_VERSION = 1;
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
-export type AiosWorkspaceType = "personal" | "business";
+export type AiosWorkspaceType = "personal" | "business" | "trading";
 
 export interface AiosWorkspaceFile {
   readonly id: string;
@@ -21,6 +21,8 @@ export interface AiosWorkspaceFile {
   readonly schemaVersion: number;
   /** Projects the Tasks rail folds into "More". Present only when the list is not empty. */
   readonly hiddenProjects?: ReadonlyArray<string>;
+  /** Folder of a private crew pack the workspace loads. Present only when set. */
+  readonly crewPack?: string;
 }
 
 const MAX_HIDDEN_PROJECTS = 200;
@@ -42,13 +44,21 @@ export type AiosWorkspaceState =
 
 function parseWorkspaceFile(value: unknown): AiosWorkspaceFile | string {
   if (typeof value !== "object" || value === null) return "The file is not a JSON object.";
-  const { id, name, type, schemaVersion, hiddenProjects } = value as Record<string, unknown>;
+  const { id, name, type, schemaVersion, hiddenProjects, crewPack } = value as Record<
+    string,
+    unknown
+  >;
   if (schemaVersion !== SCHEMA_VERSION) return `schemaVersion must be ${SCHEMA_VERSION}.`;
   if (typeof id !== "string" || !ID_PATTERN.test(id)) {
     return "id must be lowercase letters, digits and hyphens.";
   }
   if (typeof name !== "string" || !name.trim()) return "name must not be empty.";
-  if (type !== "personal" && type !== "business") return 'type must be "personal" or "business".';
+  if (type !== "personal" && type !== "business" && type !== "trading") {
+    return 'type must be "personal", "business" or "trading".';
+  }
+  if (crewPack !== undefined && (typeof crewPack !== "string" || !crewPack.trim())) {
+    return "crewPack must be a path.";
+  }
   const hidden = parseHiddenProjects(hiddenProjects);
   return {
     id,
@@ -56,6 +66,7 @@ function parseWorkspaceFile(value: unknown): AiosWorkspaceFile | string {
     type,
     schemaVersion,
     ...(hidden.length > 0 ? { hiddenProjects: hidden } : {}),
+    ...(typeof crewPack === "string" ? { crewPack: crewPack.trim() } : {}),
   };
 }
 
