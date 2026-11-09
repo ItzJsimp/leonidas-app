@@ -210,6 +210,19 @@ export function cursorMcpServers(
     return undefined;
   }
   return {
+    ...Object.fromEntries(
+      (session.userMcpServers ?? []).map((server): [string, McpServerConfig] => [
+        server.name,
+        server.transport === "http"
+          ? { type: "http", url: server.url, headers: { ...server.headers } }
+          : {
+              type: "stdio",
+              command: server.command,
+              args: [...server.args],
+              env: { ...server.env },
+            },
+      ]),
+    ),
     [MCP_SERVER_NAME]: {
       type: "http",
       url: session.endpoint,
