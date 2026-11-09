@@ -493,6 +493,23 @@ export const TaskBoardCapSetInput = Schema.Struct({
 });
 export type TaskBoardCapSetInput = typeof TaskBoardCapSetInput.Type;
 
+export const AiosLimit = Schema.Struct({
+  id: Schema.String,
+  label: Schema.String,
+  value: Schema.Number,
+  default: Schema.Number,
+  unit: Schema.String,
+  min: Schema.Number,
+  max: Schema.Number,
+});
+export type AiosLimit = typeof AiosLimit.Type;
+export const AiosLimitSetInput = Schema.Struct({
+  ...workspaceScope,
+  id: TrimmedNonEmptyString.check(Schema.isMaxLength(100)),
+  value: Schema.Number,
+});
+export type AiosLimitSetInput = typeof AiosLimitSetInput.Type;
+
 // The setup prompt: writes workspace.json into a folder the app already lists.
 export const AiosWorkspaceInitInput = Schema.Struct({
   root: TrimmedNonEmptyString,

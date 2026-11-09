@@ -21,10 +21,11 @@ import { useAtomCommand } from "~/state/use-atom-command";
 import { capFormProblem, capLowerNote, DEFAULT_CAP, DEFAULT_WARN } from "./capEditor.logic";
 import { failureText } from "./useTaskActions.logic";
 
-function LimitField(props: {
+export function LimitField(props: {
   readonly label: string;
   readonly value: number | null;
   readonly disabled: boolean;
+  readonly hideLabel?: boolean;
   readonly onChange: (value: number | null) => void;
   /** Set where leaving the field saves it. */
   readonly onCommit?: (value: number | null) => void;
@@ -32,9 +33,11 @@ function LimitField(props: {
   const { label, onCommit } = props;
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <span aria-hidden className="text-xs text-muted-foreground">
-        {label}
-      </span>
+      {props.hideLabel ? null : (
+        <span aria-hidden className="text-xs text-muted-foreground">
+          {label}
+        </span>
+      )}
       <NumberField
         size="sm"
         value={props.value}

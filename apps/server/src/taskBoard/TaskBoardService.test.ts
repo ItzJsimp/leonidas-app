@@ -877,6 +877,39 @@ it.effect("retries a mirror after a GitHub sha conflict and keeps the collaborat
   ).pipe(Effect.provide(boardLayer(github.runner)));
 });
 
+it.effect("reads and updates one AIOS limit without changing other values", () =>
+  withAios({}, (root, project) =>
+    Effect.gen(function* () {
+      const dir = NodePath.join(root, "standards");
+      NodeFS.mkdirSync(dir, { recursive: true });
+      const file = NodePath.join(dir, "limits.json");
+      const before = JSON.stringify({
+        batch_threshold_files: {
+          label: "Batch",
+          value: 3,
+          default: 3,
+          unit: "files",
+          min: 1,
+          max: 100,
+        },
+        overlay_modes: { label: "Overlays", value: 2, default: 2, unit: "modes", min: 0, max: 10 },
+      });
+      NodeFS.writeFileSync(file, before);
+      const board = yield* TaskBoardService.TaskBoardService;
+      expect((yield* board.aiosLimits([project])).map((item) => item.value)).toEqual([3, 2]);
+      yield* board.aiosLimitSet([project], { id: "batch_threshold_files", value: 5 });
+      const saved = NodeFS.readFileSync(file, "utf8");
+      expect(JSON.parse(saved).batch_threshold_files.value).toBe(5);
+      expect(JSON.parse(saved).overlay_modes.value).toBe(2);
+      const failure = yield* Effect.result(
+        board.aiosLimitSet([project], { id: "batch_threshold_files", value: 0 }),
+      );
+      expect(failure._tag).toBe("Failure");
+      expect(NodeFS.readFileSync(file, "utf8")).toBe(saved);
+    }),
+  ).pipe(Effect.provide(boardLayer(noGithub))),
+);
+
 it.effect("ticks one brief priority in place and refuses a line that changed", () =>
   withAios({ "one.md": cardFile("task-one", "First card") }, (root, project) =>
     Effect.gen(function* () {
