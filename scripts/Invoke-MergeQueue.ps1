@@ -126,6 +126,24 @@ function Remove-BranchWorktree([string]$branch) {
     "worktree $p removed"
 }
 
+# A worktree removed through a skill junction empties the AIOS skill folders it links. The AIOS above the main
+# checkout (a folder with AGENTS.md and .git) owns Restore-VanishedSkills.ps1: run it after each landing.
+# Skipped, with no output, when there is no such AIOS or script.
+function Restore-AiosSkills {
+    $dir = Split-Path (Split-Path $common -Parent) -Parent
+    while ($dir) {
+        if ((Test-Path -LiteralPath (Join-Path $dir 'AGENTS.md')) -and (Test-Path -LiteralPath (Join-Path $dir '.git'))) {
+            $script = Join-Path $dir 'scripts/Restore-VanishedSkills.ps1'
+            if (Test-Path -LiteralPath $script) { return @(& $script -Root $dir) }
+            return @()
+        }
+        $parent = Split-Path $dir -Parent
+        if (-not $parent -or $parent -eq $dir) { break }
+        $dir = $parent
+    }
+    @()
+}
+
 function Invoke-Land($file) {
     $entryId = $file.BaseName
     $entry = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
@@ -153,6 +171,7 @@ function Invoke-Land($file) {
                 try {
                     if ($entry.task) { $notes += (& (Join-Path $PSScriptRoot 'Start-AgentTask.ps1') -Task $entry.task -Release) }
                     $notes += Remove-BranchWorktree $entry.branch
+                    $notes += Restore-AiosSkills
                 } catch { $notes += "cleanup skipped: $_" }
                 return Write-Result $entryId $entry 'landed' $sha ($notes | Where-Object { $_ })
             }
