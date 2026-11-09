@@ -101,7 +101,7 @@ export function WorkspaceMenu(props: {
                   </span>
                 ) : null}
               </span>
-              <WorkspaceTypeChip business={workspace.type === "business"} />
+              <WorkspaceTypeChip type={workspace.type ?? "personal"} />
               <CheckIcon
                 aria-hidden
                 className={cn("size-4 shrink-0", current ? "text-foreground" : "invisible")}

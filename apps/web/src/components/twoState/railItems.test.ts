@@ -188,3 +188,45 @@ describe("railLinkLabel", () => {
     expect(railLinkLabel("Inbox", 3)).toBe("Inbox, 3 need you");
   });
 });
+
+describe("railItems in a Trading workspace", () => {
+  const trading = railItems({ business: false, builder: true, scribe: true, trading: true });
+
+  it("shows only the Trading tabs, grouped Trade, Learn and Crew", () => {
+    expect(ids(trading.main)).toEqual([
+      "trading-dashboard",
+      "trading-journal",
+      "trading-accounts",
+      "trading-risk",
+      "trading-money",
+      "library",
+      "chat",
+      "trading-crew",
+    ]);
+    expect(trading.main.map((item) => item.group).filter((g, i, all) => g !== all[i - 1])).toEqual([
+      "trade",
+      "learn",
+      "crew",
+    ]);
+    expect(ids(trading.bottom)).toEqual(["usage", "settings"]);
+  });
+
+  it("hides the personal tabs", () => {
+    for (const id of ["command-center", "today", "tasks"]) {
+      expect(ids(trading.main)).not.toContain(id);
+    }
+  });
+
+  it("keeps the rail of every other workspace exactly as it was", () => {
+    const personal = railItems({ business: false, builder: false, scribe: true });
+    expect(ids(personal.main)).toEqual(BASE);
+    expect(personal).toEqual(
+      railItems({ business: false, builder: false, scribe: true, trading: false }),
+    );
+    for (const entry of personal.main) expect(entry.id).not.toMatch(/^trading-/);
+  });
+
+  it("marks the Trading icon for a Trading page", () => {
+    expect(activeRailId("/trading/money", false)).toBe("trading-money");
+  });
+});
