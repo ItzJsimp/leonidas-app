@@ -1,6 +1,6 @@
 ---
 name: next-action
-description: "Grill the user on time, energy and goal, rank the top 5 tasks from the project's task cards, then work the pick in chat, as a fresh-chat prompt, or by delegation. Use when asked what to work on or what is next."
+description: "Grill the user on time, energy and goal, rank the top 5 tasks from project task cards, then work the pick in chat, fresh chat, or by delegation. Use when asked what to work on or what is next."
 category: flow
 scope: structural
 distribution: core
