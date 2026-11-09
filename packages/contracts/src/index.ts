@@ -68,6 +68,7 @@ export * from "./worktreeMcp.ts";
 export * from "./resourceTelemetry.ts";
 export * from "./releaseStatus.ts";
 export * from "./taskBoard.ts";
+export * from "./trading.ts";
 export * from "./areaSync.ts";
 export * from "./laya.ts";
 export * from "./hardwareWatch.ts";

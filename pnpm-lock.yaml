@@ -734,6 +734,9 @@ importers:
       '@t3tools/tailscale':
         specifier: workspace:*
         version: link:../../packages/tailscale
+      '@t3tools/trading':
+        specifier: workspace:*
+        version: link:../../packages/trading
       '@t3tools/web':
         specifier: workspace:*
         version: link:../web
