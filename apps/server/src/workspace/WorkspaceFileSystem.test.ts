@@ -429,5 +429,87 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceFileSystemLive", (i
         expect(escapedStat).toBeNull();
       }),
     );
+
+    it.effect.skipIf(!symlinksSupported)(
+      "rejects writes through a symlink that resolves outside the workspace root",
+      () =>
+        Effect.gen(function* () {
+          const workspaceFileSystem = yield* WorkspaceFileSystem.WorkspaceFileSystem;
+          const fileSystem = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          const cwd = yield* makeTempDir;
+
+          const outsideDir = yield* makeTempDir;
+          yield* fileSystem.symlink(
+            path.join(outsideDir, "escape.txt"),
+            path.join(cwd, "linked-escape.txt"),
+          );
+
+          const error = yield* workspaceFileSystem
+            .writeFile({
+              cwd,
+              relativePath: "linked-escape.txt",
+              contents: "# escaped\n",
+            })
+            .pipe(Effect.flip);
+
+          const resolvedWorkspaceRoot = yield* fileSystem.realPath(cwd);
+          const resolvedPath = path.join(yield* fileSystem.realPath(outsideDir), "escape.txt");
+
+          expect(error).toBeInstanceOf(WorkspaceFileSystem.WorkspaceFilePathEscapeError);
+          expect(error).toMatchObject({
+            workspaceRoot: cwd,
+            relativePath: "linked-escape.txt",
+            resolvedWorkspaceRoot,
+            resolvedPath,
+          });
+
+          const escapedStat = yield* fileSystem
+            .stat(path.join(outsideDir, "escape.txt"))
+            .pipe(Effect.orElseSucceed(() => null));
+          expect(escapedStat).toBeNull();
+        }),
+    );
+
+    it.effect.skipIf(!symlinksSupported)(
+      "rejects writes inside a symlinked directory that resolves outside the workspace root",
+      () =>
+        Effect.gen(function* () {
+          const workspaceFileSystem = yield* WorkspaceFileSystem.WorkspaceFileSystem;
+          const fileSystem = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          const cwd = yield* makeTempDir;
+
+          const outsideDir = yield* makeTempDir;
+          yield* fileSystem.symlink(outsideDir, path.join(cwd, "linked-dir"));
+
+          const error = yield* workspaceFileSystem
+            .writeFile({
+              cwd,
+              relativePath: "linked-dir/escaped-file.txt",
+              contents: "# escaped\n",
+            })
+            .pipe(Effect.flip);
+
+          const resolvedWorkspaceRoot = yield* fileSystem.realPath(cwd);
+          const resolvedPath = path.join(
+            yield* fileSystem.realPath(outsideDir),
+            "escaped-file.txt",
+          );
+
+          expect(error).toBeInstanceOf(WorkspaceFileSystem.WorkspaceFilePathEscapeError);
+          expect(error).toMatchObject({
+            workspaceRoot: cwd,
+            relativePath: "linked-dir/escaped-file.txt",
+            resolvedWorkspaceRoot,
+            resolvedPath,
+          });
+
+          const escapedStat = yield* fileSystem
+            .stat(path.join(outsideDir, "escaped-file.txt"))
+            .pipe(Effect.orElseSucceed(() => null));
+          expect(escapedStat).toBeNull();
+        }),
+    );
   });
 });

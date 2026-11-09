@@ -357,13 +357,88 @@ export const make = Effect.gen(function* () {
     );
   });
 
-  const writeFile: WorkspaceFileSystem["Service"]["writeFile"] = Effect.fn(
-    "WorkspaceFileSystem.writeFile",
-  )(function* (input) {
+  const resolveWriteTarget = Effect.fn("WorkspaceFileSystem.resolveWriteTarget")(function* (
+    input: ProjectWriteFileInput,
+  ) {
     const target = yield* workspacePaths.resolveRelativePathWithinRoot({
       workspaceRoot: input.cwd,
       relativePath: input.relativePath,
     });
+
+    const realWorkspaceRoot = yield* Effect.tryPromise({
+      try: () => NodeFSP.realpath(input.cwd),
+      catch: (cause) =>
+        new WorkspaceFileSystemOperationError({
+          workspaceRoot: input.cwd,
+          relativePath: input.relativePath,
+          resolvedPath: target.absolutePath,
+          operationPath: input.cwd,
+          operation: "realpath-workspace-root",
+          cause,
+        }),
+    });
+
+    const realTargetPath = yield* Effect.tryPromise({
+      try: async () => {
+        let curr = target.absolutePath;
+        const parts: string[] = [];
+        while (true) {
+          try {
+            const st = await NodeFSP.lstat(curr);
+            if (st.isSymbolicLink()) {
+              const linkTarget = await NodeFSP.readlink(curr);
+              curr = path.isAbsolute(linkTarget)
+                ? linkTarget
+                : path.resolve(path.dirname(curr), linkTarget);
+              continue;
+            }
+            const real = await NodeFSP.realpath(curr);
+            return parts.length > 0 ? path.join(real, ...parts) : real;
+          } catch (error) {
+            const cause = error as NodeJS.ErrnoException;
+            if (cause.code === "ENOENT") {
+              const parent = path.dirname(curr);
+              if (parent === curr) return parts.length > 0 ? path.join(curr, ...parts) : curr;
+              parts.unshift(path.basename(curr));
+              curr = parent;
+            } else {
+              throw error;
+            }
+          }
+        }
+      },
+      catch: (cause) =>
+        new WorkspaceFileSystemOperationError({
+          workspaceRoot: input.cwd,
+          relativePath: input.relativePath,
+          resolvedPath: target.absolutePath,
+          operationPath: target.absolutePath,
+          operation: "realpath-target",
+          cause,
+        }),
+    });
+
+    const relativeRealPath = path.relative(realWorkspaceRoot, realTargetPath);
+    if (
+      relativeRealPath.startsWith(`..${path.sep}`) ||
+      relativeRealPath === ".." ||
+      path.isAbsolute(relativeRealPath)
+    ) {
+      return yield* new WorkspaceFilePathEscapeError({
+        workspaceRoot: input.cwd,
+        relativePath: input.relativePath,
+        resolvedWorkspaceRoot: realWorkspaceRoot,
+        resolvedPath: realTargetPath,
+      });
+    }
+
+    return target;
+  });
+
+  const writeFile: WorkspaceFileSystem["Service"]["writeFile"] = Effect.fn(
+    "WorkspaceFileSystem.writeFile",
+  )(function* (input) {
+    const target = yield* resolveWriteTarget(input);
 
     yield* fileSystem.makeDirectory(path.dirname(target.absolutePath), { recursive: true }).pipe(
       Effect.mapError(
