@@ -224,8 +224,8 @@ type Glance<A extends GlanceAccount> = {
 };
 
 /**
- * The Usage card: the account the next chat uses (else the fullest one) on the gauge, then the
- * two next fullest accounts. Accounts that report no windows stay out.
+ * The Usage card: the account the next chat uses (else the fullest one) on the gauge, then up to
+ * four more accounts, fullest first. Accounts that report no windows stay out.
  */
 export function usageGlance<A extends GlanceAccount>(
   active: ReadonlyArray<A>,
@@ -241,7 +241,7 @@ export function usageGlance<A extends GlanceAccount>(
   const mine = ranked(active);
   const rest = ranked(others);
   const main = mine[0] ?? rest[0] ?? null;
-  return { main, rest: (mine[0] ? rest : rest.slice(1)).slice(0, 2) };
+  return { main, rest: (mine[0] ? rest : rest.slice(1)).slice(0, 4) };
 }
 
 export const accountName = (account: {

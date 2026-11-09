@@ -3,7 +3,6 @@ import { LayoutDashboardIcon } from "lucide-react";
 
 import { WorkspacePageContainer } from "../components/WorkspacePageContainer";
 import { WorkspacePageHeader } from "../components/WorkspacePageHeader";
-import { ScribeStatusCard } from "../components/ScribeStatusCard";
 import { CommandCenterForward } from "../components/twoState/CommandCenterForward";
 import { TeamLensProvider } from "../components/team/TeamLensContext";
 import { useActiveAiosWorkspace } from "../components/workspace/useActiveAiosWorkspace";
@@ -20,7 +19,7 @@ const HOME_CONTEXT = { forward: "cc" } as const;
  */
 function CommandCenterPage() {
   const { scope } = useActiveAiosWorkspace();
-  const { environments, isReady } = useEnvironments();
+  const { environments } = useEnvironments();
   const disconnected = environments.filter(
     (environment) => environment.connection.phase !== "connected",
   );
@@ -56,16 +55,6 @@ function CommandCenterPage() {
                 Open connections
               </Link>
             </div>
-          ) : null}
-          {isReady && environments.length > 0 ? (
-            <section aria-label="Scribe status" className="grid gap-3 sm:grid-cols-2">
-              {environments.map((environment) => (
-                <ScribeStatusCard
-                  key={`${environment.environmentId}:${environment.connection.phase}`}
-                  environment={environment}
-                />
-              ))}
-            </section>
           ) : null}
         </WorkspacePageContainer>
       </main>

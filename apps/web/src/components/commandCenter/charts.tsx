@@ -118,7 +118,7 @@ export function HalfGauge({
   readonly label: string;
 }) {
   return (
-    <div role="img" aria-label={label} className="relative h-[4.25rem] w-28 shrink-0">
+    <div role="img" aria-label={label} className="relative h-[6.5rem] w-44 shrink-0">
       <svg viewBox="0 0 120 66" className="size-full" aria-hidden>
         <path
           d="M 8 60 A 52 52 0 0 1 112 60"
@@ -137,9 +137,9 @@ export function HalfGauge({
           className="stroke-state"
         />
       </svg>
-      <span className="absolute inset-x-0 bottom-0 text-center font-display text-2xl leading-none font-semibold tabular-nums">
+      <span className="absolute inset-x-0 bottom-0 text-center font-display text-4xl leading-none font-semibold tabular-nums">
         {percent}
-        <span className="text-xs text-muted-foreground">%</span>
+        <span className="text-sm text-muted-foreground">%</span>
       </span>
     </div>
   );

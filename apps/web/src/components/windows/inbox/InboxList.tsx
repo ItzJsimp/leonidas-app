@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { KeyboardEvent, MutableRefObject } from "react";
 
+import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import type { EventMark } from "~/eventFeedStore";
 import { cn } from "~/lib/utils";
@@ -18,6 +19,7 @@ import { FailedTag } from "../../twoState/FailedTag";
 import { changedLabel } from "../../twoState/areaRows";
 import { plainEventTitle } from "../../twoState/eventText";
 import { isNeedsYou } from "../../twoState/railFeed";
+import { Tip } from "../../twoState/Tip";
 import {
   INBOX_FILTERS,
   INBOX_GROUPINGS,
@@ -67,6 +69,7 @@ export function InboxList({
   onFilter,
   grouping,
   onGrouping,
+  onMarkAllDone,
   query,
   onQuery,
   selectedId,
@@ -84,6 +87,8 @@ export function InboxList({
   readonly onFilter: (filter: InboxFilter) => void;
   readonly grouping: InboxGrouping;
   readonly onGrouping: (grouping: InboxGrouping) => void;
+  /** Clears the rows this view shows: the filter and the search apply. */
+  readonly onMarkAllDone: () => void;
   readonly query: string;
   readonly onQuery: (query: string) => void;
   readonly selectedId: string | undefined;
@@ -148,9 +153,21 @@ export function InboxList({
             ))}
           </div>
         </div>
-        <p className="text-xs text-muted-foreground tabular-nums" role="status">
-          {unread === 0 ? "All read" : `${unread} unread`}
-        </p>
+        <div className="flex min-h-6 items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground tabular-nums" role="status">
+            {unread === 0 ? "All read" : `${unread} unread`}
+          </p>
+          <Tip text="Clears every message in this view from the list. You can undo it.">
+            <Button
+              size="xs"
+              variant="ghost-muted"
+              disabled={rows.length === 0}
+              onClick={onMarkAllDone}
+            >
+              Mark all done
+            </Button>
+          </Tip>
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {rows.length === 0 ? (

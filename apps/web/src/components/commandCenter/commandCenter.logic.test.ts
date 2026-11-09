@@ -202,14 +202,14 @@ describe("usageGlance", () => {
     label: id,
     limits: { windows: used.map((usedPercent) => ({ usedPercent })) },
   });
-  it("puts the active account on the gauge and the two fullest others under it", () => {
+  it("puts the active account on the gauge and up to four others under it, fullest first", () => {
     const glance = usageGlance(
       [account("claude", 10, 38)],
       [account("codex", 0, 68), account("grok"), account("router", 100), account("pi", 5)],
     );
     expect(glance.main?.account.id).toBe("claude");
     expect(glance.main?.window.usedPercent).toBe(38);
-    expect(glance.rest.map((row) => row.account.id)).toEqual(["router", "codex"]);
+    expect(glance.rest.map((row) => row.account.id)).toEqual(["router", "codex", "pi"]);
   });
   it("uses the fullest account when no active one reports windows", () => {
     const glance = usageGlance([], [account("codex", 68), account("pi", 5)]);

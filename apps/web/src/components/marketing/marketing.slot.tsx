@@ -1,10 +1,11 @@
 import { defineSlots } from "../twoState/slots";
-import { NeedsApprovalCard } from "./NeedsApprovalCard";
 import { useNeedsApprovalCount } from "./state";
 
-/** Plugs Marketing into the Command Center. The glob in SlotOutlet finds this file. */
+/**
+ * Plugs Marketing into the header stats. The glob in SlotOutlet finds this file. Approval
+ * requests reach the Command Center through the Needs you card, so there is no home card.
+ */
 export const slots = defineSlots({
-  ccHome: [{ id: "marketing-needs-approval", order: 35, Component: NeedsApprovalCard }],
   headerStat: [
     {
       id: "marketing-needs-approval",

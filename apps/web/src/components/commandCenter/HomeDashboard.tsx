@@ -20,6 +20,7 @@ import { buildThreadRouteParams } from "~/threadRoutes";
 
 import { changedLabel } from "../twoState/areaRows";
 import { actionLabel, splitFeed } from "../twoState/railFeed";
+import { useCodeForward } from "../twoState/codeForwardContext";
 import { useFeedStatus } from "../twoState/useTwoStateData";
 import { PriorityChecklist } from "../windows/today/PriorityChecklist";
 import { dueRows, localDay } from "../windows/today/today.logic";
@@ -45,23 +46,27 @@ import {
   WidgetSkeleton,
 } from "./HomeWidget";
 import { AutomationsCard, MemoryCard, ProjectsCard, TasksCard } from "./HomeStatCards";
+import { HomeComposer } from "./HomeComposer";
 import { useNowMs, useTaskCards } from "./useHomeReads";
 
 const NEEDS_YOU_ROWS = 5;
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
 
 /**
- * The Command Center cards. Needs you is the tall card on the left; Today, Usage and Agents
- * sit beside it; Tasks, Projects, Memory and Automations make the row under them.
+ * The Command Center cards. Needs you and Usage are the tall cards on the left and right; Today
+ * and Agents stack between them. Tasks, Projects, Memory and Automations make the row under
+ * them, and the Ask box closes the page.
  */
 export function HomeDashboard() {
+  // One composer per screen: in the split the chat pane has it.
+  const { chatBeside } = useCodeForward();
   return (
     <div className="@container">
       <div className="grid gap-3 @xl:grid-cols-2 @4xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <NeedsYouCard className="@xl:col-span-2 @4xl:col-span-1 @4xl:row-span-2" />
         <TodayCard />
-        <UsageCard />
-        <AgentsCard className="@xl:col-span-2" />
+        <UsageCard className="@4xl:row-span-2" />
+        <AgentsCard className="@xl:col-span-2 @4xl:col-span-1" />
       </div>
       <div className="mt-3 grid gap-3 @lg:grid-cols-2 @5xl:grid-cols-4">
         <TasksCard />
@@ -69,6 +74,11 @@ export function HomeDashboard() {
         <MemoryCard />
         <AutomationsCard />
       </div>
+      {chatBeside ? null : (
+        <div className="mt-3">
+          <HomeComposer />
+        </div>
+      )}
     </div>
   );
 }
@@ -250,8 +260,8 @@ function TodayCard() {
   );
 }
 
-/** The account the next chat uses on a half gauge, then the two next fullest accounts. */
-function UsageCard() {
+/** The account the next chat uses on a half gauge, then the other accounts, fullest first. */
+function UsageCard({ className }: { readonly className?: string }) {
   const environmentId = usePrimaryEnvironmentId();
   const instanceId = useComposerDraftStore((store) => store.stickyActiveProvider);
   const accounts = useConnectedUsageAccounts((environmentId ?? "") as EnvironmentId, instanceId);
@@ -266,18 +276,22 @@ function UsageCard() {
       tab="usage"
       tip="How much of each plan limit you have used. The gauge is the account your next chat uses."
       stretch
+      className={className}
     >
       {main === null ? (
         <WidgetEmpty>No AI account has reported its limits yet.</WidgetEmpty>
       ) : (
-        <div className="grid gap-3">
-          <div className="flex flex-col items-center">
+        <div className="flex flex-1 flex-col gap-5">
+          <div className="flex flex-1 flex-col items-center justify-center py-2">
             <HalfGauge
               percent={usedPercentLabel(main.window.usedPercent)}
               label={`${accountName(main.account)}: ${usedPercentLabel(main.window.usedPercent)} percent of the ${limitLabel(main.window, "glance").toLowerCase()} used`}
             />
-            <p className="mt-2 max-w-full truncate text-center text-xs text-muted-foreground">
-              {accountName(main.account)} · {limitLabel(main.window, "glance")}
+            <p className="mt-3 max-w-full truncate text-center text-sm font-medium">
+              {accountName(main.account)}
+            </p>
+            <p className="max-w-full truncate text-center text-xs text-muted-foreground">
+              {limitLabel(main.window, "glance")}
             </p>
             {main.window.resetsAt ? (
               <p className="text-center text-xs text-muted-foreground">
@@ -292,7 +306,10 @@ function UsageCard() {
             ) : null}
           </div>
           {glance.rest.length > 0 ? (
-            <ul className="grid gap-1.5">
+            <ul
+              aria-label="Other accounts"
+              className="mt-auto grid gap-2 border-t border-border/60 pt-4"
+            >
               {glance.rest.map(({ account, window }) => (
                 <MeterRow
                   key={account.id}
@@ -340,7 +357,7 @@ function AgentsCard({ className }: { readonly className?: string }) {
       {!ready ? (
         <WidgetSkeleton rows={3} />
       ) : (
-        <div className="grid gap-4 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
+        <div className="grid gap-4">
           <div className="grid min-w-0 content-start gap-3">
             <BigNumber
               value={running.length}
@@ -393,7 +410,7 @@ function AgentsCard({ className }: { readonly className?: string }) {
             days={series.days}
             average={series.average}
             unit={["chat finished", "chats finished"]}
-            height={64}
+            height={48}
           />
         </div>
       )}

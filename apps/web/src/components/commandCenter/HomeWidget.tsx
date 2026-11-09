@@ -208,7 +208,7 @@ export function MeterRow({
   readonly value: string;
 }) {
   return (
-    <li className="grid grid-cols-[minmax(0,5.5rem)_1fr_3rem] items-center gap-2 text-xs">
+    <li className="grid grid-cols-[minmax(0,7.5rem)_1fr_3rem] items-center gap-2 text-xs">
       <span className="truncate text-muted-foreground">{label}</span>
       <span aria-hidden className="h-1.5 overflow-hidden rounded-full bg-muted-foreground/25">
         <span

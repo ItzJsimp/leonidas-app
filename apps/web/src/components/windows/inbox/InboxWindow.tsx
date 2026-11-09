@@ -153,10 +153,11 @@ export function InboxWindow() {
   const actions = (
     <>
       {feed.updatedAt > 0 ? (
-        <Tip text="Check for new messages">
+        <Tip text={`Check for new messages. Updated ${changedLabel(feed.updatedAt, now)}.`}>
           <Button size="xs" variant="ghost-muted" onClick={feed.refresh}>
             <RefreshCwIcon aria-hidden />
-            Updated {changedLabel(feed.updatedAt, now)}
+            {/* Phones keep the icon, so both Mark all buttons fit on one row. */}
+            <span className="max-sm:sr-only">Updated {changedLabel(feed.updatedAt, now)}</span>
           </Button>
         </Tip>
       ) : null}
@@ -168,11 +169,6 @@ export function InboxWindow() {
       >
         Mark all as read
       </Button>
-      <Tip text="Clears every message in this view from the list. You can undo it.">
-        <Button size="xs" variant="ghost-muted" disabled={rows.length === 0} onClick={markAllDone}>
-          Mark all done
-        </Button>
-      </Tip>
     </>
   );
 
@@ -233,6 +229,7 @@ export function InboxWindow() {
                 onFilter={setFilter}
                 grouping={grouping}
                 onGrouping={setGrouping}
+                onMarkAllDone={markAllDone}
                 query={query}
                 onQuery={setQuery}
                 selectedId={selected?.id}
