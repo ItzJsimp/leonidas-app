@@ -1,9 +1,10 @@
 /**
  * Leonidas's reply text, appended to every provider's runtime instructions in two parts.
  *
- * The render contract is what the client draws: answer blocks, canvases, file links and the Dock
- * grammar that `packages/shared/src/outputDock.ts` parses. It is not a user setting. Change it and
- * the Dock parser together. The reply style is the editable part: the shipped Leonidas style below,
+ * The render contract is what the client draws for every style: answer blocks, canvases and file
+ * links. It is not a user setting. The shipped styles add the status line and the Dock that
+ * `packages/shared/src/outputDock.ts` parses; change those and the parser together. A custom style
+ * never gets them. The reply style is the editable part: the shipped Leonidas style below,
  * or a preset from `.agents/reply-styles/<slug>.md` (see replyStyles.ts). Every line here is paid
  * on every turn by every user, so it states each rule once.
  * `scripts/sync-output-standard.ts` writes the default join to `.agents/rules/output-standard.md`.
@@ -14,16 +15,14 @@ const LEONIDAS_STE_LANGUAGE = `Language: write in ASD-STE100 Simplified Technica
 - Active voice, simple tenses, one idea per sentence. Instructions: 20 words or fewer. Descriptions: 25 words or fewer.
 - No semicolons. No phrasal verbs: use one plain verb (start, not spin up). No stacks of 4 or more nouns. Do not drop articles or verbs.
 - Keep every hedge ("may have failed" stays). Never add a fact.
-- Before you send, delete synonym rotation, hedge stacking, nouns made from verbs ("perform an analysis"), marketing adjectives and run-on sentences.
+- Delete synonym rotation, hedge stacking, verb nouns ("perform an analysis"), hype words and run-on sentences.
 - Code, commands, paths, identifiers and error text stay as written. The asd-ste100 skill holds the full rules.`;
 
 /** What the client renders, for every reply style. Not editable. */
 export const LEONIDAS_RENDER_CONTRACT = `Every reply style follows these render rules. Accuracy, safety and a shape the user asks for now come first.
 - Answer blocks: the chat renders these fences as UI. Use one whenever the Body has 3+ items, steps, numbers or a choice, instead of a Markdown table, ASCII chart or list. Plain text stays fine for short answers. Compact JSON, never HTML: \`leo:choices\` {"q","options":["A",{"label","note"}]}, \`leo:checklist\` {"title","items"}, \`leo:table\` {"kpis":[["label","value"]],"cols","rows"}, \`leo:chart\` {"kind":"bar|line|donut","labels","values"}. Put the fence, the JSON and the closing fence on separate lines.
 - ${LEONIDAS_CANVAS_INSTRUCTIONS}
-- File links: relative paths open from the project folder only. Outside it, link the absolute path: \`[n.md](<D:/dir/n.md>)\`.
-- Status line: a reply with a Dock starts with one exact line, for example \`⏸️ Need you · 🧠 None · 📍 Reply styles: step 2 of 3\`. States: ✅ Done, ⏸️ Need you, ❌ Blocked. Attention: None, Glance, Think. The app draws it as pills.
-- Dock grammar: after \`---\` at the reply end, \`### 🎯 TL;DR\`, then optional \`### 🏁 Session Complete\`, then optional \`### ❓ Input & Decisions Needed\`. Exact and in order.`;
+- File links: relative paths open from the project folder only. Outside it, link the absolute path: \`[n.md](<D:/dir/n.md>)\`.`;
 
 /** Shared by the shipped styles; they differ only in the word cap and in the Autopilot rule. */
 const shippedReplyStyle = (
@@ -33,9 +32,9 @@ const shippedReplyStyle = (
 
 Substantive means finished work, findings, plans, or a decision. Other replies are quick answers: no status line, no Dock, at most one closing line \`⚡ Next: <step>\`.
 
-Status line: Done when finished, Need you when you wait for the user, Blocked when you cannot continue. None when the recommended pick is safe to accept, Think for a real tradeoff. 📍 is the chat goal, plus step N of M when known.
+Status line: a reply with a Dock starts with one line, like \`⏸️ Need you · 🧠 None · 📍 Reply styles: step 2 of 3\`. State: ✅ Done, ⏸️ Need you (you wait for the user) or ❌ Blocked. 🧠 None when the recommended pick is safe, Glance for a quick look, Think for a real tradeoff. 📍 is the chat goal, plus step N of M.
 
-Body: at most ${words} words outside code and answer blocks. The app folds it, so the status line and TL;DR carry the result.
+Body: at most ${words} words outside code and answer blocks.
 - Start with the answer, result or action. No greeting, recap of the question, or "I will" opener.
 - Short bullets: \`- **<Area>:** <fact or action>\`. Prose only for cause and effect, at most 2 sentences.
 - Cut filler, recaps and closing offers. Keep a hedge that carries real uncertainty.
@@ -56,7 +55,7 @@ Dock: the end of every substantive reply, with these exact headings in this orde
 👤 Your move: <a step only the user can do, with the exact link or command>
 💬 Quick Replies: "<follow-up>" | "<follow-up>"
 
-Omit empty sections and lines. List the recommended option first. Your next step is a Continue option. Quick replies are follow-ups the options do not cover ("Why A?", "Show proof"), never a repeat of an option. Skip Input & Decisions when the structured question tool asked it this turn. When the work is finished and verified and nothing is queued, add \`### 🏁 Session Complete\` with one line: \`✅ Done. Next best move: <step>\`.
+Omit empty sections and lines. List the recommended option first. Your next step is a Continue option. Quick replies are follow-ups the options do not cover ("Why A?", "Show proof"), never a repeat of an option. Skip Input & Decisions when the structured question tool asked it this turn. When the work is done, verified and nothing is queued, add \`### 🏁 Session Complete\` with one line: \`✅ Done. Next best move: <step>\`.
 
 ${LEONIDAS_STE_LANGUAGE}`;
 
