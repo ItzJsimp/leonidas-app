@@ -1,10 +1,9 @@
-import { ChevronRightIcon } from "lucide-react";
-import { useMemo, type ComponentProps } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { parseOutputDock, type DockSection, type DockStatus } from "@t3tools/shared/outputDock";
+import { cn } from "~/lib/utils";
 import ChatMarkdown from "../ChatMarkdown";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 
 /** Actions prepare a draft; the composer remains the only place that sends it. */
 /** Fixed reply for the "Explain simpler" button. */
@@ -108,7 +107,71 @@ const STATUS = {
 } as const;
 const ATTENTION = { none: "No thought needed", glance: "Quick look", think: "Needs thought" };
 
-/** Status pills above the reply, and the body folded under Details past 3 lines. */
+const PREVIEW_LINES = 3;
+
+/** The first lines of the body with text, plus any blank lines between them. */
+function previewOf(body: string): string {
+  const kept: string[] = [];
+  let count = 0;
+  for (const line of body.split("\n")) {
+    if (line.trim()) count += 1;
+    if (count > PREVIEW_LINES) break;
+    kept.push(line);
+  }
+  return kept.join("\n");
+}
+
+const TAB_CLASS =
+  "-mb-px flex min-h-8 items-center gap-1.5 border-b-2 px-0.5 text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
+
+/** A long body: Summary shows its first lines, Full answer shows all of it. */
+function ReplyTabs({
+  body,
+  renderMarkdown,
+}: {
+  body: string;
+  renderMarkdown: (text: string) => React.ReactNode;
+}) {
+  const [full, setFull] = useState(false);
+  const words = body.split(/\s+/).filter(Boolean).length;
+  const tab = (selected: boolean) =>
+    cn(
+      TAB_CLASS,
+      selected
+        ? "border-primary font-medium text-foreground"
+        : "border-transparent text-muted-foreground hover:text-foreground",
+    );
+  return (
+    <div>
+      <div role="tablist" aria-label="Reply" className="mb-2 flex gap-4 border-b border-border">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!full}
+          className={tab(!full)}
+          onClick={() => setFull(false)}
+        >
+          Summary
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={full}
+          className={tab(full)}
+          onClick={() => setFull(true)}
+        >
+          Full answer
+          <span className="rounded-full bg-surface-raised px-1.5 text-2xs text-muted-foreground tabular-nums">
+            {words.toLocaleString("en-US")} words
+          </span>
+        </button>
+      </div>
+      <div role="tabpanel">{renderMarkdown(full ? body : previewOf(body))}</div>
+    </div>
+  );
+}
+
+/** Status pills above the reply; a body past 3 lines gets Summary and Full answer tabs. */
 export function ReplyBody({
   status,
   body,
@@ -130,17 +193,8 @@ export function ReplyBody({
           ) : null}
         </div>
       ) : null}
-      {lines > 3 ? (
-        <Collapsible>
-          <CollapsibleTrigger className="group/details flex min-h-8 items-center gap-1.5 rounded-md px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
-            <ChevronRightIcon
-              aria-hidden
-              className="size-3.5 shrink-0 transition-transform duration-200 group-data-panel-open/details:rotate-90"
-            />
-            Details
-          </CollapsibleTrigger>
-          <CollapsiblePanel>{renderMarkdown(body)}</CollapsiblePanel>
-        </Collapsible>
+      {lines > PREVIEW_LINES ? (
+        <ReplyTabs body={body} renderMarkdown={renderMarkdown} />
       ) : lines > 0 ? (
         renderMarkdown(body)
       ) : null}

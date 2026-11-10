@@ -100,7 +100,7 @@ it("shows the slim Dock below builder level: explain simpler, no undo, chips or 
   }
 });
 
-it("shows status pills and folds a long body under Details", async () => {
+it("shows status pills and puts a long body behind Summary and Full answer tabs", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const container = document.createElement("div");
   document.body.append(container);
@@ -130,16 +130,20 @@ line four
     expect(status.textContent).toContain("Done");
     expect(status.textContent).toContain("No thought needed");
     expect(status.textContent).toContain("Reply styles: step 2 of 7");
+    // Beta users missed the old Details fold: the summary tab shows the start of the answer.
+    expect(container.textContent).not.toContain("Details");
+    expect(container.textContent).toContain("line three");
     expect(container.textContent).not.toContain("line four");
-    const details = [...container.querySelectorAll("button")].find(
-      (b) => b.textContent === "Details",
-    )!;
-    await act(() => details.click());
+    const tabs = [...container.querySelectorAll('[role="tab"]')] as HTMLButtonElement[];
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Summary", "Full answer8 words"]);
+    expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
+    await act(() => tabs[1]!.click());
+    expect(tabs[1]!.getAttribute("aria-selected")).toBe("true");
     expect(container.textContent).toContain("line four");
 
     await render("short body");
     expect(container.textContent).toContain("short body");
-    expect(container.textContent).not.toContain("Details");
+    expect(container.querySelector('[role="tab"]')).toBeNull();
   } finally {
     await act(() => root.unmount());
     container.remove();
