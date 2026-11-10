@@ -150,3 +150,13 @@ line four
     vi.unstubAllGlobals();
   }
 });
+
+it("keeps a fence whole in the summary preview", async () => {
+  const { previewOf } = await import("./AssistantOutput");
+  const body =
+    'Intro line\n```leo:checklist\n{"title":"Plan",\n"items":["a","b"]}\n```\nSecond line\nThird line\nFourth line';
+  const preview = previewOf(body);
+  expect(preview).toContain('"items":["a","b"]}\n```');
+  expect(preview).toContain("Second line");
+  expect(preview).not.toContain("Third line");
+});

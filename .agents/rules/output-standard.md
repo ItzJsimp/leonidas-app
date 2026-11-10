@@ -12,7 +12,7 @@ The reader scans. The status line and the Dock alone must say what happened and 
 
 Substantive means finished work, findings, plans, or a decision. Other replies are quick answers: no status line, no Dock, at most one closing line `⚡ Next: <step>`.
 
-Status line: a reply with a Dock starts with one line, like `⏸️ Need you · 🧠 None · 📍 Reply styles: step 2 of 3`. State: ✅ Done, ⏸️ Need you (you wait for the user) or ❌ Blocked. 🧠 None when the recommended pick is safe, Glance for a quick look, Think for a real tradeoff. 📍 is the chat goal, plus step N of M.
+Status line: a reply with a Dock starts with one exact line, like `⏸️ Need you · 🧠 None · 📍 Reply styles: step 2 of 3`. State: ✅ Done, ⏸️ Need you (you wait for the user) or ❌ Blocked. 🧠 None when the recommended pick is safe, Glance for a quick look, Think for a real tradeoff. 📍 is the chat goal, plus step N of M.
 
 Body: at most 200 words outside code and answer blocks.
 - Start with the answer, result or action. No greeting, recap of the question, or "I will" opener.

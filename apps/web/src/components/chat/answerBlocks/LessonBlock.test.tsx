@@ -67,3 +67,61 @@ describe("lesson block", () => {
     expect(text(renderer)).toContain("2 of 2 done");
   });
 });
+
+describe("lesson block edge cases", () => {
+  const renderCode = (code: string) => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <AnswerBlockView type="lesson" code={code} closed fallback={<pre>raw</pre>} />,
+      );
+    });
+    return renderer;
+  };
+
+  it("labels Key idea, Example and Watch out callouts", () => {
+    const renderer = renderCode(
+      JSON.stringify({
+        title: "Position size",
+        cards: [
+          { title: "Idea", kind: "key" },
+          { title: "Math", kind: "example" },
+          { title: "Trap", kind: "warn" },
+        ],
+      }),
+    );
+    for (const label of ["Key idea", "Example", "Watch out"]) {
+      expect(text(renderer)).toContain(label);
+    }
+    expect(renderer.root.findAllByProps({ "data-kind": "warn" })).toHaveLength(1);
+  });
+
+  it("shows the raw fence for a bad lesson", () => {
+    expect(text(renderCode('{"title":"X","tabs":"nope"}'))).toContain("raw");
+  });
+
+  it("ticks only the clicked card when two cards share a title", () => {
+    const renderer = renderCode(
+      JSON.stringify({
+        title: "Twins",
+        cards: [
+          { title: "Same", done: false },
+          { title: "Same", done: false },
+        ],
+      }),
+    );
+    act(() => button(renderer, "Mark done").props.onClick());
+    expect(text(renderer)).toContain("1 of 2 done");
+  });
+
+  it("moves between tabs with the arrow keys", () => {
+    const renderer = render();
+    const tablist = renderer.root.findByProps({ role: "tablist" });
+    act(() => tablist.props.onKeyDown({ key: "ArrowRight", preventDefault: () => {} }));
+    expect(text(renderer)).toContain("Drawdown");
+    act(() => tablist.props.onKeyDown({ key: "Home", preventDefault: () => {} }));
+    expect(text(renderer)).toContain("Position size");
+    const tabs = renderer.root.findAllByProps({ role: "tab" }).filter((t) => t.type === "button");
+    expect(tabs.map((t) => t.props.tabIndex)).toEqual([0, -1]);
+  });
+});

@@ -197,12 +197,44 @@ describe("lesson block", () => {
     });
   });
 
-  it("falls back on a lesson with no cards or a bad kind", () => {
+  it("falls back when no tab has cards, and drops empty tabs", () => {
     expect(parseAnswerBlock("lesson", '{"title":"Empty","tabs":[]}', true)).toEqual({
       status: "fallback",
     });
     expect(
-      parseAnswerBlock("lesson", '{"title":"X","cards":[{"title":"A","kind":"loud"}]}', true),
-    ).toEqual({ status: "fallback" });
+      parseAnswerBlock(
+        "lesson",
+        '{"title":"X","tabs":[{"label":"A","cards":[{"title":"One"}]},{"label":"B","cards":[]}]}',
+        true,
+      ),
+    ).toEqual({
+      status: "block",
+      block: { type: "lesson", title: "X", tabs: [{ label: "A", cards: [{ title: "One" }] }] },
+    });
+  });
+
+  it("turns an unknown kind into a plain card and trims repeated or empty actions", () => {
+    const result = parseAnswerBlock(
+      "lesson",
+      '{"title":"X","cards":[{"title":"A","kind":"constructor","actions":["Quiz me"," Quiz me ",""]}]}',
+      true,
+    );
+    expect(result).toEqual({
+      status: "block",
+      block: {
+        type: "lesson",
+        title: "X",
+        tabs: [{ label: "Lesson", cards: [{ title: "A", actions: ["Quiz me"] }] }],
+      },
+    });
+  });
+
+  it.each([
+    ["a done flag that is not true or false", '{"title":"X","cards":[{"title":"A","done":"yes"}]}'],
+    ["a card title that is not text", '{"title":"X","cards":[{"title":7}]}'],
+    ["a tab with no label", '{"title":"X","tabs":[{"cards":[{"title":"A"}]}]}'],
+    ["a lesson with no title", '{"cards":[{"title":"A"}]}'],
+  ])("falls back on %s", (_name, json) => {
+    expect(parseAnswerBlock("lesson", json, true)).toEqual({ status: "fallback" });
   });
 });

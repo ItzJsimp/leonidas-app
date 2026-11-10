@@ -3,7 +3,7 @@ import { CheckIcon, GraduationCapIcon } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "~/lib/utils";
-import { underlineTabClass } from "../../ui/underlineTab";
+import { TabBadge, UnderlineTabs } from "../../ui/underlineTabs";
 import { useAnswerBlockActions } from "./AnswerBlockActions";
 
 type LessonBlockData = Extract<AnswerBlock, { type: "lesson" }>;
@@ -23,59 +23,21 @@ const CHIP_CLASS =
 export function LessonBlock({ block }: { block: LessonBlockData }) {
   const actions = useAnswerBlockActions();
   const [tabIndex, setTabIndex] = useState(0);
-  // Ticks stay local to this view, like the checklist block.
+  // Ticks stay local to this view, like the checklist block. Titles may repeat, so state is
+  // keyed by position; cards never reorder.
   const [doneOverride, setDoneOverride] = useState<ReadonlyMap<string, boolean>>(() => new Map());
   const tab = block.tabs[tabIndex] ?? block.tabs[0]!;
-  const keyOf = (card: LessonCard) => `${tab.label}\u0000${card.title}`;
-  const isDone = (card: LessonCard) => doneOverride.get(keyOf(card)) ?? card.done;
-  const tracked = tab.cards.filter((card) => card.done !== undefined);
-  const doneCount = tracked.filter(isDone).length;
+  const keyOf = (cardIndex: number) => `${tabIndex}:${cardIndex}`;
+  const isDone = (card: LessonCard, cardIndex: number) =>
+    doneOverride.get(keyOf(cardIndex)) ?? card.done;
+  const tracked = tab.cards.flatMap((card, cardIndex) =>
+    card.done === undefined ? [] : [isDone(card, cardIndex)],
+  );
+  const doneCount = tracked.filter(Boolean).length;
   const fill = (text: string) => actions?.fillComposer(text);
 
-  return (
-    <div
-      className="my-2 overflow-hidden rounded-xl border border-border bg-card"
-      data-answer-block="lesson"
-    >
-      <div className="flex items-center gap-3 px-4 pt-3.5">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-raised">
-          <GraduationCapIcon aria-hidden className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-base font-semibold leading-tight">{block.title}</div>
-          {block.meta ? (
-            <div className="truncate text-xs text-muted-foreground">{block.meta}</div>
-          ) : null}
-        </div>
-      </div>
-      {block.tabs.length > 1 ? (
-        <div
-          role="tablist"
-          aria-label={block.title}
-          className="mt-3 flex gap-5 overflow-x-auto border-b border-border px-4"
-        >
-          {block.tabs.map((item, index) => {
-            const selected = index === tabIndex;
-            return (
-              <button
-                key={item.label}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setTabIndex(index)}
-                className={underlineTabClass(selected)}
-              >
-                {item.label}
-                <span className="rounded-full bg-surface-raised px-1.5 text-2xs text-muted-foreground tabular-nums">
-                  {item.cards.length}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="mt-3 border-b border-border" />
-      )}
+  const panel = (
+    <>
       {tracked.length > 0 ? (
         <div className="flex items-center gap-2.5 px-4 pt-3 text-xs text-muted-foreground">
           <span className="tabular-nums">{`${doneCount} of ${tracked.length} done`}</span>
@@ -87,12 +49,13 @@ export function LessonBlock({ block }: { block: LessonBlockData }) {
           </span>
         </div>
       ) : null}
-      <div role="tabpanel" className="grid gap-2.5 p-4 sm:grid-cols-2">
-        {tab.cards.map((card) => {
-          const done = isDone(card);
+      <div className="grid gap-2.5 p-4 sm:grid-cols-2">
+        {tab.cards.map((card, cardIndex) => {
+          const done = isDone(card, cardIndex);
           return (
             <section
-              key={card.title}
+              // oxlint-disable-next-line react/no-array-index-key -- cards never reorder
+              key={cardIndex}
               data-kind={card.kind}
               className={cn(
                 "flex flex-col gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5",
@@ -139,7 +102,7 @@ export function LessonBlock({ block }: { block: LessonBlockData }) {
                     aria-pressed={done}
                     className={cn(CHIP_CLASS, "flex items-center gap-1")}
                     onClick={() =>
-                      setDoneOverride((current) => new Map(current).set(keyOf(card), !done))
+                      setDoneOverride((current) => new Map(current).set(keyOf(cardIndex), !done))
                     }
                   >
                     <CheckIcon aria-hidden className="size-3" />
@@ -160,6 +123,43 @@ export function LessonBlock({ block }: { block: LessonBlockData }) {
           );
         })}
       </div>
+    </>
+  );
+
+  return (
+    <div
+      className="my-2 overflow-hidden rounded-xl border border-border bg-card"
+      data-answer-block="lesson"
+    >
+      <div className="flex items-center gap-3 px-4 pt-3.5">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-raised">
+          <GraduationCapIcon aria-hidden className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-base font-semibold leading-tight">{block.title}</div>
+          {block.meta ? (
+            <div className="truncate text-xs text-muted-foreground">{block.meta}</div>
+          ) : null}
+        </div>
+      </div>
+      {block.tabs.length > 1 ? (
+        <div className="mt-3">
+          <UnderlineTabs
+            label={block.title}
+            tabs={block.tabs.map((item) => ({
+              label: item.label,
+              badge: <TabBadge>{item.cards.length}</TabBadge>,
+            }))}
+            selected={tabIndex}
+            onSelect={setTabIndex}
+            inset
+          >
+            {panel}
+          </UnderlineTabs>
+        </div>
+      ) : (
+        <div className="mt-3 border-t border-border">{panel}</div>
+      )}
     </div>
   );
 }

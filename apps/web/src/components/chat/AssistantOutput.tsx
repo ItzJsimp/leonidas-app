@@ -1,6 +1,6 @@
 import { useMemo, useState, type ComponentProps } from "react";
 import { parseOutputDock, type DockSection, type DockStatus } from "@t3tools/shared/outputDock";
-import { underlineTabClass } from "../ui/underlineTab";
+import { TabBadge, UnderlineTabs } from "../ui/underlineTabs";
 import ChatMarkdown from "../ChatMarkdown";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -109,13 +109,23 @@ const ATTENTION = { none: "No thought needed", glance: "Quick look", think: "Nee
 
 const PREVIEW_LINES = 3;
 
-/** The first lines of the body with text, plus any blank lines between them. */
-function previewOf(body: string): string {
+const FENCE = /^\s*(```|~~~)/;
+
+/**
+ * The first lines of the body with text. A code or answer-block fence that starts inside them
+ * stays whole, so the summary never shows a cut-off block.
+ */
+export function previewOf(body: string): string {
   const kept: string[] = [];
   let count = 0;
+  let inFence = false;
   for (const line of body.split("\n")) {
-    if (line.trim()) count += 1;
-    if (count > PREVIEW_LINES) break;
+    const fence = FENCE.test(line);
+    if (!inFence && line.trim()) {
+      if (count >= PREVIEW_LINES) break;
+      count += 1;
+    }
+    if (fence) inFence = !inFence;
     kept.push(line);
   }
   return kept.join("\n");
@@ -129,35 +139,25 @@ function ReplyTabs({
   body: string;
   renderMarkdown: (text: string) => React.ReactNode;
 }) {
-  const [full, setFull] = useState(false);
+  const [tab, setTab] = useState(0);
   const words = body.split(/\s+/).filter(Boolean).length;
-  const tab = (selected: boolean) => underlineTabClass(selected, "min-h-8 px-0.5 py-0");
   return (
     <div>
-      <div role="tablist" aria-label="Reply" className="mb-2 flex gap-4 border-b border-border">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={!full}
-          className={tab(!full)}
-          onClick={() => setFull(false)}
-        >
-          Summary
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={full}
-          className={tab(full)}
-          onClick={() => setFull(true)}
-        >
-          Full answer
-          <span className="rounded-full bg-surface-raised px-1.5 text-2xs text-muted-foreground tabular-nums">
-            {words.toLocaleString("en-US")} words
-          </span>
-        </button>
-      </div>
-      <div role="tabpanel">{renderMarkdown(full ? body : previewOf(body))}</div>
+      <UnderlineTabs
+        label="Reply"
+        tabs={[
+          { label: "Summary" },
+          {
+            label: "Full answer",
+            badge: <TabBadge>{`${words.toLocaleString("en-US")} words`}</TabBadge>,
+          },
+        ]}
+        selected={tab}
+        onSelect={setTab}
+        size="sm"
+      >
+        <div className="mt-2">{renderMarkdown(tab === 1 ? body : previewOf(body))}</div>
+      </UnderlineTabs>
     </div>
   );
 }

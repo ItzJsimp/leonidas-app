@@ -168,7 +168,12 @@ function normalize(type: AnswerBlockType, data: Record<string, unknown>): Record
           title: pick(record, "title", "name", "label"),
           body: pick(record, "body", "text", "description"),
           meta: pick(record, "meta", "time", "duration"),
-          kind: isString(kind) ? (LESSON_KINDS[kind.toLowerCase()] ?? kind) : kind,
+          // An unknown kind word makes a plain card, not a broken lesson.
+          kind: isString(kind)
+            ? Object.hasOwn(LESSON_KINDS, kind.toLowerCase())
+              ? LESSON_KINDS[kind.toLowerCase()]
+              : undefined
+            : kind,
           done: record.done,
           actions: record.actions,
         };
@@ -205,13 +210,14 @@ function toLessonCard(value: unknown): LessonCard | null {
   if (kind !== undefined && kind !== "key" && kind !== "example" && kind !== "warn") return null;
   if (done !== undefined && typeof done !== "boolean") return null;
   if (actions !== undefined && !isStringArray(actions)) return null;
+  const unique = [...new Set(actions?.map((action) => action.trim()).filter(Boolean))];
   return {
     title,
     ...(body ? { body } : {}),
     ...(meta ? { meta } : {}),
     ...(kind ? { kind } : {}),
     ...(done === undefined ? {} : { done }),
-    ...(actions?.length ? { actions } : {}),
+    ...(unique.length ? { actions: unique } : {}),
   };
 }
 
@@ -278,8 +284,9 @@ function toBlock(type: AnswerBlockType, data: Record<string, unknown>): AnswerBl
         const record = asRecord(tab);
         if (!record || !isString(record.label) || !Array.isArray(record.cards)) return null;
         const cards = record.cards.map(toLessonCard);
-        if (cards.length === 0 || cards.some((c) => c === null)) return null;
-        parsed.push({ label: record.label, cards: cards as LessonCard[] });
+        if (cards.some((c) => c === null)) return null;
+        // A tab with no cards is dropped; the lesson falls back only when no tab is left.
+        if (cards.length > 0) parsed.push({ label: record.label, cards: cards as LessonCard[] });
       }
       if (parsed.length === 0) return null;
       return meta ? { type, title, meta, tabs: parsed } : { type, title, tabs: parsed };
