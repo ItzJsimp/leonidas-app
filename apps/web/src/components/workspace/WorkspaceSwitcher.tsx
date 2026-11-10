@@ -23,7 +23,7 @@ import { aiosWorkspaceInit } from "~/state/aiosWorkspaces";
 import { useAtomCommand } from "~/state/use-atom-command";
 
 import { suggestWorkspaceId, workspaceFolderName } from "./aiosWorkspace.logic";
-import { openNewBusiness } from "./newBusinessStore";
+import { openNewWorkspace } from "./newWorkspaceStore";
 import { useActiveAiosWorkspace } from "./useActiveAiosWorkspace";
 import { useWorkspacePictureUpload } from "./WorkspacePictureEditor";
 import { useWorkspacePictures, WorkspacePicture, WorkspaceTypeChip } from "./WorkspacePicture";
@@ -133,7 +133,7 @@ export function WorkspaceMenu(props: {
         className={ROW}
         onClick={() => {
           props.onDone();
-          openNewBusiness();
+          openNewWorkspace();
         }}
       >
         <PlusIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />

@@ -114,12 +114,22 @@ export function homeRepository(owner: string | null, workspaceId: string): strin
   return `${owner ? `${owner}/` : ""}${workspaceId}-home`;
 }
 
+/** The suggested id, with the first free number added when another workspace uses it. */
+export function uniqueWorkspaceId(name: string, taken: ReadonlyArray<string>): string {
+  const base = suggestWorkspaceId(name);
+  if (!taken.includes(base)) return base;
+  const stem = base.slice(0, 60);
+  let n = 2;
+  while (taken.includes(`${stem}-${n}`)) n++;
+  return `${stem}-${n}`;
+}
+
 /**
- * Where a new business folder goes: `businesses/<id>` beside the managed `projects` folder.
+ * Where a new workspace folder goes: `<parent>/<id>` beside the managed `projects` folder.
  * It cannot sit inside `projects`, because the workspace scan skips a folder whose parent has that name.
  */
-export function newBusinessFolder(newProjectsRoot: string, name: string): string {
+export function newWorkspaceFolder(newProjectsRoot: string, parent: string, id: string): string {
   const separator = newProjectsRoot.includes("\\") ? "\\" : "/";
-  const parent = newProjectsRoot.replace(/[\\/]+$/, "").replace(/[\\/][^\\/]*$/, "");
-  return `${parent}${separator}businesses${separator}${suggestWorkspaceId(name)}`;
+  const base = newProjectsRoot.replace(/[\\/]+$/, "").replace(/[\\/][^\\/]*$/, "");
+  return `${base}${separator}${parent}${separator}${id}`;
 }
