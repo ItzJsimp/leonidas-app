@@ -707,6 +707,26 @@ interface AcpMcpContext {
   readonly authorization?: string;
 }
 
+export function acpUserMcpServers(
+  servers: ReadonlyArray<McpProviderSession.ResolvedUserMcpServer> | undefined,
+): ReadonlyArray<EffectAcpSchema.McpServer> {
+  return (servers ?? []).map((server) =>
+    server.transport === "http"
+      ? {
+          type: "http" as const,
+          name: server.name,
+          url: server.url,
+          headers: Object.entries(server.headers).map(([name, value]) => ({ name, value })),
+        }
+      : {
+          name: server.name,
+          command: server.command,
+          args: [...server.args],
+          env: Object.entries(server.env).map(([name, value]) => ({ name, value })),
+        },
+  );
+}
+
 function acpMcpContext(
   session: McpProviderSession.McpProviderSessionConfig | undefined,
   self: SelfInvocation,
@@ -720,6 +740,7 @@ function acpMcpContext(
   // every ACP session gets the `t3 acp-mcp-bridge` stdio server, which
   // forwards JSON-RPC to T3's authenticated MCP endpoint. The credential
   // travels via environment variables, never the command line.
+  const userServers = acpUserMcpServers(session.userMcpServers);
   return {
     servers: [
       {
@@ -732,8 +753,9 @@ function acpMcpContext(
           { name: "T3_ACP_MCP_AUTHORIZATION", value: session.authorizationHeader },
         ],
       },
+      ...userServers,
     ],
-    acpServers: [{ type: "acp", name: MCP_SERVER_NAME, serverId: MCP_SERVER_NAME }],
+    acpServers: [{ type: "acp", name: MCP_SERVER_NAME, serverId: MCP_SERVER_NAME }, ...userServers],
     endpoint: session.endpoint,
     authorization: session.authorizationHeader,
     browserToolsAvailable: session.browserToolsAvailable,

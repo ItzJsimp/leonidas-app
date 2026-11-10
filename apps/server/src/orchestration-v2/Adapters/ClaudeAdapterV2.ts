@@ -1283,6 +1283,9 @@ export function claudeMcpQueryOverrides(input: {
   return {
     allowedTools: Array.from(new Set([...(input.allowedTools ?? []), ...mcpAllowedTools])),
     mcpServers: {
+      // User servers first, so the reserved t3-code entry can never be replaced.
+      // Their tools stay out of `allowedTools`: each call keeps the normal approval.
+      ...claudeUserMcpServers(session.userMcpServers),
       [MCP_SERVER_NAME]: {
         type: "http",
         url: session.endpoint,
@@ -1293,6 +1296,24 @@ export function claudeMcpQueryOverrides(input: {
       },
     },
   };
+}
+
+export function claudeUserMcpServers(
+  servers: ReadonlyArray<McpProviderSession.ResolvedUserMcpServer> | undefined,
+): NonNullable<ClaudeQueryOptions["mcpServers"]> {
+  return Object.fromEntries(
+    (servers ?? []).map((server) => [
+      server.name,
+      server.transport === "http"
+        ? { type: "http" as const, url: server.url, headers: { ...server.headers } }
+        : {
+            type: "stdio" as const,
+            command: server.command,
+            args: [...server.args],
+            env: { ...server.env },
+          },
+    ]),
+  );
 }
 
 function providerSession(input: {
