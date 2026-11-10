@@ -1381,6 +1381,24 @@ export function AppearanceSettingsPanel() {
 
       <SettingsSection id="appearance-interface" title="Interface">
         <SettingsRow
+          title="Your name"
+          description="Shown in the new chat greeting, for example Good morning, Jake."
+          control={
+            <Input
+              key={settings.greetingName}
+              defaultValue={settings.greetingName}
+              placeholder="Your first name"
+              aria-label="Your name"
+              className="w-48"
+              maxLength={40}
+              onBlur={(event) => {
+                const greetingName = event.currentTarget.value.trim();
+                if (greetingName !== settings.greetingName) updateSettings({ greetingName });
+              }}
+            />
+          }
+        />
+        <SettingsRow
           {...searchableSetting("setting-appearance-contrast")}
           description="Adjust the contrast of colors and borders across the interface."
           resetAction={
