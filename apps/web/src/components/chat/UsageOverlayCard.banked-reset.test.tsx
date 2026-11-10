@@ -82,7 +82,7 @@ it("offers Use reset only for banked credits this environment can redeem", async
     );
   });
   const useButtons = renderer.root.findAll(
-    (node) => node.type === "button" && node.children.includes("Use reset"),
+    (node) => node.type === "button" && String(node.props["aria-label"]).startsWith("Use reset"),
   );
   expect(useButtons).toHaveLength(1);
   await act(async () => useButtons[0]!.props.onClick());

@@ -242,3 +242,32 @@ describe("isInsideRoot", () => {
     expect(isInsideRoot(real, NodePath.dirname(real))).toBe(false);
   });
 });
+
+describe("trading workspace type", () => {
+  it("accepts trading with an optional crew pack path", () => {
+    const root = makeAios("trade", {
+      id: "trading",
+      name: "Trading",
+      type: "trading",
+      schemaVersion: 1,
+      crewPack: " packs/crew ",
+    });
+    expect(readWorkspaceFile(root)).toMatchObject({
+      status: "ready",
+      file: { type: "trading", crewPack: "packs/crew" },
+    });
+  });
+
+  it("rejects an unknown type and an empty crew pack path", () => {
+    const unknown = makeAios("odd", { id: "x", name: "X", type: "trader", schemaVersion: 1 });
+    expect(readWorkspaceFile(unknown).status).toBe("invalid");
+    const empty = makeAios("empty", {
+      id: "y",
+      name: "Y",
+      type: "trading",
+      schemaVersion: 1,
+      crewPack: " ",
+    });
+    expect(readWorkspaceFile(empty).status).toBe("invalid");
+  });
+});

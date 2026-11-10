@@ -1,5 +1,5 @@
-import { WORKSPACE_PICTURE_SIDE } from "@t3tools/contracts";
-import { BriefcaseIcon, UserIcon } from "lucide-react";
+import { WORKSPACE_PICTURE_SIDE, type AiosWorkspaceType } from "@t3tools/contracts";
+import { BriefcaseIcon, CandlestickChartIcon, UserIcon } from "lucide-react";
 
 import { firstGrapheme } from "~/components/twoState/safeText";
 import { cn } from "~/lib/utils";
@@ -49,13 +49,19 @@ export function WorkspacePicture(props: {
   );
 }
 
-/** "Personal" or "Business", with its icon. */
-export function WorkspaceTypeChip({ business }: { readonly business: boolean }) {
-  const Icon = business ? BriefcaseIcon : UserIcon;
+const TYPE_CHIPS = {
+  personal: { Icon: UserIcon, label: "Personal" },
+  business: { Icon: BriefcaseIcon, label: "Business" },
+  trading: { Icon: CandlestickChartIcon, label: "Trading" },
+} as const;
+
+/** The workspace type, with its icon. */
+export function WorkspaceTypeChip({ type }: { readonly type: AiosWorkspaceType }) {
+  const { Icon, label } = TYPE_CHIPS[type];
   return (
     <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-surface-raised px-1.5 text-3xs leading-4 font-medium text-foreground">
       <Icon aria-hidden className="size-2.5" />
-      {business ? "Business" : "Personal"}
+      {label}
     </span>
   );
 }

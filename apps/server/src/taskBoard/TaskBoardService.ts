@@ -128,6 +128,7 @@ import {
 import { makeAiosCardReader } from "./aiosCardReader.ts";
 import {
   type AiosWorkspaceState,
+  type AiosWorkspaceType,
   isPathInRoot,
   listAiosWorkspaces,
   resolveWorkspaceRoot,
@@ -710,7 +711,7 @@ export class TaskBoardService extends Context.Service<
     readonly workspaceRoot: (
       projects: ReadonlyArray<Project>,
       workspaceId: string,
-    ) => Effect.Effect<{ readonly root: string; readonly type: "personal" | "business" } | null>;
+    ) => Effect.Effect<{ readonly root: string; readonly type: AiosWorkspaceType } | null>;
     /** The setup prompt: writes workspace.json into a listed folder that has none or a bad one. */
     readonly workspaceInit: (
       input: AiosWorkspaceInitInput,
@@ -2416,6 +2417,7 @@ const make = Effect.gen(function* () {
       .filter((project) => workspaceForPath([state], project.workspaceRoot) !== undefined)
       .map((project) => project.id),
     hiddenProjects: state.status === "ready" ? (state.file.hiddenProjects ?? []) : [],
+    ...(state.status === "ready" && state.file.crewPack ? { crewPack: state.file.crewPack } : {}),
   });
 
   const workspaces = (projects: ReadonlyArray<Project>) =>

@@ -43,6 +43,7 @@ import {
 } from "./provider/PonytailEnsure.ts";
 import { readReleaseStatus } from "./releaseStatus/releaseStatus.ts";
 import { homeNews, homeWeather } from "./taskBoard/homeFeeds.ts";
+import { readTradingState } from "./trading/readTradingState.ts";
 import * as PromptSuggestion from "./workspace/PromptSuggestion.ts";
 import * as SkillPick from "./workspace/SkillPick.ts";
 import * as TextGeneration from "./textGeneration/TextGeneration.ts";
@@ -3132,6 +3133,12 @@ const layerWsRpc = (
         [WS_METHODS.taskBoardHomeWeather]: (input) =>
           Effect.promise(() => homeWeather(input.place)),
         [WS_METHODS.taskBoardHomeNews]: () => Effect.promise(() => homeNews()),
+        [WS_METHODS.tradingState]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(readTradingState),
+          ),
         [WS_METHODS.releaseStatusRuns]: () => Effect.promise(() => readReleaseStatus()),
         [WS_METHODS.layaUsage]: () => Effect.promise(() => readLayaUsage()),
         [WS_METHODS.calendarEvents]: (input) => calendar.events(input),

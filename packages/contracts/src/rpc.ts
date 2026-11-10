@@ -350,6 +350,7 @@ import {
   ProviderUploadFeedbackResult,
 } from "./provider.ts";
 import { ProviderInstanceId, ProviderInstanceMutation } from "./providerInstance.ts";
+import { TradingStateError, TradingStateInput, TradingStateResult } from "./trading.ts";
 import {
   PullRequestActionInput,
   PullRequestActivity,
@@ -732,6 +733,7 @@ export const WS_METHODS = {
   workspacePackOrgDecide: "workspacePack.orgDecide",
   taskBoardHomeWeather: "taskBoard.homeWeather",
   taskBoardHomeNews: "taskBoard.homeNews",
+  tradingState: "trading.state",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
@@ -2133,6 +2135,12 @@ const WsTaskBoardHomeNewsRpc = Rpc.make(WS_METHODS.taskBoardHomeNews, {
   payload: Schema.Struct({}),
   success: TaskBoardHomeNews,
   error: EnvironmentAuthorizationError,
+});
+
+const WsTradingStateRpc = Rpc.make(WS_METHODS.tradingState, {
+  payload: TradingStateInput,
+  success: TradingStateResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
 const WsReleaseStatusRunsRpc = Rpc.make(WS_METHODS.releaseStatusRuns, {
@@ -3613,6 +3621,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsAiosDirectionRpc,
   WsTaskBoardHomeWeatherRpc,
   WsTaskBoardHomeNewsRpc,
+  WsTradingStateRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,

@@ -10,7 +10,7 @@ import { refreshUsageLimits } from "@t3tools/client-runtime/state/usage";
 import { resolveSelectableModel } from "@t3tools/shared/model";
 import { limitsNotice } from "@t3tools/shared/usageLimits";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 
 import { DraftId, useComposerDraftStore } from "../../composerDraftStore";
@@ -336,41 +336,63 @@ function InlineWindowRow({
   );
 }
 
-/** The banked-credit line with its own "Use" button and confirm, so a reset is one click away. */
-function BankedCredits({
+/** A quiet header chip for banked resets: the count, and a click that opens the confirm. */
+function ResetChip({
   environmentId,
   account,
   text,
+  canRedeem,
 }: {
   readonly environmentId: EnvironmentId;
   readonly account: Account;
   readonly text: string;
+  readonly canRedeem: boolean;
 }) {
   const input = account.resetCreditInput ?? { instanceId: account.instanceId! };
   const { canManageProviders, confirming, setConfirming, busy, status, redeem } = useResetCredit(
     environmentId,
     input,
   );
+  const count = account.limits.resetCredits?.availableCount ?? 0;
+  const chip =
+    "inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-3xs leading-none tabular-nums";
   return (
     <>
-      <span className="truncate">
-        <strong className="font-semibold text-foreground">{status ?? text}</strong>
-      </span>
-      <Button
-        size="xs"
-        variant="outline"
-        className="ms-auto shrink-0"
-        disabled={busy || !canManageProviders}
-        onClick={() => setConfirming(true)}
-      >
-        {busy ? "Using…" : "Use reset"}
-      </Button>
-      <ResetCreditDialog
-        open={confirming}
-        onOpenChange={setConfirming}
-        onConfirm={() => void redeem()}
-        disabled={!canManageProviders}
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            canRedeem ? (
+              <button
+                type="button"
+                aria-label={`Use reset: ${text}`}
+                disabled={busy || !canManageProviders}
+                onClick={() => setConfirming(true)}
+                className={cn(
+                  chip,
+                  "cursor-pointer text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                )}
+              />
+            ) : (
+              <span className={cn(chip, "text-muted-foreground")} />
+            )
+          }
+        >
+          <RotateCcwIcon aria-hidden className="size-2.5" />
+          {busy ? "…" : count}
+        </TooltipTrigger>
+        <TooltipPopup side="top">
+          {status ?? text}
+          {canRedeem ? " · click to use one" : ""}
+        </TooltipPopup>
+      </Tooltip>
+      {canRedeem ? (
+        <ResetCreditDialog
+          open={confirming}
+          onOpenChange={setConfirming}
+          onConfirm={() => void redeem()}
+          disabled={!canManageProviders}
+        />
+      ) : null}
     </>
   );
 }
@@ -413,7 +435,7 @@ function ProviderAccountCard({
   const canRedeem =
     (primary.resetCreditInput !== undefined || primary.instanceId !== undefined) &&
     primary.id.startsWith(`${environmentId}:`);
-  const hasSubPill = siblingSummaries.length > 0 || creditsText !== null;
+  const hasSubPill = siblingSummaries.length > 0;
   const nextSibling = siblings[0] ?? null;
 
   return (
@@ -441,6 +463,14 @@ function ProviderAccountCard({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {creditsText ? (
+            <ResetChip
+              environmentId={environmentId}
+              account={primary}
+              text={creditsText}
+              canRedeem={canRedeem}
+            />
+          ) : null}
           {activeIds.has(primary.id) ? (
             <Tooltip>
               <TooltipTrigger
@@ -491,14 +521,6 @@ function ProviderAccountCard({
                     <strong className="font-medium text-foreground">{sib.summary}</strong>
                   </span>
                 ))}
-              </span>
-            ) : null}
-            {creditsText && canRedeem ? (
-              <BankedCredits environmentId={environmentId} account={primary} text={creditsText} />
-            ) : creditsText ? (
-              <span className="truncate">
-                {siblingSummaries.length > 0 ? "· " : ""}
-                <strong className="font-semibold text-foreground">{creditsText}</strong>
               </span>
             ) : null}
           </div>

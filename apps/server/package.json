@@ -77,6 +77,7 @@
     "@t3tools/source-control-testing": "workspace:*",
     "@t3tools/ssh": "workspace:*",
     "@t3tools/tailscale": "workspace:*",
+    "@t3tools/trading": "workspace:*",
     "@t3tools/web": "workspace:*",
     "@types/node": "catalog:",
     "@types/proper-lockfile": "^4.1.4",

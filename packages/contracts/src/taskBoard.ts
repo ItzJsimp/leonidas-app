@@ -449,7 +449,7 @@ export type TaskBoardHomeInput = typeof TaskBoardHomeInput.Type;
 export const AiosWorkspaceScopeInput = Schema.Struct({ ...workspaceScope });
 export type AiosWorkspaceScopeInput = typeof AiosWorkspaceScopeInput.Type;
 
-export const AiosWorkspaceType = Schema.Literals(["personal", "business"]);
+export const AiosWorkspaceType = Schema.Literals(["personal", "business", "trading"]);
 export type AiosWorkspaceType = typeof AiosWorkspaceType.Type;
 
 // One AIOS folder the app found. Only a `ready` workspace (valid workspace.json) can be opened;
@@ -465,6 +465,8 @@ export const AiosWorkspaceSummary = Schema.Struct({
   projectIds: Schema.Array(ProjectId),
   // Projects the Tasks rail folds into "More". Optional, so an older server still parses.
   hiddenProjects: Schema.optional(Schema.Array(Schema.String)),
+  // Folder of the private crew pack a Trading workspace loads. Optional.
+  crewPack: Schema.optional(Schema.String),
 });
 export type AiosWorkspaceSummary = typeof AiosWorkspaceSummary.Type;
 
