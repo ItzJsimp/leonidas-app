@@ -8,6 +8,7 @@ import { memo, useMemo, useState, type ReactNode } from "react";
 
 import { useAnswerBlockActions } from "./AnswerBlockActions";
 import { ChartBlock } from "./ChartBlock";
+import { LessonBlock } from "./LessonBlock";
 
 interface AnswerBlockViewProps {
   type: AnswerBlockType;
@@ -47,6 +48,8 @@ function BlockBody({ block }: { block: AnswerBlock }) {
       return <ChecklistBlock block={block} />;
     case "chart":
       return <ChartBlock block={block} />;
+    case "lesson":
+      return <LessonBlock block={block} />;
   }
 }
 
