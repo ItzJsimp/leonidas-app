@@ -153,12 +153,13 @@ export function ChoiceField<V extends Record<string, string>>(props: {
         <Select
           value={form.values[name]}
           items={items}
+          disabled={options.length === 0}
           onValueChange={(value) => {
             if (typeof value === "string") form.set(name, value);
           }}
         >
           <SelectTrigger {...control} className="min-w-0">
-            <SelectValue />
+            <SelectValue placeholder={options.length === 0 ? "None yet" : undefined} />
           </SelectTrigger>
           <SelectPopup>
             {options.map(([value, label]) => (

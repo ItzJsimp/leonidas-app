@@ -2,6 +2,7 @@ import { deriveTradingState, parseEvent, type TradingEvent } from "@t3tools/trad
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  EDIT_FIELDS,
   MESSAGES,
   accountKinds,
   attemptAccounts,
@@ -282,5 +283,15 @@ describe("validation", () => {
     expect(
       validateFields(feeKinds, { accountId: "", amount: "5", date: "2027-01-01" }, NOW),
     ).toEqual({ accountId: MESSAGES.required, date: MESSAGES.future });
+  });
+});
+
+describe("Firm fees count once", () => {
+  it("never offers a Reset or an Activation fee as a cost category, so a fee cannot count twice", () => {
+    const category = EDIT_FIELDS["cost.paid"]?.find((field) => field.key === "category");
+    const values = (category?.options ?? []).map(([value]) => value);
+    expect(values).toContain("evaluation");
+    expect(values).not.toContain("reset");
+    expect(values).not.toContain("activation");
   });
 });

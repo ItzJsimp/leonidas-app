@@ -316,10 +316,10 @@ const STAGES = [
   ["evaluation", "Evaluation"],
   ["funded", "Funded"],
 ] as const;
+// No Reset or Activation fee here: those fees live on `attempt.started` and `funded.opened`,
+// so a `cost.paid` with them would count the fee twice.
 const COST_CATEGORIES = [
   ["evaluation", "Evaluation fee"],
-  ["reset", "Reset"],
-  ["activation", "Activation fee"],
   ["mentorship", "Mentorship"],
   ["data", "Market data"],
   ["tools", "Tools"],
