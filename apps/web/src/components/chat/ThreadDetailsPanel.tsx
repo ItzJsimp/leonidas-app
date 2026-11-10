@@ -22,6 +22,8 @@ import { ThreadDetailsSection } from "./ThreadDetailsSection";
 import { ThreadAutomationsPanel } from "./ThreadAutomationsPanel";
 import { ThreadRelationshipsPanel } from "./ThreadRelationshipsControl";
 import { ThreadServersPanel } from "./ThreadServersPanel";
+import { ThreadDetailsContext } from "./ThreadDetailsContext";
+import { ThreadDetailsLimits, type ThreadDetailsUsageProps } from "./ThreadDetailsUsage";
 
 export interface ThreadDetailsPanelProps extends Pick<
   ComponentProps<typeof ThreadDetailsCard>,
@@ -61,6 +63,8 @@ export interface ThreadDetailsPanelProps extends Pick<
     input: NewProjectScriptInput,
   ) => Promise<ProjectScriptActionResult>;
   onDeleteProjectScript: (scriptId: string) => Promise<ProjectScriptActionResult>;
+  /** Context window and account limits, shown below the run details. */
+  usage: ThreadDetailsUsageProps;
 }
 
 export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
@@ -98,68 +102,63 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
       handle={props.handle}
       onPresentationChange={props.onPresentationChange}
     >
-      {(density) => (
-        <>
-          <ThreadDetailsSection
-            headingId="thread-details-workspace-heading"
-            title="Project"
-            separated={false}
-            showHeading={false}
-          >
-            <div className="flex flex-col">
-              {density === "full" ? (
-                <BranchToolbar
-                  layout="panel"
-                  panelSection="workspace"
-                  availableEnvironments={props.availableEnvironments}
-                  onEnvironmentChange={props.onEnvironmentChange}
-                  autoEnvironmentLabel={props.autoEnvironmentLabel}
-                  onAutoEnvironment={props.onAutoEnvironment}
-                  {...branchToolbarProps}
-                />
-              ) : null}
-
-              {density !== "essential" && props.showOpenInPicker ? (
-                <OpenInPicker
-                  keybindings={props.keybindings}
-                  environmentId={props.environmentId}
-                  availableEditors={props.availableEditors}
-                  openInCwd={props.gitCwd}
-                  displayMode="panel"
-                />
-              ) : null}
-
-              {props.activeProjectScripts ? (
-                <ProjectScriptsControl
-                  environmentId={props.environmentId}
-                  displayMode="panel"
-                  scripts={props.activeProjectScripts}
-                  fileScripts={fileScripts}
-                  preferredScriptId={props.preferredScriptId}
-                  onRunScript={props.onRunProjectScript}
-                  onAddScript={props.onAddProjectScript}
-                  onUpdateScript={props.onUpdateProjectScript}
-                  onDeleteScript={props.onDeleteProjectScript}
-                />
-              ) : null}
-            </div>
-          </ThreadDetailsSection>
-
-          {props.gitCwd ? (
+      {(density) => {
+        // A short panel folds Limits to one line first, then Context, then trims Run.
+        const hasActions = (props.activeProjectScripts?.length ?? 0) > 0 || fileScripts.length > 0;
+        return (
+          <>
             <ThreadDetailsSection
-              headingId="thread-details-version-control-heading"
-              title="Branch and changes"
-              showHeading={false}
-              separated={density === "full"}
+              headingId="thread-details-run-heading"
+              title="Run"
+              separated={false}
             >
               <div className="flex flex-col">
-                {props.isGitRepo ? (
+                {density !== "essential" ? (
+                  <BranchToolbar
+                    layout="panel"
+                    panelSection="workspace"
+                    availableEnvironments={props.availableEnvironments}
+                    onEnvironmentChange={props.onEnvironmentChange}
+                    autoEnvironmentLabel={props.autoEnvironmentLabel}
+                    onAutoEnvironment={props.onAutoEnvironment}
+                    {...branchToolbarProps}
+                  />
+                ) : null}
+
+                {density !== "essential" && props.showOpenInPicker ? (
+                  <OpenInPicker
+                    keybindings={props.keybindings}
+                    environmentId={props.environmentId}
+                    availableEditors={props.availableEditors}
+                    openInCwd={props.gitCwd}
+                    displayMode="panel"
+                  />
+                ) : null}
+
+                {/* Project actions are saved terminal commands. Without any, only a tall panel
+                    keeps the row that adds the first one. */}
+                {props.activeProjectScripts &&
+                (density === "full" || (density === "compact" && hasActions)) ? (
+                  <ProjectScriptsControl
+                    environmentId={props.environmentId}
+                    displayMode="panel"
+                    scripts={props.activeProjectScripts}
+                    fileScripts={fileScripts}
+                    preferredScriptId={props.preferredScriptId}
+                    onRunScript={props.onRunProjectScript}
+                    onAddScript={props.onAddProjectScript}
+                    onUpdateScript={props.onUpdateProjectScript}
+                    onDeleteScript={props.onDeleteProjectScript}
+                  />
+                ) : null}
+
+                {props.gitCwd && props.isGitRepo ? (
                   <BranchToolbar layout="panel" panelSection="branch" {...branchToolbarProps} />
                 ) : null}
-                {props.activeProjectName ? (
+                {props.gitCwd && props.activeProjectName ? (
                   <GitActionsControl
                     displayMode="panel"
-                    compact={density !== "full"}
+                    compact={density === "essential"}
                     gitCwd={props.gitCwd}
                     activeThreadRef={{
                       environmentId: props.environmentId,
@@ -171,24 +170,30 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                 ) : null}
               </div>
             </ThreadDetailsSection>
-          ) : null}
 
-          {density === "full" && !props.draftId ? (
-            <ThreadServersPanel environmentId={props.environmentId} threadId={props.threadId} />
-          ) : null}
+            <ThreadDetailsContext usage={props.usage} folded={density === "essential"} />
+            <ThreadDetailsLimits usage={props.usage} folded={density !== "full"} />
 
-          {density === "full" && !props.draftId ? (
-            <ThreadAutomationsPanel environmentId={props.environmentId} threadId={props.threadId} />
-          ) : null}
+            {density === "full" && !props.draftId ? (
+              <ThreadServersPanel environmentId={props.environmentId} threadId={props.threadId} />
+            ) : null}
 
-          {density === "full" && !props.draftId ? (
-            <ThreadRelationshipsPanel
-              environmentId={props.environmentId}
-              threadId={props.threadId}
-            />
-          ) : null}
-        </>
-      )}
+            {density === "full" && !props.draftId ? (
+              <ThreadAutomationsPanel
+                environmentId={props.environmentId}
+                threadId={props.threadId}
+              />
+            ) : null}
+
+            {density === "full" && !props.draftId ? (
+              <ThreadRelationshipsPanel
+                environmentId={props.environmentId}
+                threadId={props.threadId}
+              />
+            ) : null}
+          </>
+        );
+      }}
     </ThreadDetailsCard>
   );
 }

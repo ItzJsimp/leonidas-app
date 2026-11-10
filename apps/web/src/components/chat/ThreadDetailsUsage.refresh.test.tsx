@@ -4,7 +4,7 @@ import { create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 
 const state = vi.hoisted(() => ({ refreshProviders: vi.fn(), release: () => {} }));
-vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn(), useParams: () => ({}) }));
+vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn() }));
 vi.mock("@t3tools/client-runtime/state/usage", () => ({
   refreshUsageLimits: (_environmentId: string, refresh: () => Promise<unknown>) => refresh(),
 }));
@@ -12,10 +12,6 @@ vi.mock("../../hooks/useConnectedUsageAccounts", () => ({
   useConnectedUsageAccounts: () => ({ active: [], others: [] }),
 }));
 vi.mock("../../hooks/useNowMinute", () => ({ useNowMinute: () => "2026-10-20T12:00" }));
-vi.mock("../../hooks/useSettings", () => ({
-  useUpdateClientSettings: () => vi.fn(),
-  useEnvironmentSettings: () => ({}),
-}));
 vi.mock("../../state/server", () => ({ serverEnvironment: { refreshProviders: null } }));
 vi.mock("../../state/use-atom-command", () => ({ useAtomCommand: () => state.refreshProviders }));
 vi.mock("../../state/queries", () => ({ useThreadContextBreakdown: () => ({}) }));
@@ -33,10 +29,23 @@ vi.mock("../ui/tooltip", async () => {
 });
 vi.mock("./DetailedContextBreakdownView", () => ({ DetailedContextBreakdownView: () => null }));
 vi.mock("./ProviderInstanceIcon", () => ({ ProviderInstanceIcon: () => null }));
-vi.mock("./PlanUsageLimits", () => ({ UsageBar: () => null, UsageRing: () => null }));
+vi.mock("./PlanUsageLimits", () => ({ UsageBar: () => null }));
 vi.mock("./UsageBenchmarks", () => ({ UsageBenchmarks: () => null }));
+vi.mock("./ContextWindowMeter", () => ({ ContextRing: () => null }));
 
-import { UsageOverlayCard } from "./UsageOverlayCard";
+import { ThreadDetailsLimits, type ThreadDetailsUsageProps } from "./ThreadDetailsUsage";
+
+const usage: ThreadDetailsUsageProps = {
+  environmentId: EnvironmentId.make("test"),
+  threadId: null,
+  instanceId: null,
+  modelLabel: "Model",
+  effortLabel: null,
+  contextWindow: null,
+  providerEntries: [],
+  onStartChat: null,
+  onStartArena: null,
+};
 
 let renderer: ReactTestRenderer;
 beforeEach(() => {
@@ -53,21 +62,9 @@ afterEach(() => {
 
 it("refreshes once per click and ignores a click while the refresh runs", async () => {
   await act(async () => {
-    renderer = create(
-      <UsageOverlayCard
-        environmentId={EnvironmentId.make("test")}
-        threadId={null}
-        instanceId={null}
-        modelLabel="Model"
-        effortLabel={null}
-        contextWindow={null}
-        providerEntries={[]}
-        onStartChat={null}
-        onStartArena={null}
-      />,
-    );
+    renderer = create(<ThreadDetailsLimits usage={usage} folded={false} />);
   });
-  const button = () => renderer.root.findByProps({ "aria-label": "Refresh subscription limits" });
+  const button = () => renderer.root.findByProps({ "aria-label": "Refresh limits" });
   expect(button().props.disabled).toBe(false);
   await act(async () => button().props.onClick());
   expect(state.refreshProviders).toHaveBeenCalledTimes(1);
@@ -80,19 +77,7 @@ it("refreshes once per click and ignores a click while the refresh runs", async 
 
 it("shows percent used only, with no switch to percent left", async () => {
   await act(async () => {
-    renderer = create(
-      <UsageOverlayCard
-        environmentId={EnvironmentId.make("test")}
-        threadId={null}
-        instanceId={null}
-        modelLabel="Model"
-        effortLabel={null}
-        contextWindow={null}
-        providerEntries={[]}
-        onStartChat={null}
-        onStartArena={null}
-      />,
-    );
+    renderer = create(<ThreadDetailsLimits usage={usage} folded={false} />);
   });
   const seen = new WeakSet();
   const text = JSON.stringify(renderer.toJSON(), (_key, value: unknown) => {
