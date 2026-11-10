@@ -58,7 +58,7 @@ describe("Journal", () => {
     expect(html).toContain("Nov 4");
     expect(html).toContain("+$3.20");
     expect(html).toContain("Long 2 MNQZ6");
-    expect(html).toContain("Firm A Plan 1 0001");
+    expect(html).toContain("Firm A Plan 1 50K ·0001");
     expect(html).toContain("How to export from TopstepX");
   });
 

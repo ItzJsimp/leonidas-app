@@ -4,7 +4,7 @@ import { parseEvent, type TradingEvent } from "@t3tools/trading";
 import * as Effect from "effect/Effect";
 import * as Path from "effect/Path";
 
-import { readWorkspaceFile } from "../taskBoard/aiosWorkspaces.ts";
+import { requireTradingRoot } from "./readTradingState.ts";
 
 /**
  * Adds 1 to 3 events to `trading/ledger.jsonl` in a Trading workspace folder. Every event is checked
@@ -14,11 +14,7 @@ export const appendTradingEvents = Effect.fn("trading.appendEvents")(function* (
   aiosRoot: string | null,
   events: ReadonlyArray<Record<string, unknown>>,
 ) {
-  if (aiosRoot === null) return yield* new TradingStateError({ reason: "workspace_not_found" });
-  const workspace = readWorkspaceFile(aiosRoot);
-  if (workspace.status !== "ready" || workspace.file.type !== "trading") {
-    return yield* new TradingStateError({ reason: "not_a_trading_workspace" });
-  }
+  const root = yield* requireTradingRoot(aiosRoot);
   const checked: TradingEvent[] = [];
   for (const event of events) {
     // shortcut: one author per local ledger, read the trader name from trading/settings.json when the setup wizard writes it
@@ -29,7 +25,7 @@ export const appendTradingEvents = Effect.fn("trading.appendEvents")(function* (
     checked.push(parsed);
   }
   const path = yield* Path.Path;
-  yield* appendEvents(path.join(aiosRoot, "trading", "ledger.jsonl"), checked).pipe(
+  yield* appendEvents(path.join(root, "trading", "ledger.jsonl"), checked).pipe(
     Effect.mapError(() => new TradingStateError({ reason: "read_failed" })),
   );
   return { appended: checked.length } satisfies TradingAppendResult;

@@ -4,13 +4,8 @@ import { useMemo } from "react";
 import { cn } from "~/lib/utils";
 
 import { formatSigned } from "./dashboard.logic";
-import {
-  TOPSTEPX_EXPORT_STEPS,
-  accountLabel,
-  formatDay,
-  tradeTime,
-  tradesByDay,
-} from "./journal.logic";
+import { TOPSTEPX_EXPORT_STEPS, formatDay, tradeTime, tradesByDay } from "./journal.logic";
+import { accountLabel } from "./addMenu.logic";
 
 /** The 5 TopstepX export steps as an ordered list. */
 export function ExportGuide({ className }: { readonly className?: string }) {
