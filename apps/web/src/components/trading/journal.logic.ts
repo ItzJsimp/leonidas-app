@@ -33,6 +33,33 @@ export function tradesByDay(trades: readonly TradingTradeView[]): readonly Journ
     }));
 }
 
+export const RULE_CHECK_WAITING = "Rule check waits for market data";
+
+/** The rule check line for one trade: its setup and rule breaks, once the pack check graded it. */
+export function gradeLine(trade: TradingTradeView): string | null {
+  if (trade.check !== "graded" || !trade.setup) return null;
+  const breaks = trade.ruleBreaks ?? [];
+  return breaks.length === 0
+    ? `${trade.setup}, no rule breaks`
+    : `${trade.setup}: ${breaks.join(", ")}`;
+}
+
+/** What the toast says about the rule check after an import. Null says nothing. */
+export function importCheckText(check: string): string | null {
+  switch (check) {
+    case "waiting":
+      return RULE_CHECK_WAITING;
+    case "graded":
+      return "Rule check done";
+    case "failed":
+      return "The rule check could not run. The trades are saved.";
+    case "pending":
+      return "Allow the rule check to grade new trades.";
+    default:
+      return null;
+  }
+}
+
 /** Open accounts, the ones an import can go to. */
 export const importAccounts = (
   accounts: readonly TradingAccountView[],

@@ -8,6 +8,7 @@ import type { FormKind } from "../components/trading/addMenu.logic";
 import { useTradingAppend } from "../components/trading/useTradingAppend";
 import { DashboardView } from "../components/trading/DashboardView";
 import { ImportPrompt } from "../components/trading/ImportPrompt";
+import { PackNotice } from "../components/trading/PackNotice";
 import { isEmptyLedger } from "../components/trading/dashboard.logic";
 import { TradingEmpty } from "../components/trading/TradingEmpty";
 import { useActiveAiosWorkspace } from "../components/workspace/useActiveAiosWorkspace";
@@ -43,6 +44,7 @@ function TradingDashboard() {
     <AddForms
       form={form}
       state={data.state}
+      pack={data.pack}
       entries={data.entries}
       append={append}
       onClose={() => setForm(null)}
@@ -69,11 +71,14 @@ function TradingDashboard() {
           state={data.state}
           notice={
             environmentId ? (
-              <ImportPrompt
-                environmentId={environmentId}
-                scope={scope}
-                accounts={data.state.accounts}
-              />
+              <>
+                <PackNotice environmentId={environmentId} scope={scope} pack={data.pack} />
+                <ImportPrompt
+                  environmentId={environmentId}
+                  scope={scope}
+                  accounts={data.state.accounts}
+                />
+              </>
             ) : null
           }
         />

@@ -144,6 +144,8 @@ export function ChoiceField<V extends Record<string, string>>(props: {
   readonly name: keyof V & string;
   readonly label: string;
   readonly options: Options;
+  /** Runs after the pick is saved, for fields that fill in from it. */
+  readonly onPick?: (value: string) => void;
 }) {
   const { form, name, options } = props;
   const items = Object.fromEntries(options);
@@ -155,7 +157,9 @@ export function ChoiceField<V extends Record<string, string>>(props: {
           items={items}
           disabled={options.length === 0}
           onValueChange={(value) => {
-            if (typeof value === "string") form.set(name, value);
+            if (typeof value !== "string") return;
+            form.set(name, value);
+            props.onPick?.(value);
           }}
         >
           <SelectTrigger {...control} className="min-w-0">

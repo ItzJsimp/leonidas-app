@@ -23,7 +23,13 @@ import { useEnvironmentQuery } from "~/state/query";
 import { tradingImport, tradingImportsQuery } from "~/state/trading";
 import { useAtomCommand } from "~/state/use-atom-command";
 
-import { accountLabel, importAccounts, importErrorText, importSummary } from "./journal.logic";
+import {
+  accountLabel,
+  importAccounts,
+  importCheckText,
+  importErrorText,
+  importSummary,
+} from "./journal.logic";
 
 const fileKey = (file: TradingImportFile) => `${file.name}|${file.trades}`;
 
@@ -156,10 +162,12 @@ export function ImportPrompt({
       const failure = squashAtomCommandFailure(result) as { readonly reason?: string } | undefined;
       return { ok: false, message: importErrorText(failure?.reason) };
     }
-    const { added } = result.value;
+    const { added, check } = result.value;
+    const description = importCheckText(check);
     toastManager.add({
       type: "success",
       title: added === 1 ? "Imported 1 trade" : `Imported ${added} trades`,
+      ...(description ? { description } : {}),
     });
     return { ok: true, result: result.value };
   };

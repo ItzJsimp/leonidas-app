@@ -37,6 +37,18 @@ export const tradingImport = createEnvironmentRpcCommand(connectionAtomRuntime, 
     }),
 });
 
+/** Saves the trader's answer for the pack's check module, then reads the state again. */
+export const tradingPackConsent = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:trading:pack-consent",
+  tag: WS_METHODS.tradingPackConsent,
+  onSuccess: ({ environmentId, input }, registry) =>
+    Effect.sync(() =>
+      registry.refresh(
+        tradingStateQuery({ environmentId, input: workspaceScopeInput(input.workspaceId) }),
+      ),
+    ),
+});
+
 /** Adds 1 to 3 events to the ledger, then refreshes the state so the Dashboard updates at once. */
 export const tradingAppend = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:trading:append",

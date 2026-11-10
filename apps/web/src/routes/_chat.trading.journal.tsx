@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { ImportPrompt } from "../components/trading/ImportPrompt";
+import { PackNotice } from "../components/trading/PackNotice";
 import { ExportGuide, JournalView } from "../components/trading/JournalView";
 import { RailWindow } from "../components/twoState/RailWindow";
 import { Button } from "../components/ui/button";
@@ -35,6 +36,7 @@ function TradingJournal() {
   return (
     <RailWindow title="Journal">
       <div className="flex flex-col gap-4 p-4">
+        <PackNotice environmentId={environmentId} scope={scope} pack={data.pack} />
         <ImportPrompt environmentId={environmentId} scope={scope} accounts={data.state.accounts} />
         {data.trades.length === 0 ? (
           <Empty size="compact">

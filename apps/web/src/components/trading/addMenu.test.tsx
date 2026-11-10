@@ -233,3 +233,58 @@ describe("Edit an entry", () => {
     expect(append.mock.calls[0]?.[0][0]).toMatchObject({ kind: "entry.deleted", targetId: "p1" });
   });
 });
+
+describe("Add account with a linked pack", () => {
+  // A made-up pack. Real firm prices stay in the private pack.
+  const PACK = {
+    status: "ready",
+    folder: "C:/packs/test",
+    firms: [
+      {
+        id: "firm-a",
+        name: "Firm A",
+        products: [
+          {
+            id: "plan-1",
+            name: "Plan 1",
+            size: 50000,
+            prices: { monthly: 10, activation: 20, reset: 15, oneTime: null },
+          },
+        ],
+      },
+    ],
+    check: { status: "none", module: null, sha256: null },
+  } as const;
+  const control = (label: string) => {
+    const found = [...document.querySelectorAll("label")].find((node) =>
+      node.textContent?.startsWith(label),
+    );
+    const id = found?.getAttribute("for");
+    return id ? document.getElementById(id) : null;
+  };
+
+  it("shows plain fields with no linked pack", async () => {
+    await show("account");
+    expect(control("Firm")).toBeInstanceOf(HTMLInputElement);
+    expect(control("Product")).toBeInstanceOf(HTMLInputElement);
+  });
+
+  it("offers the pack's firms and products to pick", async () => {
+    await act(async () => {
+      root.render(
+        <AddForms
+          form="account"
+          state={FUNDED}
+          pack={PACK}
+          entries={[]}
+          append={append}
+          onClose={onClose}
+        />,
+      );
+    });
+    expect(control("Firm")).not.toBeInstanceOf(HTMLInputElement);
+    expect(control("Firm")?.textContent).toBe("");
+    expect(control("Product")?.textContent).toContain("None yet");
+    expect(control("Size")).toBeInstanceOf(HTMLInputElement);
+  });
+});

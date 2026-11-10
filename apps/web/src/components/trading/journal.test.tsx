@@ -5,6 +5,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { ImportPromptView } from "./ImportPrompt";
 import { JournalView } from "./JournalView";
+import { PackConsentView } from "./PackNotice";
 import { TOPSTEPX_EXPORT_STEPS, importSummary, tradesByDay } from "./journal.logic";
 
 // Made-up firm and trades. Real exports stay on the trader's PC.
@@ -99,5 +100,37 @@ describe("Import prompt", () => {
     );
     expect(html).toContain("Add an account, then import this file.");
     expect(html).not.toContain("Which account?");
+  });
+});
+
+describe("Rule check", () => {
+  it("says once per day that the check waits for market data, and shows grades", () => {
+    const html = renderToStaticMarkup(
+      <JournalView
+        trades={[
+          { ...trade("8", "2026-11-05", "10:00", 1), check: "waiting" },
+          { ...trade("9", "2026-11-05", "10:10", 1), check: "waiting" },
+          {
+            ...trade("10", "2026-11-06", "10:00", 1),
+            check: "graded",
+            setup: "Setup 1",
+            ruleBreaks: ["after a loss"],
+          },
+        ]}
+        accounts={[account("acct-0001")]}
+      />,
+    );
+    expect(html.split("Rule check waits for market data").length - 1).toBe(1);
+    expect(html).toContain("Setup 1: after a loss");
+  });
+
+  it("asks before the check module runs and shows the exact file", () => {
+    const html = renderToStaticMarkup(
+      <PackConsentView module="C:/packs/test/checks/check.mjs" onAnswer={async () => null} />,
+    );
+    expect(html).toContain("Allow the rule check?");
+    expect(html).toContain("C:/packs/test/checks/check.mjs");
+    expect(html).toContain("Allow");
+    expect(html).toContain("Decline");
   });
 });

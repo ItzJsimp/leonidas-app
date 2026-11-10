@@ -1,4 +1,4 @@
-import type { TradingState } from "@t3tools/contracts";
+import type { TradingPackView, TradingState } from "@t3tools/contracts";
 
 import {
   FORM_TITLES,
@@ -36,11 +36,21 @@ import {
   type AppendFn,
   type Options,
 } from "./FormParts";
+import {
+  accountFee,
+  evaluationFee,
+  findProduct,
+  presetFirms,
+  sizeLabel,
+  type PresetFirm,
+} from "./packPresets";
 
 type Account = TradingState["accounts"][number];
 
 interface FormProps {
   readonly state: TradingState;
+  /** Firm presets from the linked pack. Empty: every field is typed by hand. */
+  readonly firms: readonly PresetFirm[];
   readonly append: AppendFn;
   readonly onClose: () => void;
 }
@@ -58,7 +68,7 @@ const STAGE_OPTIONS: Options = [
   ["funded", "Funded"],
 ];
 
-function AccountForm({ append, onClose }: FormProps) {
+function AccountForm({ firms, append, onClose }: FormProps) {
   const form = useTradingForm<AccountValues & Record<string, string>>({
     initial: {
       firm: "",
@@ -78,8 +88,36 @@ function AccountForm({ append, onClose }: FormProps) {
   return (
     <FormDialog title={FORM_TITLES.account} form={form} onClose={onClose}>
       <FieldRow>
-        <TextField form={form} name="firm" label="Firm" />
-        <TextField form={form} name="product" label="Product" />
+        {firms.length > 0 ? (
+          <>
+            <ChoiceField
+              form={form}
+              name="firm"
+              label="Firm"
+              options={firms.map((firm) => [firm.name, firm.name] as const)}
+              onPick={() => form.set("product", "")}
+            />
+            <ChoiceField
+              form={form}
+              name="product"
+              label="Product"
+              options={(firms.find((firm) => firm.name === form.values.firm)?.products ?? []).map(
+                (product) => [product.name, product.name] as const,
+              )}
+              onPick={(name) => {
+                const product = findProduct(firms, form.values.firm, name);
+                if (!product) return;
+                form.set("size", sizeLabel(product.size));
+                form.set("fee", evaluationFee(product));
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <TextField form={form} name="firm" label="Firm" />
+            <TextField form={form} name="product" label="Product" />
+          </>
+        )}
         <TextField form={form} name="size" label="Size" />
         <TextField form={form} name="platform" label="Platform" />
         <TextField form={form} name="last4" label="Last 4 digits" maxLength={4} />
@@ -93,10 +131,16 @@ function AccountForm({ append, onClose }: FormProps) {
   );
 }
 
-function AttemptForm({ state, append, onClose }: FormProps) {
+function AttemptForm({ state, firms, append, onClose }: FormProps) {
   const accounts = attemptAccounts(state);
+  const byId = (id: string) => accounts.find((account) => account.id === id);
   const form = useTradingForm<AttemptValues & Record<string, string>>({
-    initial: { accountId: accounts[0]?.id ?? "", via: "purchase", fee: "", date: localDay() },
+    initial: {
+      accountId: accounts[0]?.id ?? "",
+      via: "purchase",
+      fee: accountFee(firms, accounts[0], "purchase"),
+      date: localDay(),
+    },
     kinds: () => attemptKinds,
     build: buildStartAttempt,
     append,
@@ -109,9 +153,30 @@ function AttemptForm({ state, append, onClose }: FormProps) {
         name="accountId"
         label="Account"
         options={accountOptions(accounts)}
+        onPick={(id) =>
+          form.set(
+            "fee",
+            accountFee(firms, byId(id), form.values.via === "reset" ? "reset" : "purchase"),
+          )
+        }
       />
       <FieldRow>
-        <ChoiceField form={form} name="via" label="Purchase or Reset" options={VIA_OPTIONS} />
+        <ChoiceField
+          form={form}
+          name="via"
+          label="Purchase or Reset"
+          options={VIA_OPTIONS}
+          onPick={(via) =>
+            form.set(
+              "fee",
+              accountFee(
+                firms,
+                byId(form.values.accountId),
+                via === "reset" ? "reset" : "purchase",
+              ),
+            )
+          }
+        />
         <TextField form={form} name="fee" label="Fee" kind="amount" />
       </FieldRow>
       <TextField form={form} name="date" label="Date" kind="date" max={localDay()} />
@@ -119,15 +184,16 @@ function AttemptForm({ state, append, onClose }: FormProps) {
   );
 }
 
-function ResultForm({ state, append, onClose }: FormProps) {
+function ResultForm({ state, firms, append, onClose }: FormProps) {
   const accounts = resultAccounts(state);
+  const byId = (id: string) => accounts.find((account) => account.id === id);
   const form = useTradingForm<ResultValues & Record<string, string>>({
     initial: {
       accountId: accounts[0]?.id ?? "",
       result: "passed",
-      activationFee: "",
+      activationFee: accountFee(firms, accounts[0], "activation"),
       next: "reset",
-      resetFee: "",
+      resetFee: accountFee(firms, accounts[0], "reset"),
       closeReason: "drawdown",
       date: localDay(),
     },
@@ -144,6 +210,10 @@ function ResultForm({ state, append, onClose }: FormProps) {
         name="accountId"
         label="Account"
         options={accountOptions(accounts)}
+        onPick={(id) => {
+          form.set("activationFee", accountFee(firms, byId(id), "activation"));
+          form.set("resetFee", accountFee(firms, byId(id), "reset"));
+        }}
       />
       <FieldRow>
         <ChoiceField
@@ -252,12 +322,13 @@ function MoneyFormDialog({ kind, state, append, onClose }: FormProps & { kind: M
 export function AddForms(props: {
   readonly form: FormKind | null;
   readonly state: TradingState;
+  readonly pack?: TradingPackView;
   readonly entries: readonly Entry[];
   readonly append: AppendFn;
   readonly onClose: () => void;
 }) {
   const { form, state, entries, append, onClose } = props;
-  const shared = { state, append, onClose };
+  const shared = { state, firms: presetFirms(props.pack), append, onClose };
   switch (form) {
     case "account":
       return <AccountForm {...shared} />;

@@ -5,9 +5,11 @@ import { cn } from "~/lib/utils";
 
 import { formatSigned } from "./dashboard.logic";
 import {
+  RULE_CHECK_WAITING,
   TOPSTEPX_EXPORT_STEPS,
   accountLabel,
   formatDay,
+  gradeLine,
   tradeTime,
   tradesByDay,
 } from "./journal.logic";
@@ -47,6 +49,11 @@ export function JournalView({
             {formatDay(day.day)}
             <span className={cn("tabular-nums", signClass(day.pnl))}>{formatSigned(day.pnl)}</span>
           </h2>
+          {day.trades.some((trade) => trade.check === "waiting") ? (
+            <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
+              {RULE_CHECK_WAITING}
+            </p>
+          ) : null}
           <ul className="divide-y divide-border">
             {day.trades.map((trade) => (
               <li key={trade.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
@@ -62,6 +69,11 @@ export function JournalView({
                   <span className="block truncate text-xs text-muted-foreground">
                     {names.get(trade.accountId) ?? "Unknown account"}
                   </span>
+                  {gradeLine(trade) ? (
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {gradeLine(trade)}
+                    </span>
+                  ) : null}
                 </span>
                 {trade.points === undefined ? null : (
                   <span className="shrink-0 tabular-nums text-muted-foreground">
