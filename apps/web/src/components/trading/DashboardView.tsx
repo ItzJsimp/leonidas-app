@@ -233,10 +233,18 @@ function JourneyCard({ state }: { readonly state: TradingState }) {
 }
 
 /** Dashboard B Cockpit with A's journey row (Doop pick). Numbers come from `deriveTradingState`. */
-export function DashboardView({ state }: { readonly state: TradingState }) {
+/** `notice` shows above the key numbers, for example a new TopstepX export to import. */
+export function DashboardView({
+  state,
+  notice,
+}: {
+  readonly state: TradingState;
+  readonly notice?: ReactNode;
+}) {
   const numbers = keyNumbers(state);
   return (
     <div className="flex flex-col gap-3 p-4">
+      {notice}
       <section
         aria-label="Key numbers"
         className="grid grid-cols-2 rounded-xl border border-border bg-card sm:grid-cols-3 lg:grid-cols-5"

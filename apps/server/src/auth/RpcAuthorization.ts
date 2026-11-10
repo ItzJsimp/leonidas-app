@@ -230,6 +230,8 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.workspacePackOrgDecide]: AuthOrchestrationOperateScope,
   [WS_METHODS.taskBoardHomeWeather]: AuthOrchestrationReadScope,
   [WS_METHODS.taskBoardHomeNews]: AuthOrchestrationReadScope,
+  [WS_METHODS.tradingImports]: AuthOrchestrationReadScope,
+  [WS_METHODS.tradingImport]: AuthOrchestrationOperateScope,
   [WS_METHODS.tradingState]: AuthOrchestrationReadScope,
   [WS_METHODS.releaseStatusRuns]: AuthReleaseReadScope,
   [WS_METHODS.layaUsage]: AuthOrchestrationReadScope,

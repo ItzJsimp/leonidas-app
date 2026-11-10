@@ -24,6 +24,7 @@ export const TradingAccountView = Schema.Struct({
   winningDays: NullableNumber,
   bestDayPercent: NullableNumber,
 });
+export type TradingAccountView = typeof TradingAccountView.Type;
 
 const TradingAttempt = Schema.Struct({
   accountId: Schema.String,
@@ -77,8 +78,26 @@ export const TradingState = Schema.Struct({
 });
 export type TradingState = typeof TradingState.Type;
 
+/** One imported trade, as `trading/trades.jsonl` stores it. `pnl` is net of fees. */
+export const TradingTradeView = Schema.Struct({
+  id: Schema.String,
+  accountId: Schema.String,
+  day: Schema.String,
+  at: Schema.String,
+  pnl: Schema.Number,
+  contract: Schema.optional(Schema.String),
+  side: Schema.optional(Schema.String),
+  size: Schema.optional(Schema.Number),
+  points: Schema.optional(Schema.Number),
+  setup: Schema.optional(Schema.String),
+  ruleBreaks: Schema.optional(Schema.Array(Schema.String)),
+});
+export type TradingTradeView = typeof TradingTradeView.Type;
+
 export const TradingStateResult = Schema.Struct({
   state: TradingState,
+  /** The newest trades, newest first, for the Journal. */
+  trades: Schema.Array(TradingTradeView),
   /** Lines in the ledger or trades file that were skipped as unreadable. */
   skippedLines: Schema.Number,
 });
@@ -86,9 +105,45 @@ export type TradingStateResult = typeof TradingStateResult.Type;
 
 export class TradingStateError extends Schema.TaggedError<TradingStateError>()(
   "TradingStateError",
-  { reason: Schema.Literals(["workspace_not_found", "not_a_trading_workspace", "read_failed"]) },
+  {
+    reason: Schema.Literals([
+      "workspace_not_found",
+      "not_a_trading_workspace",
+      "read_failed",
+      "file_not_found",
+      "not_an_export",
+      "unknown_account",
+    ]),
+  },
 ) {
   override get message() {
     return `Trading state unavailable: ${this.reason}`;
   }
 }
+
+/** A TopstepX Trades export in the import folder with trades this workspace does not have yet. */
+export const TradingImportFile = Schema.Struct({
+  name: Schema.String,
+  trades: Schema.Number,
+  firstDay: Schema.NullOr(Schema.String),
+  lastDay: Schema.NullOr(Schema.String),
+});
+export type TradingImportFile = typeof TradingImportFile.Type;
+
+export const TradingImportsResult = Schema.Struct({ files: Schema.Array(TradingImportFile) });
+export type TradingImportsResult = typeof TradingImportsResult.Type;
+
+/** Imports one export file (a plain name in the import folder) into one open account. */
+export const TradingImportInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  file: Schema.String,
+  accountId: Schema.String,
+});
+export type TradingImportInput = typeof TradingImportInput.Type;
+
+export const TradingImportResult = Schema.Struct({
+  added: Schema.Number,
+  duplicates: Schema.Number,
+  skippedRows: Schema.Number,
+});
+export type TradingImportResult = typeof TradingImportResult.Type;

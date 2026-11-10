@@ -197,7 +197,8 @@ export function parseEvent(value: unknown): TradingEvent | string {
   return error ?? (value as TradingEvent);
 }
 
-function parseTrade(value: unknown): Trade | string {
+/** Returns the trade, or the reason it is not a valid line of `trades.jsonl`. */
+export function parseTrade(value: unknown): Trade | string {
   return shapeError(value, TRADE_REQ, TRADE_OPT) ?? (value as Trade);
 }
 
@@ -242,5 +243,7 @@ export function parseTrades(fileText: string) {
   const { items, issues } = parseLines(fileText, parseTrade);
   return { trades: items, issues };
 }
+
+export const serializeTrade = (trade: Trade): string => `${JSON.stringify(trade)}\n`;
 
 export const serializeEvent = (event: TradingEvent): string => `${JSON.stringify(event)}\n`;

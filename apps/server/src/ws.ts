@@ -44,6 +44,11 @@ import {
 import { readReleaseStatus } from "./releaseStatus/releaseStatus.ts";
 import { homeNews, homeWeather } from "./taskBoard/homeFeeds.ts";
 import { readTradingState } from "./trading/readTradingState.ts";
+import {
+  importTradingExport,
+  listTradingImports,
+  makeTradingImportWatch,
+} from "./trading/tradingImports.ts";
 import * as PromptSuggestion from "./workspace/PromptSuggestion.ts";
 import * as SkillPick from "./workspace/SkillPick.ts";
 import * as TextGeneration from "./textGeneration/TextGeneration.ts";
@@ -1528,6 +1533,8 @@ const layerWsRpc = (
       });
       const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
       const backgroundPolicy = yield* BackgroundPolicy.BackgroundPolicy;
+      const tradingImports = makeTradingImportWatch();
+      yield* Effect.addFinalizer(() => Effect.sync(tradingImports.close));
       const rpcClientIds = yield* Ref.make(new Set<RpcClientId>());
       yield* Effect.addFinalizer(() =>
         Ref.get(rpcClientIds).pipe(
@@ -3129,6 +3136,18 @@ const layerWsRpc = (
         [WS_METHODS.taskBoardHomeWeather]: (input) =>
           Effect.promise(() => homeWeather(input.place)),
         [WS_METHODS.taskBoardHomeNews]: () => Effect.promise(() => homeNews()),
+        [WS_METHODS.tradingImports]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => listTradingImports(root, tradingImports)),
+          ),
+        [WS_METHODS.tradingImport]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => importTradingExport(root, input, tradingImports)),
+          ),
         [WS_METHODS.tradingState]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),

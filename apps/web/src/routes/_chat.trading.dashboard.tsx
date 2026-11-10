@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { RailWindow } from "../components/twoState/RailWindow";
 import { DashboardView } from "../components/trading/DashboardView";
+import { ImportPrompt } from "../components/trading/ImportPrompt";
 import { isEmptyLedger } from "../components/trading/dashboard.logic";
 import { TradingEmpty } from "../components/trading/TradingEmpty";
 import { useActiveAiosWorkspace } from "../components/workspace/useActiveAiosWorkspace";
@@ -42,7 +43,18 @@ function TradingDashboard() {
   }
   return (
     <RailWindow title="Dashboard">
-      <DashboardView state={data.state} />
+      <DashboardView
+        state={data.state}
+        notice={
+          environmentId ? (
+            <ImportPrompt
+              environmentId={environmentId}
+              scope={scope}
+              accounts={data.state.accounts}
+            />
+          ) : null
+        }
+      />
     </RailWindow>
   );
 }

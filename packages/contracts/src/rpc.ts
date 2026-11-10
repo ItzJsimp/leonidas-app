@@ -348,7 +348,14 @@ import {
   ProviderUploadFeedbackResult,
 } from "./provider.ts";
 import { ProviderInstanceId, ProviderInstanceMutation } from "./providerInstance.ts";
-import { TradingStateError, TradingStateInput, TradingStateResult } from "./trading.ts";
+import {
+  TradingImportInput,
+  TradingImportResult,
+  TradingImportsResult,
+  TradingStateError,
+  TradingStateInput,
+  TradingStateResult,
+} from "./trading.ts";
 import {
   PullRequestActionInput,
   PullRequestActivity,
@@ -731,6 +738,8 @@ export const WS_METHODS = {
   workspacePackOrgDecide: "workspacePack.orgDecide",
   taskBoardHomeWeather: "taskBoard.homeWeather",
   taskBoardHomeNews: "taskBoard.homeNews",
+  tradingImports: "trading.imports",
+  tradingImport: "trading.import",
   tradingState: "trading.state",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
@@ -2126,6 +2135,18 @@ const WsTaskBoardHomeNewsRpc = Rpc.make(WS_METHODS.taskBoardHomeNews, {
   payload: Schema.Struct({}),
   success: TaskBoardHomeNews,
   error: EnvironmentAuthorizationError,
+});
+
+const WsTradingImportsRpc = Rpc.make(WS_METHODS.tradingImports, {
+  payload: TradingStateInput,
+  success: TradingImportsResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingImportRpc = Rpc.make(WS_METHODS.tradingImport, {
+  payload: TradingImportInput,
+  success: TradingImportResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
 const WsTradingStateRpc = Rpc.make(WS_METHODS.tradingState, {
@@ -3612,6 +3633,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsAiosDirectionRpc,
   WsTaskBoardHomeWeatherRpc,
   WsTaskBoardHomeNewsRpc,
+  WsTradingImportsRpc,
+  WsTradingImportRpc,
   WsTradingStateRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
