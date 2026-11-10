@@ -3,6 +3,7 @@ import { CheckIcon, GraduationCapIcon } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "~/lib/utils";
+import { underlineTabClass } from "../../ui/underlineTab";
 import { useAnswerBlockActions } from "./AnswerBlockActions";
 
 type LessonBlockData = Extract<AnswerBlock, { type: "lesson" }>;
@@ -62,12 +63,7 @@ export function LessonBlock({ block }: { block: LessonBlockData }) {
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setTabIndex(index)}
-                className={cn(
-                  "-mb-px flex shrink-0 items-center gap-1.5 border-b-2 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
-                  selected
-                    ? "border-primary font-medium text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
+                className={underlineTabClass(selected)}
               >
                 {item.label}
                 <span className="rounded-full bg-surface-raised px-1.5 text-2xs text-muted-foreground tabular-nums">

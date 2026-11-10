@@ -1,6 +1,6 @@
 import { useMemo, useState, type ComponentProps } from "react";
 import { parseOutputDock, type DockSection, type DockStatus } from "@t3tools/shared/outputDock";
-import { cn } from "~/lib/utils";
+import { underlineTabClass } from "../ui/underlineTab";
 import ChatMarkdown from "../ChatMarkdown";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -121,9 +121,6 @@ function previewOf(body: string): string {
   return kept.join("\n");
 }
 
-const TAB_CLASS =
-  "-mb-px flex min-h-8 items-center gap-1.5 border-b-2 px-0.5 text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
-
 /** A long body: Summary shows its first lines, Full answer shows all of it. */
 function ReplyTabs({
   body,
@@ -134,13 +131,7 @@ function ReplyTabs({
 }) {
   const [full, setFull] = useState(false);
   const words = body.split(/\s+/).filter(Boolean).length;
-  const tab = (selected: boolean) =>
-    cn(
-      TAB_CLASS,
-      selected
-        ? "border-primary font-medium text-foreground"
-        : "border-transparent text-muted-foreground hover:text-foreground",
-    );
+  const tab = (selected: boolean) => underlineTabClass(selected, "min-h-8 px-0.5 py-0");
   return (
     <div>
       <div role="tablist" aria-label="Reply" className="mb-2 flex gap-4 border-b border-border">
