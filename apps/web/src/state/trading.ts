@@ -36,3 +36,15 @@ export const tradingImport = createEnvironmentRpcCommand(connectionAtomRuntime, 
       registry.refresh(tradingImportsQuery({ environmentId, input: scope }));
     }),
 });
+
+/** Adds 1 to 3 events to the ledger, then refreshes the state so the Dashboard updates at once. */
+export const tradingAppend = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:trading:append",
+  tag: WS_METHODS.tradingAppend,
+  onSuccess: ({ environmentId, input }, registry) =>
+    Effect.sync(() =>
+      registry.refresh(
+        tradingStateQuery({ environmentId, input: workspaceScopeInput(input.workspaceId) }),
+      ),
+    ),
+});

@@ -111,7 +111,7 @@ const toDollars = (cents: number): number => cents / 100;
 type EventIssue = { eventId: string; reason: string };
 
 /** Applies edits and deletes, then orders the live events by time. Equal times keep ledger order. */
-function liveEvents(events: readonly TradingEvent[], issues: EventIssue[]): TradingEvent[] {
+export function liveEvents(events: readonly TradingEvent[], issues: EventIssue[]): TradingEvent[] {
   const live = new Map<string, TradingEvent>();
   for (const event of events) {
     if (event.kind !== "entry.corrected" && event.kind !== "entry.deleted") {

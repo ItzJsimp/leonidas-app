@@ -46,13 +46,20 @@ const appendText = (path: string, text: string) =>
     }),
   );
 
-/** Appends one validated event. */
-export const appendEvent = (path: string, event: TradingEvent) =>
+/** Appends validated events in one write and one sync. If any event is invalid, nothing is written. */
+export const appendEvents = (path: string, events: readonly TradingEvent[]) =>
   Effect.gen(function* () {
-    const checked = parseEvent(event);
-    if (typeof checked === "string") return yield* new LedgerError({ reason: checked });
-    yield* appendText(path, serializeEvent(checked));
+    let lines = "";
+    for (const event of events) {
+      const checked = parseEvent(event);
+      if (typeof checked === "string") return yield* new LedgerError({ reason: checked });
+      lines += serializeEvent(checked);
+    }
+    yield* appendText(path, lines);
   });
+
+/** Appends one validated event. */
+export const appendEvent = (path: string, event: TradingEvent) => appendEvents(path, [event]);
 
 /** Appends validated trades to `trades.jsonl` in one write. A bad trade writes nothing. */
 export const appendTrades = (path: string, trades: readonly Trade[]) =>

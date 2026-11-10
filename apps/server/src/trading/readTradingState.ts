@@ -1,5 +1,5 @@
 import { TradingStateError, type TradingStateResult } from "@t3tools/contracts";
-import { deriveTradingState, parseLedger, parseTrades } from "@t3tools/trading";
+import { deriveTradingState, liveEvents, parseLedger, parseTrades } from "@t3tools/trading";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -18,6 +18,7 @@ export const requireTradingRoot = (aiosRoot: string | null) => {
     ? Effect.succeed(aiosRoot)
     : Effect.fail(new TradingStateError({ reason: "not_a_trading_workspace" }));
 };
+const MAX_ENTRIES = 50;
 
 /**
  * Reads `trading/ledger.jsonl` and `trading/trades.jsonl` in a Trading workspace folder and derives
@@ -40,7 +41,14 @@ export const readTradingState = Effect.fn("trading.readState")(function* (aiosRo
   ]);
   const ledger = parseLedger(ledgerText);
   const trades = parseTrades(tradesText);
+  // Newest first for the Edit an entry list. `trade.tagged` has no row there.
+  const entries = liveEvents(ledger.events, [])
+    .filter((event) => event.kind !== "trade.tagged")
+    .toReversed()
+    .slice(0, MAX_ENTRIES)
+    .map((event) => ({ ...event }));
   return {
+    entries,
     state: deriveTradingState({ events: ledger.events, trades: trades.trades }),
     trades: trades.trades
       .map((trade) => ({ trade, time: Date.parse(trade.at) }))
