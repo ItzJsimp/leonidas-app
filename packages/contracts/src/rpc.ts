@@ -348,7 +348,17 @@ import {
   ProviderUploadFeedbackResult,
 } from "./provider.ts";
 import { ProviderInstanceId, ProviderInstanceMutation } from "./providerInstance.ts";
-import { TradingStateError, TradingStateInput, TradingStateResult } from "./trading.ts";
+import {
+  TradingAppendInput,
+  TradingAppendResult,
+  TradingImportInput,
+  TradingImportResult,
+  TradingImportsResult,
+  TradingPackConsentInput,
+  TradingStateError,
+  TradingStateInput,
+  TradingStateResult,
+} from "./trading.ts";
 import {
   PullRequestActionInput,
   PullRequestActivity,
@@ -731,7 +741,11 @@ export const WS_METHODS = {
   workspacePackOrgDecide: "workspacePack.orgDecide",
   taskBoardHomeWeather: "taskBoard.homeWeather",
   taskBoardHomeNews: "taskBoard.homeNews",
+  tradingImports: "trading.imports",
+  tradingImport: "trading.import",
+  tradingPackConsent: "trading.packConsent",
   tradingState: "trading.state",
+  tradingAppend: "trading.append",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
@@ -2128,9 +2142,33 @@ const WsTaskBoardHomeNewsRpc = Rpc.make(WS_METHODS.taskBoardHomeNews, {
   error: EnvironmentAuthorizationError,
 });
 
+const WsTradingImportsRpc = Rpc.make(WS_METHODS.tradingImports, {
+  payload: TradingStateInput,
+  success: TradingImportsResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingImportRpc = Rpc.make(WS_METHODS.tradingImport, {
+  payload: TradingImportInput,
+  success: TradingImportResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingPackConsentRpc = Rpc.make(WS_METHODS.tradingPackConsent, {
+  payload: TradingPackConsentInput,
+  success: Schema.Void,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
 const WsTradingStateRpc = Rpc.make(WS_METHODS.tradingState, {
   payload: TradingStateInput,
   success: TradingStateResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingAppendRpc = Rpc.make(WS_METHODS.tradingAppend, {
+  payload: TradingAppendInput,
+  success: TradingAppendResult,
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
@@ -3612,7 +3650,11 @@ export const WsRpcGroup = RpcGroup.make(
   WsAiosDirectionRpc,
   WsTaskBoardHomeWeatherRpc,
   WsTaskBoardHomeNewsRpc,
+  WsTradingImportsRpc,
+  WsTradingImportRpc,
+  WsTradingPackConsentRpc,
   WsTradingStateRpc,
+  WsTradingAppendRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,

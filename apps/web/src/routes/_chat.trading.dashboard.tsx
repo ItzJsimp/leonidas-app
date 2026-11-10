@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 
 import { RailWindow } from "../components/twoState/RailWindow";
+import { AddForms } from "../components/trading/AddForms";
+import { AddMenu } from "../components/trading/AddMenu";
+import type { FormKind } from "../components/trading/addMenu.logic";
+import { useTradingAppend } from "../components/trading/useTradingAppend";
 import { DashboardView } from "../components/trading/DashboardView";
+import { ImportPrompt } from "../components/trading/ImportPrompt";
+import { PackNotice } from "../components/trading/PackNotice";
 import { isEmptyLedger } from "../components/trading/dashboard.logic";
 import { TradingEmpty } from "../components/trading/TradingEmpty";
 import { useActiveAiosWorkspace } from "../components/workspace/useActiveAiosWorkspace";
@@ -15,6 +22,8 @@ function TradingDashboard() {
     environmentId && scopeReady ? tradingStateQuery({ environmentId, input: scope }) : null,
   );
   const data = query.data;
+  const append = useTradingAppend();
+  const [form, setForm] = useState<FormKind | null>(null);
 
   if (data === null || data === undefined) {
     return (
@@ -31,19 +40,51 @@ function TradingDashboard() {
       </RailWindow>
     );
   }
+  const forms = (
+    <AddForms
+      form={form}
+      state={data.state}
+      pack={data.pack}
+      entries={data.entries}
+      append={append}
+      onClose={() => setForm(null)}
+    />
+  );
+  const add = <AddMenu onSelect={setForm} />;
   if (isEmptyLedger(data.state)) {
     return (
-      <TradingEmpty
-        title="Dashboard"
-        line="Your Evaluations, Payouts and Total cost show here once you add an account."
-        action={{ label: "Add account", to: "/trading/accounts" }}
-      />
+      <>
+        <TradingEmpty
+          title="Dashboard"
+          line="Your Evaluations, Payouts and Total cost show here once you add an account."
+          action={{ label: "Add account", onClick: () => setForm("account") }}
+          actions={add}
+        />
+        {forms}
+      </>
     );
   }
   return (
-    <RailWindow title="Dashboard">
-      <DashboardView state={data.state} />
-    </RailWindow>
+    <>
+      <RailWindow title="Dashboard" actions={add}>
+        <DashboardView
+          state={data.state}
+          notice={
+            environmentId ? (
+              <>
+                <PackNotice environmentId={environmentId} scope={scope} pack={data.pack} />
+                <ImportPrompt
+                  environmentId={environmentId}
+                  scope={scope}
+                  accounts={data.state.accounts}
+                />
+              </>
+            ) : null
+          }
+        />
+      </RailWindow>
+      {forms}
+    </>
   );
 }
 
