@@ -11,8 +11,11 @@ export interface WorkspacePreset {
   readonly defaultName: string;
   /** The folder beside the managed `projects` folder that holds new workspaces of this kind. */
   readonly folderParent: string;
-  /** True when "Use an existing folder" is offered (the setup adds only workspace.json). */
-  readonly existingFolder: boolean;
+  /**
+   * The folder picker: "existing" uses the picked folder as the workspace (only workspace.json is
+   * added), "parent" makes the workspace folder inside it. Null offers no picker.
+   */
+  readonly folderPick: "existing" | "parent" | null;
   /** The page the app opens once the new workspace is active. */
   readonly landing: "/command-center" | "/trading/dashboard";
 }
@@ -25,7 +28,7 @@ export const WORKSPACE_PRESETS: ReadonlyArray<WorkspacePreset> = [
     icon: UserIcon,
     defaultName: "Personal",
     folderParent: "workspaces",
-    existingFolder: true,
+    folderPick: "existing",
     landing: "/command-center",
   },
   {
@@ -35,7 +38,7 @@ export const WORKSPACE_PRESETS: ReadonlyArray<WorkspacePreset> = [
     icon: BriefcaseIcon,
     defaultName: "",
     folderParent: "businesses",
-    existingFolder: false,
+    folderPick: null,
     landing: "/command-center",
   },
   {
@@ -45,7 +48,7 @@ export const WORKSPACE_PRESETS: ReadonlyArray<WorkspacePreset> = [
     icon: CandlestickChartIcon,
     defaultName: "Trading",
     folderParent: "workspaces",
-    existingFolder: true,
+    folderPick: "parent",
     landing: "/trading/dashboard",
   },
 ];

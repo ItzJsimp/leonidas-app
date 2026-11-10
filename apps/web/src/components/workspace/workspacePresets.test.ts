@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { newWorkspaceFolder, uniqueWorkspaceId } from "./aiosWorkspace.logic";
+import { childFolder, newWorkspaceFolder, uniqueWorkspaceId } from "./aiosWorkspace.logic";
 import { WORKSPACE_PRESETS } from "./workspacePresets";
 
 describe("WORKSPACE_PRESETS", () => {
@@ -24,6 +24,14 @@ describe("WORKSPACE_PRESETS", () => {
       "/home/j/.t3/workspaces/trading",
     );
     expect(trading.landing).toBe("/trading/dashboard");
+  });
+
+  it("lets Trading choose where its folder goes, and Personal use an existing folder", () => {
+    const pick = Object.fromEntries(
+      WORKSPACE_PRESETS.map((preset) => [preset.type, preset.folderPick]),
+    );
+    expect(pick).toEqual({ personal: "existing", business: null, trading: "parent" });
+    expect(childFolder("D:/Backups/", "trading")).toBe("D:/Backups/trading");
   });
 
   it("keeps the business folder where the business template expects it", () => {

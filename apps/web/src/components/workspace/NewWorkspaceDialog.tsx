@@ -27,7 +27,12 @@ import { useEnvironmentQuery } from "~/state/query";
 import { sourceControlEnvironment } from "~/state/sourceControl";
 import { useAtomCommand } from "~/state/use-atom-command";
 
-import { homeRepository, newWorkspaceFolder, uniqueWorkspaceId } from "./aiosWorkspace.logic";
+import {
+  childFolder,
+  homeRepository,
+  newWorkspaceFolder,
+  uniqueWorkspaceId,
+} from "./aiosWorkspace.logic";
 import { useNewWorkspaceStore } from "./newWorkspaceStore";
 import { useActiveAiosWorkspace } from "./useActiveAiosWorkspace";
 import { WORKSPACE_PRESETS, type WorkspacePreset } from "./workspacePresets";
@@ -142,7 +147,8 @@ function NewWorkspaceForm(props: {
   const id = useId();
   const [name, setName] = useState(preset.defaultName);
   const [ownerName, setOwnerName] = useState("");
-  // A folder the person picked. Null makes a new folder beside the managed projects folder.
+  // The picked folder: the workspace itself, or the place to make it in (preset.folderPick).
+  // Null makes the workspace folder beside the managed projects folder.
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,16 +170,24 @@ function NewWorkspaceForm(props: {
   );
   const [publishes, setPublishes] = useState(false);
   const workspaceId = uniqueWorkspaceId(name, props.takenIds);
+  const canPick = preset.folderPick !== null && pickFolder !== undefined;
+  const usesExisting = picked !== null && preset.folderPick === "existing";
   const folder =
     createdRoot ??
-    picked ??
-    newWorkspaceFolder(props.newProjectsRoot, preset.folderParent, workspaceId);
+    (picked === null
+      ? newWorkspaceFolder(props.newProjectsRoot, preset.folderParent, workspaceId)
+      : usesExisting
+        ? picked
+        : childFolder(picked, workspaceId));
 
-  const pickExisting = async () => {
+  const pick = async () => {
     const path = await pickFolder?.().catch(() => null);
     if (!path) return;
     setPicked(path);
-    if (name === preset.defaultName) setName(inferProjectTitleFromPath(path));
+    setError(null);
+    if (preset.folderPick === "existing" && name === preset.defaultName) {
+      setName(inferProjectTitleFromPath(path));
+    }
   };
 
   const onSubmit = async (event: FormEvent) => {
@@ -187,14 +201,18 @@ function NewWorkspaceForm(props: {
           projectId: newProjectId(),
           title: inferProjectTitleFromPath(folder),
           workspaceRoot: folder,
-          createWorkspaceRootIfMissing: picked === null,
+          createWorkspaceRootIfMissing: !usesExisting,
           defaultModelSelection: null,
         },
       });
-      // A picked folder may already be a project; the setup below still finds it.
-      if (created._tag !== "Success" && picked === null) {
+      // A picked existing folder may already be a project; the setup below still finds it.
+      if (created._tag !== "Success" && !usesExisting) {
         setBusy(false);
-        setError("Could not make the folder. Check that this name is not already in use.");
+        setError(
+          canPick
+            ? "Could not make the folder. Pick another name or another folder."
+            : "Could not make the folder. Check that this name is not already in use.",
+        );
         return;
       }
       setCreatedRoot(folder);
@@ -301,14 +319,18 @@ function NewWorkspaceForm(props: {
           ) : null}
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <code className="min-w-0 break-all text-xs text-muted-foreground">{folder}</code>
-            {preset.existingFolder && pickFolder && createdRoot === null ? (
+            {canPick && createdRoot === null ? (
               <Button
                 type="button"
                 variant="link"
                 size="xs"
-                onClick={() => (picked ? setPicked(null) : void pickExisting())}
+                onClick={() => (usesExisting ? setPicked(null) : void pick())}
               >
-                {picked ? "Use a new folder" : "Use an existing folder"}
+                {preset.folderPick === "parent"
+                  ? "Change folder"
+                  : usesExisting
+                    ? "Use a new folder"
+                    : "Use an existing folder"}
               </Button>
             ) : null}
           </div>

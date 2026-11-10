@@ -129,7 +129,12 @@ export function uniqueWorkspaceId(name: string, taken: ReadonlyArray<string>): s
  * It cannot sit inside `projects`, because the workspace scan skips a folder whose parent has that name.
  */
 export function newWorkspaceFolder(newProjectsRoot: string, parent: string, id: string): string {
-  const separator = newProjectsRoot.includes("\\") ? "\\" : "/";
   const base = newProjectsRoot.replace(/[\\/]+$/, "").replace(/[\\/][^\\/]*$/, "");
-  return `${base}${separator}${parent}${separator}${id}`;
+  return childFolder(childFolder(base, parent), id);
+}
+
+/** `<folder>/<name>`, with the folder's own slashes. */
+export function childFolder(folder: string, name: string): string {
+  const separator = folder.includes("\\") ? "\\" : "/";
+  return `${folder.replace(/[\\/]+$/, "")}${separator}${name}`;
 }
