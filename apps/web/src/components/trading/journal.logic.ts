@@ -65,9 +65,6 @@ export const importAccounts = (
   accounts: readonly TradingAccountView[],
 ): readonly TradingAccountView[] => accounts.filter((account) => account.closedReason === null);
 
-export const accountLabel = (account: TradingAccountView): string =>
-  `${account.firm} ${account.product} ${account.last4}`;
-
 const DAY_FORMAT = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",

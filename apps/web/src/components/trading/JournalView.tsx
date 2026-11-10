@@ -4,10 +4,10 @@ import { useMemo } from "react";
 import { cn } from "~/lib/utils";
 
 import { formatSigned } from "./dashboard.logic";
+import { accountLabel } from "./addMenu.logic";
 import {
   RULE_CHECK_WAITING,
   TOPSTEPX_EXPORT_STEPS,
-  accountLabel,
   formatDay,
   gradeLine,
   tradeTime,

@@ -23,13 +23,8 @@ import { useEnvironmentQuery } from "~/state/query";
 import { tradingImport, tradingImportsQuery } from "~/state/trading";
 import { useAtomCommand } from "~/state/use-atom-command";
 
-import {
-  accountLabel,
-  importAccounts,
-  importCheckText,
-  importErrorText,
-  importSummary,
-} from "./journal.logic";
+import { accountLabel } from "./addMenu.logic";
+import { importAccounts, importCheckText, importErrorText, importSummary } from "./journal.logic";
 
 const fileKey = (file: TradingImportFile) => `${file.name}|${file.trades}`;
 
