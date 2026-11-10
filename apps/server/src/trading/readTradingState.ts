@@ -1,10 +1,21 @@
-import { TradingStateError, type TradingStateResult } from "@t3tools/contracts";
-import { deriveTradingState, parseLedger, parseTrades } from "@t3tools/trading";
+import {
+  TradingStateError,
+  type TradingPackView,
+  type TradingStateResult,
+} from "@t3tools/contracts";
+import {
+  deriveTradingState,
+  parseLedger,
+  parseTrades,
+  productKey,
+  type ProductRule,
+} from "@t3tools/trading";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
 import { readWorkspaceFile } from "../taskBoard/aiosWorkspaces.ts";
+import { readLinkedPack, type LinkedPack } from "./tradingPack.ts";
 
 /** The Journal gets this many of the newest trades. */
 const JOURNAL_TRADES = 300;
@@ -18,6 +29,41 @@ export const requireTradingRoot = (aiosRoot: string | null) => {
     ? Effect.succeed(aiosRoot)
     : Effect.fail(new TradingStateError({ reason: "not_a_trading_workspace" }));
 };
+
+/** What the client may see of the pack: firm presets and the consent state, not rules or paths. */
+function packView(linked: LinkedPack): TradingPackView {
+  if (linked.status !== "ready") return linked;
+  const { check } = linked;
+  return {
+    status: "ready",
+    folder: linked.folder,
+    firms: linked.pack.firms.map((firm) => ({
+      id: firm.id,
+      name: firm.name,
+      products: firm.products.map(({ id, name, size, prices }) => ({ id, name, size, prices })),
+    })),
+    check: {
+      status: check.status,
+      module: check.status === "none" ? null : check.module,
+      sha256: check.status === "none" || check.status === "missing" ? null : check.sha256,
+    },
+  };
+}
+
+/** The pack's firm rules, keyed like the accounts the Add forms write (firm name, product name). */
+function productRules(linked: LinkedPack): ReadonlyMap<string, ProductRule> {
+  const rules = new Map<string, ProductRule>();
+  if (linked.status !== "ready") return rules;
+  for (const firm of linked.pack.firms) {
+    for (const product of firm.products) {
+      rules.set(productKey(firm.name, product.name), {
+        ...(product.maxLoss === null ? {} : { maxLoss: product.maxLoss }),
+        ...(product.profitTarget === null ? {} : { profitTarget: product.profitTarget }),
+      });
+    }
+  }
+  return rules;
+}
 
 /**
  * Reads `trading/ledger.jsonl` and `trading/trades.jsonl` in a Trading workspace folder and derives
@@ -34,14 +80,20 @@ export const readTradingState = Effect.fn("trading.readState")(function* (aiosRo
       Effect.mapError(() => new TradingStateError({ reason: "read_failed" })),
     );
   };
-  const [ledgerText, tradesText] = yield* Effect.all([
+  const [ledgerText, tradesText, linked] = yield* Effect.all([
     readText("ledger.jsonl"),
     readText("trades.jsonl"),
+    readLinkedPack(root),
   ]);
   const ledger = parseLedger(ledgerText);
   const trades = parseTrades(tradesText);
   return {
-    state: deriveTradingState({ events: ledger.events, trades: trades.trades }),
+    state: deriveTradingState({
+      events: ledger.events,
+      trades: trades.trades,
+      products: productRules(linked),
+    }),
+    pack: packView(linked),
     trades: trades.trades
       .map((trade) => ({ trade, time: Date.parse(trade.at) }))
       .toSorted((a, b) => b.time - a.time)

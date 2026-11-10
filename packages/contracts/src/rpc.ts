@@ -352,6 +352,7 @@ import {
   TradingImportInput,
   TradingImportResult,
   TradingImportsResult,
+  TradingPackConsentInput,
   TradingStateError,
   TradingStateInput,
   TradingStateResult,
@@ -740,6 +741,7 @@ export const WS_METHODS = {
   taskBoardHomeNews: "taskBoard.homeNews",
   tradingImports: "trading.imports",
   tradingImport: "trading.import",
+  tradingPackConsent: "trading.packConsent",
   tradingState: "trading.state",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
@@ -2146,6 +2148,12 @@ const WsTradingImportsRpc = Rpc.make(WS_METHODS.tradingImports, {
 const WsTradingImportRpc = Rpc.make(WS_METHODS.tradingImport, {
   payload: TradingImportInput,
   success: TradingImportResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingPackConsentRpc = Rpc.make(WS_METHODS.tradingPackConsent, {
+  payload: TradingPackConsentInput,
+  success: Schema.Void,
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
@@ -3635,6 +3643,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsTaskBoardHomeNewsRpc,
   WsTradingImportsRpc,
   WsTradingImportRpc,
+  WsTradingPackConsentRpc,
   WsTradingStateRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,

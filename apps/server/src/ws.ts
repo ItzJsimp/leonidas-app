@@ -43,7 +43,8 @@ import {
 } from "./provider/PonytailEnsure.ts";
 import { readReleaseStatus } from "./releaseStatus/releaseStatus.ts";
 import { homeNews, homeWeather } from "./taskBoard/homeFeeds.ts";
-import { readTradingState } from "./trading/readTradingState.ts";
+import { readTradingState, requireTradingRoot } from "./trading/readTradingState.ts";
+import { savePackConsent } from "./trading/tradingPack.ts";
 import {
   importTradingExport,
   listTradingImports,
@@ -3147,6 +3148,15 @@ const layerWsRpc = (
             Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
             Effect.orElseSucceed(() => null),
             Effect.flatMap((root) => importTradingExport(root, input, tradingImports)),
+          ),
+        [WS_METHODS.tradingPackConsent]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(requireTradingRoot),
+            Effect.flatMap((root) =>
+              savePackConsent(root, { allow: input.allow, sha256: input.sha256 }),
+            ),
           ),
         [WS_METHODS.tradingState]: (input) =>
           allTaskBoardProjects.pipe(

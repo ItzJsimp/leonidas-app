@@ -179,6 +179,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.taskBoardList]: "source-control",
   [WS_METHODS.tradingImports]: "workspace",
   [WS_METHODS.tradingImport]: "workspace",
+  [WS_METHODS.tradingPackConsent]: "workspace",
   [WS_METHODS.tradingState]: "workspace",
   [WS_METHODS.taskBoardCreate]: "workspace",
   [WS_METHODS.taskBoardClaim]: "workspace",

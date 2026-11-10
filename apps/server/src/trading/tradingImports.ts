@@ -4,7 +4,13 @@ import {
   type TradingImportResult,
   type TradingImportsResult,
 } from "@t3tools/contracts";
-import { isTopstepxExport, parseTopstepxExport, parseTrades, unseenTrades } from "@t3tools/trading";
+import {
+  isTopstepxExport,
+  parseTopstepxExport,
+  parseTrades,
+  unseenTrades,
+  type Trade,
+} from "@t3tools/trading";
 import { appendTrades } from "@t3tools/trading/ledgerFile";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
@@ -15,11 +21,15 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import { readTradingState, requireTradingRoot } from "./readTradingState.ts";
+import { runRuleCheck } from "./runRuleCheck.ts";
+import { readLinkedPack } from "./tradingPack.ts";
 
 /** A full rescan still runs this often, in case the system drops a watch event. */
 const RESCAN_MS = 30_000;
 /** A month of TopstepX trades is far below this. A larger CSV file is never read in full. */
 const MAX_EXPORT_BYTES = 5 * 1024 * 1024;
+/** Trade ids are the platform plus the export's own Id. */
+const TOPSTEPX_PREFIX = "topstepx:";
 /** Enough bytes for a byte order mark and the header line. */
 const HEAD_BYTES = 512;
 
@@ -219,6 +229,51 @@ const keepRawCopy = Effect.fn("trading.keepRawCopy")(function* (
 });
 
 /**
+ * Runs the linked pack's rule check on new trades, only when the trader allowed this exact module.
+ * The check fails soft: the trades import with no grade.
+ */
+const gradeTrades = Effect.fn("trading.gradeTrades")(function* (
+  root: string,
+  account: { readonly stage: string; readonly last4: string },
+  text: string,
+  trades: readonly Trade[],
+) {
+  const linked = yield* readLinkedPack(root);
+  if (linked.status !== "ready" || trades.length === 0) return { check: "off" as const, trades };
+  const { check } = linked;
+  if (check.status === "none" || check.status === "missing") {
+    return { check: "off" as const, trades };
+  }
+  if (check.status !== "allowed") return { check: check.status, trades };
+  const outcome = yield* Effect.promise(() =>
+    runRuleCheck({
+      folder: linked.folder,
+      module: check.module,
+      // The check module reads "funded" in the file name as a Funded account.
+      files: [{ name: `${account.stage}-${account.last4}`, text }],
+      // shortcut: no market bar source yet, so every day waits; pass bars when a bar feed card lands
+      bars: [],
+    }),
+  );
+  if (outcome.status === "failed") {
+    yield* Effect.logWarning("trading rule check failed", { reason: outcome.reason });
+    return { check: "failed" as const, trades };
+  }
+  const marked = trades.map((trade): Trade => {
+    const id = trade.id.slice(TOPSTEPX_PREFIX.length);
+    const grade = outcome.grades.get(id);
+    if (grade) {
+      return { ...trade, setup: grade.setup, ruleBreaks: grade.ruleBreaks, check: "graded" };
+    }
+    return outcome.waiting.has(id) ? { ...trade, check: "waiting" } : trade;
+  });
+  return {
+    check: outcome.grades.size > 0 ? ("graded" as const) : ("waiting" as const),
+    trades: marked,
+  };
+});
+
+/**
  * Imports one export from the import folder into an open account: copies the raw file (never
  * moves it), then appends only the trades this workspace does not have yet.
  */
@@ -260,16 +315,19 @@ export const importTradingExport = Effect.fn("trading.importExport")(function* (
     .at(-1);
   if (lastDay === undefined) {
     return {
+      check: "off",
       added: 0,
       duplicates: 0,
       skippedRows: parsed.issues.length,
     } satisfies TradingImportResult;
   }
+  const graded = yield* gradeTrades(root, account, text, added);
   yield* keepRawCopy(root, lastDay, input.file, bytes).pipe(Effect.mapError(readFailed));
-  yield* appendTrades(path.join(root, "trading", "trades.jsonl"), added).pipe(
+  yield* appendTrades(path.join(root, "trading", "trades.jsonl"), graded.trades).pipe(
     Effect.mapError(readFailed),
   );
   return {
+    check: graded.check,
     added: added.length,
     duplicates: parsed.trades.length - added.length,
     skippedRows: parsed.issues.length,

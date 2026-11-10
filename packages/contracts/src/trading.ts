@@ -91,10 +91,54 @@ export const TradingTradeView = Schema.Struct({
   points: Schema.optional(Schema.Number),
   setup: Schema.optional(Schema.String),
   ruleBreaks: Schema.optional(Schema.Array(Schema.String)),
+  check: Schema.optional(Schema.Literals(["waiting", "graded"])),
 });
 export type TradingTradeView = typeof TradingTradeView.Type;
 
+const TradingPackPrices = Schema.Struct({
+  monthly: NullableNumber,
+  activation: NullableNumber,
+  reset: NullableNumber,
+  oneTime: NullableNumber,
+});
+
+/** Firm presets for the Add forms. The full pack stays on the server. */
+const TradingPackFirm = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  products: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      name: Schema.String,
+      size: Schema.Number,
+      prices: TradingPackPrices,
+    }),
+  ),
+});
+
+/** The pack linked in workspace.json. `check.sha256` is the module hash the consent prompt shows. */
+export const TradingPackView = Schema.Union([
+  Schema.Struct({ status: Schema.Literal("none") }),
+  Schema.Struct({
+    status: Schema.Literal("invalid"),
+    folder: Schema.String,
+    reason: Schema.String,
+  }),
+  Schema.Struct({
+    status: Schema.Literal("ready"),
+    folder: Schema.String,
+    firms: Schema.Array(TradingPackFirm),
+    check: Schema.Struct({
+      status: Schema.Literals(["none", "missing", "pending", "allowed", "declined"]),
+      module: Schema.NullOr(Schema.String),
+      sha256: Schema.NullOr(Schema.String),
+    }),
+  }),
+]);
+export type TradingPackView = typeof TradingPackView.Type;
+
 export const TradingStateResult = Schema.Struct({
+  pack: TradingPackView,
   state: TradingState,
   /** The newest trades, newest first, for the Journal. */
   trades: Schema.Array(TradingTradeView),
@@ -113,6 +157,8 @@ export class TradingStateError extends Schema.TaggedError<TradingStateError>()(
       "file_not_found",
       "not_an_export",
       "unknown_account",
+      "pack_not_found",
+      "pack_changed",
     ]),
   },
 ) {
@@ -141,9 +187,28 @@ export const TradingImportInput = Schema.Struct({
 });
 export type TradingImportInput = typeof TradingImportInput.Type;
 
+/** The rule check at import. `off` means no pack check module; `pending` and `declined` skip it. */
+const TradingImportCheck = Schema.Literals([
+  "off",
+  "pending",
+  "declined",
+  "waiting",
+  "graded",
+  "failed",
+]);
+
 export const TradingImportResult = Schema.Struct({
+  check: TradingImportCheck,
   added: Schema.Number,
   duplicates: Schema.Number,
   skippedRows: Schema.Number,
 });
 export type TradingImportResult = typeof TradingImportResult.Type;
+
+/** The trader's answer for the check module whose hash the prompt showed. */
+export const TradingPackConsentInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  allow: Schema.Boolean,
+  sha256: Schema.String,
+});
+export type TradingPackConsentInput = typeof TradingPackConsentInput.Type;

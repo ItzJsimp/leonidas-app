@@ -108,7 +108,7 @@ it.layer(NodeServices.layer)("trading imports", (it) => {
         { file: "trades.csv", accountId: "acct-1" },
         watch,
       );
-      assert.deepStrictEqual(first, { added: 2, duplicates: 0, skippedRows: 0 });
+      assert.deepStrictEqual(first, { check: "off", added: 2, duplicates: 0, skippedRows: 0 });
       const copy = yield* fs.readFile(
         path.join(root, "trading", "imports", "2026-11-04", "trades.csv"),
       );
@@ -133,7 +133,7 @@ it.layer(NodeServices.layer)("trading imports", (it) => {
         { file: "trades.csv", accountId: "acct-1" },
         watch,
       );
-      assert.deepStrictEqual(again, { added: 0, duplicates: 2, skippedRows: 0 });
+      assert.deepStrictEqual(again, { check: "off", added: 0, duplicates: 2, skippedRows: 0 });
       assert.strictEqual((yield* readTradingState(root)).trades.length, 2);
       assert.deepStrictEqual((yield* listTradingImports(root, watch)).files, []);
     }).pipe(Effect.scoped),

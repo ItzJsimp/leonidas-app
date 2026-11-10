@@ -87,6 +87,8 @@ export interface Trade {
   readonly points?: number;
   readonly setup?: string;
   readonly ruleBreaks?: readonly string[];
+  /** The pack rule check at import: `waiting` for market bars, or `graded` with setup and breaks. */
+  readonly check?: "waiting" | "graded";
 }
 
 export interface LineIssue {
@@ -171,6 +173,7 @@ const TRADE_OPT: Fields = {
   points: signedNumber,
   setup: text,
   ruleBreaks: textList,
+  check: oneOf("waiting", "graded"),
 };
 
 /** Returns a reason, or null when the object fits. An unknown key fails. */
