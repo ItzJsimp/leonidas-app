@@ -19,9 +19,6 @@ export interface ChatCanvasPreview {
 }
 
 const GAP = 12;
-// Minimum space between chat and the workspace card. Chat stays centered while
-// the card fits beside it with this much room.
-export const DETAILS_CARD_CLEARANCE = 32;
 
 /** Pure geometry shared by the conversation, composer, workspace card, and floating preview. */
 export function resolveChatCanvasLayout({
@@ -44,31 +41,11 @@ export function resolveChatCanvasLayout({
   /** The open find bar. It only keeps the floating preview clear; chat stays put. */
   findBar?: PreviewMiniPlayerObstacles["detailsCard"];
 }) {
-  const centeredWidth = Math.max(0, Math.min(maxChatWidth, container.width - padding * 2));
-  // A workspace card that does not fit beside the centered chat first moves
-  // chat left, only as far as it needs. Chat narrows only after it reaches the
-  // left padding.
-  const laneRight = detailsCard
-    ? detailsCard.left - DETAILS_CARD_CLEARANCE
-    : container.width - padding;
-  const normalWidth = Math.max(0, Math.min(centeredWidth, laneRight - padding));
-  const canvasCenterLeft = (container.width - normalWidth) / 2;
-  // Beside a card it would crowd, the chat centers between the card and the canvas edge. The shift
-  // eases to zero as clearance grows, so very wide windows keep the chat still and a resize
-  // never jumps it.
-  const besideShift = detailsCard
-    ? Math.min(
-        (container.width - detailsCard.left) / 2,
-        Math.max(
-          0,
-          (container.width - detailsCard.left) / 2 - (laneRight - canvasCenterLeft - normalWidth),
-        ),
-      )
-    : 0;
-  const normalLeft = Math.max(
-    padding,
-    Math.min(canvasCenterLeft - besideShift, laneRight - normalWidth),
-  );
+  // Chat centers in the space left of the details card, so the header title, messages and
+  // composer share one axis. It narrows only when both margins reach the padding.
+  const laneRight = detailsCard ? detailsCard.left : container.width;
+  const normalWidth = Math.max(0, Math.min(maxChatWidth, laneRight - padding * 2));
+  const normalLeft = Math.max(0, (laneRight - normalWidth) / 2);
   let chat = {
     left: normalLeft,
     width: normalWidth,
