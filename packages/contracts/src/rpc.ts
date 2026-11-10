@@ -348,7 +348,13 @@ import {
   ProviderUploadFeedbackResult,
 } from "./provider.ts";
 import { ProviderInstanceId, ProviderInstanceMutation } from "./providerInstance.ts";
-import { TradingStateError, TradingStateInput, TradingStateResult } from "./trading.ts";
+import {
+  TradingAppendInput,
+  TradingAppendResult,
+  TradingStateError,
+  TradingStateInput,
+  TradingStateResult,
+} from "./trading.ts";
 import {
   PullRequestActionInput,
   PullRequestActivity,
@@ -732,6 +738,7 @@ export const WS_METHODS = {
   taskBoardHomeWeather: "taskBoard.homeWeather",
   taskBoardHomeNews: "taskBoard.homeNews",
   tradingState: "trading.state",
+  tradingAppend: "trading.append",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
@@ -2131,6 +2138,12 @@ const WsTaskBoardHomeNewsRpc = Rpc.make(WS_METHODS.taskBoardHomeNews, {
 const WsTradingStateRpc = Rpc.make(WS_METHODS.tradingState, {
   payload: TradingStateInput,
   success: TradingStateResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingAppendRpc = Rpc.make(WS_METHODS.tradingAppend, {
+  payload: TradingAppendInput,
+  success: TradingAppendResult,
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
@@ -3613,6 +3626,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsTaskBoardHomeWeatherRpc,
   WsTaskBoardHomeNewsRpc,
   WsTradingStateRpc,
+  WsTradingAppendRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,

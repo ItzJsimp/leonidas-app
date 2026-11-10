@@ -18,12 +18,19 @@ export const readLedger = (path: string) =>
     return parseLedger((yield* fs.exists(path)) ? yield* fs.readFileString(path) : "");
   });
 
-/** Appends one validated event. A torn last line stays a separate line, so it cannot damage this event. */
-export const appendEvent = (path: string, event: TradingEvent) =>
+/**
+ * Appends validated events in one write and one sync. If any event is invalid, nothing is written.
+ * A torn last line stays a separate line, so it cannot damage the new events.
+ */
+export const appendEvents = (path: string, events: readonly TradingEvent[]) =>
   Effect.scoped(
     Effect.gen(function* () {
-      const checked = parseEvent(event);
-      if (typeof checked === "string") return yield* new LedgerError({ reason: checked });
+      let lines = "";
+      for (const event of events) {
+        const checked = parseEvent(event);
+        if (typeof checked === "string") return yield* new LedgerError({ reason: checked });
+        lines += serializeEvent(checked);
+      }
       const fs = yield* FileSystem.FileSystem;
       const paths = yield* Path.Path;
       yield* fs.makeDirectory(paths.dirname(path), { recursive: true });
@@ -35,7 +42,10 @@ export const appendEvent = (path: string, event: TradingEvent) =>
         const last = yield* file.readAlloc(1);
         if (Option.isSome(last) && last.value[0] !== 0x0a) separator = "\n";
       }
-      yield* file.writeAll(new TextEncoder().encode(separator + serializeEvent(checked)));
+      yield* file.writeAll(new TextEncoder().encode(separator + lines));
       yield* file.sync;
     }),
   );
+
+/** Appends one validated event. */
+export const appendEvent = (path: string, event: TradingEvent) => appendEvents(path, [event]);

@@ -81,14 +81,37 @@ export const TradingStateResult = Schema.Struct({
   state: TradingState,
   /** Lines in the ledger or trades file that were skipped as unreadable. */
   skippedLines: Schema.Number,
+  /** The live ledger events after corrections, newest first, at most 50, without `trade.tagged`. */
+  entries: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)),
 });
 export type TradingStateResult = typeof TradingStateResult.Type;
 
 export class TradingStateError extends Schema.TaggedError<TradingStateError>()(
   "TradingStateError",
-  { reason: Schema.Literals(["workspace_not_found", "not_a_trading_workspace", "read_failed"]) },
+  {
+    reason: Schema.Literals([
+      "workspace_not_found",
+      "not_a_trading_workspace",
+      "read_failed",
+      "invalid_event",
+    ]),
+    detail: Schema.optional(Schema.String),
+  },
 ) {
   override get message() {
-    return `Trading state unavailable: ${this.reason}`;
+    return `Trading state unavailable: ${this.reason}${this.detail ? ` (${this.detail})` : ""}`;
   }
 }
+
+/** Events to add to the ledger. The server accepts 1 to 3, checks each, and sets the author. */
+export const TradingAppendInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  events: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(3),
+  ),
+});
+export type TradingAppendInput = typeof TradingAppendInput.Type;
+
+export const TradingAppendResult = Schema.Struct({ appended: Schema.Number });
+export type TradingAppendResult = typeof TradingAppendResult.Type;
