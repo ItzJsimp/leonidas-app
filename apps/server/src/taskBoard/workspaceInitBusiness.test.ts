@@ -86,6 +86,42 @@ it.effect("sets up a project folder with no tasks/ as a business and copies the 
   ),
 );
 
+it.effect("sets up a project folder as Trading with empty logs, and lists it with no tasks/", () =>
+  withFolder(({ fresh, projects }) =>
+    Effect.gen(function* () {
+      const board = yield* TaskBoardService.TaskBoardService;
+      const ready = yield* board.workspaceInit(
+        { root: fresh, id: "trading", name: "Trading", type: "trading" },
+        projects,
+      );
+      expect(ready).toMatchObject({ status: "ready", id: "trading", type: "trading" });
+      for (const name of ["ledger.jsonl", "trades.jsonl"]) {
+        expect(NodeFS.readFileSync(NodePath.join(fresh, "trading", name), "utf8")).toBe("");
+      }
+      expect(NodeFS.existsSync(NodePath.join(fresh, "tasks"))).toBe(false);
+      expect(yield* board.workspaceRoot(projects, "trading")).toEqual({
+        root: fresh,
+        type: "trading",
+      });
+    }),
+  ),
+);
+
+it.effect("sets up a project folder as Personal with only workspace.json", () =>
+  withFolder(({ fresh, projects }) =>
+    Effect.gen(function* () {
+      const board = yield* TaskBoardService.TaskBoardService;
+      NodeFS.writeFileSync(NodePath.join(fresh, "notes.md"), "mine");
+      const ready = yield* board.workspaceInit(
+        { root: fresh, id: "me", name: "Me", type: "personal" },
+        projects,
+      );
+      expect(ready).toMatchObject({ status: "ready", id: "me", type: "personal" });
+      expect(NodeFS.readdirSync(fresh).toSorted()).toEqual(["notes.md", "workspace.json"]);
+    }),
+  ),
+);
+
 it.effect("refuses an unlisted folder with no Owner name, and one that is no project", () =>
   withFolder(({ temp, fresh, projects }) =>
     Effect.gen(function* () {

@@ -109,6 +109,19 @@ export function writeWorkspaceFile(
   return readWorkspaceFile(root);
 }
 
+/** Adds the empty Trading logs that the `trading` RPC reads. Existing files stay as they are. */
+export function writeTradingStarter(root: string): void {
+  const dir = NodePath.join(root, "trading");
+  NodeFS.mkdirSync(dir, { recursive: true });
+  for (const name of ["ledger.jsonl", "trades.jsonl"]) {
+    try {
+      NodeFS.writeFileSync(NodePath.join(dir, name), "", { flag: "wx" });
+    } catch (cause) {
+      if ((cause as NodeJS.ErrnoException).code !== "EEXIST") throw cause;
+    }
+  }
+}
+
 /**
  * Saves the projects the Tasks rail folds into "More". Every other key in the file stays, and the
  * file lives in the AIOS folder, so the list follows the folder to each device. Throws when the
@@ -157,8 +170,8 @@ const keyFor = (path: string) => {
 
 /**
  * Finds each AIOS root once, in hint order (confirmed folder, env, then project folders).
- * A folder with no workspace.json and no projects/ is a bare tasks/ folder, not
- * an AIOS. A root that reuses a ready id is refused, so one id never names two folders.
+ * A hint with its own valid workspace.json is a root. A folder with no workspace.json and no
+ * projects/ is a bare tasks/ folder, not an AIOS. A root that reuses a ready id is refused, so one id never names two folders.
  */
 export function listAiosWorkspaces(
   hints: ReadonlyArray<string | undefined>,
@@ -186,12 +199,14 @@ function scanAiosWorkspaces(
   const ids = new Set<string>();
   const workspaces: AiosWorkspaceState[] = [];
   for (const hint of hints) {
-    const root = findAiosRoot([hint]);
+    // A folder with its own valid workspace.json is a root, also with no tasks/ (a Trading folder).
+    const own = hint?.trim() ? ownWorkspace(NodePath.resolve(hint.trim())) : null;
+    const root = own?.root ?? findAiosRoot([hint]);
     if (root === null) continue;
     const key = keyFor(root);
     if (seen.has(key)) continue;
     seen.add(key);
-    const state = readWorkspaceFile(root);
+    const state = own ?? readWorkspaceFile(root);
     if (state.status === "missing" && !hasProjects(root)) continue;
     if (state.status === "ready") {
       if (ids.has(state.file.id)) {
@@ -204,6 +219,13 @@ function scanAiosWorkspaces(
   }
   return workspaces;
 }
+
+/** The ready state of a folder's own workspace.json, else null. existsSync skips a thrown read. */
+const ownWorkspace = (folder: string): AiosWorkspaceState | null => {
+  if (!NodeFS.existsSync(NodePath.join(folder, WORKSPACE_FILE))) return null;
+  const state = readWorkspaceFile(folder);
+  return state.status === "ready" ? state : null;
+};
 
 const hasProjects = (root: string): boolean => {
   try {
