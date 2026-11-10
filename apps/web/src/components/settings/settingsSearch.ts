@@ -26,6 +26,7 @@ export type SettingsPath =
   | "/settings/threads"
   | "/settings/browser"
   | "/settings/devices"
+  | "/settings/tools"
   | "/settings/scheduled-tasks"
   | "/settings/source-control"
   | "/settings/worktrees"
@@ -114,6 +115,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/threads": "Chats",
   "/settings/browser": "Browser",
   "/settings/devices": "Devices",
+  "/settings/tools": "Tools",
   "/settings/scheduled-tasks": "Scheduled tasks",
   "/settings/source-control": "Source control",
   "/settings/worktrees": "Separate copies",
@@ -154,6 +156,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
       "/settings/threads",
       "/settings/browser",
       "/settings/devices",
+      "/settings/tools",
     ],
   },
   {
@@ -940,6 +943,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     ],
   },
   {
+    id: "mcp-servers",
+    title: "MCP servers",
+    to: "/settings/tools",
+    searchTerms: ["mcp tools server reui boardui plugin connector token provider claude codex"],
+  },
+  {
     id: "device-hosts",
     title: "Computers that run devices",
     to: "/settings/devices",
@@ -1258,6 +1267,7 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/threads": "project-defaults",
   "/settings/browser": null,
   "/settings/devices": null,
+  "/settings/tools": null,
   "/settings/source-control": "environment-defaults",
   "/settings/worktrees": "project-defaults",
   "/settings/maintenance": "environment-defaults",
