@@ -3,6 +3,8 @@ import { act } from "react";
 import { create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 
+const settingsState = vi.hoisted(() => ({ shown: true, update: vi.fn() }));
+
 // `useNowMinute` is fixed below, so every timer delay is measured from this instant.
 const NOW = Date.parse("2026-10-20T12:00:00Z");
 const state = vi.hoisted(() => ({
@@ -15,6 +17,11 @@ vi.mock("@t3tools/client-runtime/state/usage", () => ({
 }));
 vi.mock("../../hooks/useConnectedUsageAccounts", () => ({
   useConnectedUsageAccounts: () => ({ active: state.accounts, others: [] }),
+}));
+vi.mock("../../hooks/useSettings", () => ({
+  useClientSettings: (select: (settings: { usageOverlayEnabled: boolean }) => unknown) =>
+    select({ usageOverlayEnabled: settingsState.shown }),
+  useUpdateClientSettings: () => settingsState.update,
 }));
 vi.mock("../../hooks/useNowMinute", () => ({ useNowMinute: () => "2026-10-20T12:00" }));
 vi.mock("../../state/server", () => ({ serverEnvironment: { refreshProviders: null } }));
@@ -70,7 +77,7 @@ let renderer: ReactTestRenderer | null = null;
 async function mountCard(...resetsAt: ReadonlyArray<string>) {
   state.accounts = [accountWithResets(...resetsAt)];
   await act(async () => {
-    renderer = create(<ThreadDetailsLimits usage={usage} folded={false} />);
+    renderer = create(<ThreadDetailsLimits usage={usage} />);
   });
 }
 const advance = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));

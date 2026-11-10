@@ -103,7 +103,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
       onPresentationChange={props.onPresentationChange}
     >
       {(density) => {
-        // A short panel folds Limits to one line first, then Context, then trims Run.
+        // A short panel folds Context to one line, then trims Run. Limits folds only on request.
         const hasActions = (props.activeProjectScripts?.length ?? 0) > 0 || fileScripts.length > 0;
         return (
           <>
@@ -172,7 +172,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
             </ThreadDetailsSection>
 
             <ThreadDetailsContext usage={props.usage} folded={density === "essential"} />
-            <ThreadDetailsLimits usage={props.usage} folded={density !== "full"} />
+            <ThreadDetailsLimits usage={props.usage} />
 
             {density === "full" && !props.draftId ? (
               <ThreadServersPanel environmentId={props.environmentId} threadId={props.threadId} />

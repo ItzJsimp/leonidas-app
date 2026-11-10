@@ -3,6 +3,8 @@ import { act } from "react";
 import { create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 
+const settingsState = vi.hoisted(() => ({ shown: true, update: vi.fn() }));
+
 const state = vi.hoisted(() => ({ setConfirming: vi.fn() }));
 const credits = { availableCount: 2 };
 const limits = { checkedAt: "2026-10-20T11:59:00Z", windows: [], resetCredits: credits };
@@ -26,6 +28,11 @@ vi.mock("../../hooks/useConnectedUsageAccounts", () => ({
       },
     ],
   }),
+}));
+vi.mock("../../hooks/useSettings", () => ({
+  useClientSettings: (select: (settings: { usageOverlayEnabled: boolean }) => unknown) =>
+    select({ usageOverlayEnabled: settingsState.shown }),
+  useUpdateClientSettings: () => settingsState.update,
 }));
 vi.mock("../../hooks/useNowMinute", () => ({ useNowMinute: () => "2026-10-20T12:00" }));
 vi.mock("../../state/server", () => ({ serverEnvironment: { refreshProviders: null } }));
@@ -86,7 +93,7 @@ afterEach(() => {
 
 it("offers Use reset only for banked credits this environment can redeem", async () => {
   await act(async () => {
-    renderer = create(<ThreadDetailsLimits usage={usage} folded={false} />);
+    renderer = create(<ThreadDetailsLimits usage={usage} />);
   });
   const useButtons = renderer.root.findAll(
     (node) => node.type === "button" && String(node.props["aria-label"]).startsWith("Use reset"),
@@ -98,7 +105,7 @@ it("offers Use reset only for banked credits this environment can redeem", async
 
 it("keeps one reset slot on every account row, filled only where resets are banked", async () => {
   await act(async () => {
-    renderer = create(<ThreadDetailsLimits usage={usage} folded={false} />);
+    renderer = create(<ThreadDetailsLimits usage={usage} />);
   });
   const slots = renderer.root.findAll(
     (node) => node.type === "span" && node.props["data-reset-slot"] !== undefined,

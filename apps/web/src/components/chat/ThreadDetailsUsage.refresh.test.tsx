@@ -3,6 +3,8 @@ import { act } from "react";
 import { create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 
+const settingsState = vi.hoisted(() => ({ shown: true, update: vi.fn() }));
+
 const state = vi.hoisted(() => ({ refreshProviders: vi.fn(), release: () => {} }));
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn() }));
 vi.mock("@t3tools/client-runtime/state/usage", () => ({
@@ -10,6 +12,11 @@ vi.mock("@t3tools/client-runtime/state/usage", () => ({
 }));
 vi.mock("../../hooks/useConnectedUsageAccounts", () => ({
   useConnectedUsageAccounts: () => ({ active: [], others: [] }),
+}));
+vi.mock("../../hooks/useSettings", () => ({
+  useClientSettings: (select: (settings: { usageOverlayEnabled: boolean }) => unknown) =>
+    select({ usageOverlayEnabled: settingsState.shown }),
+  useUpdateClientSettings: () => settingsState.update,
 }));
 vi.mock("../../hooks/useNowMinute", () => ({ useNowMinute: () => "2026-10-20T12:00" }));
 vi.mock("../../state/server", () => ({ serverEnvironment: { refreshProviders: null } }));
@@ -50,6 +57,8 @@ const usage: ThreadDetailsUsageProps = {
 let renderer: ReactTestRenderer;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  settingsState.shown = true;
+  settingsState.update.mockReset();
   state.refreshProviders.mockReset();
   state.refreshProviders.mockImplementation(
     () => new Promise<void>((resolve) => (state.release = resolve)),
@@ -62,7 +71,7 @@ afterEach(() => {
 
 it("refreshes once per click and ignores a click while the refresh runs", async () => {
   await act(async () => {
-    renderer = create(<ThreadDetailsLimits usage={usage} folded={false} />);
+    renderer = create(<ThreadDetailsLimits usage={usage} />);
   });
   const button = () => renderer.root.findByProps({ "aria-label": "Refresh limits" });
   expect(button().props.disabled).toBe(false);
@@ -77,7 +86,7 @@ it("refreshes once per click and ignores a click while the refresh runs", async 
 
 it("shows percent used only, with no switch to percent left", async () => {
   await act(async () => {
-    renderer = create(<ThreadDetailsLimits usage={usage} folded={false} />);
+    renderer = create(<ThreadDetailsLimits usage={usage} />);
   });
   const seen = new WeakSet();
   const text = JSON.stringify(renderer.toJSON(), (_key, value: unknown) => {
@@ -87,4 +96,25 @@ it("shows percent used only, with no switch to percent left", async () => {
     return value;
   });
   expect(text).not.toMatch(/% left|percent left/);
+});
+
+it("saves the limits choice: the fold button hides them, the folded line shows them", async () => {
+  await act(async () => {
+    renderer = create(<ThreadDetailsLimits usage={usage} />);
+  });
+  await act(async () => renderer.root.findByProps({ "aria-label": "Fold limits" }).props.onClick());
+  expect(settingsState.update).toHaveBeenCalledWith({ usageOverlayEnabled: false });
+
+  act(() => renderer.unmount());
+  settingsState.shown = false;
+  await act(async () => {
+    renderer = create(<ThreadDetailsLimits usage={usage} />);
+  });
+  expect(renderer.root.findAllByProps({ "aria-label": "Fold limits" })).toHaveLength(0);
+  const show = renderer.root.find(
+    (node) =>
+      node.type === "button" && String(node.props["aria-label"]).endsWith("Show all accounts"),
+  );
+  await act(async () => show.props.onClick());
+  expect(settingsState.update).toHaveBeenLastCalledWith({ usageOverlayEnabled: true });
 });

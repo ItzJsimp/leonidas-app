@@ -83,9 +83,11 @@ export function ThreadDetailsFoldLine({
 export function ThreadDetailsFoldButton({
   label,
   onFold,
+  tooltip = `Fold ${label} to one line`,
 }: {
   readonly label: string;
   readonly onFold: () => void;
+  readonly tooltip?: string;
 }) {
   return (
     <Tooltip>
@@ -102,7 +104,7 @@ export function ThreadDetailsFoldButton({
       >
         <ChevronUpIcon aria-hidden className="size-3.5" />
       </TooltipTrigger>
-      <TooltipPopup side="top">Fold {label} to one line</TooltipPopup>
+      <TooltipPopup side="top">{tooltip}</TooltipPopup>
     </Tooltip>
   );
 }

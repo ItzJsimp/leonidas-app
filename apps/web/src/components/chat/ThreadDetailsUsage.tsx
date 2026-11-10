@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useConnectedUsageAccounts } from "../../hooks/useConnectedUsageAccounts";
 import { useNowMinute } from "../../hooks/useNowMinute";
+import { useClientSettings, useUpdateClientSettings } from "../../hooks/useSettings";
 import type { ContextWindowSnapshot } from "../../lib/contextWindow";
 import { connectedBenchmarkCandidates } from "../../lib/modelBenchmarks";
 import {
@@ -42,7 +43,6 @@ import type { StartBenchmarkArena } from "./BenchmarkExplorer";
 import { UsageBar } from "./PlanUsageLimits";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 import {
-  THREAD_DETAILS_FOLD_EXEMPT,
   ThreadDetailsFoldButton,
   ThreadDetailsFoldLine,
   ThreadDetailsSection,
@@ -339,18 +339,18 @@ function AccountRows({
   );
 }
 
-/** Limits: every signed-in account in one ledger with shared 5-hour and weekly columns. */
-export function ThreadDetailsLimits({
-  usage,
-  folded,
-}: {
-  readonly usage: ThreadDetailsUsageProps;
-  readonly folded: boolean;
-}) {
+/**
+ * Limits: every signed-in account in one ledger with shared 5-hour and weekly columns.
+ * Only the user folds it, and the choice is saved for every chat.
+ */
+export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUsageProps }) {
   const { environmentId, instanceId, providerEntries } = usage;
   const navigate = useNavigate();
   const { active, others } = useConnectedUsageAccounts(environmentId, instanceId);
-  const [opened, setOpened] = useState(false);
+  // The setting first showed the old usage card, so a user who turned that card off keeps limits folded.
+  const shown = useClientSettings((settings) => settings.usageOverlayEnabled);
+  const updateSettings = useUpdateClientSettings();
+  const setShown = (next: boolean) => void updateSettings({ usageOverlayEnabled: next });
   const [refreshing, setRefreshing] = useState(false);
   const minute = useNowMinute();
   const now = Date.parse(`${minute}:00Z`);
@@ -420,7 +420,7 @@ export function ThreadDetailsLimits({
     void navigate({ to: "/usage" });
   };
 
-  if (folded && !opened) {
+  if (!shown) {
     const lead = active[0] ?? accounts[0] ?? null;
     const leadRows = lead ? glanceLimitRows(lead.limits.windows, now) : [];
     const leadWindows = lead
@@ -442,7 +442,7 @@ export function ThreadDetailsLimits({
             ? `Limits: ${titleOf(lead)} ${usedPercentLabel(tightest.usedPercent)}% used. Show all accounts`
             : "Limits. Show all accounts"
         }
-        onOpen={() => setOpened(true)}
+        onOpen={() => setShown(true)}
       >
         {lead ? (
           <>
@@ -508,13 +508,15 @@ export function ThreadDetailsLimits({
               </TooltipPopup>
             </Tooltip>
           ) : null}
-          {folded ? (
-            <ThreadDetailsFoldButton label="limits" onFold={() => setOpened(false)} />
-          ) : null}
+          <ThreadDetailsFoldButton
+            label="limits"
+            tooltip="Fold limits to one line in every chat"
+            onFold={() => setShown(false)}
+          />
         </>
       }
     >
-      <div {...(folded ? THREAD_DETAILS_FOLD_EXEMPT : {})} className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         {accounts.length > 0 ? (
           <div className="overflow-hidden rounded-lg border border-border bg-background">
             <div
