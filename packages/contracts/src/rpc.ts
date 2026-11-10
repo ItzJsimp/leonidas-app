@@ -349,6 +349,8 @@ import {
 } from "./provider.ts";
 import { ProviderInstanceId, ProviderInstanceMutation } from "./providerInstance.ts";
 import {
+  TradingAppendInput,
+  TradingAppendResult,
   TradingImportInput,
   TradingImportResult,
   TradingImportsResult,
@@ -743,6 +745,7 @@ export const WS_METHODS = {
   tradingImport: "trading.import",
   tradingPackConsent: "trading.packConsent",
   tradingState: "trading.state",
+  tradingAppend: "trading.append",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
@@ -2160,6 +2163,12 @@ const WsTradingPackConsentRpc = Rpc.make(WS_METHODS.tradingPackConsent, {
 const WsTradingStateRpc = Rpc.make(WS_METHODS.tradingState, {
   payload: TradingStateInput,
   success: TradingStateResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingAppendRpc = Rpc.make(WS_METHODS.tradingAppend, {
+  payload: TradingAppendInput,
+  success: TradingAppendResult,
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
@@ -3645,6 +3654,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsTradingImportRpc,
   WsTradingPackConsentRpc,
   WsTradingStateRpc,
+  WsTradingAppendRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,

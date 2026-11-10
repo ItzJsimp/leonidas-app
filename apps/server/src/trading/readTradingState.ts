@@ -5,6 +5,7 @@ import {
 } from "@t3tools/contracts";
 import {
   deriveTradingState,
+  liveEvents,
   parseLedger,
   parseTrades,
   productKey,
@@ -29,6 +30,7 @@ export const requireTradingRoot = (aiosRoot: string | null) => {
     ? Effect.succeed(aiosRoot)
     : Effect.fail(new TradingStateError({ reason: "not_a_trading_workspace" }));
 };
+const MAX_ENTRIES = 50;
 
 /** What the client may see of the pack: firm presets and the consent state, not rules or paths. */
 function packView(linked: LinkedPack): TradingPackView {
@@ -87,7 +89,14 @@ export const readTradingState = Effect.fn("trading.readState")(function* (aiosRo
   ]);
   const ledger = parseLedger(ledgerText);
   const trades = parseTrades(tradesText);
+  // Newest first for the Edit an entry list. `trade.tagged` has no row there.
+  const entries = liveEvents(ledger.events, [])
+    .filter((event) => event.kind !== "trade.tagged")
+    .toReversed()
+    .slice(0, MAX_ENTRIES)
+    .map((event) => ({ ...event }));
   return {
+    entries,
     state: deriveTradingState({
       events: ledger.events,
       trades: trades.trades,
