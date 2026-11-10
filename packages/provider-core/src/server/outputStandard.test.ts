@@ -6,6 +6,7 @@ import {
   LEONIDAS_OUTPUT_STANDARD,
   LEONIDAS_RENDER_CONTRACT,
   LEONIDAS_REPLY_STYLE,
+  leonidasOutputStandard,
 } from "./outputStandard.ts";
 
 describe("render contract and Leonidas reply style", () => {
@@ -15,10 +16,20 @@ describe("render contract and Leonidas reply style", () => {
     }
   });
 
-  it("names every Dock heading the client parses", () => {
+  it("names every Dock heading the client parses, in each shipped style", () => {
     // Next Actions stays in the parser for old replies only.
     for (const heading of Object.keys(DOCK_HEADINGS).filter((h) => !h.includes("Next Actions"))) {
-      assert.include(LEONIDAS_RENDER_CONTRACT, `\`${heading}\``);
+      for (const style of [LEONIDAS_REPLY_STYLE, AUTOPILOT_REPLY_STYLE]) {
+        assert.include(style, heading);
+      }
+    }
+  });
+
+  // A custom style got the Leonidas TL;DR and cards because these rules sat in the contract.
+  it("keeps the status line and Dock out of a custom style", () => {
+    const custom = leonidasOutputStandard("Reply in plain, friendly paragraphs.");
+    for (const part of ["### 🎯 TL;DR", "Status line", "Dock", "⏸️ Need you"]) {
+      assert.notInclude(custom, part);
     }
   });
 
@@ -27,9 +38,11 @@ describe("render contract and Leonidas reply style", () => {
     assert.notInclude(LEONIDAS_OUTPUT_STANDARD, "may not remove, reorder or rename");
   });
 
-  it("names the exact status line the chat draws as pills", () => {
+  it("names the exact status line the chat draws as pills, in each shipped style", () => {
     for (const part of ["✅ Done", "⏸️ Need you", "❌ Blocked", "🧠 None", "📍"]) {
-      assert.include(LEONIDAS_RENDER_CONTRACT, part);
+      for (const style of [LEONIDAS_REPLY_STYLE, AUTOPILOT_REPLY_STYLE]) {
+        assert.include(style, part);
+      }
     }
   });
 

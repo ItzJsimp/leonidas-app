@@ -1,10 +1,9 @@
-import { ChevronRightIcon } from "lucide-react";
-import { useMemo, type ComponentProps } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { parseOutputDock, type DockSection, type DockStatus } from "@t3tools/shared/outputDock";
+import { TabBadge, UnderlineTabs } from "../ui/underlineTabs";
 import ChatMarkdown from "../ChatMarkdown";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 
 /** Actions prepare a draft; the composer remains the only place that sends it. */
 /** Fixed reply for the "Explain simpler" button. */
@@ -108,7 +107,62 @@ const STATUS = {
 } as const;
 const ATTENTION = { none: "No thought needed", glance: "Quick look", think: "Needs thought" };
 
-/** Status pills above the reply, and the body folded under Details past 3 lines. */
+const PREVIEW_LINES = 3;
+
+const FENCE = /^\s*(```|~~~)/;
+
+/**
+ * The first lines of the body with text. A code or answer-block fence that starts inside them
+ * stays whole, so the summary never shows a cut-off block.
+ */
+export function previewOf(body: string): string {
+  const kept: string[] = [];
+  let count = 0;
+  let inFence = false;
+  for (const line of body.split("\n")) {
+    const fence = FENCE.test(line);
+    if (!inFence && line.trim()) {
+      if (count >= PREVIEW_LINES) break;
+      count += 1;
+    }
+    if (fence) inFence = !inFence;
+    kept.push(line);
+  }
+  return kept.join("\n");
+}
+
+/** A long body: Summary shows its first lines, Full answer shows all of it. */
+function ReplyTabs({
+  body,
+  renderMarkdown,
+}: {
+  body: string;
+  renderMarkdown: (text: string) => React.ReactNode;
+}) {
+  const [tab, setTab] = useState(0);
+  const words = body.split(/\s+/).filter(Boolean).length;
+  return (
+    <div>
+      <UnderlineTabs
+        label="Reply"
+        tabs={[
+          { label: "Summary" },
+          {
+            label: "Full answer",
+            badge: <TabBadge>{`${words.toLocaleString("en-US")} words`}</TabBadge>,
+          },
+        ]}
+        selected={tab}
+        onSelect={setTab}
+        size="sm"
+      >
+        <div className="mt-2">{renderMarkdown(tab === 1 ? body : previewOf(body))}</div>
+      </UnderlineTabs>
+    </div>
+  );
+}
+
+/** Status pills above the reply; a body past 3 lines gets Summary and Full answer tabs. */
 export function ReplyBody({
   status,
   body,
@@ -130,17 +184,8 @@ export function ReplyBody({
           ) : null}
         </div>
       ) : null}
-      {lines > 3 ? (
-        <Collapsible>
-          <CollapsibleTrigger className="group/details flex min-h-8 items-center gap-1.5 rounded-md px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
-            <ChevronRightIcon
-              aria-hidden
-              className="size-3.5 shrink-0 transition-transform duration-200 group-data-panel-open/details:rotate-90"
-            />
-            Details
-          </CollapsibleTrigger>
-          <CollapsiblePanel>{renderMarkdown(body)}</CollapsiblePanel>
-        </Collapsible>
+      {lines > PREVIEW_LINES ? (
+        <ReplyTabs body={body} renderMarkdown={renderMarkdown} />
       ) : lines > 0 ? (
         renderMarkdown(body)
       ) : null}
