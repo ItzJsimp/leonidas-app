@@ -107,6 +107,10 @@ it("shows status pills and puts a long body behind Summary and Full answer tabs"
   const root = createRoot(container);
   const reply = parseOutputDock(`✅ Done · 🧠 None · 📍 Reply styles: step 2 of 7
 
+\`\`\`leo:summary
+The script is in.
+It reuses five checks.
+\`\`\`
 line one
 line two
 line three
@@ -132,14 +136,21 @@ line four
     expect(status.textContent).toContain("Reply styles: step 2 of 7");
     // Beta users missed the old Details fold: the summary tab shows the start of the answer.
     expect(container.textContent).not.toContain("Details");
-    expect(container.textContent).toContain("line three");
-    expect(container.textContent).not.toContain("line four");
+    expect(container.textContent).toContain("The script is in.");
+    expect(container.textContent).not.toContain("line one");
+    expect(container.textContent).not.toContain("leo:summary");
     const tabs = [...container.querySelectorAll('[role="tab"]')] as HTMLButtonElement[];
     expect(tabs.map((tab) => tab.textContent)).toEqual(["Summary", "Full answer8 words"]);
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
     await act(() => tabs[1]!.click());
     expect(tabs[1]!.getAttribute("aria-selected")).toBe("true");
     expect(container.textContent).toContain("line four");
+    expect(container.textContent).not.toContain("The script is in.");
+
+    // No summary block: the whole reply shows, with no tabs, however long it is.
+    await render("one\ntwo\nthree\nfour\nfive");
+    expect(container.textContent).toContain("five");
+    expect(container.querySelector('[role="tab"]')).toBeNull();
 
     await render("short body");
     expect(container.textContent).toContain("short body");
@@ -151,12 +162,13 @@ line four
   }
 });
 
-it("keeps a fence whole in the summary preview", async () => {
-  const { previewOf } = await import("./AssistantOutput");
-  const body =
-    'Intro line\n```leo:checklist\n{"title":"Plan",\n"items":["a","b"]}\n```\nSecond line\nThird line\nFourth line';
-  const preview = previewOf(body);
-  expect(preview).toContain('"items":["a","b"]}\n```');
-  expect(preview).toContain("Second line");
-  expect(preview).not.toContain("Third line");
+it("splits the agent's summary block from the rest of the reply", async () => {
+  const { splitSummary } = await import("./AssistantOutput");
+  const body = "Intro\n```leo:summary\nMain point.\nExtra.\n```\nDetails here";
+  expect(splitSummary(body)).toEqual({
+    summary: "Main point.\nExtra.",
+    rest: "Intro\nDetails here",
+  });
+  expect(splitSummary("No block here")).toEqual({ summary: null, rest: "No block here" });
+  expect(splitSummary("```leo:summary\n\n```\nText").summary).toBeNull();
 });
