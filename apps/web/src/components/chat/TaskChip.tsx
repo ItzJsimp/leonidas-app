@@ -31,18 +31,21 @@ export function TaskChip({ threadId }: { readonly threadId: string }) {
           <button
             type="button"
             aria-label={`Task card: ${task.title}`}
-            className="ml-1 inline-flex h-7 max-w-80 min-w-0 shrink items-center gap-2 rounded-full border border-input bg-card pr-2 pl-1 text-xs text-foreground hover:bg-surface-raised focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            className="ml-1 inline-flex h-8 max-w-64 min-w-0 shrink-0 items-center gap-2 rounded-full border border-input bg-card px-2 text-xs text-foreground hover:bg-surface-raised focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:shrink"
           />
         }
       >
         <StatusBadge status={task.status} />
-        <span className="min-w-0 truncate">{task.title}</span>
+        <span className="hidden min-w-0 truncate md:inline">{task.title}</span>
         {task.checklist ? (
-          <span className="shrink-0 text-muted-foreground tabular-nums">
+          <span className="hidden shrink-0 text-muted-foreground tabular-nums sm:inline">
             {task.checklist.done}/{task.checklist.total}
           </span>
         ) : null}
-        <ChevronDownIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+        <ChevronDownIcon
+          aria-hidden
+          className="hidden size-3.5 shrink-0 text-muted-foreground sm:block"
+        />
       </PopoverTrigger>
       <PopoverPopup side="bottom" align="start" className="w-96">
         <div className="flex flex-col gap-3">

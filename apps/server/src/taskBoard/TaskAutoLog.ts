@@ -1,5 +1,6 @@
 import { FeedEventError } from "@t3tools/contracts";
 import type {
+  FeedEventDraft,
   OrchestrationV2ConversationMessage,
   OrchestrationV2Run,
   Project,
@@ -23,7 +24,7 @@ import { forkParked } from "../serverActivation.ts";
 import { appendDraft } from "../events/eventsRpc.ts";
 import * as ProcessRunner from "../processRunner.ts";
 import { aiosSlugFor, TaskBoardService } from "./TaskBoardService.ts";
-import { gitRunSummary, replyHeadOf, workedDraft } from "./TaskLedger.ts";
+import { gitRunSummary, replyHeadOf, taskMoveDraft, workedDraft } from "./TaskLedger.ts";
 
 const ACTOR = "Leonidas";
 const MIN_REQUEST_LENGTH = 12;
@@ -101,6 +102,8 @@ export const makeAutoLog = (deps: {
     readonly threadId: ThreadId;
     readonly run: AutoLogRun;
   }) => Effect.Effect<void, FeedEventError>;
+  /** Writes a notice to the event feed. A failure is logged, never retried. */
+  readonly notify?: (draft: FeedEventDraft) => Effect.Effect<void>;
 }) => {
   const { taskBoard } = deps;
 
@@ -185,7 +188,7 @@ export const makeAutoLog = (deps: {
       for (const task of linked) {
         if (deps.worked) yield* deps.worked({ task, threadId, run });
         const finishing = run.status === "completed" && task.status === "in_progress";
-        yield* taskBoard.cardUpdate(
+        const updated = yield* taskBoard.cardUpdate(
           {
             taskId: task.id,
             actor: ACTOR,
@@ -196,6 +199,21 @@ export const makeAutoLog = (deps: {
           },
           projects,
         );
+        // A card made from the request itself ends with every chat, so it would only repeat the
+        // chat-finished notice. A real card in review needs the person.
+        const draft =
+          finishing && task.kind !== "agent_run" && deps.notify
+            ? taskMoveDraft({
+                task: updated,
+                from: task.status,
+                to: updated.status,
+                agent: ACTOR,
+                threadId,
+                note: "The run ended before the agent marked the card done.",
+                at: updated.updatedAt,
+              })
+            : null;
+        if (draft !== null && deps.notify) yield* deps.notify(draft);
       }
     });
 
@@ -283,6 +301,15 @@ export const make = Effect.gen(function* () {
 
   const log = makeAutoLog({
     taskBoard,
+    notify: (draft) =>
+      projectService.snapshot.pipe(
+        Effect.flatMap(({ projects }) => taskBoard.aiosRoot(projects)),
+        Effect.flatMap((root) => appendDraft(root, draft)),
+        Effect.asVoid,
+        Effect.catchCause((cause) =>
+          Effect.logWarning("task review notice skipped", { cause: Cause.pretty(cause) }),
+        ),
+      ),
     worked: ({ task, threadId, run }) =>
       Effect.gen(function* () {
         const shell = yield* projections.getThreadShell(threadId);

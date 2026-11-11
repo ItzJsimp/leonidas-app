@@ -3,7 +3,7 @@ import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { CheckIcon, Undo2Icon } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
-import { useComposerDraftStore } from "~/composerDraftStore";
+import { resolveComposerDraftKey, useComposerDraftStore } from "~/composerDraftStore";
 
 import { ChecklistBar, StatusBadge } from "../taskBoard/TaskBadges";
 import { lastNote } from "./linkedTask.logic";
@@ -21,9 +21,12 @@ export function TaskReviewBlock(props: {
 
   const sendBack = () => {
     void update({ status: "in_progress", note: "Sent back from chat" }, "Could not send back");
-    useComposerDraftStore
-      .getState()
-      .setPrompt(scopeThreadRef(props.environmentId, props.threadId), "Sent back: ");
+    const target = scopeThreadRef(props.environmentId, props.threadId);
+    const drafts = useComposerDraftStore.getState();
+    const key = resolveComposerDraftKey(drafts, target);
+    if (!key || !drafts.draftsByThreadKey[key]?.prompt) {
+      drafts.setPrompt(target, "Sent back: ");
+    }
   };
 
   return (

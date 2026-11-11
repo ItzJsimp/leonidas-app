@@ -24,6 +24,15 @@ describe("pickLinkedCard", () => {
     expect(pickLinkedCard(tasks, "t1")?.id).toBe("new");
   });
 
+  it("prefers a real card to the card made from the request", () => {
+    const tasks = [
+      card({ id: "request", threadIds: ["t1"], updatedAt: 9_000, kind: "agent_run" }),
+      card({ id: "real", threadIds: ["t1"], updatedAt: 1_000, status: "done" }),
+    ];
+    expect(pickLinkedCard(tasks, "t1")?.id).toBe("real");
+    expect(pickLinkedCard([tasks[0]!], "t1")?.id).toBe("request");
+  });
+
   it("falls back to the newest closed card, reads the old claim field, and finds nothing for a new chat", () => {
     const tasks = [
       card({ id: "done", threadIds: ["t1"], status: "done", updatedAt: 2_000 }),
@@ -44,5 +53,15 @@ describe("lastNote", () => {
     ] as unknown as TaskBoardTask["history"];
     expect(lastNote(card({ id: "a", history }))).toBe("14 tests pass, typecheck clean");
     expect(lastNote(card({ id: "b" }))).toBeNull();
+    const swept = [
+      {
+        note: "status → Awaiting Review - Run completed. Moved to review. [run run:thread:t1:ordinal:1]",
+      },
+    ] as unknown as TaskBoardTask["history"];
+    expect(lastNote(card({ id: "c", history: swept }))).toBe("Run completed. Moved to review.");
+    const statusOnly = [
+      { note: "status → Awaiting Review" },
+    ] as unknown as TaskBoardTask["history"];
+    expect(lastNote(card({ id: "d", history: statusOnly }))).toBeNull();
   });
 });

@@ -14,6 +14,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import * as ProcessRunner from "../processRunner.ts";
+import { appendDraft } from "../events/eventsRpc.ts";
 import * as TaskBoardServiceModule from "./TaskBoardService.ts";
 import {
   explicitTaskId,
@@ -78,10 +79,12 @@ const boardProject = {
 
 const withBoard = <A, E, R>(
   use: (input: {
+    readonly root: string;
     readonly project: Project;
     readonly board: TaskBoardServiceModule.TaskBoardService["Service"];
     readonly newLog: (
       worked?: Parameters<typeof makeAutoLog>[0]["worked"],
+      notify?: Parameters<typeof makeAutoLog>[0]["notify"],
     ) => ReturnType<typeof makeAutoLog>;
   }) => Effect.Effect<A, E, R>,
 ) =>
@@ -104,14 +107,16 @@ const withBoard = <A, E, R>(
           workspaceRoot: NodePath.join(root, "projects", "leonidas-code"),
         } as Project;
         return yield* use({
+          root,
           project,
           board,
-          newLog: (worked) =>
+          newLog: (worked, notify) =>
             makeAutoLog({
               taskBoard: board,
               allProjects: Effect.succeed([project]),
               threadProjectId: () => Effect.succeed(project.id),
               ...(worked ? { worked } : {}),
+              ...(notify ? { notify } : {}),
             }),
         });
       }).pipe(
@@ -242,6 +247,61 @@ describe("TaskAutoLog persistence", () => {
         const [task] = (yield* board.workspace([project])).tasks;
         expect(task!.status).toBe("review");
         expect(notes(task!).filter((note) => note.includes("[run run-1]"))).toHaveLength(1);
+      }),
+    ),
+  );
+
+  it.effect("notifies when a run moves a real card to review, never for the request card", () =>
+    withBoard(({ board, project, newLog }) =>
+      Effect.gen(function* () {
+        const notices: string[] = [];
+        const log = newLog(undefined, (draft) => Effect.sync(() => void notices.push(draft.type)));
+        yield* log.handle(request("m1", "thread-auto"));
+        yield* log.handle(runEvent("thread-auto", "run-a", "completed"));
+        expect(notices).toEqual([]);
+
+        const card = yield* newCard(board, project);
+        yield* board.cardUpdate(
+          {
+            taskId: card.id,
+            actor: "Mob",
+            agent: { threadId: "thread-real" },
+            status: "in_progress",
+          },
+          [project],
+        );
+        yield* log.handle(runEvent("thread-real", "run-r", "completed"));
+        expect(notices).toEqual(["task.review"]);
+      }),
+    ),
+  );
+
+  it.effect("writes a review event to the feed when a run ends", () =>
+    withBoard(({ board, project, root, newLog }) =>
+      Effect.gen(function* () {
+        const log = newLog(undefined, (draft) =>
+          appendDraft(root, draft).pipe(Effect.asVoid, Effect.orDie),
+        );
+        const card = yield* newCard(board, project);
+        yield* board.cardUpdate(
+          {
+            taskId: card.id,
+            actor: "Mob",
+            agent: { threadId: "thread-feed" },
+            status: "in_progress",
+          },
+          [project],
+        );
+        yield* log.handle(runEvent("thread-feed", "run-feed", "completed"));
+        const files = NodeFS.readdirSync(NodePath.join(root, "events"));
+        const lines = files.flatMap((file) =>
+          NodeFS.readFileSync(NodePath.join(root, "events", file), "utf8")
+            .trim()
+            .split("\n"),
+        );
+        const events = lines.map((line) => JSON.parse(line));
+        expect(events).toHaveLength(1);
+        expect(events[0]).toMatchObject({ type: "task.review", level: "needs_you" });
       }),
     ),
   );
