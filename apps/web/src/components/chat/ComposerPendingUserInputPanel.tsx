@@ -12,6 +12,7 @@ import { cn } from "~/lib/utils";
 import { ComposerBanner } from "./ComposerBanner";
 
 interface PendingUserInputPanelProps {
+  cacheNote?: string | null;
   pendingUserInputs: PendingUserInput[];
   disabled?: boolean;
   respondingRequestIds: RuntimeRequestId[];
@@ -23,6 +24,7 @@ interface PendingUserInputPanelProps {
 }
 
 export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserInputPanel({
+  cacheNote = null,
   pendingUserInputs,
   disabled = false,
   respondingRequestIds,
@@ -40,6 +42,7 @@ export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserIn
     <ComposerPendingUserInputCard
       key={activePrompt.requestId}
       prompt={activePrompt}
+      cacheNote={cacheNote}
       disabled={disabled}
       isResponding={respondingRequestIds.includes(activePrompt.requestId)}
       answers={answers}
@@ -53,6 +56,7 @@ export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserIn
 
 const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard({
   prompt,
+  cacheNote,
   disabled,
   isResponding,
   answers,
@@ -62,6 +66,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   onDismiss,
 }: {
   prompt: PendingUserInput;
+  cacheNote: string | null;
   disabled: boolean;
   isResponding: boolean;
   answers: Record<string, PendingUserInputDraftAnswer>;
@@ -214,6 +219,11 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
           ) : (
             <span className="text-3xs text-primary">Waiting on your answer</span>
           )}
+          {cacheNote ? (
+            <span className="min-w-0 truncate text-3xs text-warning" title={cacheNote}>
+              {cacheNote}
+            </span>
+          ) : null}
         </ComposerBanner.Content>
         <ComposerBanner.Actions>
           {prompt.questions.length > 1 ? (

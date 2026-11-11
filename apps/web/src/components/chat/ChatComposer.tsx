@@ -1,5 +1,9 @@
 import { cacheActionImpact } from "@t3tools/client-runtime/cache-awareness";
-import { CacheConfigurationNotice, useCacheActionWarning } from "./CacheAwareness";
+import {
+  CacheConfigurationNotice,
+  useCacheActionWarning,
+  usePendingCacheNote,
+} from "./CacheAwareness";
 import { useBenchmarkRouteProfiles } from "../../lib/useBenchmarkRouteProfiles";
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
 import { usePromptPrediction } from "./usePromptPrediction";
@@ -2427,6 +2431,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     [selectedInstanceId, selectedModel, selectedModelOptionsForDispatch],
   );
   const cacheWarning = useCacheActionWarning();
+  const pendingCacheNote = usePendingCacheNote(activeContextWindow, pendingUserInputs.length > 0);
   const onProviderModelSelect: ChatComposerProps["onProviderModelSelect"] = (
     instanceId,
     model,
@@ -7108,6 +7113,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   </ComposerBanner.Row>
                 ) : !isComposerCollapsedMobile && pendingUserInputs.length > 0 ? (
                   <ComposerPendingUserInputPanel
+                    cacheNote={pendingCacheNote}
                     pendingUserInputs={pendingUserInputs}
                     disabled={!canOperateThread}
                     respondingRequestIds={
@@ -7129,6 +7135,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 ) : isComposerCollapsedMobile && pendingUserInputs.length > 0 ? (
                   <div data-chat-composer-collapsed-controls="true">
                     <ComposerPendingUserInputPanel
+                      cacheNote={pendingCacheNote}
                       pendingUserInputs={pendingUserInputs}
                       disabled={!canOperateThread}
                       respondingRequestIds={

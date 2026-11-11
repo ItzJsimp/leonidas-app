@@ -32,6 +32,42 @@ import {
 import { Checkbox } from "../ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectPopup, SelectItem } from "../ui/select";
 
+/** Text for a waiting question or approval, so the user knows the answer may rebuild the cache. */
+export function cacheWaitNote(
+  status: ReturnType<typeof cacheStatus>,
+  waiting: boolean,
+): string | null {
+  if (!waiting) return null;
+  if (status.state === "possibly-expired")
+    return "Cache ended while this waited. Your answer may cost more.";
+  if (status.state === "estimated" && (status.remainingMs ?? Infinity) <= 10 * 60_000)
+    return "Cache ends soon. Answer now to keep it.";
+  return null;
+}
+
+/** Note for the question card, plus one toast when the cache ends while the card is open. */
+export function usePendingCacheNote(usage: ContextWindowSnapshot | null, waiting: boolean) {
+  const now = useCacheClock();
+  const observation = useMemo(() => cacheObservation(usage), [usage]);
+  const status = cacheStatus(observation, now);
+  const note = cacheWaitNote(status, waiting);
+  const muted = useClientSettings((s) => s.cacheMutedWarnings.includes("expiry"));
+  const wasExpiredRef = useRef<boolean | null>(null);
+  const expired = waiting && status.state === "possibly-expired";
+  useEffect(() => {
+    // The first value is the state on arrival: the card note covers it.
+    if (wasExpiredRef.current === false && expired && !muted)
+      toastManager.add({
+        id: "cache-expired-waiting",
+        type: "info",
+        title: "Cache ended",
+        description: "A chat is waiting on you. Your answer may cost more.",
+      });
+    wasExpiredRef.current = expired;
+  }, [expired, muted]);
+  return note;
+}
+
 function cacheObservation(usage: ContextWindowSnapshot | null): CacheObservation | null {
   return usage
     ? {

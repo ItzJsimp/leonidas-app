@@ -18,6 +18,7 @@ import {
   CacheNoticeCoordinator,
   CacheNoticeControls,
   useCacheActionWarning,
+  cacheWaitNote,
 } from "./CacheAwareness";
 import {
   recentCacheChats,
@@ -156,4 +157,24 @@ it("caps tracked chats and keeps the latest report when revisiting", () => {
   observeCacheChat("1", { ...observation, cachedInputTokens: 50 }, now);
   expect(recentCacheChats.get("1")?.observation.cachedInputTokens).toBe(50);
   expect(recentCacheChats.size).toBe(100);
+});
+
+describe("cacheWaitNote", () => {
+  const base = { readRate: 0.9 } as const;
+  it("warns when the cache ended while a question waited", () => {
+    const note = cacheWaitNote({ ...base, state: "possibly-expired", remainingMs: 0 }, true);
+    expect(note).toContain("ended");
+  });
+  it("warns only inside the last 10 minutes", () => {
+    expect(cacheWaitNote({ ...base, state: "estimated", remainingMs: 9 * 60_000 }, true)).toContain(
+      "ends soon",
+    );
+    expect(
+      cacheWaitNote({ ...base, state: "estimated", remainingMs: 40 * 60_000 }, true),
+    ).toBeNull();
+  });
+  it("stays silent when nothing waits or the lifetime is unknown", () => {
+    expect(cacheWaitNote({ ...base, state: "possibly-expired", remainingMs: 0 }, false)).toBeNull();
+    expect(cacheWaitNote({ ...base, state: "reported", remainingMs: null }, true)).toBeNull();
+  });
 });

@@ -26,8 +26,8 @@ describe("Leonidas release policy", () => {
     expect(notes.startsWith(post)).toBe(true);
     expect(notes).toContain("## Patch notes\n\n### New\n- Added illustrated release articles");
     expect(notes.trimEnd().split("\n").at(-1)).toMatch(/^<!-- leonidas-release /);
-    expect(notes).toContain("## If Windows shows a blue warning");
-    expect(notes).toContain("Click **More info**, then click **Run anyway**");
+    expect(notes).not.toContain("## If Windows shows a blue warning");
+    expect(notes).not.toContain("The installer is not signed yet");
   });
   it("reserves 1.0.0 for an explicit public launch", () => {
     expect(nextReleaseVersion("0.1.2", "patch", true)).toBe("0.1.3");
