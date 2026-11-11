@@ -1,8 +1,30 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { collectComposerInlineTokens } from "./composerInlineTokens.ts";
+import { matchInlineSkills } from "./inlineSkills.ts";
 
 describe("collectComposerInlineTokens", () => {
+  it("chips a leading namespaced provider command without changing its text", () => {
+    expect(collectComposerInlineTokens("/ponytail:ponytail-audit $component-audit ")).toEqual([
+      {
+        type: "skill",
+        value: "ponytail:ponytail-audit",
+        source: "/ponytail:ponytail-audit",
+        start: 0,
+        end: 24,
+      },
+      { type: "skill", value: "component-audit", source: "$component-audit", start: 25, end: 41 },
+    ]);
+    expect(collectComposerInlineTokens("/ponytail:ponytail-audit")).toEqual([]);
+    expect(collectComposerInlineTokens("text /ponytail:ponytail-audit ")).toEqual([]);
+    expect(
+      [
+        ...matchInlineSkills("/ponytail:ponytail-audit $component-audit", [
+          { name: "component-audit" },
+        ]),
+      ].map((token) => token.rawText),
+    ).toEqual(["/ponytail:ponytail-audit", "$component-audit"]);
+  });
   it("chips a leading /goal once a delimiter follows, and nothing else", () => {
     expect(collectComposerInlineTokens("/goal ship it")).toEqual([
       { type: "skill", value: "goal", source: "/goal", start: 0, end: 5 },
