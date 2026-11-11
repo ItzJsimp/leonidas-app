@@ -228,7 +228,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.taskBoardHomeNews]: AuthOrchestrationReadScope,
   [WS_METHODS.tradingImports]: AuthOrchestrationReadScope,
   [WS_METHODS.tradingImport]: AuthOrchestrationOperateScope,
-  [WS_METHODS.tradingPackConsent]: AuthOrchestrationOperateScope,
+  [WS_METHODS.tradingPackConsent]: AuthFilesystemWriteScope,
   [WS_METHODS.tradingState]: AuthOrchestrationReadScope,
   [WS_METHODS.tradingAppend]: AuthOrchestrationOperateScope,
   [WS_METHODS.releaseStatusRuns]: AuthReleaseReadScope,
