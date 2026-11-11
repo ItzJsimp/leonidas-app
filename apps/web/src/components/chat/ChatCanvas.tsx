@@ -3,6 +3,29 @@ import { ChatCanvasContext } from "./ChatCanvasContext";
 import { resolveChatCanvasLayout, type ChatCanvasPreview } from "./chatCanvasLayout";
 import type { PreviewMiniPlayerObstacles } from "../preview/previewMiniPlayerLayout";
 import { observeResize } from "../../lib/observeResize";
+import { useStableCallback } from "../../hooks/useStableCallback";
+
+type DetailsCard = PreviewMiniPlayerObstacles["detailsCard"];
+
+// Plain `if` checks on purpose: React Compiler bails out of the whole file on `a?.x === b?.x && ...`
+// in a state updater, and a file it skips would rebuild these callbacks on every render.
+function sameDetailsCard(a: DetailsCard, b: DetailsCard) {
+  if (a === null || b === null) return a === b;
+  return a.left === b.left && a.right === b.right && a.bottom === b.bottom;
+}
+
+function samePreview(a: ChatCanvasPreview | null, b: ChatCanvasPreview) {
+  if (a === null) return false;
+  return (
+    a.key === b.key &&
+    a.width === b.width &&
+    a.lastInteraction === b.lastInteraction &&
+    a.position?.x === b.position?.x &&
+    a.position?.y === b.position?.y &&
+    a.source.width === b.source.width &&
+    a.source.height === b.source.height
+  );
+}
 
 export function ChatCanvas({
   composerOverlayElement,
@@ -17,16 +40,12 @@ export function ChatCanvas({
   const widthProbeRef = useRef<HTMLDivElement | null>(null);
   const [timelineElement, registerTimeline] = useState<HTMLElement | null>(null);
   const [preview, setPreview] = useState<ChatCanvasPreview | null>(null);
-  const [detailsCard, setDetailsCard] = useState<PreviewMiniPlayerObstacles["detailsCard"]>(null);
-  const reportDetailsCard = (next: PreviewMiniPlayerObstacles["detailsCard"]) => {
-    setDetailsCard((current) =>
-      current?.left === next?.left &&
-      current?.right === next?.right &&
-      current?.bottom === next?.bottom
-        ? current
-        : next,
-    );
-  };
+  const [detailsCard, setDetailsCard] = useState<DetailsCard>(null);
+  // Cards call these from layout effects keyed on the callback. A new identity each render makes the
+  // report and the cleanup retrigger each other forever (React error 185).
+  const reportDetailsCard = useStableCallback((next: DetailsCard) => {
+    setDetailsCard((current) => (sameDetailsCard(current, next) ? current : next));
+  });
   const [measurements, setMeasurements] = useState({
     width: 0,
     height: 0,
@@ -39,21 +58,12 @@ export function ChatCanvas({
     findBarRight: 0,
     findBarBottom: 0,
   });
-  const reportPreview = (next: ChatCanvasPreview) => {
-    setPreview((current) =>
-      current?.key === next.key &&
-      current.width === next.width &&
-      current.lastInteraction === next.lastInteraction &&
-      current.position?.x === next.position?.x &&
-      current.position?.y === next.position?.y &&
-      current.source.width === next.source.width &&
-      current.source.height === next.source.height
-        ? current
-        : next,
-    );
-  };
-  const clearPreview = (key: string) =>
-    setPreview((current) => (current?.key === key ? null : current));
+  const reportPreview = useStableCallback((next: ChatCanvasPreview) => {
+    setPreview((current) => (samePreview(current, next) ? current : next));
+  });
+  const clearPreview = useStableCallback((key: string) =>
+    setPreview((current) => (current?.key === key ? null : current)),
+  );
   useLayoutEffect(() => {
     const element = elementRef.current;
     const probe = widthProbeRef.current;
