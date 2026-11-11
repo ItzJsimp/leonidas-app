@@ -6,7 +6,7 @@
 //!   `chunks.jsonl`. That file is the source of the final `transcript.json`, so a meeting
 //!   cut short by a crash can still be assembled.
 
-use super::capture::{write_chunk, Chunk, Track, TrackKind};
+use super::capture::{write_chunk, Chunk, Sources, Track, TrackKind};
 use super::store::{read_json, write_json};
 use crate::engine::EncodedAudio;
 use crate::groq::{GroqClient, SpeechSegment};
@@ -34,7 +34,7 @@ impl Segmenter for GroqClient {
 }
 
 /// Opens a track. The app opens real devices, tests open detached tracks.
-pub type TrackOpener = Arc<dyn Fn(TrackKind) -> Result<Track, String> + Send + Sync>;
+pub type TrackOpener = Arc<dyn Fn(TrackKind, &Sources) -> Result<Track, String> + Send + Sync>;
 
 pub fn device_opener() -> TrackOpener {
     Arc::new(Track::open)
@@ -112,12 +112,13 @@ impl Session {
         id: String,
         dir: PathBuf,
         opener: &TrackOpener,
+        sources: &Sources,
         segmenter: Arc<dyn Segmenter>,
         finisher: Finisher,
     ) -> Result<Self, String> {
-        let me = opener(TrackKind::Me)?;
+        let me = opener(TrackKind::Me, sources)?;
         let mut notices = Vec::new();
-        let them = match opener(TrackKind::Them) {
+        let them = match opener(TrackKind::Them, sources) {
             Ok(track) => Some(track),
             Err(e) => {
                 notices.push(format!("Call audio is not recorded: {e}"));
@@ -423,7 +424,7 @@ pub(crate) mod tests {
 
     /// Detached tracks preloaded with audio, so a session runs without devices.
     pub(crate) fn fake_opener(me_s: f32, them_s: Option<f32>) -> TrackOpener {
-        Arc::new(move |kind| {
+        Arc::new(move |kind, _| {
             let seconds = match kind {
                 TrackKind::Me => me_s,
                 TrackKind::Them => them_s.ok_or("no loopback device")?,
@@ -431,6 +432,15 @@ pub(crate) mod tests {
             let track = Track::detached(kind, 16_000);
             track.push(&tone(seconds));
             Ok(track)
+        })
+    }
+
+    /// Like `fake_opener`, and keeps every `Sources` it is asked to open.
+    pub(crate) fn spy_opener(seen: Arc<Mutex<Vec<(TrackKind, Sources)>>>) -> TrackOpener {
+        let inner = fake_opener(2.0, Some(2.0));
+        Arc::new(move |kind, sources| {
+            seen.lock().unwrap().push((kind, sources.clone()));
+            inner(kind, sources)
         })
     }
 
@@ -447,6 +457,7 @@ pub(crate) mod tests {
             "m".into(),
             dir.clone(),
             &fake_opener(30.0, Some(10.0)),
+            &Sources::default(),
             segmenter.clone(),
             Box::new(move |_| flag.store(true, Ordering::SeqCst)),
         )
@@ -496,6 +507,7 @@ pub(crate) mod tests {
             "m".into(),
             dir.clone(),
             &fake_opener(3.0, None),
+            &Sources::default(),
             segmenter,
             Box::new(|_| {}),
         )
