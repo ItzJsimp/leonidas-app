@@ -243,3 +243,38 @@ describe("normalizeDesktopUpdateReleaseNotes", () => {
     });
   });
 });
+
+describe("notable release notes", () => {
+  const body = (since: string) =>
+    `# 0.125.1\n\n- Fixed a thing.\n\n<!-- leonidas-release {"commit":"abc","authors":[],"coAuthors":[],"notableSince":"${since}"} -->`;
+
+  it("flags a release when a notable version sits above the running one", () => {
+    const { releaseNotes } = normalizeDesktopUpdateReleaseNotes(
+      body("0.125.0"),
+      "0.125.1",
+      "latest",
+      "0.124.95",
+    );
+    expect(releaseNotes[0]?.notable).toBe(true);
+  });
+
+  it("stays silent when the notable version is already installed", () => {
+    const { releaseNotes } = normalizeDesktopUpdateReleaseNotes(
+      body("0.124.95"),
+      "0.125.1",
+      "latest",
+      "0.124.95",
+    );
+    expect(releaseNotes[0]).not.toHaveProperty("notable");
+  });
+
+  it("adds no flag without a running version, and none for notes without metadata", () => {
+    expect(
+      normalizeDesktopUpdateReleaseNotes(body("0.125.0"), "0.125.1", "latest").releaseNotes[0],
+    ).not.toHaveProperty("notable");
+    expect(
+      normalizeDesktopUpdateReleaseNotes("- Fixed a thing.", "0.125.1", "latest", "0.124.95")
+        .releaseNotes[0],
+    ).not.toHaveProperty("notable");
+  });
+});

@@ -1286,6 +1286,8 @@ export interface DesktopBridge {
   onWindowFullscreenStateChange: (listener: (fullscreen: boolean) => void) => () => void;
   getUpdateState: () => Promise<DesktopUpdateState>;
   setUpdateChannel: (channel: DesktopUpdateChannel) => Promise<DesktopUpdateState>;
+  /** Install a downloaded update when the app quits. The web app mirrors its automatic-update setting here. */
+  setAutoInstall: (enabled: boolean) => Promise<void>;
   checkForUpdate: () => Promise<DesktopUpdateCheckResult>;
   downloadUpdate: () => Promise<DesktopUpdateActionResult>;
   installUpdate: () => Promise<DesktopUpdateActionResult>;

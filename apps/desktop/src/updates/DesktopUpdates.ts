@@ -49,7 +49,7 @@ import {
 } from "./updateMachine.ts";
 
 const AUTO_UPDATE_STARTUP_DELAY = "15 seconds";
-const AUTO_UPDATE_POLL_INTERVAL = "1 minute";
+const AUTO_UPDATE_POLL_INTERVAL = "15 minutes";
 const PREPARED_INSTALL_CHECK_WAIT = Duration.seconds(90);
 
 type UpdateAction = "check" | "download" | "install" | "install-recovery" | "channel";
@@ -178,6 +178,8 @@ export class DesktopUpdates extends Context.Service<
     readonly setChannel: (
       channel: DesktopUpdateChannel,
     ) => Effect.Effect<DesktopUpdateState, DesktopUpdateSetChannelError>;
+    /** Install a downloaded update when the app quits. */
+    readonly setAutoInstall: (enabled: boolean) => Effect.Effect<void>;
     readonly check: (reason: string) => Effect.Effect<DesktopUpdateCheckResult>;
     readonly download: Effect.Effect<DesktopUpdateActionResult>;
     readonly install: Effect.Effect<DesktopUpdateActionResult>;
@@ -779,6 +781,7 @@ export const make = Effect.gen(function* () {
             info.releaseNotes,
             info.version,
             state.channel,
+            environment.appVersion,
           );
           yield* setState(
             reduceDesktopUpdateStateOnUpdateAvailable(
@@ -969,7 +972,9 @@ export const make = Effect.gen(function* () {
       // Download in the background as soon as an update is found. The
       // download-progress and update-downloaded handlers drive the state machine.
       yield* electronUpdater.setAutoDownload(true);
-      yield* electronUpdater.setAutoInstallOnAppQuit(false);
+      // Quitting installs a downloaded update, so no restart ever interrupts work. The web app
+      // turns this off when the user turns off automatic updates.
+      yield* electronUpdater.setAutoInstallOnAppQuit(true);
       yield* applyAutoUpdaterChannel(settings.updateChannel);
       yield* electronUpdater.setDisableDifferentialDownload(
         isArm64HostRunningIntelBuild(environment.runtimeInfo),
@@ -1006,6 +1011,7 @@ export const make = Effect.gen(function* () {
 
       yield* startUpdatePollers;
     }).pipe(Effect.withSpan("desktop.updates.configure")),
+    setAutoInstall: (enabled) => electronUpdater.setAutoInstallOnAppQuit(enabled),
     setChannel: Effect.fn("desktop.updates.setChannel")(function* (
       nextChannel: DesktopUpdateChannel,
     ) {

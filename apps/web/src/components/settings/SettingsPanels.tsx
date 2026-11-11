@@ -119,7 +119,11 @@ import { PromptPredictionSettings } from "./PromptPredictionSettings";
 import { SnoozePresetsRow } from "./SnoozePresetsSettings";
 import { ThreadTitleInstructionsSettings } from "./ThreadTitleInstructionsSettings";
 import { useThreadActions } from "../../hooks/useThreadActions";
-import { useDesktopUpdateState, useUpdateWhenSafeStore } from "../../state/desktopUpdate";
+import {
+  useDesktopUpdateState,
+  useUpdatePreferencesStore,
+  type UpdateNoticeLevel,
+} from "../../state/desktopUpdate";
 import {
   getCustomModelOptionsByInstance,
   resolveAppModelSelectionState,
@@ -364,8 +368,10 @@ function NewUserSetupPreviewRow() {
 }
 
 function AboutVersionSection() {
-  const autoUpdateWhenSafe = useUpdateWhenSafeStore((store) => store.autoUpdateWhenSafe);
-  const setAutoUpdateWhenSafe = useUpdateWhenSafeStore((store) => store.setAutoUpdateWhenSafe);
+  const autoUpdateWhenSafe = useUpdatePreferencesStore((store) => store.autoUpdateWhenSafe);
+  const setAutoUpdateWhenSafe = useUpdatePreferencesStore((store) => store.setAutoUpdateWhenSafe);
+  const updateNotice = useUpdatePreferencesStore((store) => store.updateNotice);
+  const setUpdateNotice = useUpdatePreferencesStore((store) => store.setUpdateNotice);
   const updateState = useDesktopUpdateState();
   const [isChangingUpdateChannel, setIsChangingUpdateChannel] = useState(false);
   const [isUpdateActionPending, setIsUpdateActionPending] = useState(false);
@@ -548,14 +554,51 @@ function AboutVersionSection() {
       {import.meta.env.DEV ? <NewUserSetupPreviewRow /> : null}
       {hasDesktopBridge ? (
         <SettingsRow
-          title="Install updates when the AI finishes"
-          description="Restart this device by itself when an update is ready and no AI work runs."
+          title="Install updates automatically"
+          description="When your AI is done and you are idle, or when you quit."
           control={
             <Switch
               checked={autoUpdateWhenSafe}
               onCheckedChange={setAutoUpdateWhenSafe}
-              aria-label="Install updates when the AI finishes"
+              aria-label="Install updates automatically"
             />
+          }
+        />
+      ) : null}
+      {hasDesktopBridge ? (
+        <SettingsRow
+          title="Tell me about updates"
+          description="Updates still install by themselves."
+          control={
+            <Select
+              value={updateNotice}
+              onValueChange={(value) => setUpdateNotice(value as UpdateNoticeLevel)}
+            >
+              <SelectTrigger
+                size="sm"
+                className="w-full sm:w-40"
+                aria-label="Tell me about updates"
+              >
+                <SelectValue>
+                  {updateNotice === "all"
+                    ? "All updates"
+                    : updateNotice === "never"
+                      ? "Never"
+                      : "Notable only"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem hideIndicator value="notable">
+                  Notable only
+                </SelectItem>
+                <SelectItem hideIndicator value="all">
+                  All updates
+                </SelectItem>
+                <SelectItem hideIndicator value="never">
+                  Never
+                </SelectItem>
+              </SelectPopup>
+            </Select>
           }
         />
       ) : null}

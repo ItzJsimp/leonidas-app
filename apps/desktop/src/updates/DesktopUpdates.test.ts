@@ -108,12 +108,18 @@ describe("DesktopUpdates", () => {
           ]);
           assert.equal(harness.listenerCount(), 6);
           assert.equal(harness.autoDownload(), true);
+          assert.equal(harness.autoInstallOnQuit(), true);
           assert.equal(harness.checkCount(), 0);
 
+          // One check at startup, then one every 15 minutes.
           yield* TestClock.adjust(Duration.millis(15_000));
           assert.equal(harness.checkCount(), 1);
-          yield* TestClock.adjust(Duration.millis(45_000));
+          yield* TestClock.adjust(Duration.seconds(14 * 60 + 45));
           assert.equal(harness.checkCount(), 2);
+
+          // The web app turns install on quit off when the person turns off automatic updates.
+          yield* updates.setAutoInstall(false);
+          assert.equal(harness.autoInstallOnQuit(), false);
         }),
       );
 

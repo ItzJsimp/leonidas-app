@@ -1,4 +1,5 @@
 import type { DesktopUpdateChannel, DesktopUpdateReleaseNote } from "@t3tools/contracts";
+import { compareSemverVersions } from "@t3tools/shared/semver";
 
 import { resolveDefaultDesktopUpdateChannel } from "./updateChannels.ts";
 
@@ -123,6 +124,12 @@ function extractReleaseNoteItems(note: string | null | undefined): ExtractedRele
   return { items: curated ? items : items.toReversed(), totalItems };
 }
 
+/** The publisher writes `notableSince` into the release metadata comment (see scripts/leonidas-release.ts). */
+function isNotableSince(note: string | null | undefined, currentVersion: string): boolean {
+  const since = /"notableSince":"(\d+\.\d+\.\d+)"/.exec(note ?? "")?.[1];
+  return since !== undefined && compareSemverVersions(since, currentVersion) > 0;
+}
+
 interface NormalizedDesktopUpdateReleaseNotes {
   readonly releaseNotes: ReadonlyArray<DesktopUpdateReleaseNote>;
   readonly omittedReleaseCount: number;
@@ -141,6 +148,7 @@ export function normalizeDesktopUpdateReleaseNotes(
   releaseNotes: unknown,
   fallbackVersion: string,
   channel: DesktopUpdateChannel,
+  currentVersion?: string,
 ): NormalizedDesktopUpdateReleaseNotes {
   const rawNotes = (
     typeof releaseNotes === "string"
@@ -158,6 +166,7 @@ export function normalizeDesktopUpdateReleaseNotes(
         version: entry.version,
         items,
         totalItems,
+        ...(currentVersion && isNotableSince(entry.note, currentVersion) ? { notable: true } : {}),
       },
     ];
   });

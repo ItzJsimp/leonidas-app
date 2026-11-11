@@ -14,10 +14,13 @@ export interface DesktopUpdateReleaseNote {
   version: string;
   items: ReadonlyArray<string>;
   totalItems: number;
+  /** True when a release the user skipped past, or this one, deserves a visible notice. */
+  notable?: boolean;
 }
 
 export const DesktopUpdateReleaseNoteSchema = Schema.Struct({
   version: Schema.String,
   items: Schema.Array(Schema.String),
   totalItems: Schema.Number,
+  notable: Schema.optional(Schema.Boolean),
 });

@@ -333,7 +333,6 @@ import { COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS } from "~/workspaceTitlebar";
 import { useSplitPane } from "./split/splitPaneContext";
 import { subscribeThreadAction, type ThreadAction } from "./chat/threadActionBus";
 import { stackedThreadToast, toastManager } from "./ui/toast";
-import { useUpdateWhenSafeStore } from "../state/desktopUpdate";
 import {
   decodeProjectScriptKeybindingRule,
   keybindingValueForCommand,
@@ -8640,33 +8639,6 @@ export default function ChatView(props: ChatViewProps) {
       feedbackUploadsInFlightRef.current.has(routeThreadKey)
     ) {
       notifyDirectAnnotationAttached();
-      return;
-    }
-    // Draining for an update: the draft stays in the composer and sends after the restart.
-    if (useUpdateWhenSafeStore.getState().draining) {
-      const updateToastId = toastManager.add({
-        type: "info",
-        title: "Update installing soon",
-        description:
-          "Running AI work is finishing first. Your message stays as a draft. Send it after the restart.",
-        timeout: 8000,
-        actionProps: {
-          children: "Cancel update",
-          onClick: () => {
-            const store = useUpdateWhenSafeStore.getState();
-            store.setUpdateWhenSafe(false);
-            store.setAutoUpdateWhenSafe(false);
-            toastManager.close(updateToastId);
-            toastManager.add({
-              type: "success",
-              title: "Update canceled",
-              description:
-                "You can send your message now. The update installs later when you are away.",
-              timeout: 6000,
-            });
-          },
-        },
-      });
       return;
     }
     if (needsLoadBalancing) {

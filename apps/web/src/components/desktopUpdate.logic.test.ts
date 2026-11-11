@@ -7,16 +7,15 @@ import {
   getDesktopUpdateActionError,
   getDesktopUpdateButtonTooltip,
   getDesktopUpdateInstallConfirmationMessage,
-  getDesktopUpdateReleaseHistoryUrl,
-  getDesktopUpdateReleaseUrl,
   getWhatsNewItems,
   isDesktopUpdateButtonDisabled,
   resolveDesktopUpdateButtonAction,
-  IDLE_INSTALL_AFTER_MS,
-  resolveUpdateWhenSafeAction,
-  shouldInstallWhenIdle,
+  AUTO_INSTALL_IDLE_MS,
+  groupReleaseNotes,
+  resolveUpdatePill,
+  shouldInstallAutomatically,
+  summarizeUpdate,
   shouldShowArm64IntelBuildWarning,
-  shouldToastDesktopUpdateActionResult,
 } from "./desktopUpdate.logic";
 
 const baseState: DesktopUpdateState = {
@@ -184,53 +183,6 @@ describe("getDesktopUpdateActionError", () => {
 });
 
 describe("desktop update UI helpers", () => {
-  it("builds the stable release URL for a downloaded version", () => {
-    expect(getDesktopUpdateReleaseUrl("0.0.30")).toBe(
-      "https://github.com/ItzJsimp/leonidas-app/releases/tag/v0.0.30",
-    );
-  });
-
-  it("builds the nightly release URL without dropping its version suffix", () => {
-    expect(getDesktopUpdateReleaseUrl("0.0.30-nightly.20260728.931")).toBe(
-      "https://github.com/ItzJsimp/leonidas-app/releases/tag/v0.0.30-nightly.20260728.931",
-    );
-  });
-
-  it("omits the release URL when the updater does not report a version", () => {
-    expect(getDesktopUpdateReleaseUrl(null)).toBeNull();
-    expect(getDesktopUpdateReleaseUrl("  ")).toBeNull();
-  });
-
-  it("builds the release history URL", () => {
-    expect(getDesktopUpdateReleaseHistoryUrl()).toBe(
-      "https://github.com/ItzJsimp/leonidas-app/releases",
-    );
-  });
-
-  it("toasts only for actionable updater errors", () => {
-    expect(
-      shouldToastDesktopUpdateActionResult({
-        accepted: true,
-        completed: false,
-        state: { ...baseState, message: "checksum mismatch" },
-      }),
-    ).toBe(true);
-    expect(
-      shouldToastDesktopUpdateActionResult({
-        accepted: true,
-        completed: false,
-        state: { ...baseState, message: null },
-      }),
-    ).toBe(false);
-    expect(
-      shouldToastDesktopUpdateActionResult({
-        accepted: true,
-        completed: true,
-        state: { ...baseState, message: "checksum mismatch" },
-      }),
-    ).toBe(false);
-  });
-
   it("shows an Apple Silicon warning for Intel builds under Rosetta", () => {
     const state: DesktopUpdateState = {
       ...baseState,
@@ -288,40 +240,124 @@ describe("desktop update UI helpers", () => {
 });
 
 describe("getDesktopUpdateInstallConfirmationMessage with running chats", () => {
-  it("says how many chats will stop and points to Update when the AI is done", () => {
+  it("says how many chats will stop and that the update installs by itself later", () => {
     const state = { availableVersion: "1.1.0", downloadedVersion: "1.1.0" };
     expect(getDesktopUpdateInstallConfirmationMessage(state, 1)).toContain(
       "1 chat is running and will stop.",
     );
     const many = getDesktopUpdateInstallConfirmationMessage(state, 3);
     expect(many).toContain("3 chats are running and will stop.");
-    expect(many).toContain("Update when the AI is done");
+    expect(many).toContain("installs by itself when your AI is done");
   });
 });
 
-describe("resolveUpdateWhenSafeAction", () => {
+describe("shouldInstallAutomatically", () => {
+  const ready = {
+    enabled: true,
+    hasDownloadedUpdate: true,
+    runningCount: 0,
+    idleMs: AUTO_INSTALL_IDLE_MS,
+  };
+  it("installs once no AI work runs and the person has been away long enough", () => {
+    expect(shouldInstallAutomatically(ready)).toBe(true);
+  });
   it.each([
-    [0, false, "none"],
-    [3, false, "none"],
-    [2, true, "wait"],
-    [0, true, "install"],
-  ] as const)("with %i running and flag %s resolves to %s", (running, flag, expected) => {
-    expect(resolveUpdateWhenSafeAction(running, flag)).toBe(expected);
+    ["the person was active a moment ago", { idleMs: AUTO_INSTALL_IDLE_MS - 1 }],
+    ["a chat is still running", { runningCount: 1 }],
+    ["nothing is downloaded", { hasDownloadedUpdate: false }],
+    ["automatic updates are off", { enabled: false }],
+  ] as const)("waits when %s", (_name, override) => {
+    expect(shouldInstallAutomatically({ ...ready, ...override })).toBe(false);
   });
 });
 
-describe("shouldInstallWhenIdle", () => {
-  it.each([
-    [0, IDLE_INSTALL_AFTER_MS, true, true],
-    [0, IDLE_INSTALL_AFTER_MS - 1, true, false],
-    [1, IDLE_INSTALL_AFTER_MS, true, false],
-    [0, IDLE_INSTALL_AFTER_MS, false, false],
-  ] as const)(
-    "running %i, idle %i, downloaded %s gives %s",
-    (running, idle, downloaded, expected) => {
-      expect(shouldInstallWhenIdle(running, idle, downloaded)).toBe(expected);
-    },
-  );
+describe("resolveUpdatePill", () => {
+  const notable = [{ version: "1.1.0", items: ["Added a thing."], totalItems: 1, notable: true }];
+  const small = [{ version: "1.1.0", items: ["Fixed a thing."], totalItems: 1, notable: false }];
+  const downloaded = {
+    ...baseState,
+    status: "downloaded" as const,
+    downloadedVersion: "1.1.0",
+    availableVersion: "1.1.0",
+  };
+
+  it("shows Ready for a notable downloaded update", () => {
+    expect(resolveUpdatePill({ ...downloaded, releaseNotes: notable }, "notable")).toBe("ready");
+  });
+  it("stays silent for a small patch unless the person wants every update", () => {
+    expect(resolveUpdatePill({ ...downloaded, releaseNotes: small }, "notable")).toBeNull();
+    expect(resolveUpdatePill({ ...downloaded, releaseNotes: small }, "all")).toBe("ready");
+  });
+  it("never shows a mark when the person chose Never", () => {
+    expect(resolveUpdatePill({ ...downloaded, releaseNotes: notable }, "never")).toBeNull();
+  });
+  it("shows Paused after a failed download or install that can retry", () => {
+    const failedDownload = {
+      ...baseState,
+      status: "available" as const,
+      availableVersion: "1.1.0",
+      releaseNotes: notable,
+      errorContext: "download" as const,
+      canRetry: true,
+    };
+    expect(resolveUpdatePill(failedDownload, "notable")).toBe("paused");
+    const failedInstall = {
+      ...downloaded,
+      releaseNotes: notable,
+      errorContext: "install" as const,
+      canRetry: true,
+    };
+    expect(resolveUpdatePill(failedInstall, "notable")).toBe("paused");
+  });
+  it("shows nothing while an update is only downloading, or without state", () => {
+    expect(
+      resolveUpdatePill({ ...baseState, status: "downloading", releaseNotes: notable }, "notable"),
+    ).toBeNull();
+    expect(resolveUpdatePill(null, "notable")).toBeNull();
+  });
+});
+
+describe("groupReleaseNotes", () => {
+  it("groups by verb, in the order New, Improvements, Fixes, and drops empty groups and repeats", () => {
+    expect(
+      groupReleaseNotes(["Fixed a crash.", "Added a pill.", "Changed the list.", "Added a pill."]),
+    ).toEqual([
+      { title: "New", items: ["Added a pill."] },
+      { title: "Improvements", items: ["Changed the list."] },
+      { title: "Fixes", items: ["Fixed a crash."] },
+    ]);
+    expect(groupReleaseNotes([])).toEqual([]);
+  });
+});
+
+describe("summarizeUpdate", () => {
+  const notes = Array.from({ length: 7 }, (_, index) => `Added thing ${index + 1}.`);
+  const state = (currentVersion: string, version: string): DesktopUpdateState => ({
+    ...baseState,
+    status: "downloaded",
+    currentVersion,
+    downloadedVersion: version,
+    availableVersion: version,
+    releaseNotes: [{ version, items: notes, totalItems: 7, notable: true }],
+  });
+
+  it("lists five highlights and counts the rest", () => {
+    const summary = summarizeUpdate(state("0.124.100", "0.124.101"));
+    expect(summary.highlights).toHaveLength(5);
+    expect(summary.moreCount).toBe(2);
+    expect(summary.spansReleases).toBe(false);
+    expect(summary.updateCount).toBeNull();
+  });
+  it("counts the releases between two patch versions", () => {
+    const summary = summarizeUpdate(state("0.124.95", "0.124.100"));
+    expect(summary.updateCount).toBe(5);
+    expect(summary.spansReleases).toBe(true);
+  });
+  it("marks a jump across minor versions without guessing a count", () => {
+    const summary = summarizeUpdate(state("0.124.95", "0.125.2"));
+    expect(summary.updateCount).toBeNull();
+    expect(summary.spansReleases).toBe(true);
+  });
 });
 
 describe("canCheckForUpdate", () => {

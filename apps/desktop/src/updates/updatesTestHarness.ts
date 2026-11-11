@@ -45,6 +45,7 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
   let installOptions: { isSilent: boolean; isForceRunAfter: boolean } | null = null;
   let downloadCount = 0;
   let autoDownload = false;
+  let autoInstallOnQuit = false;
   let allowDowngrade = false;
   let fullChangelog = false;
   const feedUrls: ElectronUpdater.ElectronUpdaterFeedUrl[] = [];
@@ -78,7 +79,10 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
       Effect.sync(() => {
         autoDownload = value;
       }),
-    setAutoInstallOnAppQuit: () => Effect.void,
+    setAutoInstallOnAppQuit: (value) =>
+      Effect.sync(() => {
+        autoInstallOnQuit = value;
+      }),
     setChannel: () => Effect.void,
     setAllowPrerelease: () => Effect.void,
     allowDowngrade: Effect.sync(() => allowDowngrade),
@@ -277,6 +281,7 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
     downloadCount: () => downloadCount,
     feedUrls: (): ElectronUpdater.ElectronUpdaterFeedUrl[] => feedUrls,
     autoDownload: () => autoDownload,
+    autoInstallOnQuit: () => autoInstallOnQuit,
     fullChangelog: () => fullChangelog,
     listenerCount: () =>
       Array.from(listeners.values()).reduce(
