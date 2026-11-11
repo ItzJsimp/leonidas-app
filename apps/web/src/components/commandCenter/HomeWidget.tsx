@@ -17,7 +17,7 @@ const TABS = {
   tasks: { to: "/tasks", label: "Tasks" },
   projects: { to: "/projects", label: "Projects" },
   memory: { to: "/memory", label: "Memory" },
-  subagents: { to: "/subagents", label: "Subagents" },
+  subagents: { to: "/subagents", label: "Agents" },
   automations: { to: "/automations", label: "Automations" },
   usage: { to: "/usage", label: "Usage" },
 } as const;

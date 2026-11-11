@@ -2,14 +2,15 @@ import { ThreadId, type SubagentRun } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  AGENT_TABS,
+  costLabel,
   elapsedLabel,
   formatSpan,
   matchRuns,
   modelLine,
   parentChats,
   resultPlaceholder,
-  subagentsTab,
-  subagentsTabs,
+  runsSummaryLabel,
 } from "./subagents.logic";
 
 const run = (over: Partial<SubagentRun> = {}): SubagentRun => ({
@@ -45,11 +46,30 @@ describe("subagents.logic", () => {
     expect(elapsedLabel(run({ status: "done", durationMs: 30_000 }), 0)).toBe("30 s");
   });
 
-  it("reads the tab and shows the live count on the Running tab", () => {
-    expect(subagentsTab("history")).toBe("history");
-    expect(subagentsTab(undefined)).toBe("running");
-    expect(subagentsTabs(3)[0]?.label).toBe("Running 3");
-    expect(subagentsTabs(null)[0]?.label).toBe("Running");
+  it("has the three Agents tabs, with Team first", () => {
+    expect(AGENT_TABS.map((tab) => tab.id)).toEqual(["team", "runs", "starters"]);
+    expect(AGENT_TABS.map((tab) => tab.label)).toEqual(["Team", "Runs", "Starters"]);
+  });
+
+  it("labels a cost, and says when it is tiny or unknown", () => {
+    expect(costLabel(0.03)).toBe("$0.03");
+    expect(costLabel(0.001)).toBe("under $0.01");
+    expect(costLabel(0)).toBe("$0.00");
+    expect(costLabel(null)).toBe("Cost unknown");
+  });
+
+  it("sums the cost of today's runs and counts the live ones", () => {
+    const now = Date.parse("2026-10-23T12:00:00.000Z");
+    const today = (iso: string) => run({ startedAt: iso, costUsd: 0.1, status: "done" });
+    const runs = [
+      run({ costUsd: 0.1, startedAt: new Date(now - 60_000).toISOString() }),
+      today(new Date(now - 120_000).toISOString()),
+      run({ status: "done", costUsd: 5, startedAt: "2020-01-01T00:00:00.000Z" }),
+      run({ status: "done", costUsd: null, startedAt: null }),
+    ];
+    expect(runsSummaryLabel(runs, now, 2)).toBe("1 running · $0.20 of $2.00 today");
+    expect(runsSummaryLabel(runs, now, null)).toBe("1 running · $0.20 today");
+    expect(runsSummaryLabel([], now, null)).toBe("0 running · $0.00 today");
   });
 
   it("lists each parent chat once and filters live runs by a word", () => {

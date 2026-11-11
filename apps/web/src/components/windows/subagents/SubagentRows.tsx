@@ -9,6 +9,7 @@ import { changedLabel } from "../../twoState/areaRows";
 import { Tip } from "../../twoState/Tip";
 import { TruncatedText } from "../shared/TruncatedText";
 import {
+  costLabel,
   elapsedLabel,
   KIND_LABEL,
   modelLine,
@@ -45,13 +46,20 @@ export function RunRow({
   readonly now: number;
   readonly selected: boolean;
   readonly onSelect: () => void;
-  /** Running tab rows show Open and Stop. History rows show when the run ended. */
+  /** A live row shows Open and Stop. An ended row shows when the run ended. */
   readonly live: boolean;
   readonly stopping: boolean;
   readonly onOpen: () => void;
   readonly onStop: () => void;
 }) {
-  const detail = `${run.parent.title} · ${modelLine(run)} · ${KIND_LABEL[run.kind]}`;
+  const detail = [
+    run.parentRunId === null ? null : "Child run",
+    run.parent.title,
+    modelLine(run),
+    KIND_LABEL[run.kind],
+  ]
+    .filter((part) => part !== null)
+    .join(" · ");
   return (
     <div
       className={cn(
@@ -77,6 +85,7 @@ export function RunRow({
         </span>
         <span className="shrink-0 text-right text-xs text-muted-foreground tabular-nums">
           <span className="block">{elapsedLabel(run, now)}</span>
+          {run.costUsd === null ? null : <span className="block">{costLabel(run.costUsd)}</span>}
           {!live && run.endedAt ? (
             <span className="block">{changedLabel(Date.parse(run.endedAt), now)}</span>
           ) : null}

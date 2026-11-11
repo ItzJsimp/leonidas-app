@@ -2,17 +2,45 @@ import type { SubagentRun, SubagentRunKind, SubagentRunStatus } from "@t3tools/c
 
 import type { WindowTab } from "../../twoState/WindowHeader";
 
-export type SubagentsTab = "running" | "history";
+/** The Agents window tabs. Team comes first, so it is the one that opens by default. */
+export const AGENT_TABS: readonly WindowTab[] = [
+  { id: "team", label: "Team" },
+  { id: "runs", label: "Runs" },
+  { id: "starters", label: "Starters" },
+];
 
-export function subagentsTab(value: string | undefined): SubagentsTab {
-  return value === "history" ? "history" : "running";
+/** "$0.03", "under $0.01" for a tiny cost, or "Cost unknown". */
+export function costLabel(costUsd: number | null): string {
+  if (costUsd === null) return "Cost unknown";
+  if (costUsd > 0 && costUsd < 0.005) return "under $0.01";
+  return `$${costUsd.toFixed(2)}`;
 }
 
-export function subagentsTabs(runningCount: number | null): WindowTab[] {
-  return [
-    { id: "running", label: runningCount === null ? "Running" : `Running ${runningCount}` },
-    { id: "history", label: "History" },
-  ];
+/**
+ * The line above the run list: how many runs are live and what the runs on screen cost since local
+ * midnight. shortcut: it sums the loaded page only, so a day with more runs than one page
+ * undercounts. Upgrade when the server returns today's spend (the gate already has it).
+ */
+export function runsSummaryLabel(
+  runs: ReadonlyArray<Pick<SubagentRun, "status" | "startedAt" | "costUsd">>,
+  now: number,
+  capUsd: number | null,
+): string {
+  const midnight = new Date(now);
+  midnight.setHours(0, 0, 0, 0);
+  const running = runs.filter(isLive).length;
+  const spend = runs.reduce(
+    (sum, run) =>
+      run.startedAt !== null && Date.parse(run.startedAt) >= midnight.getTime()
+        ? sum + (run.costUsd ?? 0)
+        : sum,
+    0,
+  );
+  const today =
+    capUsd === null
+      ? `$${spend.toFixed(2)} today`
+      : `$${spend.toFixed(2)} of $${capUsd.toFixed(2)} today`;
+  return `${running} running · ${today}`;
 }
 
 export const STATUS_LABEL: Readonly<Record<SubagentRunStatus, string>> = {
@@ -36,14 +64,14 @@ export const STATUS_VARIANT: Readonly<
 
 export const KIND_LABEL: Readonly<Record<SubagentRunKind, string>> = {
   delegated: "Delegated task",
-  persona: "Persona",
+  persona: "Team agent",
   native: "Built-in helper",
   workflow: "Workflow",
 };
 
 export const KIND_HELP: Readonly<Record<SubagentRunKind, string>> = {
   delegated: "A chat handed this task to a new chat of its own.",
-  persona: "A named helper that a chat started, such as a reviewer.",
+  persona: "An agent from your team that a chat started, such as a reviewer.",
   native: "A helper that the AI provider started inside the chat turn.",
   workflow: "A coordinator that runs several helpers in steps.",
 };
@@ -109,15 +137,10 @@ export function matchRuns(runs: ReadonlyArray<SubagentRun>, query: string): Suba
   );
 }
 
-/** What the Running tab shows when the list is empty. */
-export const EMPTY_RUNNING = {
-  title: "No subagents are running",
-  line: "A subagent is a helper that a chat starts to do one task on its own. Running ones show here.",
-};
-
-export const EMPTY_HISTORY = {
-  title: "No subagent history yet",
-  line: "A subagent is a helper that a chat starts to do one task on its own. Finished ones show here, with what they did.",
+/** What the Runs tab shows when the list is empty. */
+export const EMPTY_RUNS = {
+  title: "No agent runs yet",
+  line: "When a chat starts an agent from your team, the run shows here with its model, its cost and its result.",
 };
 
 /** The text under the result when no answer exists, by the status of the run. */
