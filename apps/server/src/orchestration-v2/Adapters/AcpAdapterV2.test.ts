@@ -1037,7 +1037,15 @@ describe("AcpAdapterV2", () => {
           if (method === undefined) continue;
           methods.push(method);
           if (method === "session/prompt") {
-            return { methods, prompt: rawProtocolPromptText(event) };
+            const blocks = rawProtocolRequestParam(event, "prompt") as Array<{
+              type: string;
+              text?: string;
+            }>;
+            return {
+              methods,
+              prompt: rawProtocolPromptText(event),
+              firstText: blocks[0]?.text ?? "",
+            };
           }
         }
       });
@@ -1046,6 +1054,8 @@ describe("AcpAdapterV2", () => {
       assert.isTrue(command.prompt.startsWith("/compact"));
       assert.notInclude(command.prompt, "<leonidas_instructions>");
       const firstDefault = yield* runTurn(1, defaultPolicy, "First default request.");
+      assert.include(firstDefault.firstText, "First default request.");
+      assert.include(firstDefault.firstText, "<leonidas_output_standard>");
       assert.include(firstDefault.prompt, "Leonidas interaction mode: Default");
       // The browser block is injected only when browser tools are live; this fixture has none.
       assert.notInclude(firstDefault.prompt, "Leonidas browser");
@@ -1070,6 +1080,14 @@ describe("AcpAdapterV2", () => {
       );
       const restoredBuild = yield* runTurn(5, defaultPolicy, "Implement the change.");
       assert.include(restoredBuild.prompt, "Leonidas interaction mode: Default");
+      const customPolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+        runtimeMode: "full-access",
+        interactionMode: "default",
+        cwd: process.cwd(),
+        replyStyle: "ACP custom style marker",
+      });
+      const updatedStyle = yield* runTurn(6, customPolicy, "Continue with a new style.");
+      assert.include(updatedStyle.firstText, "ACP custom style marker");
       assert.include(
         restoredBuild.methods,
         "session/set_config_option",

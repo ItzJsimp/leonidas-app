@@ -694,6 +694,38 @@ describe("ClaudeAdapterV2 MCP query overrides", () => {
     assert.notEqual(fullAccessKey, detachedKey);
   });
 
+  it("invalidates the live query when the selected reply style changes", () => {
+    const policy = ClaudeAdapterV2.claudeRuntimeQueryPolicyForRuntimePolicy(
+      ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+        runtimeMode: "full-access",
+        interactionMode: "default",
+        cwd: "/workspace",
+      }),
+    );
+    assert.notEqual(
+      ClaudeAdapterV2.claudeEffectiveQueryPolicyKey(policy, {}, "First style"),
+      ClaudeAdapterV2.claudeEffectiveQueryPolicyKey(policy, {}, "Second style"),
+    );
+  });
+
+  it("includes the selected reply style in a persona system prompt", () => {
+    const options = ClaudeAdapterV2.makeClaudeQueryOptions({
+      modelSelection: {
+        instanceId: ProviderInstanceId.make("claudeAgent"),
+        model: "claude-sonnet-4-6",
+      },
+      nativeThreadId: "persona-style-test",
+      resume: false,
+      cwd: "/workspace",
+      persona: { systemPrompt: "Persona instructions" },
+      replyStyle: "Custom style marker",
+    });
+    assert.isString(options.systemPrompt);
+    assert.include(options.systemPrompt as string, "Persona instructions");
+    assert.include(options.systemPrompt as string, "Custom style marker");
+    assert.include(options.systemPrompt as string, "leo:table");
+  });
+
   it("invalidates live-query reuse when MCP credentials rotate", () => {
     const threadId = ThreadId.make("thread-claude-mcp-credential-rotation");
     const mcpSession = mcpSessionFor(threadId);

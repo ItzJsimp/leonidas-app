@@ -7070,14 +7070,18 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               detail: "ACP turn requires non-empty text or attachments",
             });
           }
-          prompt.push({
-            type: "text",
-            text: buildRuntimeInstructions({
-              harness: flavor.runtimeHarness ?? driver,
-              model: turnInput.modelSelection.model,
-              replyStyle: turnInput.runtimePolicy.replyStyle,
-            }),
+          const runtimeInstructions = buildRuntimeInstructions({
+            harness: flavor.runtimeHarness ?? driver,
+            model: turnInput.modelSelection.model,
+            replyStyle: turnInput.runtimePolicy.replyStyle,
           });
+          if (text.length > 0 && !messageText.trimStart().startsWith("/")) {
+            prompt[0] = { type: "text", text: `${text}\n\n${runtimeInstructions}` };
+          } else if (text.length === 0) {
+            prompt.unshift({ type: "text", text: runtimeInstructions });
+          } else {
+            prompt.push({ type: "text", text: runtimeInstructions });
+          }
           return { prompt, instructionState: text === messageText ? undefined : instructionState };
         });
 
