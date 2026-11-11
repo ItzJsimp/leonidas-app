@@ -1,10 +1,8 @@
 import { ensureLocalApi } from "../localApi";
 import { userErrorToastFields } from "~/lib/userErrorToast";
-import { getDesktopUpdateActionError } from "./desktopUpdate.logic";
+import { getDesktopUpdateActionError, INSTALLER_URL } from "./desktopUpdate.logic";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 
-const INSTALLER_URL =
-  "https://github.com/ItzJsimp/leonidas-app/releases/latest/download/Leonidas-Setup.exe";
 const INSTALL_FALLBACK = "Check your internet connection. Or download the latest installer.";
 
 function toastInstallError(description: string) {

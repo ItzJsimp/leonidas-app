@@ -5,6 +5,20 @@ import type { UpdateNoticeLevel } from "../state/desktopUpdate";
 
 export type DesktopUpdateButtonAction = "download" | "install" | "none";
 
+export const INSTALLER_URL =
+  "https://github.com/ItzJsimp/leonidas-app/releases/latest/download/Leonidas-Setup.exe";
+
+export type CrashRecoveryStep = "restart" | "download" | "working" | "none";
+
+/** What the crash screen offers: the main process still updates while the page is broken. */
+export function resolveCrashRecoveryStep(state: DesktopUpdateState | null): CrashRecoveryStep {
+  if (!state) return "none";
+  const action = resolveDesktopUpdateButtonAction(state);
+  if (action === "install") return "restart";
+  if (action === "download") return "download";
+  return state.status === "checking" || state.status === "downloading" ? "working" : "none";
+}
+
 /**
  * The main process fills `downloadedVersion` from the updater's `update-downloaded`
  * event, which is dispatched on its own fiber. A download RPC can therefore resolve

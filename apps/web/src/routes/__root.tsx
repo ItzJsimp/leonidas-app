@@ -45,6 +45,7 @@ import { RegenerateTitleHintDialog } from "../components/RegenerateTitleHintDial
 import { SnapShotCoordinator } from "../components/desktop/SnapShotCoordinator";
 import { DesktopAppActivationCoordinator } from "../components/desktop/DesktopAppActivationCoordinator";
 import { DesktopUpdateCoordinator } from "../components/desktop/DesktopUpdateCoordinator";
+import { CrashRecoveryUpdate } from "../components/desktop/CrashRecoveryUpdate";
 import { FeatureTourSpotlight } from "../features/tour/FeatureTourSpotlight";
 import { DesktopWebLinkCoordinator } from "../components/desktop/DesktopWebLinkCoordinator";
 import { RunningThreadKeepAlive } from "../components/desktop/RunningThreadKeepAlive";
@@ -547,6 +548,8 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
         </Button>
         <CopyErrorButton report={report} />
       </div>
+
+      <CrashRecoveryUpdate />
 
       {/* The plain message leads; the raw report waits behind a tap for whoever fixes it. */}
       <details className="mt-5 overflow-hidden rounded-lg border border-border/70 bg-background/55">

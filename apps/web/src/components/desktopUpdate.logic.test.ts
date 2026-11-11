@@ -11,6 +11,7 @@ import {
   getDesktopUpdateInstallConfirmationMessage,
   getWhatsNewItems,
   isDesktopUpdateButtonDisabled,
+  resolveCrashRecoveryStep,
   resolveDesktopUpdateButtonAction,
   AUTO_INSTALL_IDLE_MS,
   groupReleaseNotes,
@@ -475,5 +476,27 @@ describe("disabled update reason", () => {
       title: "Check for updates",
       detail: null,
     });
+  });
+});
+
+describe("crash screen recovery step", () => {
+  it("offers a restart when a fix is downloaded", () => {
+    const state = { ...baseState, status: "downloaded", downloadedVersion: "1.0.1" } as const;
+    expect(resolveCrashRecoveryStep(state)).toBe("restart");
+  });
+
+  it("offers a download when a fix is available", () => {
+    const state = { ...baseState, status: "available", availableVersion: "1.0.1" } as const;
+    expect(resolveCrashRecoveryStep(state)).toBe("download");
+  });
+
+  it("waits while the main process looks for or loads a fix", () => {
+    expect(resolveCrashRecoveryStep({ ...baseState, status: "checking" })).toBe("working");
+    expect(resolveCrashRecoveryStep({ ...baseState, status: "downloading" })).toBe("working");
+  });
+
+  it("offers nothing when there is no newer version or no state", () => {
+    expect(resolveCrashRecoveryStep(baseState)).toBe("none");
+    expect(resolveCrashRecoveryStep(null)).toBe("none");
   });
 });
