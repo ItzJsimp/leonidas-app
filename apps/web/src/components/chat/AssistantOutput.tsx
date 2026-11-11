@@ -24,10 +24,15 @@ export function OutputDock({
 }) {
   const shown = simple ? sections.filter((section) => section.kind !== "actions") : sections;
   return (
-    <div data-output-dock className="mt-4 space-y-4 rounded-xl border border-border bg-card/50 p-4">
+    <div
+      data-output-dock
+      className="mt-3 divide-y divide-border rounded-xl border border-border bg-card/50 px-4"
+    >
       {shown.map((section) => (
-        <section key={section.kind} aria-label={section.heading}>
-          <h3 className="mb-2 text-sm font-semibold text-foreground">{section.heading}</h3>
+        <section key={section.kind} aria-label={section.heading} className="py-3.5">
+          <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {section.heading}
+          </h3>
           <div className="space-y-2">
             {section.items.map((item, index) => {
               const key = `${item.kind}:${index}:${item.kind === "replies" ? item.replies.join("|") : item.text}`;
@@ -50,9 +55,12 @@ export function OutputDock({
                 );
               if (item.kind === "option")
                 return (
-                  <div key={key} className="rounded-lg border border-border p-3">
-                    {renderMarkdown(item.text)}
-                    <div className="mt-2">
+                  <div
+                    key={key}
+                    className="flex items-center gap-3 rounded-lg border border-border p-3"
+                  >
+                    <div className="min-w-0 flex-1">{renderMarkdown(item.text)}</div>
+                    <div className="shrink-0">
                       <Button
                         type="button"
                         variant="outline"
@@ -90,11 +98,6 @@ export function OutputDock({
         >
           Explain simpler
         </Button>
-      ) : null}
-      {onReply ? (
-        <p className="text-xs text-muted-foreground">
-          Buttons fill your message box. Check it, then send.
-        </p>
       ) : null}
     </div>
   );

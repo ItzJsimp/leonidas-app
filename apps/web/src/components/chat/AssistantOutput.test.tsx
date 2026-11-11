@@ -45,6 +45,9 @@ it("fills options, quick replies and Start, and shows old actions as plain lines
     );
     expect(container.querySelector('[role="checkbox"]')).toBeNull();
     expect(container.textContent).toContain("- 🤖 **Leonidas:** Run tests.");
+    // A toast tells the user once that buttons fill the box, so the card carries no footer.
+    expect(container.textContent).not.toContain("Buttons fill your message box");
+    expect(container.querySelector("h3")?.className).toContain("uppercase");
     for (const label of ["Choose A", "Why A?", "Start"]) await act(() => button(label).click());
     expect(onReply.mock.calls).toEqual([
       ["Option A: Keep it"],
