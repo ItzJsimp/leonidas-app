@@ -1,6 +1,6 @@
 import type { SubagentCatalogEntry } from "@t3tools/contracts";
 
-export type StudioGroupKey = "on" | "catalog" | "projects" | "fix";
+export type StudioGroupKey = "lead" | "on" | "catalog" | "projects" | "fix";
 
 export interface StudioGroup {
   readonly key: StudioGroupKey;
@@ -13,9 +13,12 @@ export const entryId = (entry: Pick<SubagentCatalogEntry, "specPath">) => entry.
 
 const needsFix = (entry: SubagentCatalogEntry) => entry.legacy || entry.error !== null;
 
+/** The orchestrator: a team agent that may start the others. */
+export const isLead = (entry: SubagentCatalogEntry) => entry.canSpawn === true && !needsFix(entry);
+
 /**
- * The Studio list: AIOS subagents that are on, the AIOS catalog (off),
- * project subagents, then specs that do not resolve. The search matches
+ * The Team list: the lead first, then AIOS agents that are on, the AIOS catalog (off),
+ * project agents, then specs that do not resolve. The search matches
  * name, description and project.
  */
 export function groupStudioEntries(
@@ -31,14 +34,19 @@ export function groupStudioEntries(
             text.toLowerCase().includes(needle),
           ),
         );
-  const aios = visible.filter((entry) => entry.source === "aios" && !needsFix(entry));
+  const aios = visible.filter(
+    (entry) => entry.source === "aios" && !needsFix(entry) && !isLead(entry),
+  );
   return [
+    { key: "lead", title: "Lead", entries: visible.filter(isLead) },
     { key: "on", title: "On", entries: aios.filter((entry) => entry.enabled) },
     { key: "catalog", title: "Catalog", entries: aios.filter((entry) => !entry.enabled) },
     {
       key: "projects",
       title: "Projects",
-      entries: visible.filter((entry) => entry.source === "project" && !needsFix(entry)),
+      entries: visible.filter(
+        (entry) => entry.source === "project" && !needsFix(entry) && !isLead(entry),
+      ),
     },
     { key: "fix", title: "Needs fixing", entries: visible.filter(needsFix) },
   ];

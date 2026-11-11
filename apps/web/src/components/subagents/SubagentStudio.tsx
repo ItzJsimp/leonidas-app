@@ -1,7 +1,24 @@
 import type { SubagentCatalogEntry } from "@t3tools/contracts";
-import { BotIcon, PencilIcon, PlusIcon, SearchIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  BotIcon,
+  CopyIcon,
+  PencilIcon,
+  PlusIcon,
+  SearchIcon,
+  Trash2Icon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogPopup,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "~/components/ui/input-group";
@@ -16,11 +33,18 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { subagentsCatalogQuery, subagentsComposerQuery, subagentUpdate } from "~/state/subagents";
+import {
+  subagentDelete,
+  subagentDuplicate,
+  subagentsCatalogQuery,
+  subagentsComposerQuery,
+  subagentUpdate,
+} from "~/state/subagents";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
 import { workspaceScopeInput } from "~/components/workspace/aiosWorkspace.logic";
 import { activeWorkspaceId } from "~/components/workspace/aiosWorkspaceStore";
 import { useAtomCommand } from "~/state/use-atom-command";
+import { AgentAvatar } from "./Avatar";
 import { NewSubagentDialog } from "./NewSubagentDialog";
 import { SubagentEditor, writeFailureMessage } from "./SubagentEditor";
 import { knownFreeModels } from "./subagentEdit.logic";
@@ -30,21 +54,22 @@ import {
   entryId,
   formatTokensShort,
   groupStudioEntries,
+  isLead,
   personaEngineHint,
   type StudioGroupKey,
 } from "./subagentStudio.logic";
 
 const EMPTY_GROUP_TEXT: Record<StudioGroupKey, string | null> = {
-  on: "No helper is on. Turn one on from the catalog.",
+  lead: null,
+  on: "No agent is on. Turn one on from the catalog.",
   catalog: null,
-  projects: "No project helpers yet. Add one in projects/<name>/.agents/subagents/.",
+  projects: "No project agents yet. Add one in projects/<name>/.agents/subagents/.",
   fix: null,
 };
 
 /**
- * The Subagents view on the Command tab (ADR-0082): live KPIs on top, the
- * list grouped On, Catalog, Projects on the left, and the selected
- * subagent's model, account, tools, never-list and Context List on the right.
+ * The Team tab (ADR-0082): live KPIs on top, the list grouped Lead, On, Catalog, Projects on
+ * the left, and the selected agent's model, tools, never-list and Context List on the right.
  */
 export function SubagentStudio() {
   const environmentId = usePrimaryEnvironmentId();
@@ -82,10 +107,10 @@ export function SubagentStudio() {
             className="flex items-center gap-2 text-base font-semibold"
           >
             <BotIcon aria-hidden className="size-4 text-muted-foreground" />
-            Helpers
+            Team
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Helpers that any chat can call. A free-tier model starts at once; a confirm-tier model
+            Agents that any chat can call. A free-tier model starts at once; a confirm-tier model
             asks you first.
             {catalog.dataUpdatedAt <= 0 ? null : (
               <span className="ms-1 tabular-nums">
@@ -97,7 +122,7 @@ export function SubagentStudio() {
         {environmentId === null || catalog.data === null ? null : (
           <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
             <PlusIcon />
-            New subagent
+            New agent
           </Button>
         )}
       </div>
@@ -119,11 +144,11 @@ export function SubagentStudio() {
       {catalog.data === null ? (
         catalog.error === null ? (
           <div role="status" className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-            <Spinner /> Loading helpers…
+            <Spinner /> Loading agents…
           </div>
         ) : (
           <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm">
-            <p className="font-medium">Could not read your helpers</p>
+            <p className="font-medium">Could not read your agents</p>
             <Button size="sm" variant="outline" className="mt-3" onClick={catalog.refresh}>
               Try again
             </Button>
@@ -140,7 +165,7 @@ export function SubagentStudio() {
           />
           <div className="grid min-h-[26rem] overflow-hidden rounded-lg border border-border md:grid-cols-[17rem_minmax(0,1fr)]">
             <nav
-              aria-label="Helpers"
+              aria-label="Agents"
               className="flex min-w-0 flex-col border-b border-border md:border-r md:border-b-0"
             >
               <div className="relative border-b border-border p-2">
@@ -152,8 +177,8 @@ export function SubagentStudio() {
                     type="search"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search helpers"
-                    aria-label="Search helpers"
+                    placeholder="Search agents"
+                    aria-label="Search agents"
                   />
                 </InputGroup>
               </div>
@@ -190,7 +215,7 @@ export function SubagentStudio() {
                   );
                 })}
                 {visible.length === 0 && query.length > 0 ? (
-                  <p className="px-2 text-xs text-muted-foreground">No helper matches.</p>
+                  <p className="px-2 text-xs text-muted-foreground">No agent matches.</p>
                 ) : null}
               </div>
             </nav>
@@ -198,8 +223,8 @@ export function SubagentStudio() {
               {selected === null ? (
                 <p className="text-sm text-muted-foreground">
                   {catalog.data.aiosRoot === null
-                    ? "Connect your AIOS folder on Home to list its helpers."
-                    : "No helpers yet. Add one in .agents/subagents/ in your AIOS."}
+                    ? "Connect your AIOS folder on Home to list its agents."
+                    : "No agents yet. Create one, or import a starter."}
                 </p>
               ) : (
                 <SubagentDetail
@@ -347,11 +372,15 @@ function StudioListItem(props: {
         props.selected && "bg-accent",
       )}
     >
+      <AgentAvatar avatar={entry.avatar} name={entry.name} size={36} />
       <span className="min-w-0 flex-1">
         <Tooltip>
           <TooltipTrigger render={<span className="block truncate" />}>{entry.name}</TooltipTrigger>
           <TooltipPopup>{entry.name}</TooltipPopup>
         </Tooltip>
+        {entry.description === null ? null : (
+          <span className="block truncate text-xs text-muted-foreground">{entry.description}</span>
+        )}
         {entry.projectName === null ? null : (
           <span className="block truncate text-xs text-muted-foreground">{entry.projectName}</span>
         )}
@@ -383,9 +412,40 @@ function SubagentDetail({
 }) {
   const [editing, setEditing] = useState(false);
   const update = useAtomCommand(subagentUpdate, { reportFailure: false });
+  const duplicate = useAtomCommand(subagentDuplicate, { reportFailure: false });
+  const remove = useAtomCommand(subagentDelete, { reportFailure: false });
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [working, setWorking] = useState(false);
   const canWrite = environmentId !== null && !entry.legacy;
+
+  // Duplicate and Delete take the same scope input as Edit. A failure shows in the toggle banner.
+  const runWrite = async (kind: "duplicate" | "delete") => {
+    if (environmentId === null || working) return;
+    setWorking(true);
+    setToggleError(null);
+    const input = {
+      ...workspaceScopeInput(activeWorkspaceId(environmentId)),
+      specPath: entry.specPath,
+    };
+    const result =
+      kind === "duplicate"
+        ? await duplicate({ environmentId, input })
+        : await remove({ environmentId, input });
+    setWorking(false);
+    setConfirmingDelete(false);
+    if (result._tag === "Success") return onChanged();
+    if (isAtomCommandInterrupted(result)) return;
+    setToggleError(
+      writeFailureMessage(
+        squashAtomCommandFailure(result),
+        kind === "duplicate"
+          ? "The copy was not made. Try again."
+          : "It was not deleted. Try again.",
+      ),
+    );
+  };
 
   const setEnabled = async (enabled: boolean) => {
     if (environmentId === null || toggling) return;
@@ -411,7 +471,8 @@ function SubagentDetail({
   return (
     <article aria-labelledby="studio-detail-title" className="flex flex-col gap-4">
       <header className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <AgentAvatar avatar={entry.avatar} name={entry.name} size={56} />
           <Tooltip>
             <TooltipTrigger
               render={
@@ -427,6 +488,11 @@ function SubagentDetail({
             <TooltipPopup>{entry.name}</TooltipPopup>
           </Tooltip>
           <TierBadge entry={entry} />
+          {isLead(entry) ? (
+            <Badge variant="info" size="sm">
+              Lead · starts other agents
+            </Badge>
+          ) : null}
           {entry.enabled ? null : (
             <Badge variant="secondary" size="sm">
               Off
@@ -445,10 +511,30 @@ function SubagentDetail({
                 On
               </label>
               {editing ? null : (
-                <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-                  <PencilIcon />
-                  Edit
-                </Button>
+                <>
+                  <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+                    <PencilIcon />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={working}
+                    onClick={() => void runWrite("duplicate")}
+                  >
+                    <CopyIcon />
+                    Duplicate
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive-outline"
+                    disabled={working}
+                    onClick={() => setConfirmingDelete(true)}
+                  >
+                    <Trash2Icon />
+                    Delete
+                  </Button>
+                </>
               )}
             </div>
           ) : null}
@@ -496,6 +582,24 @@ function SubagentDetail({
             <DetailRow label="Account">
               {entry.account === null ? "Balanced (the app picks)" : entry.account}
             </DetailRow>
+            {entry.effort == null ? null : <DetailRow label="Effort">{entry.effort}</DetailRow>}
+            {entry.maxTurns == null ? null : (
+              <DetailRow label="Max turns">{entry.maxTurns}</DetailRow>
+            )}
+            {isLead(entry) ? <DetailRow label="Children">Up to 3 at once</DetailRow> : null}
+            {(entry.skills ?? []).length === 0 ? null : (
+              <DetailRow label="Skills">
+                <ul className="flex flex-wrap gap-1">
+                  {(entry.skills ?? []).map((skill) => (
+                    <li key={skill}>
+                      <Badge variant="outline" size="sm">
+                        {skill}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              </DetailRow>
+            )}
             <DetailRow label="Tools">
               {entry.tools.length === 0 ? (
                 <span className="text-muted-foreground">None</span>
@@ -523,6 +627,15 @@ function SubagentDetail({
               )}
             </DetailRow>
           </dl>
+
+          {entry.instructions === undefined || entry.instructions === "" ? null : (
+            <section aria-label="Instructions" className="rounded-lg border border-border">
+              <h4 className="border-b border-border px-3 py-2 text-sm font-medium">Instructions</h4>
+              <p className="max-h-48 overflow-y-auto px-3 py-2 text-sm whitespace-pre-wrap text-muted-foreground">
+                {entry.instructions}
+              </p>
+            </section>
+          )}
 
           <div className="rounded-lg border border-border">
             <div className="flex items-baseline justify-between gap-3 border-b border-border px-3 py-2">
@@ -584,6 +697,30 @@ function SubagentDetail({
         </TooltipTrigger>
         <TooltipPopup>{entry.specPath}</TooltipPopup>
       </Tooltip>
+
+      <AlertDialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
+        <AlertDialogPopup>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {entry.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This deletes the file {entry.specPath}. You cannot undo this.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogClose render={<Button variant="outline" size="sm" />}>
+              Keep it
+            </AlertDialogClose>
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={working}
+              onClick={() => void runWrite("delete")}
+            >
+              Delete for good
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogPopup>
+      </AlertDialog>
     </article>
   );
 }

@@ -6,6 +6,7 @@ import {
   draftFromEntry,
   isEmptyPatch,
   knownFreeModels,
+  maxTurnsProblem,
   parseToolList,
   patchFromDraft,
   raisesSpend,
@@ -69,5 +70,64 @@ describe("text helpers", () => {
   it("makes a subagent name from words", () => {
     expect(slugifySubagentName("  My New Helper!  ")).toBe("my-new-helper");
     expect(slugifySubagentName("!!!")).toBeNull();
+  });
+});
+
+describe("the Agents tab fields", () => {
+  const lead: SubagentCatalogEntry = {
+    ...entry,
+    avatar: "felt/team-lead",
+    effort: "medium",
+    skills: ["plan-slices"],
+    canSpawn: true,
+    maxTurns: 20,
+    instructions: "Plan the task.",
+  };
+
+  it("reads the new keys into the draft", () => {
+    expect(draftFromEntry(lead)).toMatchObject({
+      avatar: "felt/team-lead",
+      effort: "medium",
+      skills: ["plan-slices"],
+      canSpawn: true,
+      maxTurns: "20",
+      instructions: "Plan the task.",
+    });
+    expect(isEmptyPatch(patchFromDraft(lead, draftFromEntry(lead)))).toBe(true);
+  });
+
+  it("writes only the new keys that changed, and removes a cleared line with null", () => {
+    const draft = {
+      ...draftFromEntry(lead),
+      avatar: "felt/reviewer",
+      effort: "",
+      skills: [],
+      canSpawn: false,
+      maxTurns: "5",
+      instructions: "Plan carefully.",
+    };
+    expect(patchFromDraft(lead, draft)).toEqual({
+      avatar: "felt/reviewer",
+      effort: null,
+      skills: [],
+      canSpawn: null,
+      maxTurns: 5,
+      body: "Plan carefully.",
+    });
+  });
+
+  it("turns the spawn switch on with true", () => {
+    const draft = { ...draftFromEntry(entry), canSpawn: true };
+    expect(patchFromDraft(entry, draft)).toEqual({ canSpawn: true });
+  });
+
+  it("rejects a turn limit that is not a whole number of 1 or more", () => {
+    expect(maxTurnsProblem("")).toBeNull();
+    expect(maxTurnsProblem("12")).toBeNull();
+    expect(maxTurnsProblem("0")).not.toBeNull();
+    expect(maxTurnsProblem("2.5")).not.toBeNull();
+    expect(maxTurnsProblem("many")).not.toBeNull();
+    const draft = { ...draftFromEntry(entry), maxTurns: "abc" };
+    expect(patchFromDraft(entry, draft)).toEqual({});
   });
 });

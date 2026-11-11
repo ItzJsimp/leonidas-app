@@ -49,3 +49,20 @@ export const subagentCreate = createEnvironmentRpcCommand(connectionAtomRuntime,
   label: "environment-data:subagents:create",
   tag: WS_METHODS.subagentsCreate,
 });
+
+/** Copies an agent into the AIOS folder as the first free `<name>-N.md`. */
+export const subagentDuplicate = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:subagents:duplicate",
+  tag: WS_METHODS.subagentsDuplicate,
+});
+
+export const subagentDelete = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:subagents:delete",
+  tag: WS_METHODS.subagentsDelete,
+});
+
+/** One creator-chat turn: the agent file text for the editor. It writes nothing. */
+export const subagentDraft = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:subagents:draft",
+  tag: WS_METHODS.subagentsDraft,
+});
