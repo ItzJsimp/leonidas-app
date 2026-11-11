@@ -38,7 +38,7 @@ function endpointLabel(environment: RelayClientEnvironmentRecord): string {
     : "Shows activity only";
 }
 
-export function T3ConnectEnvironmentRow(props: {
+function T3ConnectEnvironmentRow(props: {
   readonly environment: RelayClientEnvironmentRecord;
   readonly confirmationOpen: boolean;
   readonly mutationPending: boolean;

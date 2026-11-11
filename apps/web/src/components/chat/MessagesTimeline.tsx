@@ -54,6 +54,9 @@ import {
 } from "@legendapp/list/react";
 
 import { type TimelineEntry } from "../../session-logic";
+import { retryPromptForRun } from "./retryPrompt";
+import { useStableCallback } from "../../hooks/useStableCallback";
+import { toastManager } from "../ui/toast";
 import type { CodexArtifactTemplate } from "@t3tools/shared/codexArtifactTemplates";
 import { type ChatFileAttachment, type TurnDiffSummary } from "../../types";
 
@@ -243,7 +246,11 @@ interface MessagesTimelineProps {
     readonly scopeId: string;
   }) => void;
   supportsConversationRollback: boolean;
-  onRevertToTurnCount: (targetTurnCount: number, messageId: MessageId) => void;
+  onRevertToTurnCount: (
+    targetTurnCount: number,
+    messageId: MessageId,
+    restoreFiles?: boolean,
+  ) => void;
   onUseArtifactTemplate?: (template: CodexArtifactTemplate) => void;
   onDockReply?: (text: string) => void;
   onSendAppMessage?: (text: string) => Promise<void>;
@@ -660,6 +667,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     readonly workspaceRoot: string | undefined;
     readonly projection: MessagesTimelineRowsProjection;
   } | null>(null);
+  const showStepUpdates = useClientSettings((settings) => settings.showStepUpdates);
   const rawRows = useMemo(() => {
     const previous = rowsProjectionRef.current;
     const projection = deriveMessagesTimelineRowsWithState(
@@ -676,6 +684,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
         turnDiffSummaries,
         supportsConversationRollback,
         worktreeSetup,
+        showStepUpdates,
       },
       previous?.threadKey === listIdentityKey && previous.workspaceRoot === workspaceRoot
         ? previous.projection
@@ -699,6 +708,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     turnDiffSummaries,
     supportsConversationRollback,
     worktreeSetup,
+    showStepUpdates,
   ]);
   const rows = useStableRows(rawRows, listIdentityKey);
 
@@ -1161,6 +1171,12 @@ const ConversationTimeline = memo(function ConversationTimeline({
     };
   }, [timelineViewportElement, rows.length, reportContentOverflow, chatWidth]);
 
+  const onRetryRun = useStableCallback((runId: RunId) => {
+    const prompt = retryPromptForRun(timelineEntries, runId);
+    if (prompt !== null) onDockReply?.(prompt);
+    else toastManager.add({ type: "error", title: "No user prompt is available for this run" });
+  });
+
   const sharedState = useMemo<TimelineRowSharedState>(
     () => ({
       citationRequest: readyCitationRequest,
@@ -1183,6 +1199,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
       onFileOpen,
       onUseArtifactTemplate,
       onDockReply,
+      onRetryRun: onDockReply ? onRetryRun : undefined,
       onSendAppMessage,
       onAppFullscreenChange,
       onFileDownload,
@@ -1222,6 +1239,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
       onFileOpen,
       onUseArtifactTemplate,
       onDockReply,
+      onRetryRun,
       onSendAppMessage,
       onAppFullscreenChange,
       onFileDownload,

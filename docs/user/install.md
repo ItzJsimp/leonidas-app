@@ -14,13 +14,14 @@ The `t3` command-line tool ships inside the desktop app (see
 [The `t3` command](#the-t3-command)). The upstream one-line installer at
 t3.codes installs T3 Code, not Leonidas, so it is not listed here.
 
-| Task                                             | Command                                                   |
-| ------------------------------------------------ | --------------------------------------------------------- |
-| Start the server and open the web app            | `t3`                                                      |
-| Start the server without a browser               | `t3 serve`                                                |
-| Keep it running in the background (macOS, Linux) | `t3 service install` ([details](./background-service.md)) |
-| Move to the newest release                       | `t3 update`                                               |
-| Remove it again                                  | `t3 uninstall`                                            |
+| Task                                             | Command                                                                 |
+| ------------------------------------------------ | ----------------------------------------------------------------------- |
+| Start the server and open the web app            | `t3`                                                                    |
+| Start the server without a browser               | `t3 serve`                                                              |
+| Keep it running in the background (macOS, Linux) | `t3 service install` ([details](./background-service.md))               |
+| Move to the newest release                       | `t3 update`                                                             |
+| Reclaim database space                           | `t3 doctor` ([details](./background-service.md#reclaim-database-space)) |
+| Remove it again                                  | `t3 uninstall`                                                          |
 
 Run `t3 help` or `t3 --help` for the full reference. To start in a new working
 directory, use an explicit path such as `t3 ./my-project`. A bare directory name

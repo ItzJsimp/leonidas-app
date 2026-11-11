@@ -8,7 +8,7 @@ import { useCallback, useRef } from "react";
 import { Alert, Platform } from "react-native";
 
 import { withThreadDismissal } from "./thread-dismissal";
-import { showConfirmDialog, showTextInputDialog } from "../../components/ConfirmDialogHost";
+import * as Dialog from "../../components/ui/Dialog";
 import { scopedThreadKey } from "../../lib/scopedEntities";
 import { refreshArchivedThreadsForEnvironment } from "../archive/useArchivedThreadSnapshots";
 import { pinOrderKeyBetween } from "@t3tools/client-runtime/state/thread-sort";
@@ -230,7 +230,7 @@ function useConfirmDeleteThread(
         ]);
         return;
       }
-      showConfirmDialog({
+      Dialog.confirm({
         title,
         message,
         confirmText: "Delete",
@@ -568,7 +568,7 @@ export function useThreadListActions(): {
         );
         return;
       }
-      showTextInputDialog({
+      Dialog.prompt({
         title: "Rename chat",
         initialValue: thread.title,
         confirmText: "Rename",

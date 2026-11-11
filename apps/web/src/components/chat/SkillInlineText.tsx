@@ -106,7 +106,6 @@ function SkillChip(props: { skill: InlineSkill; rawText: string }) {
   );
 }
 
-/** The skill glyph; the surrounding chip sizes its svg. */
 export function SkillChipIcon() {
   return (
     <span

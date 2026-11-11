@@ -75,6 +75,7 @@ const makeHarness = Effect.fn("makeClaudeAuthHarness")(function* (
     /** Answers to `claude auth status`, in order. The last one repeats. */
     readonly loggedIn?: ReadonlyArray<boolean>;
     readonly output?: ReadonlyArray<string>;
+    readonly callbackPort?: number | null;
   } = {},
 ) {
   const exit = yield* Deferred.make<number>();
@@ -86,6 +87,7 @@ const makeHarness = Effect.fn("makeClaudeAuthHarness")(function* (
       return {
         output: Stream.fromIterable(options.output ?? [`Visit ${signInUrl}\n`]),
         exitCode: Deferred.await(exit),
+        callbackPort: Effect.succeed(options.callbackPort ?? null),
       };
     }),
     () =>
@@ -111,6 +113,37 @@ const makeHarness = Effect.fn("makeClaudeAuthHarness")(function* (
 });
 
 it.layer(NodeServices.layer)("ClaudeAuth", (it) => {
+  const shownUrl = (harness: Effect.Success<ReturnType<typeof makeHarness>>) =>
+    harness.auth.subscribe(owner).pipe(
+      Stream.filter((state) => state.phase === "waiting" && state.authorizationUrl !== null),
+      Stream.runHead,
+      Effect.map((state) => new URL(Option.getOrThrow(state).authorizationUrl!)),
+    );
+
+  it.effect("shows the page that returns to Claude's local port, so no code is needed", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness({
+        output: [
+          `If the browser didn't open, visit: ${signInUrl}&redirect_uri=https%3A%2F%2Fplatform.claude.com%2Foauth%2Fcode%2Fcallback
+`,
+        ],
+        callbackPort: 58807,
+      });
+      yield* harness.auth.start(owner);
+      const url = yield* shownUrl(harness);
+      assert.equal(url.searchParams.get("redirect_uri"), "http://localhost:58807/callback");
+      assert.equal(url.searchParams.get("state"), "abc");
+    }),
+  );
+
+  it.effect("keeps the code page when the local port is unknown", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness({ callbackPort: null });
+      yield* harness.auth.start(owner);
+      assert.equal((yield* shownUrl(harness)).toString(), signInUrl);
+    }),
+  );
+
   it.effect(
     "shows the sign-in page, then succeeds when the CLI exits 0 and status says loggedIn",
     () =>

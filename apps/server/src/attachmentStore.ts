@@ -131,9 +131,8 @@ export function parseThreadSegmentFromAttachmentId(attachmentId: string): string
 }
 
 /**
- * Attachments a thread's tool calls published: `leo_html_render` pages and
- * captured MCP App documents. Only ids minted for this thread count, so
- * deleting a fork never removes its source's pages.
+ * Only ids minted for this thread count, so deleting a fork never removes its
+ * source's pages.
  */
 export function threadHtmlRenderAttachmentIds(
   threadId: string,
@@ -151,7 +150,6 @@ export function threadHtmlRenderAttachmentIds(
   });
 }
 
-/** Null for attachment types this build does not know; callers skip those. */
 export function attachmentRelativePath(attachment: ChatAttachment): string | null {
   switch (attachment.type) {
     case "image": {

@@ -548,11 +548,14 @@ type MessagesTimelineRowContent =
       kind: "working";
       id: string;
       createdAt: string | null;
+      /** The agent's latest progress line, shown as the live status. */
+      stepNote?: string;
     }
   | {
       kind: "thinking";
       id: string;
       createdAt: string | null;
+      stepNote?: string;
       /** Tool calls this row stands in for after the latest one failed. */
       groupId?: string;
       expanded?: boolean;
@@ -1055,7 +1058,6 @@ function deriveTurnFolds(input: {
     anchorEntryId: string;
   }
   const groupsByRunId = new Map<RunId, TurnGroup>();
-  const runlessFailedKeys = new Set<RunId>();
 
   // Fold state is keyed by run, so each runless prompt lends its response a
   // stable key of its own. Decide per prompt, not per thread: a V1 thread's
@@ -1080,9 +1082,6 @@ function deriveTurnFolds(input: {
     const runId = timelineEntryFoldRunId(entry, runlessKey);
     if (!runId) {
       continue;
-    }
-    if (runId === runlessKey && timelineEntryFailedItem(entry) !== null) {
-      runlessFailedKeys.add(runId);
     }
     let group = groupsByRunId.get(runId);
     if (!group) {
@@ -1115,7 +1114,6 @@ function deriveTurnFolds(input: {
     if (
       input.unfoldedRunIds.has(runId) ||
       interruptedRunIds.has(runId) ||
-      runlessFailedKeys.has(runId) ||
       (input.runlessWorkActive && runId === runlessKey)
     ) {
       continue;
@@ -1134,6 +1132,8 @@ function deriveTurnFolds(input: {
       ) {
         continue;
       }
+      // The run's own error line stays visible; its tool calls fold.
+      if (timelineEntryFailedItem(entry) !== null) continue;
       const isCompaction =
         entry.kind === "work" && entry.entry.sourceActivityKind === "context-compaction";
       const isFoldableTrailingActivity =
@@ -1373,7 +1373,6 @@ function deriveTimelineTurnFolds(
 ) {
   const timelineEntries = timelineRowEntries(input.timelineEntries);
   const unsettledRunId = deriveUnsettledRunId(input.latestRun ?? null, input.runningRunId ?? null);
-  const failedRunIds = failedTimelineRunIds(timelineEntries, input.latestRun ?? null);
   const activeVisualResponseRunIds = deriveActiveVisualResponseRunIds({
     timelineEntries,
     unsettledRunId,
@@ -1383,11 +1382,51 @@ function deriveTimelineTurnFolds(
     timelineEntries,
     terminalAssistantMessageIds: deriveTerminalAssistantMessageIds(timelineEntries),
     latestRun: input.latestRun ?? null,
-    unfoldedRunIds: new Set([...activeVisualResponseRunIds, ...failedRunIds]),
+    unfoldedRunIds: new Set(activeVisualResponseRunIds),
     runlessWorkActive: input.isWorking && input.runlessWorkActive === true,
     liveSubagentEntryIds: liveSubagentCardEntryIds(timelineEntries),
     completeSupersededReplyEntryIds: completeSupersededReplyEntryIds(timelineEntries),
   });
+}
+
+/**
+ * Background wake-ups start new runs after one prompt, and each run would draw
+ * its own changed-files box. Keep one chip on the last reply of each prompt,
+ * listing every file that the runs changed (the latest change wins per path).
+ */
+function keepOneDiffSummaryPerPrompt(
+  entries: ReadonlyArray<TimelineEntry>,
+  byAssistantMessageId: Map<MessageId, TurnDiffSummary>,
+) {
+  let chain: Array<{ id: MessageId; summary: TurnDiffSummary }> = [];
+  const flush = () => {
+    const last = chain.at(-1);
+    if (last && chain.length > 1) {
+      const files = new Map<string, TurnDiffSummary["files"][number]>();
+      const fileRunIds: Record<string, RunId> = Object.create(null);
+      for (const { summary } of chain) {
+        for (const file of summary.files) {
+          files.set(file.path, file);
+          fileRunIds[file.path] = summary.fileRunIds?.[file.path] ?? summary.runId;
+        }
+      }
+      for (const { id } of chain.slice(0, -1)) byAssistantMessageId.delete(id);
+      byAssistantMessageId.set(last.id, {
+        ...last.summary,
+        files: [...files.values()],
+        fileRunIds,
+      });
+    }
+    chain = [];
+  };
+  for (const entry of entries) {
+    if (entry.kind !== "message") continue;
+    if (entry.message.role === "user") flush();
+    const summary =
+      entry.message.role === "assistant" ? byAssistantMessageId.get(entry.message.id) : undefined;
+    if (summary) chain.push({ id: entry.message.id, summary });
+  }
+  flush();
 }
 
 export function deriveMessagesTimelineRows(input: {
@@ -1410,6 +1449,8 @@ export function deriveMessagesTimelineRows(input: {
   liveAgentTaskIds?: ReadonlySet<string> | undefined;
   /** Live bootstrap progress. Renders a stage card under the first user message. */
   worktreeSetup?: WorktreeSetupSnapshot | null;
+  /** Draw the agent's mid-run progress lines. Off keeps one live status line. */
+  showStepUpdates?: boolean;
 }): MessagesTimelineRow[] {
   const timelineEntries = timelineRowEntries(input.timelineEntries);
   const turnDiffSummaryByAssistantMessageId = new Map<MessageId, TurnDiffSummary>();
@@ -1418,10 +1459,12 @@ export function deriveMessagesTimelineRows(input: {
       turnDiffSummaryByAssistantMessageId.set(summary.assistantMessageId, summary);
     }
   }
+  keepOneDiffSummaryPerPrompt(timelineEntries, turnDiffSummaryByAssistantMessageId);
   const revertTurnCountByUserMessageId = input.supportsConversationRollback
     ? deriveRevertTurnCountByUserMessageId({
         timelineEntries: timelineEntries,
         checkpoints: input.turnDiffSummaries,
+        threadStartCheckpointReady: true,
       })
     : new Map<MessageId, number>();
   const nextRows: MessagesTimelineRow[] = [];
@@ -1449,7 +1492,7 @@ export function deriveMessagesTimelineRows(input: {
     timelineEntries: timelineEntries,
     terminalAssistantMessageIds,
     latestRun: input.latestRun ?? null,
-    unfoldedRunIds: new Set([...activeVisualResponseRunIds, ...failedRunIds]),
+    unfoldedRunIds: new Set(activeVisualResponseRunIds),
     runlessWorkActive,
     liveSubagentEntryIds,
     completeSupersededReplyEntryIds: completeSupersededReplyIds,
@@ -1473,6 +1516,25 @@ export function deriveMessagesTimelineRows(input: {
   }
   const runIdIsActiveResponse = (runId: RunId | null | undefined) =>
     runId == null ? runlessWorkActive : activeVisualResponseRunIds.has(runId);
+  // Progress lines before the run's last reply stay out of the chat. The latest
+  // one becomes the live status line.
+  const hiddenStepEntryIds = new Set<string>();
+  let stepNote: string | undefined;
+  if (!input.showStepUpdates) {
+    for (const entry of timelineEntries) {
+      if (
+        entry.kind === "message" &&
+        entry.message.role === "assistant" &&
+        !terminalAssistantMessageIds.has(entry.message.id) &&
+        !completeSupersededReplyIds.has(entry.id) &&
+        entry.attempt?.status !== "superseded" &&
+        runIdIsActiveResponse(entry.message.runId)
+      ) {
+        hiddenStepEntryIds.add(entry.id);
+        stepNote = entry.message.text.trim().split("\n")[0]?.slice(0, 160) || stepNote;
+      }
+    }
+  }
   const workEntryIsInActiveRun = (entry: WorkLogEntry) =>
     input.isWorking &&
     entry.toolLifecycleStatus === "inProgress" &&
@@ -1663,7 +1725,6 @@ export function deriveMessagesTimelineRows(input: {
 
     if (timelineEntry.kind === "work") {
       if (
-        (timelineEntry.entry.runId != null && failedRunIds.has(timelineEntry.entry.runId)) ||
         (timelineEntry.entry.itemType === "error" &&
           timelineEntry.entry.toolLifecycleStatus === "failed") ||
         timelineEntry.entry.tone === "error" ||
@@ -1869,6 +1930,8 @@ export function deriveMessagesTimelineRows(input: {
       continue;
     }
 
+    if (hiddenStepEntryIds.has(timelineEntry.id)) continue;
+
     const assistantResponseStillInProgress =
       timelineEntry.message.role === "assistant" &&
       runIdIsActiveResponse(timelineEntry.message.runId);
@@ -2016,11 +2079,15 @@ export function deriveMessagesTimelineRows(input: {
   const result = attachTrailingToolGroupsToAssistant(
     attachCreatedThreadSummaries(nextRows, timelineEntries),
   );
-  return result.map((row, index) =>
-    timelineRowIsWorkLog(row) && timelineRowIsWorkLog(result[index + 1])
-      ? { ...row, continuesWorkLog: true }
-      : row,
-  );
+  return result.map((row, index) => {
+    const next =
+      timelineRowIsWorkLog(row) && timelineRowIsWorkLog(result[index + 1])
+        ? { ...row, continuesWorkLog: true }
+        : row;
+    return stepNote && (next.kind === "working" || next.kind === "thinking")
+      ? { ...next, stepNote }
+      : next;
+  });
 }
 
 /** Adjacent work stays one visual list even when virtualization splits its groups. */

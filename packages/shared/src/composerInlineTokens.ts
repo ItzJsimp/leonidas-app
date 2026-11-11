@@ -1,3 +1,5 @@
+import { markdownMathRanges } from "./markdownMath.ts";
+
 export type ComposerInlineToken =
   | {
       readonly type: "mention";
@@ -18,24 +20,10 @@ export interface CollectComposerInlineTokensOptions {
   readonly preserveTrailingFrom?: ReadonlyArray<ComposerInlineToken>;
 }
 
-/**
- * A skill name may start with a digit, but compact monetary amounts and
- * numeric expressions like "$20", "$20k", "$100M", and "$1e6" must stay prose:
- * the composer chips any matched `$name` token, known or not. Tokens beginning
- * with digits must not match numbers with currency/exponent suffixes, and must
- * contain at least one letter. Any currency symbol is accepted as the sigil.
- */
 const SKILL_MENTION_SOURCE =
   /(^|\s)\p{Sc}(?![0-9][0-9_]*(?:[kKmMbBtT]|[eE][0-9]+)?(?:\s|$))(?=[a-zA-Z0-9:_-]*[a-zA-Z])([a-zA-Z0-9][a-zA-Z0-9:_-]*)/u
     .source;
-// While typing, a token only becomes a chip once a delimiter follows it, so a
-// half-typed name at the end of the text stays plain.
 const SKILL_TOKEN_REGEX = new RegExp(`${SKILL_MENTION_SOURCE}(?=\\s)`, "gu");
-/**
- * Skill mentions in a sent prompt, which may also end at the end of the text.
- * Group 1 is the leading delimiter and group 2 the skill name. The pattern is
- * global, so use it with `matchAll` or `replace`, not `test` or `exec`.
- */
 export const SKILL_MENTION_PATTERN = new RegExp(`${SKILL_MENTION_SOURCE}(?=\\s|$)`, "gu");
 /**
  * Provider commands that render as a chip, the way a skill does. They are
@@ -43,17 +31,17 @@ export const SKILL_MENTION_PATTERN = new RegExp(`${SKILL_MENTION_SOURCE}(?=\\s|$
  * the chip keeps the typed `/name` so the sent message is unchanged.
  */
 export const CHIPPED_SLASH_COMMANDS: ReadonlySet<string> = new Set(["goal"]);
-const SLASH_COMMAND_TOKEN_REGEX = /^\/([a-z][a-z0-9_-]*)(?=\s)/u;
+export const SLASH_COMMAND_TOKEN_REGEX = /^\/([a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)?)(?=\s|$)/u;
+export function isChippedSlashCommand(name: string): boolean {
+  return name.includes(":") || CHIPPED_SLASH_COMMANDS.has(name);
+}
 const MENTION_TOKEN_REGEX = /(^|\s)@(?:"((?:\\.|[^"\\])*)"|([^\s@"]+))(?=\s)/g;
 /**
- * The label body is bounded rather than `*`. Unbounded, every whitespace in
- * the composer is a candidate start: the engine scans the rest of the text for
- * a closing `]`, fails, and rescans from the next whitespace — quadratic on
- * input like " [[[[[…". A cap makes each attempt constant-bounded.
- *
- * Only a basename ever survives the `label !== basename` check below, so this
- * cannot reject a link a user could meaningfully write; the longest filename
- * any common filesystem allows is 255.
+ * Unbounded, every whitespace in the composer is a candidate start: the engine scans the rest
+ * of the text for a closing `]`, fails, and rescans from the next whitespace — quadratic on
+ * input like " [[[[[…". Only a basename ever survives the `label !== basename` check below, so
+ * this cannot reject a link a user could meaningfully write; the longest filename any common
+ * filesystem allows is 255.
  */
 const MAX_FILE_LINK_LABEL_LENGTH = 512;
 const FILE_LINK_TOKEN_REGEX = new RegExp(
@@ -62,9 +50,9 @@ const FILE_LINK_TOKEN_REGEX = new RegExp(
 );
 const URI_SCHEME_REGEX = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const WINDOWS_DRIVE_PATH_REGEX = /^[A-Za-z]:[\\/]/;
-// Autocomplete emits canonical file links, so ambiguous bare @scope/package text stays a package.
 const SCOPED_PACKAGE_REFERENCE_REGEX =
   /^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*(?:\/[^\s@"]+)*$/;
+const DECORATOR_CALL_REFERENCE_REGEX = /^[\p{ID_Start}_$][\p{ID_Continue}.$\u200c\u200d]*\(/u;
 
 function collectMentionTokens(text: string): ComposerInlineToken[] {
   const matches: ComposerInlineToken[] = [];
@@ -77,9 +65,7 @@ function collectMentionTokens(text: string): ComposerInlineToken[] {
     let path = encodedPath;
     try {
       path = decodeURIComponent(encodedPath);
-    } catch {
-      // Preserve malformed source rather than dropping a user-authored token.
-    }
+    } catch {}
     const separatorIndex = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
     const basename = separatorIndex >= 0 ? path.slice(separatorIndex + 1) : path;
     const hasExternalScheme = URI_SCHEME_REGEX.test(path) && !WINDOWS_DRIVE_PATH_REGEX.test(path);
@@ -102,7 +88,11 @@ function collectMentionTokens(text: string): ComposerInlineToken[] {
     const prefix = match[1] ?? "";
     const quotedPath = match[2];
     const path = quotedPath !== undefined ? quotedPath.replace(/\\(.)/g, "$1") : (match[3] ?? "");
-    if (!path || (quotedPath === undefined && SCOPED_PACKAGE_REFERENCE_REGEX.test(path))) {
+    if (
+      !path ||
+      (quotedPath === undefined &&
+        (SCOPED_PACKAGE_REFERENCE_REGEX.test(path) || DECORATOR_CALL_REFERENCE_REGEX.test(path)))
+    ) {
       continue;
     }
     const start = (match.index ?? 0) + prefix.length;
@@ -126,7 +116,11 @@ export function collectComposerInlineTokens(
   const matches = collectMentionTokens(text);
 
   const command = SLASH_COMMAND_TOKEN_REGEX.exec(text);
-  if (command?.[1] !== undefined && CHIPPED_SLASH_COMMANDS.has(command[1])) {
+  if (
+    command?.[1] !== undefined &&
+    command[0].length < text.length &&
+    isChippedSlashCommand(command[1])
+  ) {
     matches.push({
       type: "skill",
       value: command[1],
@@ -167,5 +161,12 @@ export function collectComposerInlineTokens(
     }
   }
 
-  return [...matches].sort((left, right) => left.start - right.start);
+  // TeX can contain literal skill and file tokens, especially inside \text{}.
+  // They remain formula source rather than becoming composer context chips.
+  const math = matches.length > 0 ? markdownMathRanges(text) : [];
+  return matches
+    .filter(
+      (match) => !math.some((formula) => match.start < formula.end && match.end > formula.start),
+    )
+    .sort((left, right) => left.start - right.start);
 }

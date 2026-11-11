@@ -8,11 +8,6 @@ export function registerModelPickerContent(): () => void {
   };
 }
 
-/**
- * Model-picker visibility is already represented by the mounted popover.
- * Shortcut arbitration reads that source directly instead of mirroring it in
- * a second React or external store.
- */
 export function isModelPickerOpen(): boolean {
   return mountedModelPickers > 0;
 }

@@ -49,7 +49,6 @@ export interface ChatImageAttachment extends ContractChatImageAttachment {
 export interface ChatFileAttachment extends ContractChatFileAttachment {
   readonly previewUrl?: string;
   readonly downloadable?: boolean;
-  /** A page an agent published with `leo_html_render`; its viewer hands it the app theme. */
   readonly htmlRender?: boolean;
 }
 
@@ -81,15 +80,6 @@ export function isVideoAttachment(attachment: ChatFileAttachment): boolean {
   return videoMimeType(attachment) !== null;
 }
 
-export function isBrowserPreviewAttachment(attachment: ChatFileAttachment): boolean {
-  const mimeType = attachment.mimeType.split(";", 1)[0]?.trim().toLowerCase();
-  return (
-    /\.(?:html?|pdf)$/i.test(attachment.name) ||
-    mimeType === "application/pdf" ||
-    mimeType === "text/html"
-  );
-}
-
 export interface ChatMessage {
   readonly context?: import("@t3tools/contracts").OrchestrationMessageContext | undefined;
   readonly id: MessageId;
@@ -116,7 +106,9 @@ export interface ProposedPlan {
   readonly updatedAt: string;
 }
 export type TurnDiffFileChange = ThreadCheckpointSummary["files"][number];
-export type TurnDiffSummary = ThreadCheckpointSummary;
+export type TurnDiffSummary = ThreadCheckpointSummary & {
+  fileRunIds?: Readonly<Record<string, RunId>>;
+};
 
 export type Project = EnvironmentProject;
 export type Thread = EnvironmentThreadShell;

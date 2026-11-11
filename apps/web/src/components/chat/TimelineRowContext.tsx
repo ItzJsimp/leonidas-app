@@ -42,9 +42,14 @@ export interface TimelineRowSharedState {
   /** Projection runs, for recovering handoff models on legacy items. */
   runs: ReadonlyArray<TimelineRun>;
   activeThreadEnvironmentId: EnvironmentId;
-  onRevertToTurnCount: (targetTurnCount: number, messageId: MessageId) => void;
+  onRevertToTurnCount: (
+    targetTurnCount: number,
+    messageId: MessageId,
+    restoreFiles?: boolean,
+  ) => void;
   onUseArtifactTemplate: (template: CodexArtifactTemplate) => void;
   onDockReply: ((text: string) => void) | undefined;
+  onRetryRun?: ((runId: RunId) => void) | undefined;
   /** Sends text an MCP App asked to post, after the user approved it. */
   onSendAppMessage: ((text: string) => Promise<void>) | undefined;
   /**

@@ -140,7 +140,11 @@ import { useAtomQueryRunner } from "../state/use-atom-query-runner";
 import { useScratchProject } from "../hooks/useScratchProject";
 import { useNewProject } from "../hooks/useNewProject";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
-import { useEnvironments, usePrimaryEnvironmentId } from "../state/environments";
+import {
+  useEnvironmentProviders,
+  useEnvironments,
+  usePrimaryEnvironmentId,
+} from "../state/environments";
 import { useProjects, useServerConfigs, useThreadShells, waitForProject } from "../state/entities";
 import { useThreadSearch } from "../state/queries";
 import { resolveThreadActionProjectRef, startNewThreadFromContext } from "../lib/chatThreadActions";
@@ -178,9 +182,9 @@ import {
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { buildThreadRouteParams, resolveThreadRouteTarget } from "../threadRoutes";
 import { useAvailableSettingsSearchItems } from "./settings/useAvailableSettingsSearchItems";
-import { NewBusinessDialog } from "./workspace/NewBusinessDialog";
+import { NewWorkspaceDialog } from "./workspace/NewWorkspaceDialog";
 import { useRemoveProject } from "./workspace/useRemoveProject";
-import { openNewBusiness } from "./workspace/newBusinessStore";
+import { openNewWorkspace } from "./workspace/newWorkspaceStore";
 import {
   applyWslEnvironmentConfiguration,
   parseWslUncPath,
@@ -584,7 +588,7 @@ export function CommandPalette({ children }: { children: ReactNode }) {
           clearOpenIntent={clearOpenIntent}
         />
       </CommandDialog>
-      <NewBusinessDialog />
+      <NewWorkspaceDialog />
     </ComposerHandleContext>
   );
 }
@@ -767,25 +771,26 @@ function OpenCommandPaletteDialog(props: {
     ];
   }, [customThemes, environmentThemes]);
   const providers = useAtomValue(primaryServerProvidersAtom);
+  const providersByEnvironment = useEnvironmentProviders();
   const providerEntryByEnvironmentAndInstanceId = useMemo(() => {
     const map = new Map<string, ProviderInstanceEntry>();
     for (const environment of environments) {
       const serverConfig = environment.serverConfig;
       const environmentProviders =
-        serverConfig?.providers ??
+        providersByEnvironment.get(environment.environmentId) ??
         (environment.environmentId === primaryEnvironmentId ? providers : []);
       const derived = deriveProviderInstanceEntries(environmentProviders);
       // Settings fill the ACP registry identity (agent id, icon URL) the
       // derived entries alone do not carry.
       const entries = serverConfig
-        ? applyProviderInstanceSettings(derived, serverConfig.settings)
+        ? applyProviderInstanceSettings(derived, serverConfig.settings, null)
         : derived;
       for (const entry of entries) {
         map.set(`${environment.environmentId}:${entry.instanceId}`, entry);
       }
     }
     return map;
-  }, [environments, primaryEnvironmentId, providers]);
+  }, [environments, primaryEnvironmentId, providers, providersByEnvironment]);
   const [viewStack, setViewStack] = useState<CommandPaletteView[]>([]);
   const currentView = viewStack.at(-1) ?? null;
   const environmentIds = useMemo(
@@ -1620,13 +1625,13 @@ function OpenCommandPaletteDialog(props: {
       if (newProjectsRootFor(environmentId) !== null) {
         sourceItems.unshift({
           kind: "action",
-          value: `action:add-project:${environmentId}:new-business`,
-          searchTerms: ["new business", "company", "team", "organization", "workspace"],
-          title: "New business",
-          description: "Start a business workspace with a team, from a name",
+          value: `action:add-project:${environmentId}:new-workspace`,
+          searchTerms: ["new workspace", "business", "trading", "personal", "company", "team"],
+          title: "New workspace",
+          description: "Personal, business or trading",
           icon: <BriefcaseIcon className={ITEM_ICON_CLASS} />,
           run: async () => {
-            openNewBusiness();
+            openNewWorkspace();
           },
         });
         sourceItems.unshift({

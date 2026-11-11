@@ -241,8 +241,66 @@ describe("MeetingsPage", () => {
   it("still asks for the keys when Discord is not set up", async () => {
     mocks.discord = { configured: false, connected: false };
     await show();
-    expect(text()).toContain("Show real names from Discord calls");
+    expect(text()).toContain("Show who is speaking in Discord calls (optional)");
     expect(container.querySelector('input[aria-label="Discord client ID"]')).not.toBeNull();
     mocks.discord = { configured: true, connected: true, user: { username: "Jake" } };
+  });
+
+  it("saves the Discord keys and connects with one button", async () => {
+    mocks.discord = { configured: false, connected: false };
+    await show();
+    const type = async (label: string, value: string) => {
+      const input = container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+    const connect = () =>
+      [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+        (el) => el.textContent === "Connect Discord",
+      )!;
+    expect(connect().disabled).toBe(true);
+    await type("Discord client ID", " 123 ");
+    await type("Discord client secret", "shh");
+    expect(connect().disabled).toBe(false);
+    await act(async () => connect().click());
+    const posts = mocks.call.mock.calls.filter(([method]) => method !== "GET");
+    expect(posts).toEqual([
+      ["PUT", "discord", { clientId: "123", clientSecret: "shh" }],
+      ["POST", "discord/connect"],
+    ]);
+    mocks.discord = { configured: true, connected: true, user: { username: "Jake" } };
+  });
+
+  it("keeps the Record button label and records the detected call app with the saved mic", async () => {
+    localStorage.setItem("leonidas.meetings.audio", JSON.stringify({ mic: "m2" }));
+    const original = mocks.call.getMockImplementation()!;
+    mocks.call.mockImplementation(async (method: string, path: string, body: unknown) => {
+      if (path === "detect") return { ok: true, value: { app: "Discord" } };
+      if (path === "sources")
+        return {
+          ok: true,
+          value: {
+            mics: [{ id: "m2", name: "Desk mic", default: false }],
+            outputs: [],
+            apps: [{ name: "Discord", pid: 1, playing: true }],
+            perApp: true,
+          },
+        };
+      return original(method, path, body);
+    });
+    await show();
+    const record = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (el) => el.textContent === "Record meeting",
+    );
+    expect(record).toBeDefined();
+    expect(text()).toContain("Desk mic + Discord");
+    await act(async () => record?.click());
+    expect(mocks.call).toHaveBeenCalledWith("POST", "start", { mic: "m2", apps: ["Discord"] });
+    localStorage.clear();
   });
 });

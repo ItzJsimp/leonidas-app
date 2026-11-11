@@ -4,11 +4,13 @@ import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 import { HttpServer } from "effect/http";
 import * as NetAddress from "effect/net/NetAddress";
 
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
+import { ServerSettingsService } from "../serverSettings.ts";
 import * as McpInvocationContext from "./McpInvocationContext.ts";
 import * as McpProviderSession from "@t3tools/provider-core/server/mcpSession";
 
@@ -33,11 +35,6 @@ export interface McpSessionRegistryShape {
   readonly resolve: (
     rawToken: string,
   ) => Effect.Effect<McpInvocationContext.McpThreadInvocationScope | undefined>;
-  /**
-   * Records a sign of life for every credential bound to `threadId`. Provider
-   * turns call this so that a session which is plainly alive keeps its
-   * credential even when it goes a long time without touching an MCP tool.
-   */
   readonly touch: (threadId: ThreadId) => Effect.Effect<void>;
   readonly revokeProviderSession: (providerSessionId: string) => Effect.Effect<void>;
   readonly revokeThread: (threadId: ThreadId) => Effect.Effect<void>;
@@ -49,7 +46,6 @@ export class McpSessionRegistry extends Context.Service<
   McpSessionRegistryShape
 >()("t3/mcp/McpSessionRegistry") {}
 
-/** Registry credentials always belong to a provider session, so their scope has a thread. */
 interface CredentialRecord {
   readonly tokenHash: string;
   readonly scope: McpInvocationContext.McpThreadInvocationScope;
@@ -66,18 +62,9 @@ export interface McpSessionRegistryOptions {
 }
 
 /**
- * How long a credential outlives the last sign of life from its provider
- * session.
- *
- * Liveness is refreshed both by MCP traffic and by `touch` on every provider
- * turn, so a session that is still doing work never expires no matter how long
- * it goes between browser tool calls. This window therefore only bounds
- * credentials whose session died without a clean stop — the normal paths
- * (`stopSession`, `stopAll`) revoke eagerly and do not wait for it.
- *
- * The bound matters because `/mcp` is mounted outside the environment auth
- * stack and is reachable on whatever host the server binds to, so this token is
- * the only thing guarding the `t3-code` toolkits on a remote-reachable server.
+ * `/mcp` is outside environment auth, so idle tokens stop authenticating.
+ * Keep expired records until explicit revocation: a trusted provider turn can
+ * refresh the token its subprocess still holds; MCP requests cannot.
  */
 const DEFAULT_LIVENESS_WINDOW_MS = 24 * 60 * 60 * 1_000;
 
@@ -86,8 +73,6 @@ const bytesToHex = (bytes: Uint8Array): string =>
 
 const tokenFromBytes = (bytes: Uint8Array): string => Buffer.from(bytes).toString("base64url");
 
-// A wildcard bind is reachable on loopback, which is where the provider
-// subprocesses run; anything else is announced as the address it bound.
 const getHttpMcpEndpointHost = (address: NetAddress.IpAddress): string =>
   NetAddress.isUnspecified(address)
     ? "127.0.0.1"
@@ -100,6 +85,16 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
   const environment = yield* ServerEnvironment.ServerEnvironment;
   const environmentId = yield* environment.getEnvironmentId;
   const httpServer = yield* HttpServer.HttpServer;
+  // Optional so the registry still builds where no settings exist (tests, tools).
+  const settings = yield* Effect.serviceOption(ServerSettingsService);
+  const readUserMcpServers = Option.isSome(settings)
+    ? settings.value.getSettings.pipe(
+        Effect.map((value) =>
+          McpProviderSession.resolveUserMcpServers(value.mcpServers, process.env),
+        ),
+        Effect.orElseSucceed(() => []),
+      )
+    : Effect.succeed([]);
   const state = yield* SynchronizedRef.make<RegistryState>({ records: new Map() });
   const currentTimeMillis = options.now ? Effect.sync(options.now) : Clock.currentTimeMillis;
   const livenessWindowMs = options.livenessWindowMs ?? DEFAULT_LIVENESS_WINDOW_MS;
@@ -112,22 +107,14 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
       .digest("SHA-256", new TextEncoder().encode(token))
       .pipe(Effect.map(bytesToHex), Effect.orDie);
 
-  const pruneDead = (records: ReadonlyMap<string, CredentialRecord>, timestamp: number) => {
-    const next = new Map(
-      Array.from(records).filter(
-        ([, record]) => timestamp - record.lastAliveAt <= livenessWindowMs,
-      ),
-    );
-    return next.size === records.size ? records : next;
-  };
-
   const issue: McpSessionRegistryShape["issue"] = Effect.fn("McpSessionRegistry.issue")(
     function* (request) {
       const issuedAt = yield* currentTimeMillis;
-      const providerSessionId = yield* crypto.randomUUIDv4.pipe(Effect.orDie);
+      const providerSessionId = yield* crypto.randomUUIDv4().pipe(Effect.orDie);
       const rawToken = yield* crypto.randomBytes(32).pipe(Effect.map(tokenFromBytes), Effect.orDie);
       const tokenHash = yield* hashToken(rawToken);
       const browserToolsAvailable = request.browserToolsAvailable ?? true;
+      const userMcpServers = yield* readUserMcpServers;
       const scope: McpInvocationContext.McpThreadInvocationScope = {
         environmentId,
         requestNamespace: providerSessionId,
@@ -146,7 +133,7 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
         issuedAt,
       };
       yield* SynchronizedRef.update(state, ({ records }) => {
-        const next = new Map(pruneDead(records, issuedAt));
+        const next = new Map(records);
         next.set(tokenHash, { tokenHash, scope, lastAliveAt: issuedAt });
         return { records: next };
       });
@@ -160,6 +147,7 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
           authorizationHeader: `Bearer ${rawToken}`,
           browserToolsAvailable: scope.capabilities.has("preview"),
           capabilities: scope.capabilities,
+          ...(userMcpServers.length === 0 ? {} : { userMcpServers }),
         },
       };
     },
@@ -171,10 +159,11 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
       const tokenHash = yield* hashToken(rawToken);
       const timestamp = yield* currentTimeMillis;
       return yield* SynchronizedRef.modify(state, ({ records }) => {
-        const current = pruneDead(records, timestamp);
-        const record = current.get(tokenHash);
-        if (!record) return [undefined, { records: current }] as const;
-        const next = new Map(current);
+        const record = records.get(tokenHash);
+        if (!record || timestamp - record.lastAliveAt > livenessWindowMs) {
+          return [undefined, { records }] as const;
+        }
+        const next = new Map(records);
         next.set(tokenHash, { ...record, lastAliveAt: timestamp });
         return [record.scope, { records: next }] as const;
       });
@@ -185,9 +174,8 @@ const makeWithOptions = Effect.fn("McpSessionRegistry.make")(function* (
     function* (threadId) {
       const timestamp = yield* currentTimeMillis;
       yield* SynchronizedRef.update(state, ({ records }) => {
-        const current = pruneDead(records, timestamp);
-        const next = new Map(current);
-        for (const [tokenHash, record] of current) {
+        const next = new Map(records);
+        for (const [tokenHash, record] of records) {
           if (record.scope.thread.threadId === threadId) {
             next.set(tokenHash, { ...record, lastAliveAt: timestamp });
           }
@@ -247,10 +235,6 @@ export const issueActiveMcpCredential = (
         .pipe(Effect.andThen(activeMcpSessionRegistry.issue(request)))
     : Effect.undefined;
 
-/**
- * Refreshes the liveness of a thread's MCP credential. Called on every provider
- * turn so an active session is never mistaken for an abandoned one.
- */
 export const touchActiveMcpThread = (threadId: ThreadId): Effect.Effect<void> =>
   activeMcpSessionRegistry ? activeMcpSessionRegistry.touch(threadId) : Effect.void;
 

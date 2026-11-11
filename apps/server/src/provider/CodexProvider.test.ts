@@ -1,7 +1,19 @@
 // @effect-diagnostics nodeBuiltinImport:off - synchronous node and global APIs are used on purpose in this file.
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
-
+import { CodexSettings } from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as FileSystem from "effect/FileSystem";
+import * as Queue from "effect/Queue";
+import * as Schema from "effect/Schema";
+import * as Sink from "effect/Sink";
+import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
+import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
+
 import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";

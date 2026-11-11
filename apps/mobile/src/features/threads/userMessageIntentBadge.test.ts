@@ -3,32 +3,23 @@ import { describe, expect, it } from "@effect/vitest";
 import { resolveUserMessageIntentBadge } from "./userMessageIntentBadge";
 
 describe("user message intent badge", () => {
-  it("does not label ordinary turn-start messages", () => {
+  it("does not label turn-start or queued messages", () => {
     expect(resolveUserMessageIntentBadge(undefined)).toBeNull();
     expect(resolveUserMessageIntentBadge("turn_start")).toBeNull();
+    expect(resolveUserMessageIntentBadge("queued_turn")).toBeNull();
   });
 
-  it("labels messages waiting behind the active turn", () => {
-    expect(resolveUserMessageIntentBadge("queued_turn")).toEqual({
-      label: "waiting",
-      accessibilityLabel: "Waiting behind the active reply",
-      tone: "queued",
-    });
-  });
-
-  it("labels messages that steer the active turn", () => {
+  it("explains the intent to steer without claiming delivery", () => {
     expect(resolveUserMessageIntentBadge("steer")).toEqual({
-      label: "send now",
+      label: "Steer",
       accessibilityLabel: "Sent during the active reply",
-      tone: "steer",
     });
   });
 
   it("preserves the queued origin after promotion to steer", () => {
     expect(resolveUserMessageIntentBadge("promoted_queued_to_steer")).toEqual({
-      label: "waiting → send now",
+      label: "Steer",
       accessibilityLabel: "Saved as waiting, then sent during the active reply",
-      tone: "steer",
     });
   });
 });

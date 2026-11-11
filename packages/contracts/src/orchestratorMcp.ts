@@ -11,6 +11,7 @@ import {
   PositiveInt,
   ProjectId,
   RunId,
+  RuntimeRequestId,
   ScheduledTaskId,
   SecretRef,
   ThreadId,
@@ -22,14 +23,19 @@ import {
   ScheduledTaskSchedule,
   ScheduledTaskUpsertSchedule,
 } from "./scheduledTask.ts";
-import { ProviderInteractionMode, RuntimeMode } from "./providerPolicy.ts";
+import { ProviderInteractionMode, ProviderRequestKind, RuntimeMode } from "./providerPolicy.ts";
+import { PullRequestState } from "./pullRequest.ts";
 import {
   TaskBoardDueDate,
   TaskBoardMilestoneVersion,
   TaskBoardTaskPriority,
   TaskBoardTaskStatus,
 } from "./taskBoard.ts";
-import { ThreadLinkedPullRequest } from "./threadPullRequest.ts";
+import {
+  ThreadLinkedPullRequest,
+  ThreadPullRequestKey,
+  ThreadPullRequestLinkSource,
+} from "./threadPullRequest.ts";
 import { ThreadTitleRegeneration } from "./threadTitle.ts";
 import {
   OrchestrationV2Actor,
@@ -70,12 +76,6 @@ const OrchestratorMcpSchedule = Schema.Union([
     "Trigger: {type:'interval',everyMs}, {type:'fixed_time',timeOfDay,weekdays?}, or {type:'webhook'}.",
 });
 
-/**
- * Shorthand `{ id: value }` record form for target model options. Unlike the
- * legacy-tolerant `ProviderOptionSelections` persistence schema, this decodes
- * strictly: a value that is not a string or boolean fails the request rather
- * than being silently dropped.
- */
 const OrchestratorMcpTargetOptionsFromRecord = Schema.Record(
   Schema.String,
   ProviderOptionSelectionValue,
@@ -110,11 +110,15 @@ export const OrchestratorMcpTarget = Schema.Struct({
       description: "Prefer `providerInstanceId`.",
     }),
   ),
-  model: Schema.optional(TrimmedNonEmptyString),
+  model: Schema.optional(
+    TrimmedNonEmptyString.annotate({
+      description: "Model id advertised for the selected provider instance.",
+    }),
+  ),
   options: Schema.optional(
     OrchestratorMcpTargetOptions.annotate({
       description:
-        "Options from `leo_orchestrator_capabilities`, such as {effort:'max'}. Omit to inherit when provider and model match the parent.",
+        "Model options from orchestrator_capabilities. For the same provider instance and model, overrides individual inherited values; [] or {} clears them. Claude: {effort: 'max', fastMode: true}; Codex: {reasoningEffort: 'max', serviceTier: 'priority'}. Only use options advertised by the selected model.",
     }),
   ),
 });
@@ -170,13 +174,21 @@ export const OrchestratorMcpDelegateTaskInput = Schema.Struct({
         "Name of a subagent in .agents/subagents/. The child starts as that persona. Its model applies when `target` names none.",
     }),
   ),
-  mode: Schema.optional(
-    Schema.Literals(["async", "wait"]).annotate({
-      description: "Default 'async'. 'wait' only if this turn needs the result.",
+  isolation: Schema.optional(
+    Schema.Literals(["shared", "worktree"]).annotate({
+      description:
+        "Defaults to shared: use the parent's checkout. Worktree creates a separate checkout from the parent's current local commit before starting the child. Uncommitted edits are not copied.",
     }),
   ),
-  timeoutMs: Schema.optional(Schema.Number).annotate({
-    description: "Mode 'wait' only. Default 10 min. A timeout does not cancel the child.",
+  mode: Schema.optional(
+    Schema.Literals(["async", "wait"]).annotate({
+      description:
+        "Default 'async'. 'wait' only if this turn needs the result. A blocking question or pending approval in the child ends the wait early.",
+    }),
+  ),
+  timeoutMs: Schema.optional(Schema.Finite).annotate({
+    description:
+      "Mode 'wait' only. Default 10 min. A timeout returns waitTimedOut=true and does not cancel the child.",
   }),
   clientRequestId: Schema.optional(OrchestratorMcpClientRequestId),
   acceptance: Schema.optional(
@@ -190,7 +202,12 @@ export const OrchestratorMcpDelegateTaskInput = Schema.Struct({
         "Optional check on the child's work. The result has an `acceptance` block (verdict, output tail). The child is not retried.",
     }),
   ),
-  runtimeMode: Schema.optional(OrchestratorMcpRuntimeMode),
+  runtimeMode: Schema.optional(
+    OrchestratorMcpRuntimeMode.annotate({
+      description:
+        "Defaults to inherit; omit it unless the user asks for a supervised child. A narrower mode is not a read-only switch: on most providers, approval-required and auto-accept-edits pause the child at each action that needs approval until a person approves it in the child's thread, which this thread cannot do. To limit what the child does, say so in the task. A mode ranked above this thread's is rejected; that ranking does not promise the child's provider permissions are narrower than this thread's.",
+    }),
+  ),
   interactionMode: Schema.optional(OrchestratorMcpInteractionMode),
   workspaceStrategy: Schema.optional(
     OrchestrationV2ThreadLaunchWorkspaceStrategy.annotate({
@@ -237,9 +254,25 @@ export const OrchestratorMcpDelegateTaskResult = Schema.Struct({
   latestTerminalResultContextTransferId: Schema.NullOr(ContextTransferId),
   providerInstanceId: ProviderInstanceId,
   model: Schema.NullOr(Schema.String),
+  options: Schema.optional(
+    Schema.Array(ProviderOptionSelection).annotate({
+      description:
+        "Stored model option selections for the child run, or its thread before a run starts. Omitted selections use provider defaults.",
+    }),
+  ),
   summary: Schema.NullOr(Schema.String),
   routingReason: Schema.optional(TrimmedNonEmptyString),
   resultContextTransferId: Schema.NullOr(ContextTransferId),
+  hasPendingQuestion: Schema.Boolean.annotate({
+    description:
+      "Blocking question ends mode=wait. Pass threadId=childThreadId to t3_pending_request_list, t3_pending_request_read (with requestId) and t3_pending_request_respond, or ask the user; the task's completion still wakes this thread.",
+  }),
+  pendingApproval: Schema.NullOr(
+    Schema.Struct({ requestId: RuntimeRequestId, kind: ProviderRequestKind, runId: RunId }),
+  ).annotate({
+    description:
+      "Identity of the oldest pending live approval for this task's own unfinished work, or null. Ends mode=wait without cancelling the child; completion still wakes this thread. This grants no approval authority. Read the fresh full request in childThreadId before responding: the record can outlive its provider callback. Decisions remain with the child's existing approval holder; pending request tools answer questions only.",
+  }),
   waitTimedOut: Schema.Boolean.annotate({
     description: "True only on the timed-out wait call. The child keeps running.",
   }),
@@ -338,6 +371,15 @@ export const OrchestratorMcpThreadListInput = Schema.Struct({
 });
 export type OrchestratorMcpThreadListInput = typeof OrchestratorMcpThreadListInput.Type;
 
+/** A pull request linked to a thread; `state` is null until the host has been read. */
+export const OrchestratorMcpThreadPullRequest = Schema.Struct({
+  ...ThreadPullRequestKey.fields,
+  url: TrimmedNonEmptyString,
+  source: ThreadPullRequestLinkSource,
+  state: Schema.NullOr(PullRequestState),
+});
+export type OrchestratorMcpThreadPullRequest = typeof OrchestratorMcpThreadPullRequest.Type;
+
 export const OrchestratorMcpThreadListItem = Schema.Struct({
   threadId: ThreadId,
   title: Schema.String,
@@ -350,10 +392,11 @@ export const OrchestratorMcpThreadListItem = Schema.Struct({
   runtimeMode: RuntimeMode,
   interactionMode: ProviderInteractionMode,
   linkedPullRequest: Schema.NullOr(ThreadLinkedPullRequest),
+  /** Missing on older servers. */
+  pullRequests: Schema.optional(Schema.Array(OrchestratorMcpThreadPullRequest)),
   settled: Schema.Boolean,
   settledAt: Schema.NullOr(IsoDateTime),
   snoozed: Schema.Boolean,
-  /** When a snoozed thread wakes; null when it is not snoozed. */
   snoozedUntil: Schema.NullOr(IsoDateTime),
   parentThreadId: Schema.NullOr(ThreadId),
   relationshipToParent: Schema.NullOr(Schema.Literals(["fork", "subagent"])),
@@ -365,7 +408,6 @@ export type OrchestratorMcpThreadListItem = typeof OrchestratorMcpThreadListItem
 
 export const OrchestratorMcpThreadListResult = Schema.Struct({
   projectId: ProjectId,
-  /** The calling thread, or null when the caller is not a T3 thread. */
   currentThreadId: Schema.NullOr(ThreadId),
   threads: Schema.Array(OrchestratorMcpThreadListItem),
   nextCursor: Schema.NullOr(NonNegativeInt),
@@ -405,6 +447,8 @@ export const OrchestratorMcpThreadDetail = Schema.Struct({
   runtimeMode: RuntimeMode,
   interactionMode: ProviderInteractionMode,
   linkedPullRequest: Schema.NullOr(ThreadLinkedPullRequest),
+  /** Missing on older servers. */
+  pullRequests: Schema.optional(Schema.Array(OrchestratorMcpThreadPullRequest)),
   titleRegeneration: Schema.NullOr(ThreadTitleRegeneration),
   branch: Schema.NullOr(Schema.String),
   worktreePath: Schema.NullOr(Schema.String),
@@ -417,7 +461,6 @@ export const OrchestratorMcpThreadDetail = Schema.Struct({
   settled: Schema.Boolean,
   settledAt: Schema.NullOr(IsoDateTime),
   snoozed: Schema.Boolean,
-  /** When a snoozed thread wakes; null when it is not snoozed. */
   snoozedUntil: Schema.NullOr(IsoDateTime),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
@@ -446,6 +489,7 @@ export const OrchestratorMcpThreadTimelineItem = Schema.Struct({
   messageId: Schema.NullOr(MessageId),
   createdBy: Schema.NullOr(OrchestrationV2Actor),
   creationSource: Schema.NullOr(OrchestrationV2CreationSource),
+  senderThreadId: Schema.optional(ThreadId),
   type: Schema.String,
   status: OrchestrationV2TurnItemStatus,
   title: Schema.NullOr(Schema.String),
@@ -477,7 +521,6 @@ export const OrchestratorMcpThreadSendResult = Schema.Struct({
   threadId: ThreadId,
   messageId: MessageId,
   runId: RunId,
-  /** Fresh task for a follow-up to an app-owned child; the previous task stays terminal. */
   taskId: Schema.optional(NodeId),
   status: OrchestrationV2RunStatus,
   delivery: Schema.Literals(["started", "queued", "steered", "restarted"]),
@@ -487,7 +530,7 @@ export type OrchestratorMcpThreadSendResult = typeof OrchestratorMcpThreadSendRe
 export const OrchestratorMcpThreadWaitInput = Schema.Struct({
   threadId: ThreadId,
   runId: Schema.optional(RunId),
-  timeoutMs: Schema.optional(Schema.Number),
+  timeoutMs: Schema.optional(Schema.Finite),
 });
 export type OrchestratorMcpThreadWaitInput = typeof OrchestratorMcpThreadWaitInput.Type;
 
@@ -526,7 +569,6 @@ export const OrchestratorMcpProviderCapability = Schema.Struct({
     Schema.Struct({
       id: Schema.String,
       label: Schema.NullOr(Schema.String),
-      /** Model options a target may select (for example reasoning effort). */
       options: Schema.optional(Schema.Array(ProviderOptionDescriptor)),
     }),
   ),
@@ -551,11 +593,10 @@ export const OrchestratorMcpCapabilitiesInput = Schema.Struct({
 export type OrchestratorMcpCapabilitiesInput = typeof OrchestratorMcpCapabilitiesInput.Type;
 
 export const OrchestratorMcpCapabilitiesResult = Schema.Struct({
-  /** The calling thread, or null when the caller is not a T3 thread. */
   parentThreadId: Schema.NullOr(ThreadId),
-  /** The calling thread's selection, or null when the caller is not a T3 thread. */
   inheritedProviderInstanceId: Schema.NullOr(ProviderInstanceId),
   inheritedModel: Schema.NullOr(Schema.String),
+  inheritedOptions: Schema.optional(Schema.Array(ProviderOptionSelection)),
   runtimeMode: RuntimeMode,
   interactionMode: ProviderInteractionMode,
   providers: Schema.Array(OrchestratorMcpProviderCapability),
@@ -579,7 +620,9 @@ export const OrchestratorMcpScheduleTaskInput = Schema.Struct({
   prompt: OrchestratorMcpPrompt,
   schedule: OrchestratorMcpSchedule,
   title: Schema.optional(OrchestratorMcpTitle),
-  enabled: Schema.optional(Schema.Boolean.annotate({ description: "Default true." })),
+  enabled: Schema.optional(
+    Schema.Boolean.annotate({ description: "Whether the schedule starts enabled; defaults true." }),
+  ),
   bindToCurrentThread: Schema.optional(
     Schema.Boolean.annotate({
       description: "Default true: runs post in this thread. False: new thread per run.",
@@ -610,7 +653,6 @@ export const OrchestratorMcpScheduledTask = Schema.Struct({
   schedule: ScheduledTaskSchedule,
   nextRunAt: Schema.NullOr(IsoDateTime),
   lastRunStatus: ScheduledTaskRunStatus,
-  /** For webhook tasks: the public T3 Connect URL. Absent when this environment has no managed tunnel. */
   webhookUrl: Schema.optional(Schema.String).annotate({
     description:
       "Public URL for the sender. Absent: no T3 Connect tunnel. The user must enable T3 Connect remote access.",

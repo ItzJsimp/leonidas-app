@@ -23,7 +23,7 @@ import {
   deriveProviderInstanceEntries,
   sortProviderInstanceEntries,
 } from "~/providerInstances";
-import { useServerConfigs } from "~/state/entities";
+import { useEnvironmentProviders } from "~/state/environments";
 import { buildThreadRouteParams } from "~/threadRoutes";
 
 import { clipTitle } from "../twoState/safeText";
@@ -51,9 +51,9 @@ export function HomeComposer() {
     defaultProjectRef?.environmentId === environmentId ? defaultProjectRef.projectId : null;
   const navigate = useNavigate();
   const settings = useEnvironmentSettings(environmentId ?? ("" as EnvironmentId));
-  const configs = useServerConfigs();
+  const providersByEnvironment = useEnvironmentProviders();
   const providers =
-    (environmentId ? configs.get(environmentId)?.providers : undefined) ?? NO_PROVIDERS;
+    (environmentId ? providersByEnvironment.get(environmentId) : undefined) ?? NO_PROVIDERS;
   const stickyProvider = useComposerDraftStore((store) => store.stickyActiveProvider);
   const stickySelection = useComposerDraftStore((store) =>
     store.stickyActiveProvider
@@ -68,7 +68,7 @@ export function HomeComposer() {
   const entries = useMemo(
     () =>
       sortProviderInstanceEntries(
-        applyProviderInstanceSettings(deriveProviderInstanceEntries(providers), settings),
+        applyProviderInstanceSettings(deriveProviderInstanceEntries(providers), settings, null),
       ),
     [providers, settings],
   );

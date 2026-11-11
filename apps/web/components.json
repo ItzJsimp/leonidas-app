@@ -23,6 +23,7 @@
   },
   "registries": {
     "@coss": "https://coss.com/ui/r/{name}.json",
+    "@reui": "https://reui.io/r/{style}/{name}.json",
     "@spell": "https://spell.sh/r/{name}.json"
   }
 }

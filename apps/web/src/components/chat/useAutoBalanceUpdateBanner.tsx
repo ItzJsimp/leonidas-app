@@ -1,11 +1,11 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { Atom } from "effect/reactivity";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
+import { environmentIdsKey } from "~/state/environmentAtomList";
 import type { EnvironmentPresentation } from "~/state/environments";
-import { serverEnvironment } from "~/state/server";
+import { environmentUpdateStatesAtom } from "~/state/server";
 import {
   buildVersionMismatchDismissalKey,
   dismissServerUpdateFailure,
@@ -27,26 +27,17 @@ import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 import { ComposerServerUpdateIcon } from "./ComposerServerUpdateStatus";
 
-/** Keep every machine's update visible while auto balance has no single update target. */
 export function useAutoBalanceUpdateBanner(
   environments: readonly EnvironmentPresentation[],
 ): ComposerBannerStackItem | null {
-  // Callers rebuild this list on every render. Key the atom by environment
-  // ids, or each render makes a new atom, a new subscription and one more render.
-  const idsKey = environments.map((environment) => environment.environmentId).join("|");
-  const updateStatesAtom = useMemo(
-    () =>
-      Atom.make((get) =>
-        (idsKey === "" ? [] : (idsKey.split("|") as EnvironmentId[])).map((environmentId) =>
-          get(serverEnvironment.updateStateAtom(environmentId)),
-        ),
-      ),
-    [idsKey],
+  const updateStates = useAtomValue(
+    environmentUpdateStatesAtom(
+      environmentIdsKey(environments.map(({ environmentId }) => environmentId)),
+    ),
   );
-  const updateStates = useAtomValue(updateStatesAtom);
   const states = environments.flatMap((environment, index) => {
     const state = updateStates[index];
-    return state === undefined ? [] : [{ environment, state }];
+    return state ? [{ environment, state }] : [];
   });
   const [dismissedNotices, setDismissedNotices] = useState<ReadonlySet<string | ServerUpdateState>>(
     () => new Set(),

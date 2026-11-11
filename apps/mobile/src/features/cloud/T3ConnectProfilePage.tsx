@@ -7,19 +7,12 @@ import type { MenuAction } from "@react-native-menu/menu";
 import type { EnvironmentId } from "@t3tools/contracts";
 import type { RelayClientEnvironmentRecord } from "@t3tools/contracts/relay";
 import { type ReactNode, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 
-import { SymbolView } from "../../components/AppSymbol";
-import { showConfirmDialog } from "../../components/ConfirmDialogHost";
-import { ControlPillMenu } from "../../components/ControlPill";
+import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
+import { SymbolView } from "../../components/ui/AppSymbol";
+import * as Dialog from "../../components/ui/Dialog";
+import { Menu } from "../../components/ui/Menu";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 import { useAtomCommand } from "../../state/use-atom-command";
 import {
@@ -46,13 +39,13 @@ function confirmDeregister(environment: RelayClientEnvironmentRecord, onConfirm:
   const title = "Remove computer?";
   const message = `“${environment.label}” will be removed from this account. Remote access will stop. Its remote access connection will be removed. Local connections on your devices will stay.`;
   if (process.env.EXPO_OS === "ios") {
-    Alert.alert(title, message, [
+    Dialog.alert(title, message, [
       { text: "Cancel", style: "cancel" },
       { text: "Remove", style: "destructive", onPress: onConfirm },
     ]);
     return;
   }
-  showConfirmDialog({
+  Dialog.confirm({
     title,
     message,
     confirmText: "Remove computer",
@@ -61,12 +54,6 @@ function confirmDeregister(environment: RelayClientEnvironmentRecord, onConfirm:
   });
 }
 
-/**
- * The "T3 Connect" custom page inside Clerk's native user profile: every
- * environment registered to the signed-in account, with account-level
- * deregistration. Mirrors the web UserButton page; connections on this device
- * are managed in Settings instead.
- */
 export function T3ConnectProfilePage() {
   const environmentsState = useManagedRelayEnvironments();
   const deregisterEnvironment = useAtomCommand(deregisterManagedRelayEnvironmentCommand, {
@@ -116,7 +103,7 @@ export function T3ConnectProfilePage() {
       traceId,
       cause,
     });
-    Alert.alert(
+    Dialog.alert(
       "Could not remove computer",
       traceId ? `${message}\n\nTrace ID: ${traceId}` : message,
       traceId
@@ -174,7 +161,7 @@ export function T3ConnectProfilePage() {
         </>
       ) : isInitialLoad ? (
         <View className="flex-row items-center gap-3 px-6 py-4">
-          <ActivityIndicator colorClassName={"accent-clerk-foreground-muted"} size="small" />
+          <AppActivityIndicator colorClassName={"accent-clerk-foreground-muted"} size="small" />
           <Text className="text-base text-clerk-foreground-muted">Loading computers</Text>
         </View>
       ) : environments.length > 0 ? (
@@ -185,9 +172,12 @@ export function T3ConnectProfilePage() {
             subtitle={`${linkedAtLabel(environment.linkedAt)} · ${endpointLabel(environment)}`}
             accessory={
               deregisteringEnvironmentId === environment.environmentId ? (
-                <ActivityIndicator colorClassName={"accent-clerk-foreground-muted"} size="small" />
+                <AppActivityIndicator
+                  colorClassName={"accent-clerk-foreground-muted"}
+                  size="small"
+                />
               ) : (
-                <ControlPillMenu
+                <Menu
                   actions={ENVIRONMENT_MENU_ACTIONS}
                   isAnchoredToRight
                   onPressAction={() =>
@@ -209,7 +199,7 @@ export function T3ConnectProfilePage() {
                       />
                     </View>
                   </Pressable>
-                </ControlPillMenu>
+                </Menu>
               )
             }
           />
@@ -231,10 +221,6 @@ export function T3ConnectProfilePage() {
 const ENVIRONMENT_MENU_ACTIONS = [
   { id: "deregister", title: "Remove computer", image: "trash", attributes: { destructive: true } },
 ] satisfies MenuAction[];
-
-// Layout primitives that mirror clerk-ios ClerkKitUI's profile rows so a custom
-// page reads as one of Clerk's own screens. System font on purpose: Clerk's
-// native views do not use the app's DM Sans.
 
 function ClerkSectionHeader(props: { readonly children: string }) {
   return (

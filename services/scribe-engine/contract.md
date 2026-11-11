@@ -3,6 +3,7 @@
 v1.7 (2026-11-08): each suggestion adds `example`, one sample from the newest dictation with the fix. See `GET /v1/dictionary/suggestions`. Additive: an older engine leaves it out.
 
 v1.6 (2026-11-07, Meetings): meeting recording, transcripts, speakers, notes and Ask. See the Meetings section at the end. Additive: nothing older changes.
+v1.6.1 (2026-11-10, Meetings): `GET /v1/meetings/sources` lists mics, speakers and apps that make sound. `POST /v1/meetings/start` takes `mic`, `output` and `apps`, so a meeting records chosen apps and not the whole speaker mix. Additive: an old start body still works.
 
 v1.5 (2026-11-06, Batch 4 parity): history items add optional `stt` and `polish`, strings. `stt` is the speech provider and model that served the take, as `provider/model` (for example `groq/whisper-large-v3-turbo`, `deepgram/nova-3`, `local/ggml-base.en-q5_1`). `polish` is `provider/model`, `fast-path` or `none`. A missing field means unknown (older lines and rewrites). `POST /v1/retry` runs the newest saved failed dictation again (see Retry).
 
@@ -278,24 +279,25 @@ Meetings errors add a plain `message` for the user: `{"error":"<code>","message"
 
 ## Commands
 
-| Route                                                      | Body                                                | Reply                                                                                                                                          |
-| ---------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/meetings`                                         |                                                     | `{"items":[summary]}` newest first                                                                                                             |
-| `GET /v1/meetings/{id}`                                    |                                                     | summary plus `manifest`, `transcript`, `note`, `folder`                                                                                        |
-| `PATCH /v1/meetings/{id}`                                  | `{"title"?, "pinned"?, "speakers"?: {"old":"new"}}` | the meeting                                                                                                                                    |
-| `DELETE /v1/meetings/{id}`                                 |                                                     | 204. An imported meeting gets a hidden tombstone. 409 `recording` while it records                                                             |
-| `POST /v1/meetings/start`                                  | `{"title"?, "app"?, "template"?}`                   | `{"id"}`. 409 `already_recording`, 409 `mic_error`                                                                                             |
-| `POST /v1/meetings/stop`                                   |                                                     | `{"id"}`. 409 `not_recording`                                                                                                                  |
-| `GET /v1/meetings/live`                                    |                                                     | `{"recording","phase":"recording"\|"finishing"\|"done"\|null,"id","elapsedMs","levels":{"me","them"},"segments","pending","failed","notices"}` |
-| `POST /v1/meetings/{id}/ask`, `POST /v1/meetings/live/ask` | `{"question"}`                                      | `{"answer"}`. 502 `provider_error`                                                                                                             |
-| `POST /v1/meetings/{id}/summary`                           | `{"template"?}`                                     | 202 `{"notesState":"working"}`                                                                                                                 |
-| `POST /v1/meetings/{id}/transcribe`                        |                                                     | 202 `{"state":"transcribing"}`. 409 `no_audio`                                                                                                 |
-| `GET /v1/meetings/templates`                               |                                                     | `{"items":[{"id","name"}]}`: `default`, `client-call`, `one-on-one`, `brainstorm`                                                              |
-| `GET /v1/meetings/detect`                                  |                                                     | `{"app":"Discord"\|null,"apps":[...]}`: call apps that use the mic now                                                                         |
-| `GET /v1/meetings/discord`                                 |                                                     | `{"configured","connected","clientId"?,"user"?}`. Never a secret or token                                                                      |
-| `PUT /v1/meetings/discord`                                 | `{"clientId","clientSecret"?}`                      | the Discord status. 400 `bad_client_id`                                                                                                        |
-| `DELETE /v1/meetings/discord`                              |                                                     | 204                                                                                                                                            |
-| `POST /v1/meetings/discord/connect`                        |                                                     | the Discord status after the user clicks Authorize in Discord (up to 180 s). 409 `discord_error`                                               |
+| Route                                                      | Body                                                          | Reply                                                                                                                                                  |
+| ---------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /v1/meetings`                                         |                                                               | `{"items":[summary]}` newest first                                                                                                                     |
+| `GET /v1/meetings/{id}`                                    |                                                               | summary plus `manifest`, `transcript`, `note`, `folder`                                                                                                |
+| `PATCH /v1/meetings/{id}`                                  | `{"title"?, "pinned"?, "speakers"?: {"old":"new"}}`           | the meeting                                                                                                                                            |
+| `DELETE /v1/meetings/{id}`                                 |                                                               | 204. An imported meeting gets a hidden tombstone. 409 `recording` while it records                                                                     |
+| `POST /v1/meetings/start`                                  | `{"title"?, "app"?, "template"?, "mic"?, "output"?, "apps"?}` | `{"id"}`. 409 `already_recording`, 409 `mic_error`. See "Audio sources" below                                                                          |
+| `GET /v1/meetings/sources`                                 |                                                               | `{"mics":[{"id","name","default"}],"outputs":[...],"apps":[{"name","pid","playing"}],"perApp"}`. `perApp` is true on Windows 11 (build 20348 or later) |
+| `POST /v1/meetings/stop`                                   |                                                               | `{"id"}`. 409 `not_recording`                                                                                                                          |
+| `GET /v1/meetings/live`                                    |                                                               | `{"recording","phase":"recording"\|"finishing"\|"done"\|null,"id","elapsedMs","levels":{"me","them"},"segments","pending","failed","notices"}`         |
+| `POST /v1/meetings/{id}/ask`, `POST /v1/meetings/live/ask` | `{"question"}`                                                | `{"answer"}`. 502 `provider_error`                                                                                                                     |
+| `POST /v1/meetings/{id}/summary`                           | `{"template"?}`                                               | 202 `{"notesState":"working"}`                                                                                                                         |
+| `POST /v1/meetings/{id}/transcribe`                        |                                                               | 202 `{"state":"transcribing"}`. 409 `no_audio`                                                                                                         |
+| `GET /v1/meetings/templates`                               |                                                               | `{"items":[{"id","name"}]}`: `default`, `client-call`, `one-on-one`, `brainstorm`                                                                      |
+| `GET /v1/meetings/detect`                                  |                                                               | `{"app":"Discord"\|null,"apps":[...]}`: call apps that use the mic now                                                                                 |
+| `GET /v1/meetings/discord`                                 |                                                               | `{"configured","connected","clientId"?,"user"?}`. Never a secret or token                                                                              |
+| `PUT /v1/meetings/discord`                                 | `{"clientId","clientSecret"?}`                                | the Discord status. 400 `bad_client_id`                                                                                                                |
+| `DELETE /v1/meetings/discord`                              |                                                               | 204                                                                                                                                                    |
+| `POST /v1/meetings/discord/connect`                        |                                                               | the Discord status after the user clicks Authorize in Discord (up to 180 s). 409 `discord_error`                                                       |
 
 A summary row: `id`, `title` (note title, else manifest title), `started`, `ended`, `durationMs`, `state` (`recording`, `processing`, `transcribing`, `done`, `failed`), `app`, `people`, `pinned`, `imported`, `hasTranscript`, `hasAudio`, `audioDeletesAt`, `notesState` (`working`, `done`, `failed`), `notesError`, `transcribeError`, `template`.
 
@@ -310,5 +312,14 @@ The mic track is `Me`. System-audio segments get Discord names when Discord is c
 Speech: Groq Whisper (`whisperModel`, then `whisperModelBackup` on a rate limit). Notes and Ask: Groq `openai/gpt-oss-120b`, then `openai/gpt-oss-20b`. A long transcript is condensed in parts first (free tier: about 8k tokens a minute). All free tier; no new account.
 
 ## Indicator
+
+### Audio sources
+
+- `mic`: a mic id from `GET /v1/meetings/sources`. Missing or empty means the system default. A mic that is no longer connected fails the start with 409 `mic_error` ("The chosen microphone is not connected").
+- `apps`: app names from `GET /v1/meetings/sources` (for example `["Discord"]`). `app` is the old single-app field and counts as one entry. Windows captures each app's whole process tree (WASAPI process loopback), so other apps stay out of the file. Several apps are summed into the `them` track.
+- Empty `apps`: all computer audio (loopback). `output` picks which speaker is recorded; missing means the system default speaker.
+- An app that is not running, or Windows before 11, never falls back to all computer audio. The mic still records and `notices` says "Call audio is not recorded: ...".
+- Discord speaker names start when `apps` holds `Discord`.
+- The manifest `source` becomes `{"kind":"device"|"app","app":<first app>,"apps":[...]}`.
 
 While a meeting records, the HUD pill shows a red dot and "Recording meeting", also with the Leonidas window closed. The app shows its own indicator from `GET /v1/meetings/live`.

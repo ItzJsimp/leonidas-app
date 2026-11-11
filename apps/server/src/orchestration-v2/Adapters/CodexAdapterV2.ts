@@ -1354,6 +1354,7 @@ export function codexThreadRuntimeParams(input: {
         ? {}
         : {
             mcp_servers: {
+              ...codexUserMcpServers(mcpSession.userMcpServers),
               [MCP_SERVER_NAME]: {
                 url: mcpSession.endpoint,
                 http_headers: {
@@ -1364,6 +1365,19 @@ export function codexThreadRuntimeParams(input: {
           }),
     },
   };
+}
+
+export function codexUserMcpServers(
+  servers: ReadonlyArray<McpProviderSession.ResolvedUserMcpServer> | undefined,
+): Record<string, Schema.Json> {
+  return Object.fromEntries(
+    (servers ?? []).map((server) => [
+      server.name,
+      server.transport === "http"
+        ? { url: server.url, http_headers: { ...server.headers } }
+        : { command: server.command, args: [...server.args], env: { ...server.env } },
+    ]),
+  );
 }
 
 const decodeCodexResumeMetadata = Schema.decodeUnknownEffect(

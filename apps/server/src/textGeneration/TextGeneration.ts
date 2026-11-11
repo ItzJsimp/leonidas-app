@@ -17,15 +17,14 @@ export type {
   CommitMessageGenerationResult,
   PrContentGenerationInput,
   PrContentGenerationResult,
+  ReviewGuideGenerationInput,
+  ReviewGuideGenerationResult,
   ThreadTitleGenerationInput,
   PromptSuggestionInput,
   PromptSuggestionResult,
   ThreadTitleGenerationResult,
 } from "@t3tools/provider-core/server/textGeneration";
 
-/**
- * TextGeneration - Service tag for commit and change request text generation.
- */
 export class TextGeneration extends Context.Service<TextGeneration, ProviderTextGeneration>()(
   "t3/textGeneration/TextGeneration",
 ) {}
@@ -39,7 +38,8 @@ type TextGenerationOp =
   | "assessThread"
   | "generatePromptSuggestion"
   | "pickSkills"
-  | "generateVoiceLogDraft";
+  | "generateVoiceLogDraft"
+  | "generateReviewGuide";
 
 const resolveInstance = (
   registry: ProviderInstanceRegistry.ProviderInstanceRegistry["Service"],
@@ -140,6 +140,10 @@ export const make = Effect.gen(function* () {
     generateBranchName: (input) =>
       resolveInstance(registry, "generateBranchName", input.modelSelection.instanceId).pipe(
         Effect.flatMap((textGeneration) => textGeneration.generateBranchName(input)),
+      ),
+    generateReviewGuide: (input) =>
+      resolveInstance(registry, "generateReviewGuide", input.modelSelection.instanceId).pipe(
+        Effect.flatMap((textGeneration) => textGeneration.generateReviewGuide(input)),
       ),
     generateThreadTitle: (input) =>
       resolveInstance(registry, "generateThreadTitle", input.modelSelection.instanceId).pipe(

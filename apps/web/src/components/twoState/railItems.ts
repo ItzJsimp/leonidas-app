@@ -1,4 +1,10 @@
 export type RailTo =
+  | "/trading/dashboard"
+  | "/trading/journal"
+  | "/trading/accounts"
+  | "/trading/risk"
+  | "/trading/money"
+  | "/trading/crew"
   | "/command-center"
   | "/"
   | "/scribe"
@@ -21,7 +27,16 @@ export type RailTo =
   | "/settings";
 
 /** The flat rail groups, in order (DESIGN.md "Rail groups"). */
-export type RailGroup = "home" | "work" | "brain" | "create" | "business" | "builder";
+export type RailGroup =
+  | "home"
+  | "work"
+  | "brain"
+  | "create"
+  | "business"
+  | "builder"
+  | "trade"
+  | "learn"
+  | "crew";
 
 export const RAIL_GROUP_LABELS: Readonly<Record<RailGroup, string>> = {
   home: "Home",
@@ -30,6 +45,9 @@ export const RAIL_GROUP_LABELS: Readonly<Record<RailGroup, string>> = {
   create: "Create",
   business: "Business",
   builder: "Builder",
+  trade: "Trade",
+  learn: "Learn",
+  crew: "Crew",
 };
 
 export interface RailItem {
@@ -102,6 +120,32 @@ const BOTTOM: readonly RailItem[] = [
   item("home", "settings", "Settings", "/settings", "change how Leonidas works"),
 ];
 
+const TRADING_ONLY: readonly RailItem[] = [
+  item("trade", "trading-dashboard", "Dashboard", "/trading/dashboard", "your trading at a glance"),
+  item("trade", "trading-journal", "Journal", "/trading/journal", "log and review your trades"),
+  item(
+    "trade",
+    "trading-accounts",
+    "Accounts",
+    "/trading/accounts",
+    "your Evaluations and Funded accounts",
+  ),
+  item("trade", "trading-risk", "Risk", "/trading/risk", "how much you can lose today"),
+  item("trade", "trading-money", "Money", "/trading/money", "Firm fees, Payouts and Total cost"),
+  item("crew", "trading-crew", "Crew", "/trading/crew", "your Crew board"),
+];
+const regroup = (id: string, group: RailGroup): RailItem => ({
+  ...MAIN.find((entry) => entry.id === id)!,
+  group,
+});
+/** A Trading workspace shows its own tabs and none of the personal ones. */
+const TRADING: readonly RailItem[] = [
+  ...TRADING_ONLY.slice(0, 5),
+  regroup("library", "learn"),
+  regroup("chat", "learn"),
+  ...TRADING_ONLY.slice(5),
+];
+
 /** The rail icons, grouped in order. Marketing, Content and Team show for a business workspace and Developer for a builder. */
 export function railItems(input: {
   readonly business: boolean;
@@ -110,7 +154,10 @@ export function railItems(input: {
   readonly showAnyway?: readonly string[];
   /** The Scribe engine runs on Windows only. The server host decides, not this browser. */
   readonly scribe: boolean;
+  /** A Trading workspace: its own rail replaces the personal one. */
+  readonly trading?: boolean;
 }) {
+  if (input.trading) return { main: TRADING, bottom: BOTTOM };
   const shows = (id: string) => input.business || input.showAnyway?.includes(id) === true;
   return {
     main: MAIN.filter(
@@ -127,7 +174,7 @@ export function railItems(input: {
 export function activeRailId(pathname: string, onChat: boolean): string | null {
   if (onChat || pathname === "/") return "chat";
   const all = railItems({ business: true, builder: true, scribe: true });
-  const match = [...all.main, ...all.bottom].find(
+  const match = [...TRADING_ONLY, ...all.main, ...all.bottom].find(
     (entry) =>
       (entry.to !== "/" && under(pathname, entry.to)) ||
       entry.alsoActiveOn?.some((base) => under(pathname, base)) === true,

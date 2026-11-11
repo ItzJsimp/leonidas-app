@@ -128,11 +128,13 @@ import {
 import { makeAiosCardReader } from "./aiosCardReader.ts";
 import {
   type AiosWorkspaceState,
+  type AiosWorkspaceType,
   isPathInRoot,
   listAiosWorkspaces,
   resolveWorkspaceRoot,
   workspaceForPath,
   writeHiddenProjects,
+  writeTradingStarter,
   writeWorkspaceFile,
 } from "./aiosWorkspaces.ts";
 import { planSharedSync, publicCopy } from "./sharedSync.ts";
@@ -710,7 +712,7 @@ export class TaskBoardService extends Context.Service<
     readonly workspaceRoot: (
       projects: ReadonlyArray<Project>,
       workspaceId: string,
-    ) => Effect.Effect<{ readonly root: string; readonly type: "personal" | "business" } | null>;
+    ) => Effect.Effect<{ readonly root: string; readonly type: AiosWorkspaceType } | null>;
     /** The setup prompt: writes workspace.json into a listed folder that has none or a bad one. */
     readonly workspaceInit: (
       input: AiosWorkspaceInitInput,
@@ -2416,6 +2418,7 @@ const make = Effect.gen(function* () {
       .filter((project) => workspaceForPath([state], project.workspaceRoot) !== undefined)
       .map((project) => project.id),
     hiddenProjects: state.status === "ready" ? (state.file.hiddenProjects ?? []) : [],
+    ...(state.status === "ready" && state.file.crewPack ? { crewPack: state.file.crewPack } : {}),
   });
 
   const workspaces = (projects: ReadonlyArray<Project>) =>
@@ -2551,12 +2554,11 @@ const make = Effect.gen(function* () {
   const workspaceInit = (input: AiosWorkspaceInitInput, projects: ReadonlyArray<Project>) =>
     Effect.gen(function* () {
       const { workspaces: found } = scopeFor(projects);
-      // A new business folder has no tasks/ yet, so the scan cannot list it. A project folder
-      // the app already holds may still be set up as a business: the template adds tasks/.
+      // A new folder has no workspace.json yet, so the scan cannot list it. A project folder the
+      // app already holds may still be set up: a business only with its Owner (the template).
       const target =
         found.find((state) => state.root === input.root) ??
-        (input.type === "business" &&
-        input.ownerName !== undefined &&
+        ((input.type !== "business" || input.ownerName !== undefined) &&
         projects.some(
           (project) =>
             isPathInRoot(input.root, project.workspaceRoot) &&
@@ -2571,7 +2573,7 @@ const make = Effect.gen(function* () {
       if (found.some((state) => state.status === "ready" && state.file.id === input.id)) {
         return yield* storageError("Another workspace already uses that id.");
       }
-      // Only the New business dialog sends an Owner name. Setting up an existing AIOS adds no files.
+      // Only a new business sends an Owner name. Setting up an existing AIOS adds no template files.
       const startsBusiness = input.type === "business" && input.ownerName !== undefined;
       if (startsBusiness) {
         const login = yield* viewerLogin;
@@ -2582,7 +2584,10 @@ const make = Effect.gen(function* () {
         if (problem !== null) return yield* storageError(problem);
       }
       yield* Effect.try({
-        try: () => writeWorkspaceFile(target.root, input),
+        try: () => {
+          writeWorkspaceFile(target.root, input);
+          if (input.type === "trading") writeTradingStarter(target.root);
+        },
         catch: () => storageError("Could not write workspace.json."),
       });
       if (startsBusiness) yield* commitHome(target.root, input.name);

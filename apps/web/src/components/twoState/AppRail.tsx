@@ -10,19 +10,23 @@ import {
   ClapperboardIcon,
   FolderKanbanIcon,
   ImageIcon,
+  LandmarkIcon,
   LayoutDashboardIcon,
   LibraryIcon,
   ListChecksIcon,
   MegaphoneIcon,
   MessageSquareIcon,
   MicIcon,
+  NotebookPenIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PaperclipIcon,
   SettingsIcon,
+  ShieldAlertIcon,
   SunIcon,
   TerminalSquareIcon,
   UsersIcon,
+  WalletIcon,
   ZapIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -84,6 +88,12 @@ export const ICONS: Readonly<Record<string, LucideIcon>> = {
   developer: TerminalSquareIcon,
   usage: ChartNoAxesColumnIcon,
   settings: SettingsIcon,
+  "trading-dashboard": LayoutDashboardIcon,
+  "trading-journal": NotebookPenIcon,
+  "trading-accounts": LandmarkIcon,
+  "trading-risk": ShieldAlertIcon,
+  "trading-money": WalletIcon,
+  "trading-crew": UsersIcon,
 };
 
 const TARGET_CLASS =
@@ -129,6 +139,7 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
     usePrimaryEnvironment()?.serverConfig?.environment.platform.os === "windows";
   const { main, bottom } = railItems({
     business: active?.type === "business",
+    trading: active?.type === "trading",
     builder: setup.coder === true,
     showAnyway,
     scribe: scribeSupported,
@@ -199,7 +210,7 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
         {bottom.map(renderItem)}
         {/* Shows only while an update is on its way, directly under Settings. */}
         <SidebarMenu className={cn("empty:hidden", expanded ? "items-start" : "items-center")}>
-          <SidebarUpdatePill className="ml-0" />
+          <SidebarUpdatePill className="ml-0" expanded={expanded} />
         </SidebarMenu>
       </div>
     </nav>
@@ -327,7 +338,6 @@ function WorkspacePicker({
   const { pictures } = useWorkspacePictures();
   const [open, setOpen] = useState(false);
   const name = active?.name ?? "Leonidas";
-  const business = active?.type === "business";
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <Tip text={`Workspace: ${name}`}>
@@ -354,7 +364,7 @@ function WorkspacePicker({
             <>
               <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
                 <span className="w-full truncate text-left text-sm font-semibold">{name}</span>
-                <WorkspaceTypeChip business={business} />
+                <WorkspaceTypeChip type={active?.type ?? "personal"} />
               </span>
               <ChevronsUpDownIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
             </>

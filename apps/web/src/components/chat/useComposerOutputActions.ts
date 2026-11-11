@@ -4,6 +4,9 @@ import type { CodexArtifactTemplate } from "@t3tools/shared/codexArtifactTemplat
 import { codexArtifactTemplatePromptToAppend } from "../ChatView.logic";
 import { toastManager } from "../ui/toast";
 
+// shortcut: once per page load, not once per user; persist it if people ask for it again.
+let toldAboutFilledReply = false;
+
 export function useComposerOutputActions(
   composerRef: RefObject<ChatComposerHandle | null>,
   scheduleComposerFocus: () => void,
@@ -45,6 +48,15 @@ export function useComposerOutputActions(
           type: "error",
           title: "Unable to add reply",
           description: "The composer is busy; try again once it is ready.",
+        });
+        return;
+      }
+      if (!toldAboutFilledReply) {
+        toldAboutFilledReply = true;
+        toastManager.add({
+          type: "info",
+          title: "Added to your message box",
+          description: "Check it, then send.",
         });
       }
     },

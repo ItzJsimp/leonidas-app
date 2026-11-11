@@ -16,6 +16,12 @@ import {
   parseDetect,
   parseDiscord,
   liveTail,
+  audioSummary,
+  chosenApps,
+  DEFAULT_CHOICE,
+  parseChoice,
+  parseSources,
+  startBody,
 } from "./meetings.logic";
 
 const detail = parseMeetingDetail({
@@ -179,5 +185,74 @@ describe("groupMeetings", () => {
 
   it("puts a meeting with no valid date under Earlier", () => {
     expect(groupMeetings([item("x", "nope")], now)[0]?.label).toBe("Earlier");
+  });
+});
+
+describe("audio sources", () => {
+  const sources = parseSources({
+    mics: [
+      { id: "m1", name: "Headset", default: true },
+      { id: "m2", name: "Desk mic", default: false },
+      { name: "no id" },
+    ],
+    outputs: [{ id: "o1", name: "Speakers", default: true }],
+    apps: [
+      { name: "Discord", pid: 4, playing: true },
+      { name: "Discord", pid: 5, playing: false },
+      { name: "Spotify", pid: 6, playing: true },
+    ],
+    perApp: true,
+  });
+
+  it("reads devices and apps, and drops rows without an id or name", () => {
+    expect(sources.mics.map((mic) => mic.id)).toEqual(["m1", "m2"]);
+    expect(sources.apps.map((app) => app.name)).toEqual(["Discord", "Spotify"]);
+    expect(parseSources(null)).toEqual({ mics: [], outputs: [], apps: [], perApp: false });
+  });
+
+  it("records the detected call app with the chosen apps", () => {
+    expect(chosenApps(DEFAULT_CHOICE, "Discord", sources)).toEqual(["Discord"]);
+    expect(chosenApps({ ...DEFAULT_CHOICE, apps: ["Spotify"] }, "Discord", sources)).toEqual([
+      "Spotify",
+      "Discord",
+    ]);
+    expect(chosenApps({ ...DEFAULT_CHOICE, apps: ["Discord"] }, "Discord", sources)).toEqual([
+      "Discord",
+    ]);
+  });
+
+  it("records all computer audio when asked, when no app is chosen, or without per-app support", () => {
+    expect(chosenApps({ ...DEFAULT_CHOICE, all: true }, "Discord", sources)).toEqual([]);
+    expect(chosenApps(DEFAULT_CHOICE, null, sources)).toEqual([]);
+    expect(chosenApps(DEFAULT_CHOICE, "Discord", { ...sources, perApp: false })).toEqual([]);
+  });
+
+  it("sends the mic and apps, and the speaker only for all computer audio", () => {
+    const choice = { mic: "m2", output: "o1", apps: ["Spotify"], all: false };
+    expect(startBody(choice, null, sources)).toEqual({ mic: "m2", apps: ["Spotify"] });
+    expect(startBody({ ...choice, all: true }, null, sources)).toEqual({ mic: "m2", output: "o1" });
+  });
+
+  it("leaves out a saved device that is not connected now", () => {
+    const choice = { mic: "gone", output: "gone", apps: [], all: false };
+    expect(startBody(choice, null, sources)).toEqual({});
+  });
+
+  it("describes the choice in one line", () => {
+    expect(audioSummary(DEFAULT_CHOICE, "Discord", sources)).toBe("Default mic + Discord");
+    expect(audioSummary({ ...DEFAULT_CHOICE, mic: "m2" }, null, sources)).toBe(
+      "Desk mic + all computer audio",
+    );
+  });
+
+  it("falls back to the default choice for bad saved data", () => {
+    expect(parseChoice("not json")).toEqual(DEFAULT_CHOICE);
+    expect(parseChoice(null)).toEqual(DEFAULT_CHOICE);
+    expect(parseChoice('{"mic":"m1","apps":["Discord",3],"all":true}')).toEqual({
+      mic: "m1",
+      output: null,
+      apps: ["Discord"],
+      all: true,
+    });
   });
 });

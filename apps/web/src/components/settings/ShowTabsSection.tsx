@@ -14,7 +14,7 @@ const BUSINESS_TAB_SWITCHES = [
 export function ShowTabsSection() {
   const { active } = useActiveAiosWorkspace();
   const { shown, toggle } = useRailShowAnyway(active?.id);
-  if (active?.type === "business") return null;
+  if (active?.type === "business" || active?.type === "trading") return null;
   return (
     <SettingsSection id="appearance-tabs" title="Tabs">
       {BUSINESS_TAB_SWITCHES.map((tab) => (

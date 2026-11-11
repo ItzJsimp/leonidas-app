@@ -6,7 +6,7 @@ import {
 import { ActivityIndicator, Pressable, View } from "react-native";
 
 import { cn } from "../lib/cn";
-import { AppText as Text } from "./AppText";
+import { AppText as Text } from "./ui/AppText";
 
 /**
  * Live state of the clone that backs a freshly added project, shown above

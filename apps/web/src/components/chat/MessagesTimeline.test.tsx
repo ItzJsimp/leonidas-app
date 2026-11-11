@@ -1669,6 +1669,7 @@ describe("MessagesTimeline", () => {
     const markup = renderToStaticMarkup(
       <MessagesTimeline
         {...buildProps()}
+        onDockReply={() => {}}
         timelineEntries={[
           {
             id: "assistant-message-1",
@@ -1690,6 +1691,64 @@ describe("MessagesTimeline", () => {
     );
 
     expect(markup).toContain('aria-label="Start a new chat from this reply"');
+    // Reply buttons are icons with tooltips: Copy, Branch and Adjust.
+    expect(markup).toContain('aria-label="Adjust this reply"');
+  });
+
+  it("labels the user message buttons Edit and resend and Rewind to here", async () => {
+    const { MessagesTimeline } = await import("./MessagesTimeline");
+    const markup = renderToStaticMarkup(
+      <MessagesTimeline
+        {...buildProps()}
+        supportsConversationRollback
+        turnDiffSummaries={[
+          {
+            runId: RunId.make("run-1"),
+            completedAt: MESSAGE_CREATED_AT,
+            assistantMessageId: MessageId.make("assistant-1"),
+            checkpointTurnCount: 2,
+            checkpointRef: "checkpoint-1" as never,
+            status: "ready",
+            files: [],
+          },
+        ]}
+        timelineEntries={[
+          {
+            id: "user-1",
+            kind: "message",
+            createdAt: MESSAGE_CREATED_AT,
+            message: {
+              id: MessageId.make("user-1"),
+              role: "user",
+              text: "Do the thing",
+              runId: RunId.make("run-1"),
+              inputIntent: "turn_start",
+              createdAt: MESSAGE_CREATED_AT,
+              updatedAt: MESSAGE_CREATED_AT,
+              streaming: false,
+            },
+          },
+          {
+            id: "assistant-1",
+            kind: "message",
+            createdAt: MESSAGE_CREATED_AT,
+            message: {
+              id: MessageId.make("assistant-1"),
+              role: "assistant",
+              text: "Done",
+              runId: RunId.make("run-1"),
+              createdAt: MESSAGE_CREATED_AT,
+              updatedAt: MESSAGE_CREATED_AT,
+              streaming: false,
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain('aria-label="Edit and resend"');
+    expect(markup).toContain('aria-label="Rewind to here"');
+    expect(markup).not.toContain("Go back to here");
   });
 
   it("renders inline terminal labels with the composer chip UI", async () => {

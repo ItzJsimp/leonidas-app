@@ -1,3 +1,4 @@
+import { useEnvironmentProviders } from "../../state/environments";
 import { CacheSettings } from "./CacheSettings";
 import { OWN_YOUR_BRAIN_LINE } from "../../onboarding/ownYourBrain";
 import { ApiKeysSettings } from "./ApiKeysSettings";
@@ -119,7 +120,11 @@ import { PromptPredictionSettings } from "./PromptPredictionSettings";
 import { SnoozePresetsRow } from "./SnoozePresetsSettings";
 import { ThreadTitleInstructionsSettings } from "./ThreadTitleInstructionsSettings";
 import { useThreadActions } from "../../hooks/useThreadActions";
-import { useDesktopUpdateState, useUpdateWhenSafeStore } from "../../state/desktopUpdate";
+import {
+  useDesktopUpdateState,
+  useUpdatePreferencesStore,
+  type UpdateNoticeLevel,
+} from "../../state/desktopUpdate";
 import {
   getCustomModelOptionsByInstance,
   resolveAppModelSelectionState,
@@ -364,8 +369,10 @@ function NewUserSetupPreviewRow() {
 }
 
 function AboutVersionSection() {
-  const autoUpdateWhenSafe = useUpdateWhenSafeStore((store) => store.autoUpdateWhenSafe);
-  const setAutoUpdateWhenSafe = useUpdateWhenSafeStore((store) => store.setAutoUpdateWhenSafe);
+  const autoUpdateWhenSafe = useUpdatePreferencesStore((store) => store.autoUpdateWhenSafe);
+  const setAutoUpdateWhenSafe = useUpdatePreferencesStore((store) => store.setAutoUpdateWhenSafe);
+  const updateNotice = useUpdatePreferencesStore((store) => store.updateNotice);
+  const setUpdateNotice = useUpdatePreferencesStore((store) => store.setUpdateNotice);
   const updateState = useDesktopUpdateState();
   const [isChangingUpdateChannel, setIsChangingUpdateChannel] = useState(false);
   const [isUpdateActionPending, setIsUpdateActionPending] = useState(false);
@@ -548,14 +555,51 @@ function AboutVersionSection() {
       {import.meta.env.DEV ? <NewUserSetupPreviewRow /> : null}
       {hasDesktopBridge ? (
         <SettingsRow
-          title="Install updates when the AI finishes"
-          description="Restart this device by itself when an update is ready and no AI work runs."
+          title="Install updates automatically"
+          description="When your AI is done and you are idle, or when you quit."
           control={
             <Switch
               checked={autoUpdateWhenSafe}
               onCheckedChange={setAutoUpdateWhenSafe}
-              aria-label="Install updates when the AI finishes"
+              aria-label="Install updates automatically"
             />
+          }
+        />
+      ) : null}
+      {hasDesktopBridge ? (
+        <SettingsRow
+          title="Tell me about updates"
+          description="Updates still install by themselves."
+          control={
+            <Select
+              value={updateNotice}
+              onValueChange={(value) => setUpdateNotice(value as UpdateNoticeLevel)}
+            >
+              <SelectTrigger
+                size="sm"
+                className="w-full sm:w-40"
+                aria-label="Tell me about updates"
+              >
+                <SelectValue>
+                  {updateNotice === "all"
+                    ? "All updates"
+                    : updateNotice === "never"
+                      ? "Never"
+                      : "Notable only"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem hideIndicator value="notable">
+                  Notable only
+                </SelectItem>
+                <SelectItem hideIndicator value="all">
+                  All updates
+                </SelectItem>
+                <SelectItem hideIndicator value="never">
+                  Never
+                </SelectItem>
+              </SelectPopup>
+            </Select>
           }
         />
       ) : null}
@@ -784,6 +828,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.confirmThreadUnpin !== DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin
         ? ["Unpin confirmation"]
         : []),
+      ...(settings.showStepUpdates !== DEFAULT_UNIFIED_SETTINGS.showStepUpdates
+        ? ["Step updates"]
+        : []),
       ...(settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive
         ? ["Archive confirmation"]
         : []),
@@ -818,6 +865,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.chatWidth,
       settings.enableAgentBrowserAccess,
       settings.confirmQuit,
+      settings.showStepUpdates,
       settings.confirmThreadArchive,
       settings.confirmThreadDelete,
       settings.confirmThreadUnpin,
@@ -987,6 +1035,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       defaultThreadEnvMode: DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode,
       newWorktreesStartFromOrigin: DEFAULT_UNIFIED_SETTINGS.newWorktreesStartFromOrigin,
       addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
+      showStepUpdates: DEFAULT_UNIFIED_SETTINGS.showStepUpdates,
       confirmThreadArchive: DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive,
       confirmThreadDelete: DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete,
       confirmThreadUnpin: DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin,
@@ -1380,6 +1429,24 @@ export function AppearanceSettingsPanel() {
       <WallpaperSettings />
 
       <SettingsSection id="appearance-interface" title="Interface">
+        <SettingsRow
+          title="Your name"
+          description="Shown in the new chat greeting, for example Good morning, Jake."
+          control={
+            <Input
+              key={settings.greetingName}
+              defaultValue={settings.greetingName}
+              placeholder="Your first name"
+              aria-label="Your name"
+              className="w-48"
+              maxLength={40}
+              onBlur={(event) => {
+                const greetingName = event.currentTarget.value.trim();
+                if (greetingName !== settings.greetingName) updateSettings({ greetingName });
+              }}
+            />
+          }
+        />
         <SettingsRow
           {...searchableSetting("setting-appearance-contrast")}
           description="Adjust the contrast of colors and borders across the interface."
@@ -2410,7 +2477,10 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
   const lastEnabledProjectGroupingMode = useRef<SidebarProjectGroupingMode>(
     readLastEnabledProjectGroupingMode(),
   );
-  const serverProviders = environment?.serverConfig?.providers ?? EMPTY_SERVER_PROVIDERS;
+  const providersByEnvironment = useEnvironmentProviders();
+  const serverProviders =
+    (environment ? providersByEnvironment.get(environment.environmentId) : undefined) ??
+    EMPTY_SERVER_PROVIDERS;
   const supportsAutoSettlement =
     connectedEnvironments.length > 0 &&
     connectedEnvironments.every(
@@ -2433,7 +2503,11 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
   const textGenModel = textGenerationModelSelection.model;
   const textGenModelOptions = textGenerationModelSelection.options;
   const textGenerationModelInstanceEntries = sortProviderInstanceEntries(
-    applyProviderInstanceSettings(deriveProviderInstanceEntries(textGenerationProviders), settings),
+    applyProviderInstanceSettings(
+      deriveProviderInstanceEntries(textGenerationProviders),
+      settings,
+      null,
+    ),
   );
   const hasTextGenerationProvider = textGenerationModelInstanceEntries.some(
     (entry) => entry.enabled && entry.isAvailable,
@@ -2647,6 +2721,30 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
                     updateSettings({ confirmThreadUnpin: Boolean(checked) })
                   }
                   aria-label="Confirm chat unpinning"
+                />
+              }
+            />
+
+            <SettingsRow
+              {...searchableSetting("show-step-updates")}
+              description="Show the agent's progress notes in the chat while it works. Off shows one live status line."
+              resetAction={
+                settings.showStepUpdates !== DEFAULT_UNIFIED_SETTINGS.showStepUpdates ? (
+                  <SettingResetButton
+                    label="step updates"
+                    onClick={() =>
+                      updateSettings({ showStepUpdates: DEFAULT_UNIFIED_SETTINGS.showStepUpdates })
+                    }
+                  />
+                ) : null
+              }
+              control={
+                <Switch
+                  checked={settings.showStepUpdates}
+                  onCheckedChange={(checked) =>
+                    updateSettings({ showStepUpdates: Boolean(checked) })
+                  }
+                  aria-label="Show step updates"
                 />
               }
             />

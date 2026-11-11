@@ -22,7 +22,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { PullRequestLinkPreview } from "./pullRequest/PullRequestLinkPreview";
 import { usePullRequestPreviewTarget } from "~/lib/openPullRequestLink";
 
-/** ContextChip kind for a pull request context in each display state. */
 export const PULL_REQUEST_CHIP_KINDS = {
   open: "pr-open",
   draft: "pr-draft",
@@ -31,7 +30,6 @@ export const PULL_REQUEST_CHIP_KINDS = {
   unknown: "pull-request",
 } as const satisfies Record<PullRequestContextDisplayState | "unknown", ContextChipKind>;
 
-/** A static chip with an optional tooltip; each surface keeps ownership of payload lookup. */
 export function ContextChipShell({
   icon,
   label,
@@ -40,7 +38,6 @@ export function ContextChipShell({
 }: Omit<ComponentProps<typeof ContextChip>, "className" | "render"> & {
   icon: ReactNode;
   label: string;
-  /** Newlines in the tooltip are kept. */
   tooltip?: ReactNode;
 }) {
   const chip = (
@@ -64,7 +61,6 @@ export function ContextChipShell({
   );
 }
 
-/** A chip that opens its details in a popover; the chip itself is the trigger. */
 export function ContextChipPopover(props: {
   kind: ContextChipKind;
   icon: ReactNode;
@@ -116,6 +112,7 @@ export function PullRequestChip(props: {
       aria-label={`Open ${props.kindLabel} ${props.label}: ${props.metadata.title}`}
       data-markdown-copy={props.copyMarkdown}
       onClick={(event) => props.onOpen(event, props.metadata.url)}
+      onAuxClick={(event) => props.onOpen(event, props.metadata.url)}
     >
       <StateIcon />
       <ContextChipLabel>{props.label}</ContextChipLabel>
@@ -153,7 +150,6 @@ export function ImageChipButton({
 }: Omit<ComponentProps<typeof ContextChip>, "kind" | "render"> & {
   name: string;
   previewUrl: string | undefined;
-  /** Every attachment chip reports its size; images are no exception. */
   size: string;
   suffix?: string | null | undefined;
   disabled?: boolean | undefined;
@@ -181,9 +177,11 @@ export function ImageChipButton({
       ) : (
         <ImageIcon />
       )}
-      <ContextChipLabel className="max-w-72">{middleTruncateAttachmentName(name)}</ContextChipLabel>
-      <span className="shrink-0 text-3xs text-current">{size}</span>
-      {suffix ? <span className="text-3xs text-current">{suffix}</span> : null}
+      <ContextChipLabel className="flex items-baseline gap-[0.33em]">
+        <span className="max-w-72 truncate">{middleTruncateAttachmentName(name)}</span>
+        <span className="shrink-0 text-3xs text-current">{size}</span>
+        {suffix ? <span className="text-3xs text-current">{suffix}</span> : null}
+      </ContextChipLabel>
     </ContextChip>
   );
 }
@@ -324,11 +322,11 @@ function FileChipContent(props: {
       ) : (
         <PierreEntryIcon pathValue={props.name} kind="file" theme={props.theme} />
       )}
-      <ContextChipLabel className="max-w-72">
-        {middleTruncateAttachmentName(props.name)}
+      <ContextChipLabel className="flex items-baseline gap-[0.33em]">
+        <span className="max-w-72 truncate">{middleTruncateAttachmentName(props.name)}</span>
+        <span className="shrink-0 text-3xs text-current">{props.size}</span>
+        {props.suffix ? <span className="text-3xs text-current">{props.suffix}</span> : null}
       </ContextChipLabel>
-      <span className="shrink-0 text-3xs text-current">{props.size}</span>
-      {props.suffix ? <span className="text-3xs text-current">{props.suffix}</span> : null}
     </>
   );
 }
