@@ -2502,6 +2502,9 @@ const make = Effect.gen(function* () {
             ? {
                 ...input.target,
                 model: persona.spec.model,
+                ...(persona.spec.effort !== null && input.target?.options === undefined
+                  ? { options: [{ id: "effort", value: persona.spec.effort }] }
+                  : {}),
                 ...(persona.spec.account !== null
                   ? {
                       providerInstanceId: persona.spec

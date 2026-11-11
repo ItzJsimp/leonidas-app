@@ -5,6 +5,7 @@ import * as NodePath from "node:path";
 
 import { afterEach, describe, expect, it } from "@effect/vitest";
 
+import { updateSubagentSpec } from "./subagentEdit.ts";
 import { loadSubagentPersona, parseSubagentSpec, resolveSubagentSpec } from "./subagentPersona.ts";
 
 const roots: string[] = [];
@@ -171,5 +172,67 @@ describe("starter pack", () => {
         expect(loadSubagentPersona(root, spec.name).systemPrompt.length).toBeGreaterThan(200);
       }
     }
+  });
+});
+
+describe("agents tab keys", () => {
+  it("decision 1: reads avatar, effort, skills, canSpawn and maxTurns, and keeps memory and triggers on write", () => {
+    const root = makeRoot();
+    writeSpec(
+      root,
+      "frontend-designer",
+      designer(
+        "avatar: felt/frontend-designer",
+        "effort: high",
+        "skills: [design-build]",
+        "canSpawn: true",
+        "maxTurns: 12",
+        "memory: notes",
+        "triggers: []",
+      ),
+    );
+    const specPath = NodePath.join(root, ".agents", "subagents", "frontend-designer.md");
+
+    const spec = resolveSubagentSpec(specPath);
+
+    expect(spec).toMatchObject({
+      avatar: "felt/frontend-designer",
+      effort: "high",
+      skills: ["design-build"],
+      canSpawn: true,
+      maxTurns: 12,
+    });
+    expect(spec.context.map((entry) => entry.path)).toEqual([
+      ".agents/skills/design-build/SKILL.md",
+    ]);
+
+    updateSubagentSpec(specPath, { description: "Designs UI." });
+    const written = NodeFs.readFileSync(specPath, "utf8");
+    expect(written).toContain("memory: notes");
+    expect(written).toContain("triggers: []");
+  });
+
+  it("decision 1: canSpawn defaults to false and is never inherited", () => {
+    const root = makeRoot();
+    const project = NodePath.join(root, "projects", "game");
+    NodeFs.mkdirSync(project, { recursive: true });
+    writeSpec(root, "lead", ["---", "name: lead", "canSpawn: true", "---", "Lead."]);
+    writeSpec(project, "worker", ["---", "name: worker", "extends: lead", "---"]);
+
+    expect(
+      resolveSubagentSpec(NodePath.join(project, ".agents", "subagents", "worker.md")).canSpawn,
+    ).toBe(false);
+  });
+
+  it("decision 1: rejects a bad maxTurns, canSpawn and skill name", () => {
+    expect(() =>
+      parseSubagentSpec(designer("maxTurns: 0").join("\n"), "frontend-designer"),
+    ).toThrow(/maxTurns/);
+    expect(() =>
+      parseSubagentSpec(designer("canSpawn: yes please").join("\n"), "frontend-designer"),
+    ).toThrow(/canSpawn/);
+    expect(() =>
+      parseSubagentSpec(designer("skills: [../x]").join("\n"), "frontend-designer"),
+    ).toThrow(/valid skill name/);
   });
 });

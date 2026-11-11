@@ -18,6 +18,10 @@
  * - `tools`: built-in tools and named app MCP tools (`mcp__...`).
  * - `context`: files loaded after the body, relative to the folder that
  *   holds `.agents/`. `never`: actions the subagent must not take.
+ * - `avatar`: a library id such as `felt/researcher`. `effort`: the child's
+ *   effort option. `skills`: skill names whose `SKILL.md` joins the Context
+ *   List. `canSpawn: true` marks the orchestrator. `maxTurns`: turn limit.
+ * - `memory` and `triggers` are reserved for M2 and M3: kept on write, unused.
  *
  * Merge for `extends`: the child's scalars and `tools` replace the base's;
  * `context` and `never` add to the base's; the child body follows the base.
@@ -43,6 +47,13 @@ const KNOWN_FIELDS = new Set([
   "tools",
   "context",
   "never",
+  "avatar",
+  "effort",
+  "skills",
+  "canSpawn",
+  "maxTurns",
+  "memory",
+  "triggers",
   // AIOS metadata (personal or structural) that the AIOS audit requires; a spawn ignores it.
   "scope",
 ]);
@@ -60,6 +71,11 @@ export interface SubagentPersonaSpec {
   readonly tools: ReadonlyArray<string> | null;
   readonly context: ReadonlyArray<string>;
   readonly never: ReadonlyArray<string>;
+  readonly avatar: string | null;
+  readonly effort: string | null;
+  readonly skills: ReadonlyArray<string>;
+  readonly canSpawn: boolean | null;
+  readonly maxTurns: number | null;
   readonly body: string;
 }
 
@@ -75,6 +91,12 @@ export interface ResolvedSubagentSpec {
   /** Context List entries as written, each with the absolute path it resolved to. */
   readonly context: ReadonlyArray<{ readonly path: string; readonly absolutePath: string }>;
   readonly never: ReadonlyArray<string>;
+  readonly avatar: string | null;
+  readonly effort: string | null;
+  readonly skills: ReadonlyArray<string>;
+  /** The spec's own choice, like `enabled`: a child never inherits the right to spawn. */
+  readonly canSpawn: boolean;
+  readonly maxTurns: number | null;
   readonly body: string;
   /** Spec files from this one down to its last base. */
   readonly chain: ReadonlyArray<string>;
@@ -133,6 +155,22 @@ export function parseSubagentSpec(source: string, expectedName: string): Subagen
   if (fields.enabled !== undefined && typeof fields.enabled !== "boolean") {
     throw new SubagentPersonaError('Field "enabled" must be true or false.');
   }
+  if (fields.canSpawn !== undefined && typeof fields.canSpawn !== "boolean") {
+    throw new SubagentPersonaError('Field "canSpawn" must be true or false.');
+  }
+  const maxTurns = fields.maxTurns;
+  if (
+    maxTurns !== undefined &&
+    maxTurns !== null &&
+    (typeof maxTurns !== "number" || !Number.isInteger(maxTurns) || maxTurns < 1)
+  ) {
+    throw new SubagentPersonaError('Field "maxTurns" must be a whole number of 1 or more.');
+  }
+  const skills = stringList(fields.skills, "skills") ?? [];
+  const badSkill = skills.find((skill) => !SUBAGENT_NAME.test(skill));
+  if (badSkill !== undefined) {
+    throw new SubagentPersonaError(`"skills: ${badSkill}" is not a valid skill name.`);
+  }
   const account =
     optionalString(fields.account, "account") ?? optionalString(fields.provider, "provider");
   const body = (match[2] ?? "").trim();
@@ -150,6 +188,11 @@ export function parseSubagentSpec(source: string, expectedName: string): Subagen
     tools: stringList(fields.tools, "tools")?.map(toCurrentMcpToolRule) ?? null,
     context: stringList(fields.context, "context") ?? [],
     never: stringList(fields.never, "never") ?? [],
+    avatar: optionalString(fields.avatar, "avatar"),
+    effort: optionalString(fields.effort, "effort"),
+    skills,
+    canSpawn: fields.canSpawn === undefined ? null : (fields.canSpawn as boolean),
+    maxTurns: typeof maxTurns === "number" ? maxTurns : null,
     body,
   };
 }
@@ -225,8 +268,12 @@ export function resolveSubagentSpec(specPath: string): ResolvedSubagentSpec {
       (value, link) => (link.spec[key] === null ? value : link.spec[key]),
       null,
     );
+  // A skill is a Context List entry: its SKILL.md under the folder that holds `.agents/`.
   const context = ordered.flatMap((link) =>
-    link.spec.context.map((entry) => ({
+    [
+      ...link.spec.context,
+      ...link.spec.skills.map((skill) => `.agents/skills/${skill}/SKILL.md`),
+    ].map((entry) => ({
       path: entry,
       absolutePath: resolveContextPath(specRoot(link.path), entry),
     })),
@@ -245,6 +292,11 @@ export function resolveSubagentSpec(specPath: string): ResolvedSubagentSpec {
       seen.has(entry.absolutePath) ? false : (seen.add(entry.absolutePath), true),
     ),
     never: unique(ordered.flatMap((link) => link.spec.never)),
+    avatar: pick("avatar"),
+    effort: pick("effort"),
+    skills: unique(ordered.flatMap((link) => link.spec.skills)),
+    canSpawn: chain[0]!.spec.canSpawn ?? false,
+    maxTurns: pick("maxTurns"),
     body: ordered
       .map((link) => link.spec.body)
       .filter((body) => body.length > 0)

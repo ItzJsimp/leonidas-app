@@ -101,6 +101,12 @@ export const SubagentCatalogEntry = Schema.Struct({
   never: Schema.Array(Schema.String),
   context: Schema.Array(SubagentContextEntry),
   estimatedStartTokens: Schema.NullOr(NonNegativeInt),
+  /** Format v1 keys added for the Agents tab. Optional so older payloads still decode. */
+  avatar: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  effort: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  skills: Schema.optionalKey(Schema.Array(Schema.String)),
+  canSpawn: Schema.optionalKey(Schema.Boolean),
+  maxTurns: Schema.optionalKey(Schema.NullOr(NonNegativeInt)),
   /** Old-format files from before format v1 show as legacy until they are migrated. */
   legacy: Schema.Boolean,
   error: Schema.NullOr(Schema.String),

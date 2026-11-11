@@ -74,6 +74,11 @@ export function catalogEntry(
     never: [],
     context: [],
     estimatedStartTokens: null,
+    avatar: null,
+    effort: null,
+    skills: [],
+    canSpawn: false,
+    maxTurns: null,
   };
   const raw = NodeFs.readFileSync(specPath, "utf8");
   if (LEGACY_FIELD.test(raw.slice(0, 2_000))) {
@@ -113,6 +118,11 @@ export function catalogEntry(
       tools: spec.tools,
       never: spec.never,
       context,
+      avatar: spec.avatar,
+      effort: spec.effort,
+      skills: spec.skills,
+      canSpawn: spec.canSpawn,
+      maxTurns: spec.maxTurns,
       estimatedStartTokens: estimatePersonaStartTokens({
         systemPromptChars: promptChars,
         tools: spec.tools,
