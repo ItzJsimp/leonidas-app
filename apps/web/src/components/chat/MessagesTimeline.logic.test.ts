@@ -2359,13 +2359,13 @@ describe("deriveMessagesTimelineRows", () => {
       "work-live",
     ]);
 
-    // A failed run stays open, as on a normal thread.
+    // A failed run folds its tool calls. Only the error row stays visible.
     expect(shape(rows({ resume: "failed", working: false }))).toEqual([
       "user:launch",
       "fold:Worked for 8.0s",
       "assistant:launch-answer",
       "user:resume",
-      "work",
+      "fold:Worked for 8.0s",
       "work",
       "assistant:resume-answer",
     ]);
@@ -5039,7 +5039,7 @@ it("keeps the working header in place across worktree setup handoff", () => {
 
 describe("failed turn transcript", () => {
   it.each(["provider_error", "usage_limit"] as const)(
-    "keeps historical %s failures and preceding work visible without disclosures",
+    "folds preceding work and keeps historical %s failures visible",
     (failureClass) => {
       const runId = RunId.make("failed-run");
       const threadId = ThreadId.make("failed-thread");
@@ -5136,14 +5136,12 @@ describe("failed turn transcript", () => {
         turnDiffSummaries: [],
         supportsConversationRollback: false,
       });
-      expect(
-        rows.some(
-          (row) =>
-            row.kind === "turn-fold" || row.kind === "attempt-fold" || row.kind === "work-toggle",
-        ),
-      ).toBe(false);
+      expect(rows.some((row) => row.kind === "turn-fold")).toBe(true);
+      expect(rows.some((row) => row.kind === "attempt-fold" || row.kind === "work-toggle")).toBe(
+        false,
+      );
       const work = rows.flatMap((row) => (row.kind === "work" ? row.groupedEntries : []));
-      expect(work.map((entry) => entry.id)).toEqual(["command", "failure"]);
+      expect(work.map((entry) => entry.id)).toEqual(["failure"]);
       expect(work.at(-1)?.detail).toBe("The provider stopped this turn.\nRetry later.");
       expect(work.at(-1)?.createdAt).toBe("2026-09-20T12:00:00.000Z");
       const entriesWithoutTools = deriveTimelineEntriesFromVisibleTurnItems({
