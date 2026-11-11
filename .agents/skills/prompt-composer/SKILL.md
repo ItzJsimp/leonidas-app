@@ -1,191 +1,95 @@
 ---
 name: "prompt-composer"
 description: "Write, audit and grade prompts and agent instructions with model-calibrated structure. Use when writing or improving a prompt, system prompt, brief or agent instruction."
-category: agents
+category: "agents"
 scope: "structural"
-distribution: template
+distribution: "portable"
 type: "skill"
 id: "skill-prompt-composer"
 title: "Prompt Composer"
 kind: "procedure"
 load: "on-demand"
 owner: "shared"
-verified: "2026-09-27"
+verified: "2026-11-09"
 related: ["skills-index", "system-prompt-authoring", "model-router", "prompt-standard"]
 generated: false
-license: MIT
 ---
 
-# Prompt Composer: Agent Instruction & Prompt Authoring Engine
+# Prompt Composer
 
-Compose, audit, optimize, and grade high-precision prompts for AI agents. Bridges frontier LLM capabilities with deterministic operational constraints across providers in Leonidas and existing unattended workers.
+Compose, audit and grade prompts so the receiving agent takes the same path every run. Output: a scored diagnosis and one paste-ready prompt.
 
----
+## Branches
 
-## 1. When to Use
+- **Compose:** a request with no draft. Start at Phase 0.
+- **Audit:** a draft exists. Keep its intent. Run Phase 0 only when the target model is unknown, then start at Phase 2.
+- **Compress:** a long conversational request. Run Phase 0 and Phase 2, then Phase 3.
 
-- Composing a new prompt, task specification, or system instruction destined for an AI agent.
-- Reviewing, grading, or debugging an existing prompt that caused agent flailing, drift, or excessive token spend.
-- Compressing verbose conversational requests into crisp, declarative agent instructions.
-- Evaluating whether a generated prompt should be saved to [`prompts/`](../../../prompts/prompts-index.md) as a reusable asset.
+Neighbors: agent-read files (skills, AGENTS.md, CLAUDE.md) go to [`writing-for-agents`](../writing-for-agents/SKILL.md). Shared document theory is in [`system-prompt-authoring`](../system-prompt-authoring/SKILL.md). Image prompts go to [`image-prompt-craft`](../image-prompt-craft/SKILL.md). Ten prompts at once go to [`autonomous-prompts`](../autonomous-prompts/SKILL.md), which calls this skill per prompt.
 
-### Automatic Invocation Rule
+## Pipeline
 
-Leonidas AI automatically invokes this skill whenever writing, reviewing, or analyzing prompts destined for agents, ensuring modern prompting principles are applied across all operations.
+### Phase 0: Target model
 
----
+Read the provider and model from the harness's live capabilities, not the app name. Live model names: [`tools/model-router.md`](../../../tools/model-router.md). Pick one profile:
 
-## 2. The 5-Phase Composer Pipeline
+- **A, Minimal:** Claude. High steerability and native extended thinking.
+- **B, Tool-centric:** Gemini, Antigravity.
+- **C, Procedural:** Hermes, GLM, kanban workers, cron fleets.
+- **D, Universal:** the target stays unknown after reading the context.
 
-```
-[Phase 0: Engine & Scaffolding Inference]
-                   |
-[Phase 1: Intent & Relevant Skill Prepending]
-                   |
-[Phase 2: Precision Audit & Gap Diagnosis]
-                   |
-[Phase 3: Model-Calibrated Structure Synthesis]
-                   |
-[Phase 4: Dual-Variant Output & Persistence Gate]
-```
+Ask the user only when two profiles stay plausible.
 
-### Phase 0: Engine & Scaffolding Inference
+Done when: one profile letter and a one-line reason are written down.
 
-To eliminate user friction, do NOT ask the operator what model will be used unless genuinely ambiguous. Autonomously infer the target model from conversational context or active harness:
-Infer the selected provider/model from Leonidas live capabilities, not the app name. Old harness names below identify model families only; they do not route users into old interfaces.
+### Phase 1: Intent and skills
 
-1. **Claude Context (Opus 5.5 / Sonnet 5):** Target if prompt mentions Claude, Anthropic, or runs inside Claude Code. Requires **Minimal Scaffolding** (frontier reasoning, native extended thinking, high steerability).
-2. **Antigravity Context (Gemini 3.8 Flash / Pro):** Target if prompt mentions Antigravity, Google AI, or runs inside Antigravity. Requires **Medium Scaffolding** (tool-centric bounds, test-first CLI verification commands).
-3. **Hermes Context (GLM 5.3 Flash / Nous):** Target if prompt mentions Hermes, kanban workers, or cron fleets. Requires **High Scaffolding** (strict sequential numbered steps, explicit JSON/schema contracts).
-4. **Universal Safe Default:** If target engine cannot be inferred with high confidence, apply the balanced Universal Safe Default that performs reliably across all modern LLMs.
+1. Label the intent: Build, Bug fix, Refactor, Audit or System instruction.
+2. Match the intent to [`skills-index.md`](../skills-index.md). Open each chosen `SKILL.md` to confirm it exists.
+3. Place each skill by mode. A manual copy-paste prompt gets its slash command on line 1 (`/grill-me`, `/implement`). An autonomous prompt gets this line in the body: `- **Required Skill:** Load and follow .agents/skills/<name>/SKILL.md before executing.`
 
-### Phase 1: Intent & Relevant Skill Prepending
+Done when: every chosen skill resolves on disk, or the prompt names none.
 
-1. **Analyze Task Intent:** Categorize as Build/Feature, Bug Fix, Refactor, Audit/Health, or System Instruction.
-2. **Skill Discovery:** Match intent against registered skills in [`.agents/skills/skills-index.md`](../skills-index.md).
-3. **Execution Mode Tailoring:**
-   - **Manual Copy-Paste Mode (Human Operator):** Prepend the relevant interactive slash command on Line 1 so the user can instantly paste and trigger it (e.g. `/grill-me`, `/implement`, `/component-audit`, `/fable-mode`).
-   - **Autonomous Agent Mode (Leonidas AI):** Inject a direct skill execution directive inside the prompt body (`- **Required Skill:** Load and follow .agents/skills/<name>/SKILL.md before executing.`).
+### Phase 2: Precision audit
 
-### Phase 2: Precision Audit & Gap Diagnosis (Matt Pocock Principles)
+Test each sentence of the draft against five levers. Rewrite or delete it at the first fail.
 
-Audit the draft prompt against the core agent levers:
+- **No-op:** the model already obeys it by default ("write clean code", "think carefully"). Delete the whole sentence.
+- **Positive:** state the target behavior, not the banned one. A prohibition stays only as a hard guardrail, paired with its positive target.
+- **Checkable:** each done criterion is binary and observable ("`npm test` exits 0"). Replace "ensure code works".
+- **Pointer:** branch-specific material sits behind a pointer, and the pointer's first word is its trigger.
+- **Cache:** the agent can look up file trees and package lists with a tool. Cut them. Keep only the unwritten convention, the reason and the gotcha.
 
-- **No-Op Pruning:** Purge instructions the model already obeys by default ("Write clean code", "Be thorough", "Think carefully"). If deleting a sentence does not change the output, delete it.
-- **Positive Instruction Default:** Convert negative prohibitions into positive target behaviors. Prohibitions activate the forbidden behavior (the "pink elephant" trap). State what the agent _must_ do; reserve negative rules strictly for hard safety boundaries ("DO NOT modify database schemas").
-- **Checkable & Exhaustive Done Criteria:** Eliminate vague bounds ("Ensure code works"). Define binary, observable gates ("npm test exits code 0", "AST audit reports 0 drift flags") to prevent premature completion.
-- **Context Pointers & Two-Load Balance:** Disclose branch-specific documentation behind context pointers rather than dumping raw text into the prompt envelope. Front-load leading words in pointers.
-- **Sediment & Environment Cache Pruning:** Never hardcode package lists or file trees that the agent can inspect dynamically via `view_file` or `run_command`.
+Done when: every sentence has survived all five levers or been rewritten.
 
-### Phase 3: Model-Calibrated Scaffolding
+### Phase 3: Structure
 
-Apply the scaffolding profile matched in Phase 0:
+Open the chosen profile in [`references/profiles.md`](references/profiles.md) and write the prompt in that shape. Every profile has a goal, context pointers, rules and a verification step with a command or an observable end state.
 
-#### Profile A: Minimal Scaffolding (Claude Opus 5.5 / Sonnet 5)
+Done when: `python .agents/skills/prompt-composer/scripts/lint-prompt.py -` exits 0 with the prompt on stdin.
 
-- Outer XML envelope (`<task>`, `<context>`, `<rules>`, `<verification>`).
-- Declarative high-level goal; zero procedural micro-management.
-- Paired guardrails (positive target default + explicit negative boundary).
-- Leverages native extended thinking without "think step by step" scaffolding.
+### Phase 4: Deliver and persist
 
-#### Profile B: Tool-Centric Scaffolding (Gemini 3.8 Flash / Pro)
+Print the score block, then one prompt in a fenced block. Make a second variant only when the user asks or two distinct run modes exist. Then apply the reuse test in [`references/persistence.md`](references/persistence.md). Write to `prompts/` only after the user says yes.
 
-- Clear semantic Markdown sections (`## Objective`, `## Environment & Tools`, `## Constraints`, `## Verification`).
-- Explicit tool calling boundaries and parameter schemas.
-- Test-first programmatic verification commands (CLI scripts).
+Done when: the score block and one fenced prompt are printed, and the reuse question is asked when the prompt qualifies.
 
-#### Profile C: Procedural Scaffolding (GLM 5.3 Flash / Hermes)
-
-- Sequentially numbered procedural execution gates (Step 1, Step 2, Step 3).
-- Strict output formatting schemas (JSON schema or Markdown table).
-- Explicit error handling branches and retry limits.
-
-#### Profile D: Universal Safe Default (Balanced)
-
-- 4-section standard architecture: Goal Statement, Context & Constraints, Execution Focus, and Definition of Done.
-- High token density, zero conversational fluff, checkable verification gates.
-
----
-
-## 3. Output Format Standard
-
-When invoked, the skill outputs a structured diagnosis followed by one primary, production-ready prompt by default:
-
-### 1. Diagnosis & Grading (100-Point Rubric)
+## Score block (100 points)
 
 - **Score:** `XX / 100`
-- **Breakdown:**
-  - _Clarity & Definition of Done (25 pts):_ Are terminal states binary and observable?
-  - _Model Scaffolding Calibration (20 pts):_ Is structure tuned to target engine capability?
-  - _Context Hygiene & Pointers (20 pts):_ Are references disclosed rather than bloated?
-  - _Positive Framing & No-Op Pruning (20 pts):_ Are vacuous rules and negative traps eliminated?
-  - _Scope & Guardrail Boundaries (15 pts):_ Are forbidden files/actions explicitly bounded?
-- **Key Enhancements Made:** 2-3 bullets stating what was pruned or sharpened.
+- _Clarity & Definition of Done (25):_ terminal states are binary and observable.
+- _Model Scaffolding Calibration (20):_ structure matches the target engine.
+- _Context Hygiene & Pointers (20):_ references are disclosed, not pasted.
+- _Positive Framing & No-Op Pruning (20):_ no vacuous rules and no negation traps.
+- _Scope & Guardrail Boundaries (15):_ forbidden files and actions are bounded.
+- **Key Enhancements:** 2 to 3 bullets naming what was pruned or sharpened.
 
-### 2. Primary Production Prompt (Zero-Edit Direct-Paste)
+## Delegation
 
-Deliver the single optimal, model-calibrated production prompt ready to copy-paste immediately into the target agent. Dual variants or reusable templates are omitted by default and generated only when explicitly requested by the operator or when two fundamentally distinct execution modes exist.
+Grading 4 or more prompts: give each prompt to one Haiku or Luna subagent. It returns the score block and a one-line fix. The lead agent keeps the Phase 3 rewrite and the final answer.
 
-```markdown
-[/slash-command if manual]
-<task>
-[Action verb + exact scope]
-</task>
+## Done when
 
-<context>
-- [Key files, environment constraints, or disclosed pointers]
-</context>
-
-<rules>
-- [Positive target instruction 1]
-- [Positive target instruction 2]
-- DO NOT: [Hard negative boundary]
-</rules>
-
-<verification>
-- [Exact test command or observable terminal condition]
-</verification>
-```
-
----
-
-## 4. Persistence Gate Standard (`prompts/`)
-
-Prompts must NOT be saved to the repository automatically. After outputting the prompt, evaluate the persistence criteria:
-
-1. **Reusability Evaluation:**
-   - Is this prompt expected to be run **3 to 5+ times**, or on a **regular recurring cadence** (e.g. daily briefing, substrate audit, release checklist)?
-   - If NO: Keep output in chat context / task notes. Do not save to disk.
-   - If YES: Prompt the operator:
-     > _"This prompt qualifies as a reusable asset (cadence >=3-5 runs). Would you like me to save it to `prompts/<slug>.md`?"_
-2. **Saving & Indexing (When Confirmed by the user):**
-   - **Filename Standard:** `prompts/<action>-<domain>-<descriptor>.md` (clean, human-scannable kebab-case, e.g. `audit-substrate-health.md`, `compose-agent-prompt.md`).
-   - **Canonical Frontmatter:**
-     ```yaml
-     ---
-     type: prompt
-     id: prompt-<slug>
-     title: "Descriptive Actionable Title"
-     description: "One-line summary of prompt execution."
-     input_source: "active session / working tree"
-     target_sink: "chat response | files"
-     token_budget: 1500
-     model_affinity: "frontier | fast | any"
-     status: "Active"
-     verified: YYYY-MM-DD
-     ---
-     ```
-   - **Index Regeneration:** Automatically run `pwsh scripts/Build-Index.ps1` to update [`prompts/prompts-index.md`](../../../prompts/prompts-index.md).
-
----
-
-## 5. Done When
-
-The composition or review task is complete when:
-
-1. Target model scaffolding is correctly calibrated (or universal safe default applied).
-2. Relevant AIOS skills are detected and prepended (slash command for manual, direct directive for autonomous).
-3. All no-ops and conversational pleasantries are pruned.
-4. Definition of Done contains binary, observable verification gates.
-5. Single primary calibrated prompt is delivered inside a fenced code block (with dual variants omitted unless requested).
-6. Persistence evaluation is completed and the user's approval is requested before saving to `prompts/`.
+1. `scripts/lint-prompt.py` exits 0 on the delivered prompt, and `--selftest` prints `selftest ok`.
+2. The score block lists all five lines, and they sum to the printed total.
+3. Nothing is written to `prompts/` before the user says yes.

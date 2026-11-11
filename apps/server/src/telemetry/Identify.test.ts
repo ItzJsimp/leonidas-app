@@ -120,6 +120,25 @@ it.layer(NodeServices.layer)("telemetry identity", (it) => {
       const path = yield* Path.Path;
       const tornWrites = FileSystem.FileSystem.of({
         ...fileSystem,
+        open: (filePath, options) =>
+          fileSystem.open(filePath, options).pipe(
+            Effect.map((file) => ({
+              ...file,
+              writeAll: (data: Uint8Array) =>
+                file.write(data.subarray(0, Math.floor(data.length / 2))).pipe(
+                  Effect.andThen(
+                    Effect.fail(
+                      PlatformError.systemError({
+                        _tag: "WriteZero",
+                        module: "FileSystem",
+                        method: "writeAll",
+                        pathOrDescriptor: filePath,
+                      }),
+                    ),
+                  ),
+                ),
+            })),
+          ),
         writeFileString: (filePath, data, options) =>
           fileSystem
             .writeFileString(filePath, data.slice(0, Math.floor(data.length / 2)), options)
