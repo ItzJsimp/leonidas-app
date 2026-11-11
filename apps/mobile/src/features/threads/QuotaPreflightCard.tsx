@@ -9,7 +9,7 @@ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell
 import type { EnvironmentId, ModelSelection } from "@t3tools/contracts";
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
-import { AppText as Text } from "../../components/AppText";
+import { AppText as Text } from "../../components/ui/AppText";
 
 export function QuotaPreflightCard({
   thread,
@@ -24,9 +24,7 @@ export function QuotaPreflightCard({
 }) {
   const [dismissed, setDismissed] = useState(false);
   const providers = useServerConfigs().get(environmentId)?.providers;
-  const currentProvider = providers?.find(
-    (p) => p.instanceId === thread.modelSelection.instanceId,
-  );
+  const currentProvider = providers?.find((p) => p.instanceId === thread.modelSelection.instanceId);
 
   const failoverTargets = useMemo(
     () =>
@@ -62,7 +60,8 @@ export function QuotaPreflightCard({
     <View className="mx-3 mb-2 gap-2 rounded-xl border border-warning-foreground/25 bg-screen p-3">
       <View className="flex-row items-center justify-between">
         <Text className="text-sm font-medium text-warning-foreground">
-          {currentProvider ? resolveProviderInstanceDisplayName(currentProvider) : "Account"} is nearly out of usage
+          {currentProvider ? resolveProviderInstanceDisplayName(currentProvider) : "Account"} is
+          nearly out of usage
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -73,7 +72,8 @@ export function QuotaPreflightCard({
         </Pressable>
       </View>
       <Text className="text-xs text-muted-foreground">
-        {pct === null ? "" : `${pct}% used. `}Send your next message on {target.label} so this chat keeps going.
+        {pct === null ? "" : `${pct}% used. `}Send your next message on {target.label} so this chat
+        keeps going.
       </Text>
       <Pressable
         accessibilityRole="button"
@@ -84,9 +84,7 @@ export function QuotaPreflightCard({
         }}
         className="self-start rounded-lg bg-subtle px-3 py-2 active:opacity-70"
       >
-        <Text className="text-sm text-foreground">
-          Use {target.label} next
-        </Text>
+        <Text className="text-sm text-foreground">Use {target.label} next</Text>
       </Pressable>
     </View>
   );

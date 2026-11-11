@@ -240,7 +240,7 @@ describe("subscription widget snapshots", () => {
   });
   it("preserves the saved appearance through a reset without inventing a zero quota", () => {
     const light = getMobileThemeRuntimeVariables("t3-chat", "light", "ios");
-    const dark = getMobileThemeRuntimeVariables("t3-code", "dark", "ios");
+    const dark = getMobileThemeRuntimeVariables("leonidas", "dark", "ios");
     const snapshot: SubscriptionUsageSnapshot = JSON.parse(
       JSON.stringify({
         ...buildSubscriptionUsageSnapshot(presentations(), deepLink),
@@ -267,8 +267,8 @@ describe("subscription widget snapshots", () => {
   });
   it("keeps the default Android unfilled track distinguishable from the card", () => {
     const theme = createWidgetTheme("system", {
-      light: getMobileThemeRuntimeVariables("t3-code", "light", "android"),
-      dark: getMobileThemeRuntimeVariables("t3-code", "dark", "android"),
+      light: getMobileThemeRuntimeVariables("leonidas", "light", "android"),
+      dark: getMobileThemeRuntimeVariables("leonidas", "dark", "android"),
     });
     expect(contrastRatio(theme.dark.track, theme.dark.background)).toBeGreaterThanOrEqual(1.3);
     expect(contrastRatio(theme.light.track, theme.light.background)).toBeGreaterThanOrEqual(1.3);

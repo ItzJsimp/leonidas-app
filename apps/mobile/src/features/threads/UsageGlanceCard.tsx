@@ -12,7 +12,7 @@ import { AsyncResult } from "effect/reactivity";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 
-import { AppText as Text } from "../../components/AppText";
+import { AppText as Text } from "../../components/ui/AppText";
 import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../../state/preferences";
 import { environmentPresentations } from "../../state/presentation";
 import { useEnvironmentThread } from "../../state/threads";
@@ -38,6 +38,7 @@ export function UsageGlanceCard(props: {
     return () => clearInterval(timer);
   }, [enabled, expanded]);
   const presentations = useAtomValue(environmentPresentations.presentationsAtom);
+  const providersByEnvironment = useAtomValue(environmentPresentations.providersByEnvironmentAtom);
   const thread = useEnvironmentThread(
     props.threadId ? props.environmentId : null,
     props.threadId ?? null,
@@ -50,17 +51,31 @@ export function UsageGlanceCard(props: {
     () =>
       collectConnectedUsageLimits(
         new Map(
-          [...presentations].filter(
-            ([, p]) => p.connection.phase === "connected" || p.connection.phase === "available",
-          ),
+          [...presentations]
+            .filter(
+              ([, p]) => p.connection.phase === "connected" || p.connection.phase === "available",
+            )
+            .map(([id, p]) => [
+              id,
+              {
+                entry: p.entry,
+                serverConfig:
+                  p.serverConfig === null
+                    ? null
+                    : {
+                        providers: providersByEnvironment.get(id) ?? [],
+                        usageLimitSources: p.serverConfig.usageLimitSources,
+                      },
+              },
+            ]),
         ),
         0,
       ),
-    [presentations],
+    [presentations, providersByEnvironment],
   );
-  const provider = presentations
+  const provider = providersByEnvironment
     .get(props.environmentId)
-    ?.serverConfig?.providers.find((p) => p.instanceId === props.instanceId);
+    ?.find((p) => p.instanceId === props.instanceId);
   const active = activeAccountIds(
     report.accounts,
     provider

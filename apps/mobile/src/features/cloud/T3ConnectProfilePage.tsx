@@ -39,13 +39,13 @@ function confirmDeregister(environment: RelayClientEnvironmentRecord, onConfirm:
   const title = "Remove computer?";
   const message = `“${environment.label}” will be removed from this account. Remote access will stop. Its remote access connection will be removed. Local connections on your devices will stay.`;
   if (process.env.EXPO_OS === "ios") {
-    Alert.alert(title, message, [
+    Dialog.alert(title, message, [
       { text: "Cancel", style: "cancel" },
       { text: "Remove", style: "destructive", onPress: onConfirm },
     ]);
     return;
   }
-  showConfirmDialog({
+  Dialog.confirm({
     title,
     message,
     confirmText: "Remove computer",
@@ -103,7 +103,7 @@ export function T3ConnectProfilePage() {
       traceId,
       cause,
     });
-    Alert.alert(
+    Dialog.alert(
       "Could not remove computer",
       traceId ? `${message}\n\nTrace ID: ${traceId}` : message,
       traceId
@@ -161,7 +161,7 @@ export function T3ConnectProfilePage() {
         </>
       ) : isInitialLoad ? (
         <View className="flex-row items-center gap-3 px-6 py-4">
-          <ActivityIndicator colorClassName={"accent-clerk-foreground-muted"} size="small" />
+          <AppActivityIndicator colorClassName={"accent-clerk-foreground-muted"} size="small" />
           <Text className="text-base text-clerk-foreground-muted">Loading computers</Text>
         </View>
       ) : environments.length > 0 ? (

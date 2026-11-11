@@ -2,6 +2,7 @@ import { Button } from "../../components/ui/Button";
 import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
+import { RequestActionButton } from "./RequestActionButton";
 
 export function ThreadCreationFailedCard(props: {
   readonly reason: string;
