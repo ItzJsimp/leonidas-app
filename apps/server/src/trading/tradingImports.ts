@@ -247,8 +247,7 @@ const gradeTrades = Effect.fn("trading.gradeTrades")(function* (
   if (check.status !== "allowed") return { check: check.status, trades };
   const outcome = yield* Effect.promise(() =>
     runRuleCheck({
-      folder: linked.folder,
-      module: check.module,
+      source: check.source,
       // The check module reads "funded" in the file name as a Funded account.
       files: [{ name: `${account.stage}-${account.last4}`, text }],
       // shortcut: no market bar source yet, so every day waits; pass bars when a bar feed card lands

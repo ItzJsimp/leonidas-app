@@ -5,6 +5,7 @@ import {
   AuthEnvironmentMaintainScope,
   AuthDiagnosticsReadScope,
   AuthFilesystemReadScope,
+  AuthFilesystemWriteScope,
   AuthProvidersManageScope,
   AuthSettingsWriteScope,
   DEFAULT_SERVER_SETTINGS,
@@ -40,6 +41,13 @@ import {
 import * as RpcAuthorization from "./RpcAuthorization.ts";
 
 describe("RPC authorization scopes", () => {
+  it("lets only a person allow a pack check module, not an agent token", () => {
+    expect(requiredScopeForRpcMethod(WS_METHODS.tradingPackConsent)).toBe(AuthFilesystemWriteScope);
+    expect(requiredScopeForRpcMethod(WS_METHODS.tradingPackConsent)).not.toBe(
+      AuthOrchestrationOperateScope,
+    );
+  });
+
   it("requires operate scope to change AIOS limits", () => {
     expect(requiredScopeForRpcMethod(WS_METHODS.aiosLimits)).toBe(AuthOrchestrationReadScope);
     expect(requiredScopeForRpcMethod(WS_METHODS.aiosLimitSet)).toBe(AuthOrchestrationOperateScope);

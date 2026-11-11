@@ -28,6 +28,8 @@ export type PackCheck =
       readonly status: "pending" | "allowed" | "declined";
       readonly module: string;
       readonly sha256: string;
+      /** The bytes the hash covers. Run these, never the file again. */
+      readonly source: Uint8Array;
     };
 
 export type LinkedPack =
@@ -114,7 +116,12 @@ export const readLinkedPack = Effect.fn("trading.readLinkedPack")(function* (roo
         ? "allowed"
         : "declined"
       : "pending";
-  return { status: "ready", folder, pack, check: { status, module, sha256 } } satisfies LinkedPack;
+  return {
+    status: "ready",
+    folder,
+    pack,
+    check: { status, module, sha256, source: bytes },
+  } satisfies LinkedPack;
 });
 
 /**

@@ -7,12 +7,13 @@ import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as NodeEvents from "node:events";
+import * as NodeChildProcess from "node:child_process";
 import type * as NodeFS from "node:fs";
 
 import { readTradingState } from "./readTradingState.ts";
-import { runRuleCheck } from "./runRuleCheck.ts";
+import { RULE_CHECK_RUNNER, runRuleCheck } from "./runRuleCheck.ts";
 import { importTradingExport, makeTradingImportWatch } from "./tradingImports.ts";
-import { savePackConsent } from "./tradingPack.ts";
+import { readLinkedPack, savePackConsent } from "./tradingPack.ts";
 
 // A made-up pack and check modules. The real pack and its rule check stay in the private pack repo.
 const PACK = {
@@ -206,19 +207,93 @@ it.layer(NodeServices.layer)("linked trading pack", (it) => {
     }).pipe(Effect.scoped),
   );
 
+  it.effect("an allowed module cannot import a sibling file by a relative path", () =>
+    Effect.gen(function* () {
+      const { fs, path, packFolder, importIt, state, allow } = yield* setup();
+      yield* fs.writeFileString(
+        path.join(packFolder, "checks", "lib.mjs"),
+        "export const same = 1;",
+      );
+      yield* fs.writeFileString(
+        path.join(packFolder, "checks", "check.mjs"),
+        `import { same } from "./lib.mjs";
+${WAITS}
+export const used = same;`,
+      );
+      yield* allow(true);
+      assert.strictEqual((yield* importIt()).check, "failed");
+      assert.strictEqual((yield* state()).trades.length, 2);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("an allowed module cannot import a sibling file by an absolute file URL", () =>
+    Effect.gen(function* () {
+      const { fs, path, packFolder, importIt, state, allow } = yield* setup();
+      const lib = path.join(packFolder, "checks", "lib.mjs");
+      yield* fs.writeFileString(lib, "export const same = 1;");
+      const url = `file:///${lib.replaceAll("\\", "/")}`;
+      yield* fs.writeFileString(
+        path.join(packFolder, "checks", "check.mjs"),
+        `const lib = await import(${JSON.stringify(url)});
+${WAITS}
+export const used = lib.same;`,
+      );
+      yield* allow(true);
+      assert.strictEqual((yield* importIt()).check, "failed");
+      assert.strictEqual((yield* state()).trades.length, 2);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("the check runs the bytes that were hashed, not the file as it is later", () =>
+    Effect.gen(function* () {
+      const { fs, path, root, packFolder } = yield* setup({ module: GRADES });
+      const linked = yield* readLinkedPack(root);
+      assert.strictEqual(linked.status, "ready");
+      if (
+        linked.status !== "ready" ||
+        linked.check.status === "none" ||
+        linked.check.status === "missing"
+      ) {
+        return;
+      }
+      const source = linked.check.source;
+      // The file changes after the trader saw its hash and before the check starts.
+      yield* fs.writeFileString(
+        path.join(packFolder, "checks", "check.mjs"),
+        `${READ_IDS}
+export const reviewDay = (trades) => ({ status: "ok", rows: trades.map((t) => ({ id: t.id, setup: "Swapped", breaks: [] })) });`,
+      );
+      const outcome = yield* Effect.promise(() =>
+        runRuleCheck({
+          source,
+          files: [{ name: "evaluation-0001", text: EXPORT }],
+          bars: [],
+        }),
+      );
+      assert.strictEqual(outcome.status, "done");
+      assert.strictEqual(outcome.status === "done" && outcome.grades.get("1")?.setup, "Setup 1");
+    }).pipe(Effect.scoped),
+  );
+
+  it("the runner refuses to start without the permission model", () => {
+    const result = NodeChildProcess.spawnSync(
+      process.execPath,
+      ["--input-type=module", "-e", RULE_CHECK_RUNNER],
+      { input: "{}", encoding: "utf8" },
+    );
+    assert.strictEqual(result.status, 3);
+  });
+
   it.effect("a check that never ends stops at the time limit", () =>
     Effect.gen(function* () {
-      const { fs, path, packFolder } = yield* setup();
-      const module = path.join(packFolder, "checks", "loop.mjs");
-      yield* fs.writeFileString(
-        module,
-        `${READ_IDS}\nexport const reviewDay = () => { for (;;) {} };`,
+      const source = new TextEncoder().encode(
+        `${READ_IDS}
+export const reviewDay = () => { for (;;) {} };`,
       );
       const started = performance.now();
       const outcome = yield* Effect.promise(() =>
         runRuleCheck({
-          folder: packFolder,
-          module,
+          source,
           files: [{ name: "evaluation-0001", text: EXPORT }],
           bars: [],
           timeoutMs: 500,
