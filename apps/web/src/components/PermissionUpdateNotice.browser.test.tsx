@@ -63,7 +63,7 @@ it("keeps the notice visible and persists dismissal, with a route to pairing set
   expect(notice().timeout).toBe(0);
   expect(localStorage.getItem(storageKey())).toBeNull();
   notice().actionProps.onClick();
-  expect(state.navigate).toHaveBeenCalledWith({ to: "/settings/connections" });
+  expect(state.navigate).toHaveBeenCalledWith({ to: "/settings/environments" });
   expect(state.close).toHaveBeenCalledWith("notice");
   expect(localStorage.getItem(storageKey())).toBe("true");
 });

@@ -95,7 +95,7 @@ it("updates a visible warning on revocation and blocks a click that raced it unt
   expect(button().disabled).toBe(true);
   expect(state.run).not.toHaveBeenCalled();
   expect(state.toast).toHaveBeenCalledWith(
-    expect.objectContaining({ title: "Unable to open keybindings file" }),
+    expect.objectContaining({ title: "Could not open the shortcuts file" }),
   );
 
   await act(async () => setScopes([AuthOrchestrationOperateScope]));
