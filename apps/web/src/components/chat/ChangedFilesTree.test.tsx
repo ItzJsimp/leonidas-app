@@ -8,6 +8,7 @@ describe("ChangedFilesCard", () => {
   it("keeps its compact header sticky while preserving singular labels", () => {
     const markup = renderToStaticMarkup(
       <ChangedFilesCard
+        defaultOpen
         runId={RunId.make("run-1")}
         files={[{ path: "README.md", kind: "modified", additions: 2, deletions: 1 }]}
         allDirectoriesExpanded
@@ -24,9 +25,28 @@ describe("ChangedFilesCard", () => {
     expect(markup).not.toContain("1 changed files");
   });
 
+  it("starts as one slim chip with no file list", () => {
+    const markup = renderToStaticMarkup(
+      <ChangedFilesCard
+        runId={RunId.make("run-1")}
+        files={[{ path: "src/app.ts", kind: "modified", additions: 4, deletions: 2 }]}
+        allDirectoriesExpanded={false}
+        resolvedTheme="light"
+        onToggleAllDirectories={() => {}}
+        onOpenTurnDiff={() => {}}
+      />,
+    );
+
+    expect(markup).toContain('data-changed-files-state="chip"');
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain("1 changed file");
+    expect(markup).not.toContain("app.ts");
+  });
+
   it("shows collapsed folders and root files together", () => {
     const markup = renderToStaticMarkup(
       <ChangedFilesCard
+        defaultOpen
         runId={RunId.make("run-1")}
         files={[
           { path: "apps/web/src/App.tsx", kind: "modified", additions: 120, deletions: 20 },
@@ -60,6 +80,7 @@ describe("ChangedFilesCard", () => {
   it("keeps the folder tree visible when folders are collapsed", () => {
     const markup = renderToStaticMarkup(
       <ChangedFilesCard
+        defaultOpen
         runId={RunId.make("run-1")}
         files={[{ path: "apps/web/src/App.tsx", kind: "modified", additions: 120, deletions: 20 }]}
         allDirectoriesExpanded={false}

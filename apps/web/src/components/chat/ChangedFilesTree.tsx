@@ -29,6 +29,8 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
   onToggleAllDirectories: () => void;
   onOpenTurnDiff: (runId: RunId, filePath?: string) => void;
   onFileContextMenu?: ChangedFileContextMenuHandler | undefined;
+  /** The file list starts closed: a reply shows one slim chip until it is clicked. */
+  defaultOpen?: boolean;
 }) {
   const {
     runId,
@@ -38,20 +40,34 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
     onToggleAllDirectories,
     onOpenTurnDiff,
     onFileContextMenu,
+    defaultOpen = false,
   } = props;
+  const [open, setOpen] = useState(defaultOpen);
   const summaryStat = useMemo(() => summarizeTurnDiffStats(files), [files]);
   const hasDirectories = files.some((file) => /[/\\]/.test(file.path));
 
   return (
     <div
-      className="@container/changed-files mt-4 rounded-lg bg-secondary dark:bg-input/20"
-      data-changed-files-state="tree"
+      className="@container/changed-files mt-3 rounded-lg bg-secondary dark:bg-input/20"
+      data-changed-files-state={open ? "tree" : "chip"}
     >
       <div
         data-changed-files-header=""
         className="sticky top-2 z-10 flex items-center justify-between gap-2 rounded-t-lg bg-secondary px-3 py-2 dark:bg-background dark:bg-linear-to-b dark:from-input/20 dark:to-input/20"
       >
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-foreground">
+        <button
+          type="button"
+          aria-expanded={open}
+          data-scroll-anchor-ignore
+          onClick={() => setOpen((value) => !value)}
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left text-xs font-medium text-foreground"
+        >
+          <ChevronRightIcon
+            className={cn(
+              "size-3 shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-90",
+            )}
+          />
           <span>
             {files.length} changed file{files.length === 1 ? "" : "s"}
           </span>
@@ -63,9 +79,9 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
               className="text-xs leading-4"
             />
           )}
-        </div>
+        </button>
         <div className="flex shrink-0 items-center gap-1">
-          {hasDirectories && (
+          {open && hasDirectories && (
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -110,15 +126,17 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
           </Tooltip>
         </div>
       </div>
-      <ChangedFilesTree
-        key={`${runId}:${allDirectoriesExpanded}`}
-        runId={runId}
-        files={files}
-        allDirectoriesExpanded={allDirectoriesExpanded}
-        resolvedTheme={resolvedTheme}
-        onOpenTurnDiff={onOpenTurnDiff}
-        onFileContextMenu={onFileContextMenu}
-      />
+      {open && (
+        <ChangedFilesTree
+          key={`${runId}:${allDirectoriesExpanded}`}
+          runId={runId}
+          files={files}
+          allDirectoriesExpanded={allDirectoriesExpanded}
+          resolvedTheme={resolvedTheme}
+          onOpenTurnDiff={onOpenTurnDiff}
+          onFileContextMenu={onFileContextMenu}
+        />
+      )}
     </div>
   );
 });
