@@ -18,6 +18,27 @@ export interface HostedBrowserWebviewWrapperStyle {
 
 export const HIDDEN_BROWSER_WEBVIEW_OFFSET = -100_000;
 
+/**
+ * A guest that paints. A parked guest gets no frames, so `requestAnimationFrame` never runs, menus
+ * never open and screenshots time out. An agent drives its tab whether or not the panel shows it,
+ * so an agent-owned tab keeps painting too.
+ */
+export function isBrowserWebviewRendering(input: {
+  readonly active: boolean;
+  readonly backgroundActivity: boolean;
+  readonly pictureInPicture: boolean;
+  readonly recordingActive: boolean;
+  readonly agentDriven: boolean;
+}): boolean {
+  return (
+    input.active ||
+    input.backgroundActivity ||
+    input.pictureInPicture ||
+    input.recordingActive ||
+    input.agentDriven
+  );
+}
+
 export function resolveHostedBrowserWebviewWrapperStyle(input: {
   readonly active: boolean;
   readonly renderingActive: boolean;
