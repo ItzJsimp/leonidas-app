@@ -39,7 +39,6 @@ function stubDesktop(withBridge = true) {
 function Harness(props: {
   onSnip: (file: File) => void;
   onAttach?: () => void;
-  onOpenLibrary?: () => void;
   skills?: ServerProviderSkill[];
 }) {
   const snips = useDesktopSnips(props.onSnip);
@@ -51,7 +50,7 @@ function Harness(props: {
       skills={props.skills ?? []}
       onSelectSkill={vi.fn()}
       autoPick={{ pick, busy: false, hasText: true, nudge: false }}
-      onOpenLibrary={props.onOpenLibrary ?? vi.fn()}
+      renderLibrary={() => <p>library panel</p>}
     />
   );
 }
@@ -153,18 +152,17 @@ it("leaves out snips outside the desktop app", async () => {
 it("attaches files, opens the prompt library and toggles the notepad", async () => {
   listRecentSnips.mockResolvedValue([]);
   const onAttach = vi.fn();
-  const onOpenLibrary = vi.fn();
-  await openMenu({ onSnip: vi.fn(), onAttach, onOpenLibrary });
+  await openMenu({ onSnip: vi.fn(), onAttach });
   await clickItem("Attach files");
   expect(onAttach).toHaveBeenCalledTimes(1);
-  expect(onOpenLibrary).not.toHaveBeenCalled();
+  expect(document.body.textContent).not.toContain("library panel");
   expect(useFocusWidgetStore.getState().visible).toBe(false);
 
-  await openMenu({ onSnip: vi.fn(), onAttach, onOpenLibrary });
+  await openMenu({ onSnip: vi.fn(), onAttach });
   await clickItem("Prompt library");
-  expect(onOpenLibrary).toHaveBeenCalledTimes(1);
+  expect(document.body.textContent).toContain("library panel");
 
-  await openMenu({ onSnip: vi.fn(), onAttach, onOpenLibrary });
+  await openMenu({ onSnip: vi.fn(), onAttach });
   await clickItem("Show notepad");
   expect(useFocusWidgetStore.getState().visible).toBe(true);
 });
