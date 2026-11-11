@@ -198,13 +198,15 @@ it.effect("returns account, cost and the parent run for a run started by another
 it.effect("reads the caller's depth, live children and today's spend for the spawn gate", () =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    for (const [id, title] of [
-      ["main", "Main"],
-      ["lead-chat", "Lead"],
-      ["scout-chat", "Scout"],
-    ] as const) {
-      yield* addThread(sql, id, title);
-    }
+    yield* addThread(sql, "main", "Main");
+    // The lead chat runs an agent file with canSpawn: true, so it may start subagents.
+    yield* addThread(
+      sql,
+      "lead-chat",
+      "Lead",
+      JSON.stringify({ persona: { name: "lead", canSpawn: true } }),
+    );
+    yield* addThread(sql, "scout-chat", "Scout");
     const done = {
       origin: "app_owned",
       status: "completed",
@@ -258,12 +260,13 @@ it.effect("reads the caller's depth, live children and today's spend for the spa
       { threadId: "lead-chat", account: "claude", sinceIso: since },
       rateFor,
     );
-    expect([lead.depth, lead.runningChildren]).toEqual([1, 2]);
+    expect([lead.depth, lead.runningChildren, lead.callerCanSpawn]).toEqual([1, 2, true]);
     const scout = yield* service.spawnContext(
       { threadId: "scout-chat", account: "claude", sinceIso: since },
       rateFor,
     );
     expect(scout.depth).toBe(2);
+    expect([top.callerCanSpawn, scout.callerCanSpawn]).toEqual([false, false]);
     // Today's spend adds the priced runs of the account: only `scout` reported tokens here.
     expect(lead.spendUsd).toBeCloseTo(0.001665, 9);
     const otherAccount = yield* service.spawnContext(

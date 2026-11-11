@@ -2610,7 +2610,7 @@ const make = Effect.gen(function* () {
           );
         const gate = {
           callerDepth: spawnFacts.depth,
-          callerCanSpawn: parent.thread.persona?.canSpawn === true,
+          callerCanSpawn: spawnFacts.callerCanSpawn,
           runningChildren: spawnFacts.runningChildren,
           todaySpendUsd: spawnFacts.spendUsd,
           dailyCapUsd: delegationSettings.subagentDailyCapUsd,

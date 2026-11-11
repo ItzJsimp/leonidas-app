@@ -82,6 +82,8 @@ export interface SpawnContext {
   readonly depth: number;
   /** Runs of this chat that are live now. */
   readonly runningChildren: number;
+  /** The caller chat runs an agent file with `canSpawn: true`, so it is an orchestrator. */
+  readonly callerCanSpawn: boolean;
   /** Cost of today's runs on the account, in USD. */
   readonly spendUsd: number;
 }
@@ -318,6 +320,11 @@ const make = Effect.gen(function* () {
         FROM orchestration_v2_projection_subagents
         WHERE thread_id = ${input.threadId} AND status IN ${sql.in(ACTIVE_RAW_STATUSES)}
       `;
+      const callerRows = yield* sql<{ readonly can_spawn: number | null }>`
+        SELECT json_extract(payload_json, '$.persona.canSpawn') AS can_spawn
+        FROM orchestration_v2_projection_threads
+        WHERE thread_id = ${input.threadId}
+      `;
       const today = yield* sql<{ readonly child_thread_id: string; readonly model: string | null }>`
         SELECT s.child_thread_id,
           COALESCE(
@@ -337,6 +344,7 @@ const make = Effect.gen(function* () {
       return {
         depth: depthRows[0]?.depth ?? 0,
         runningChildren: runningRows[0]?.count ?? 0,
+        callerCanSpawn: callerRows[0]?.can_spawn === 1,
         spendUsd: today.reduce((sum, row) => sum + (costOf(row) ?? 0), 0),
       } satisfies SpawnContext;
     }).pipe(Effect.mapError((cause) => new SubagentRunsError({ cause })));

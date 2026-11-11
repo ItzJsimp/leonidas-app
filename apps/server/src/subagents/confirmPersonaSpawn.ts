@@ -111,6 +111,8 @@ const awaitSpawnCard = Effect.fnUntraced(function* (input: {
   readonly startsAtOnce: boolean;
   readonly roughCost: string;
   readonly capWarning: boolean;
+  /** Wait for the user with no call timeout. For a caller that can block, such as the SDK. */
+  readonly untilAnswered?: boolean;
   readonly engineNote?: string;
   readonly details?: SpawnCardDetails;
   /** Runs once when the spawn may start. */
@@ -142,7 +144,7 @@ const awaitSpawnCard = Effect.fnUntraced(function* (input: {
       ...cardDetails(input.details),
       requestedAt: DateTime.formatIso(yield* DateTime.now),
     },
-    { waitFor: SPAWN_CALL_WAIT },
+    input.untilAnswered === true ? undefined : { waitFor: SPAWN_CALL_WAIT },
   );
   switch (outcome.kind) {
     case "still_waiting":
@@ -253,6 +255,10 @@ export const confirmDelegatedSpawn = Effect.fn("confirmDelegatedSpawn")(function
   readonly appFreeModels: ReadonlyArray<string>;
   readonly approvalId: string;
   readonly gate: SpawnGateContext;
+  /** What the card calls the child. Defaults to "delegated task". */
+  readonly label?: string;
+  /** Wait for the user with no call timeout. For a caller that can block, such as the SDK. */
+  readonly untilAnswered?: boolean;
   readonly details?: SpawnCardDetails;
 }) {
   const aios = input.cwd === null ? null : yield* readTiers(`${input.cwd}/.agents`);
@@ -270,7 +276,7 @@ export const confirmDelegatedSpawn = Effect.fn("confirmDelegatedSpawn")(function
   return yield* awaitSpawnCard({
     ...gated,
     parent: input.parent,
-    subagent: DELEGATED_TASK_SPAWN_LABEL,
+    subagent: input.label ?? DELEGATED_TASK_SPAWN_LABEL,
     model: input.model,
     account: input.account,
     reason: input.reason,
@@ -279,6 +285,7 @@ export const confirmDelegatedSpawn = Effect.fn("confirmDelegatedSpawn")(function
     filesInScope: [],
     toolCount: 0,
     estimatedStartTokens,
+    ...(input.untilAnswered === undefined ? {} : { untilAnswered: input.untilAnswered }),
     ...(input.details === undefined ? {} : { details: input.details }),
     started: Effect.void,
   });

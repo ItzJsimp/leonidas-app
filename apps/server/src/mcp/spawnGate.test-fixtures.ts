@@ -10,7 +10,8 @@ import * as UsageService from "../usage/UsageService.ts";
  */
 export const spawnGateServices = Layer.mergeAll(
   Layer.mock(SubagentRuns.SubagentRuns)({
-    spawnContext: () => Effect.succeed({ depth: 0, runningChildren: 0, spendUsd: 0 }),
+    spawnContext: () =>
+      Effect.succeed({ depth: 0, runningChildren: 0, callerCanSpawn: false, spendUsd: 0 }),
   }),
   Layer.mock(UsageService.UsageService)({ rateFor: () => Effect.succeed(null) }),
 );

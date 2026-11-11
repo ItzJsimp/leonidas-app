@@ -6,6 +6,7 @@ import * as Layer from "effect/Layer";
 import { McpServer } from "effect/ai";
 
 import { Calendar } from "../calendar/Calendar.ts";
+import { spawnGateServices } from "../mcp/spawnGate.test-fixtures.ts";
 import { DeviceService } from "../device/DeviceService.ts";
 import { GitVcsDriver } from "../vcs/GitVcsDriver.ts";
 import { GitWorkflowService } from "../git/GitWorkflowService.ts";
@@ -48,6 +49,7 @@ import budget from "./agentContextBudget.json" with { type: "json" };
 
 // Registration only stores tool definitions, so the handlers' services are never called.
 const toolHandlerServices = Layer.mergeAll(
+  spawnGateServices,
   Layer.mock(Calendar)({}),
   Layer.mock(DeviceService)({}),
   Layer.mock(GitVcsDriver)({}),
