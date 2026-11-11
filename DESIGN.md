@@ -137,6 +137,18 @@ Labels are one plain word. Business tabs follow the workspace template flag; Dev
 - **Collapsed:** icons only, a thin divider between groups. The workspace picture sits on top, the expand icon under it, then a divider.
 - The app remembers the state. Every tab stays visible: a long business rail scrolls, it does not fold. The list fades at each edge that has more rows out of view (3 rem deep, so it reaches into the next row; a row is 38 px). The header and Usage and Settings stay fixed.
 
+## Chat details panel
+
+One card holds **Run**, **Context** and **Limits**, in that order. `Ctrl+Shift+B` (`threadPanel.toggle`) shows or hides it. It opens by default. Decision record: ADR 0100 in the Leonidas AIOS. Doop frames: `dBl8_4S-Tq` (the built 1440 screen) and `eQT4quJsfT` (new chat plus panel at 1280, and the Limits-hidden state).
+
+- **Placement:** the card sits inline at the top right while the chat keeps at least 480 px beside it (`threadDetailsCardLayout.ts`). With less room it becomes a popover that stays closed until the user opens it. A popover may cover the chat, like a menu.
+- **One chat axis:** the header title, the timeline and the composer share one centre line, in the space left of the card (`chatCanvasLayout.ts`). At 1024 px with both sidebars open, the header buttons need 224 px, so the title may shift 24 px. That is the designed fallback.
+- **Density:** a short card folds Context to one line first, then trims Run. Limits never folds by itself. The user folds it with the chevron, and the choice is saved (`usageOverlayEnabled`). Do not add an automatic Limits fold.
+- **Limits ledger:** columns are Account, 5-hour and Weekly. Extra windows are sub-rows under their account. Each row keeps a 24 px slot for the reset chip on the name line, so chips line up in one column. A blue dot marks the account this chat uses, with the text "Active" for screen readers.
+- **Context:** the card shows the model, its effort, a ring and a segmented bar. On a new chat it shows the model the composer will send with, not the project default.
+- **Targets and tokens:** icon buttons are at least 24 by 24 px. Status chips use a solid fill. No colored `border-left` thicker than 1 px. No hex in components.
+- **New chat hero:** the red helmet at 60 percent, a time-of-day greeting with the project picker, and slow red dots. Jake's pick (Doop `MJ2ukUgbs-`) is dots only, with no haze. The question line sits 24 px above the composer.
+
 ## Doop workflow
 
 Every visible change follows the Doop reference. Reuse an approved frame for small edits.
