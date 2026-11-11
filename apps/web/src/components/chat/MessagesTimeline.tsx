@@ -660,6 +660,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     readonly workspaceRoot: string | undefined;
     readonly projection: MessagesTimelineRowsProjection;
   } | null>(null);
+  const showStepUpdates = useClientSettings((settings) => settings.showStepUpdates);
   const rawRows = useMemo(() => {
     const previous = rowsProjectionRef.current;
     const projection = deriveMessagesTimelineRowsWithState(
@@ -676,6 +677,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
         turnDiffSummaries,
         supportsConversationRollback,
         worktreeSetup,
+        showStepUpdates,
       },
       previous?.threadKey === listIdentityKey && previous.workspaceRoot === workspaceRoot
         ? previous.projection
@@ -699,6 +701,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     turnDiffSummaries,
     supportsConversationRollback,
     worktreeSetup,
+    showStepUpdates,
   ]);
   const rows = useStableRows(rawRows, listIdentityKey);
 

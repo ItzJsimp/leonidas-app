@@ -548,11 +548,14 @@ type MessagesTimelineRowContent =
       kind: "working";
       id: string;
       createdAt: string | null;
+      /** The agent's latest progress line, shown as the live status. */
+      stepNote?: string;
     }
   | {
       kind: "thinking";
       id: string;
       createdAt: string | null;
+      stepNote?: string;
       /** Tool calls this row stands in for after the latest one failed. */
       groupId?: string;
       expanded?: boolean;
@@ -1438,6 +1441,8 @@ export function deriveMessagesTimelineRows(input: {
   liveAgentTaskIds?: ReadonlySet<string> | undefined;
   /** Live bootstrap progress. Renders a stage card under the first user message. */
   worktreeSetup?: WorktreeSetupSnapshot | null;
+  /** Draw the agent's mid-run progress lines. Off keeps one live status line. */
+  showStepUpdates?: boolean;
 }): MessagesTimelineRow[] {
   const timelineEntries = timelineRowEntries(input.timelineEntries);
   const turnDiffSummaryByAssistantMessageId = new Map<MessageId, TurnDiffSummary>();
@@ -1502,6 +1507,25 @@ export function deriveMessagesTimelineRows(input: {
   }
   const runIdIsActiveResponse = (runId: RunId | null | undefined) =>
     runId == null ? runlessWorkActive : activeVisualResponseRunIds.has(runId);
+  // Progress lines before the run's last reply stay out of the chat. The latest
+  // one becomes the live status line.
+  const hiddenStepEntryIds = new Set<string>();
+  let stepNote: string | undefined;
+  if (!input.showStepUpdates) {
+    for (const entry of timelineEntries) {
+      if (
+        entry.kind === "message" &&
+        entry.message.role === "assistant" &&
+        !terminalAssistantMessageIds.has(entry.message.id) &&
+        !completeSupersededReplyIds.has(entry.id) &&
+        entry.attempt?.status !== "superseded" &&
+        runIdIsActiveResponse(entry.message.runId)
+      ) {
+        hiddenStepEntryIds.add(entry.id);
+        stepNote = entry.message.text.trim().split("\n")[0]?.slice(0, 160) || stepNote;
+      }
+    }
+  }
   const workEntryIsInActiveRun = (entry: WorkLogEntry) =>
     input.isWorking &&
     entry.toolLifecycleStatus === "inProgress" &&
@@ -1897,6 +1921,8 @@ export function deriveMessagesTimelineRows(input: {
       continue;
     }
 
+    if (hiddenStepEntryIds.has(timelineEntry.id)) continue;
+
     const assistantResponseStillInProgress =
       timelineEntry.message.role === "assistant" &&
       runIdIsActiveResponse(timelineEntry.message.runId);
@@ -2044,11 +2070,15 @@ export function deriveMessagesTimelineRows(input: {
   const result = attachTrailingToolGroupsToAssistant(
     attachCreatedThreadSummaries(nextRows, timelineEntries),
   );
-  return result.map((row, index) =>
-    timelineRowIsWorkLog(row) && timelineRowIsWorkLog(result[index + 1])
-      ? { ...row, continuesWorkLog: true }
-      : row,
-  );
+  return result.map((row, index) => {
+    const next =
+      timelineRowIsWorkLog(row) && timelineRowIsWorkLog(result[index + 1])
+        ? { ...row, continuesWorkLog: true }
+        : row;
+    return stepNote && (next.kind === "working" || next.kind === "thinking")
+      ? { ...next, stepNote }
+      : next;
+  });
 }
 
 /** Adjacent work stays one visual list even when virtualization splits its groups. */
