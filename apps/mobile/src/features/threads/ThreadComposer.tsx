@@ -126,6 +126,7 @@ import {
   useThreadSettingsSheetPresentation,
   type NavigationWithFinishTransitioning,
 } from "./use-thread-settings-sheet-presentation";
+import { Alert } from "react-native";
 
 export const COMPOSER_COLLAPSED_CHROME = 60;
 

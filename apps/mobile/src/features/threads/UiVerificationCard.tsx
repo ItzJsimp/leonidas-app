@@ -1,19 +1,22 @@
-import { uiChangedPaths, uiVerificationPrompt } from "@t3tools/client-runtime/state/ui-verification";
+import {
+  uiChangedPaths,
+  uiVerificationPrompt,
+} from "@t3tools/client-runtime/state/ui-verification";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
 import type { OrchestrationV2TurnItem } from "@t3tools/contracts";
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
-import { AppText as Text } from "../../components/AppText";
+import { AppText as Text } from "../../components/ui/AppText";
 
 export function UiVerificationCard({
   thread,
   turnItems,
-  draftMessage,
+  getDraftMessage,
   onChangeDraftMessage,
 }: {
   thread: EnvironmentThreadShell;
   turnItems: ReadonlyArray<OrchestrationV2TurnItem>;
-  draftMessage: string;
+  getDraftMessage: () => string;
   onChangeDraftMessage: (message: string) => void;
 }) {
   const [dismissedRunId, setDismissedRunId] = useState<string | null>(null);
@@ -45,22 +48,21 @@ export function UiVerificationCard({
         </Pressable>
       </View>
       <Text className="text-xs text-muted-foreground">
-        {names.slice(0, 3).join(", ")}{extra} changed in your last turn.
+        {names.slice(0, 3).join(", ")}
+        {extra} changed in your last turn.
       </Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Verify in preview"
         onPress={() => {
-          if (draftMessage.trim().length === 0) {
+          if (getDraftMessage().trim().length === 0) {
             onChangeDraftMessage(uiVerificationPrompt(paths));
           }
           setDismissedRunId(latestRunId ?? null);
         }}
         className="self-start rounded-lg bg-subtle px-3 py-2 active:opacity-70"
       >
-        <Text className="text-sm text-foreground">
-          Verify in preview
-        </Text>
+        <Text className="text-sm text-foreground">Verify in preview</Text>
       </Pressable>
     </View>
   );

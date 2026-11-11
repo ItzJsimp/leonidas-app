@@ -32,6 +32,7 @@ import {
   findEnvironmentUpdate,
   supportsEnvironmentUpdate,
 } from "./environment-maintenance";
+import { Alert } from "react-native";
 
 export function SettingsEnvironmentDetailRouteScreen({
   route,

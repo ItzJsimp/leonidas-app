@@ -1476,7 +1476,7 @@ describe("buildThreadFeed", () => {
           "message",
         ]);
         expect(rows[2]).toMatchObject({
-          activities: [{ canExpand: true, groupStandIn: { label: "Waited for a T3 thread" } }],
+          activities: [{ canExpand: true, groupStandIn: { label: "Waited for a chat" } }],
         });
         expect(rows[2]).not.toMatchObject({ activities: [{ groupedToolDetail: true }] });
         // The group's own disclosure adds nothing while the call is alone.
@@ -1507,7 +1507,7 @@ describe("buildThreadFeed", () => {
         expect(rows.map((entry) => entry.type)).toEqual(["activity-group"]);
         expect(rows[0]).toMatchObject({
           id: "live-activity-row",
-          activities: [{ live: true, groupStandIn: { label: "Waiting for a T3 thread" } }],
+          activities: [{ live: true, groupStandIn: { label: "Waiting for a chat" } }],
         });
       }
 
@@ -1519,7 +1519,7 @@ describe("buildThreadFeed", () => {
         groupId,
         hiddenCount: 2,
         expanded: true,
-        summary: "Reading a T3 thread",
+        summary: "Reading a chat",
       });
       expect(grouped[1]).toMatchObject({
         activities: [
@@ -1744,7 +1744,7 @@ describe("retained v2 feed presentation", () => {
   });
 
   it.each([
-    { status: "running", summary: "Compacting context" },
+    { status: "running", summary: "Shortening chat history" },
     { status: "completed", summary: "Chat history shortened from 899K to 19K" },
     { status: "failed", summary: "Context compaction failed" },
     { status: "interrupted", summary: "Context compaction stopped" },

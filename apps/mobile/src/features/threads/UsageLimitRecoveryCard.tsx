@@ -13,6 +13,10 @@ import { View } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
+import { Pressable } from "react-native";
+import { useMemo } from "react";
+import { useServerConfigs } from "../../state/entities";
+import { uuidv4 } from "../../lib/uuid";
 
 export function UsageLimitRecoveryCard({
   thread,

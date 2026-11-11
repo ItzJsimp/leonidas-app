@@ -107,6 +107,7 @@ import { useEnvironmentQuery } from "../../state/query";
 import { threadDevicePreviews } from "../devices/threadDevicePreviews";
 import { ThreadBrowserFloat } from "../browser/ThreadBrowserFloat";
 import { useThreadServerBrowserTabs } from "../../state/preview";
+import { useSelectedThreadProjection } from "../../state/use-thread-detail";
 import type { QueuedThreadMessage } from "../../state/thread-outbox-model";
 import { scopedThreadKey } from "../../lib/scopedEntities";
 import { parentThreadIsBelow } from "../../lib/android-workspace-navigation";
@@ -157,6 +158,8 @@ import { useThreadQueuedCount } from "./ThreadQueueControl";
 import type { ThreadContentPresentation } from "./threadContentPresentation";
 import { resolveThreadFeedSubmissionAnchor } from "./thread-feed-live-follow";
 import { useGlobalVoiceInput } from "../voice-input/VoiceInputProvider";
+import { QuotaPreflightCard } from "./QuotaPreflightCard";
+import { UiVerificationCard } from "./UiVerificationCard";
 
 export interface ThreadDetailScreenProps {
   readonly worktreeSetup?: WorktreeSetupCardProps | null;
@@ -399,6 +402,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
   const navigation = useNavigation();
   const { session: voiceInputSession } = useGlobalVoiceInput();
   const reportedModelSelection = useThreadReportedModelSelection(props.selectedThreadDetailRef);
+  const selectedProjection = useSelectedThreadProjection();
   const deviceState = useEnvironmentQuery(
     deviceEnvironment.state({ environmentId: props.environmentId, input: {} }),
   );
@@ -1280,7 +1284,11 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
                   <UiVerificationCard
                     thread={props.selectedThread}
                     turnItems={selectedProjection?.projection.turnItems ?? []}
-                    draftMessage={props.draftMessage}
+                    getDraftMessage={() =>
+                      props.composerDraftKey === null
+                        ? ""
+                        : getComposerDraftSnapshot(props.composerDraftKey).text
+                    }
                     onChangeDraftMessage={props.onChangeDraftMessage}
                   />
                   {props.feedbackSubmissions.map((submission) => (

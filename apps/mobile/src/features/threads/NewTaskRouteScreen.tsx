@@ -238,22 +238,8 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
     if (!scratchEnvironment || scratchStartInFlightRef.current) return;
     const environmentId = scratchEnvironment.environmentId;
     scratchStartInFlightRef.current = true;
-    try {
-      const result = await openScratch({ environmentId, input: {} });
-      if (result._tag === "Failure") {
-        if (!isAtomCommandInterrupted(result)) {
-          const error = squashAtomCommandFailure(result);
-          Alert.alert(
-            "Could not start without a project",
-            error instanceof Error
-              ? error.message
-              : "The folder for chats without a project could not be created.",
-          );
-        }
-        return;
-      }
-      await selectProject(result.value);
-    } finally {
+    const result = await openScratch({ environmentId, input: {} });
+    if (result._tag === "Failure") {
       scratchStartInFlightRef.current = false;
       if (!isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
@@ -261,7 +247,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
           "Could not start without a project",
           error instanceof Error
             ? error.message
-            : "The folder for threads without a project could not be created.",
+            : "The folder for chats without a project could not be created.",
         );
       }
       return;
@@ -397,7 +383,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
               </Text>
               {Platform.OS === "android" ? (
                 <>
-                  <MaterialButton
+                  <Button
                     label={catalogState.hasReadyEnvironment ? "Add project" : "Add computer"}
                     tone="primary"
                     onPress={() =>

@@ -25,6 +25,8 @@ beforeEach(async () => {
   await exec("git", ["init", "-b", "main", cwd]);
   await git("config", "user.name", "Branch test");
   await git("config", "user.email", "branch-test@example.com");
+  // Windows git converts line endings by default; the file assertions below expect LF.
+  await git("config", "core.autocrlf", "false");
   await NodeFSP.writeFile(NodePath.join(cwd, "file.txt"), "main\n");
   await git("add", ".");
   await git("commit", "-m", "main");
@@ -84,7 +86,8 @@ const readRefs: CheckoutInput["readRefs"] = (request) =>
       .filter((ref) => ref.name.includes(input.query ?? ""));
     const cursor = input.cursor ?? 0;
     return {
-      isAtRepositoryRoot: (await NodeFSP.realpath(input.cwd)) === rootPath.trim(),
+      isAtRepositoryRoot:
+        (await NodeFSP.realpath(input.cwd)) === NodePath.normalize(rootPath.trim()),
       refs: refs.slice(cursor, cursor + REF_PAGE_SIZE),
       isRepo: true,
       hasPrimaryRemote: false,
@@ -204,7 +207,7 @@ describe("new-task branch checkout", () => {
   });
 
   it("reuses an existing worktree without switching the project checkout", async () => {
-    const worktreePath = NodePath.join(directory, "worktree");
+    const worktreePath = NodePath.join(directory, "worktree").replaceAll("\\", "/");
     await git("worktree", "add", worktreePath, "feature/a");
     const result = await checkoutNewTaskBranch({
       branch: { ...branch, worktreePath },
@@ -225,7 +228,7 @@ describe("new-task branch checkout", () => {
   });
 
   it("reuses an occupied picker worktree when the project root is a symlink", async () => {
-    const worktreePath = NodePath.join(directory, "worktree");
+    const worktreePath = NodePath.join(directory, "worktree").replaceAll("\\", "/");
     await git("worktree", "add", worktreePath, branch.name);
     const workspaceRoot = NodePath.join(directory, "project-alias");
     await NodeFSP.symlink(cwd, workspaceRoot, "junction");
@@ -254,39 +257,44 @@ describe("new-task branch checkout", () => {
     expect(result.value.worktreePath).toBe(worktreePath);
   });
 
-  it("resolves historical branch metadata to its worktree beyond a long query's first page", async () => {
-    const name = `feature/${"a".repeat(120)}/${"b".repeat(150)}`;
-    await git("branch", "-m", branch.name, name);
-    await git("branch", `a-${name}`);
-    await git("branch", `b-${name}`);
-    await git("worktree", "add", NodePath.join(directory, "decoy"), `a-${name}`);
-    const worktreePath = NodePath.join(directory, "worktree");
-    await git("worktree", "add", worktreePath, name);
+  // A 270-character ref name exceeds MAX_PATH in the Windows .git folder.
+  // oxlint-disable-next-line t3code/no-global-process-runtime -- Test collection checks the host before any Effect runtime exists.
+  it.skipIf(process.platform === "win32")(
+    "resolves historical branch metadata to its worktree beyond a long query's first page",
+    async () => {
+      const name = `feature/${"a".repeat(120)}/${"b".repeat(150)}`;
+      await git("branch", "-m", branch.name, name);
+      await git("branch", `a-${name}`);
+      await git("branch", `b-${name}`);
+      await git("worktree", "add", NodePath.join(directory, "decoy"), `a-${name}`);
+      const worktreePath = NodePath.join(directory, "worktree").replaceAll("\\", "/");
+      await git("worktree", "add", worktreePath, name);
 
-    const result = await checkoutNewTaskBranch({
-      branch: { ...branch, name },
-      project: { environmentId, workspaceRoot: cwd },
-      workspaceMode: "local",
-      readRefs,
-      switchRef: refuseSwitch,
-    });
+      const result = await checkoutNewTaskBranch({
+        branch: { ...branch, name },
+        project: { environmentId, workspaceRoot: cwd },
+        workspaceMode: "local",
+        readRefs,
+        switchRef: refuseSwitch,
+      });
 
-    expect(result._tag).toBe("Success");
-    if (result._tag !== "Success") throw new Error("Historical branch selection failed");
-    expect(result.value).toMatchObject({
-      name,
-      worktreePath,
-    });
-    expect((await git("branch", "--show-current")).stdout.trim()).toBe("main");
-    expect(await NodeFSP.readFile(NodePath.join(cwd, "file.txt"), "utf8")).toBe("main\n");
-  });
+      expect(result._tag).toBe("Success");
+      if (result._tag !== "Success") throw new Error("Historical branch selection failed");
+      expect(result.value).toMatchObject({
+        name,
+        worktreePath,
+      });
+      expect((await git("branch", "--show-current")).stdout.trim()).toBe("main");
+      expect(await NodeFSP.readFile(NodePath.join(cwd, "file.txt"), "utf8")).toBe("main\n");
+    },
+  );
 
   it("resolves a non-origin remote to the right worktree when the remote name contains slashes", async () => {
     const remoteBranch = await addRemote("team/upstream");
     await git("branch", "--set-upstream-to", remoteBranch.name, branch.name);
     await git("branch", "upstream/feature/a");
     await git("worktree", "add", NodePath.join(directory, "decoy"), "upstream/feature/a");
-    const worktreePath = NodePath.join(directory, "worktree");
+    const worktreePath = NodePath.join(directory, "worktree").replaceAll("\\", "/");
     await git("worktree", "add", worktreePath, branch.name);
 
     const result = await checkoutNewTaskBranch({
@@ -310,7 +318,7 @@ describe("new-task branch checkout", () => {
   it("switches to the selected remote instead of reusing a worktree tracking another remote", async () => {
     const originBranch = await addRemote("origin");
     await git("branch", "--set-upstream-to", originBranch.name, branch.name);
-    const worktreePath = NodePath.join(directory, "worktree");
+    const worktreePath = NodePath.join(directory, "worktree").replaceAll("\\", "/");
     await git("worktree", "add", worktreePath, branch.name);
     await git("checkout", "-b", "upstream-source");
     await NodeFSP.writeFile(NodePath.join(cwd, "file.txt"), "upstream feature\n");
@@ -349,7 +357,7 @@ describe("new-task branch checkout", () => {
     "rejects $source worktree reuse when project root is unsafe (nested: $nested)",
     async ({ source, nested }) => {
       const projectRoot = cwd;
-      const worktreePath = NodePath.join(directory, "worktree");
+      const worktreePath = NodePath.join(directory, "worktree").replaceAll("\\", "/");
       await git("worktree", "add", worktreePath, branch.name);
       if (nested) {
         cwd = NodePath.join(projectRoot, "packages", "app");
