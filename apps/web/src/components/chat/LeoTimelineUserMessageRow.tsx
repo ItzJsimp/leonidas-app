@@ -62,7 +62,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import { formatDayAwareTimestamp, formatChatTimestampTooltip } from "../../timestampFormat";
 import { MessageCopyButton } from "./MessageCopyButton";
-import { MessageCaptureButton } from "./MessageCaptureButton";
+import { UserMessageMoreMenu } from "./UserMessageMoreMenu";
 import {
   type KnownComposerContextRecord,
   type ComposerContextRecord,
@@ -536,12 +536,7 @@ function UserTimelineRowContent({ row }: { row: Extract<TimelineRow, { kind: "me
                 variant="ghost"
               />
             )}
-            {resolvedContext.text && (
-              <MessageCaptureButton
-                text={resolvedContext.text}
-                threadId={ctx.threadRef?.threadId}
-              />
-            )}
+            {resolvedContext.text && <UserMessageMoreMenu text={resolvedContext.text} />}
           </div>
         </div>
       </div>
