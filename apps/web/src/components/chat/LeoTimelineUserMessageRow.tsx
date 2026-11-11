@@ -49,7 +49,16 @@ import {
 } from "./SnapShotAttachmentDetails";
 import { InlineAudioPreview } from "../files/InlineAudioPreview";
 import { PierreEntryIcon } from "./PierreEntryIcon";
-import { EyeIcon, DownloadIcon, Redo2Icon, Undo2Icon } from "lucide-react";
+import { EyeIcon, DownloadIcon, PencilIcon, Redo2Icon, Undo2Icon } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogPopup,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import { formatDayAwareTimestamp, formatChatTimestampTooltip } from "../../timestampFormat";
 import { MessageCopyButton } from "./MessageCopyButton";
@@ -616,30 +625,78 @@ function RevertUserMessageButton({
 }) {
   const ctx = use(TimelineRowCtx);
   const activity = use(TimelineRowActivityCtx);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const disabled = activity.isRevertingCheckpoint || activity.isWorking;
+  const rewind = (restoreFiles: boolean) => {
+    setDialogOpen(false);
+    ctx.onRevertToTurnCount(turnCount, messageId, restoreFiles);
+  };
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            disabled={activity.isRevertingCheckpoint || activity.isWorking}
-            onClick={() => ctx.onRevertToTurnCount(turnCount, messageId)}
-            aria-label="Go back to here"
-          />
-        }
-      >
-        <Undo2Icon className="size-3" />
-      </TooltipTrigger>
-      <TooltipPopup side="top">
-        <div className="font-medium">Go back to here</div>
-        <div className="text-muted-foreground">
-          Your files go back to how they were here. This removes this message and all after it.
-        </div>
-      </TooltipPopup>
-    </Tooltip>
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              disabled={disabled}
+              onClick={() => rewind(false)}
+              aria-label="Edit and resend"
+            />
+          }
+        >
+          <PencilIcon className="size-3" />
+        </TooltipTrigger>
+        <TooltipPopup side="top">
+          <div className="font-medium">Edit and resend</div>
+          <div className="text-muted-foreground">
+            Your message returns to the box. This removes it and the replies after it. Your files
+            stay as they are.
+          </div>
+        </TooltipPopup>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              disabled={disabled}
+              onClick={() => setDialogOpen(true)}
+              aria-label="Rewind to here"
+            />
+          }
+        >
+          <Undo2Icon className="size-3" />
+        </TooltipTrigger>
+        <TooltipPopup side="top">Rewind to here</TooltipPopup>
+      </Tooltip>
+      <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <AlertDialogPopup>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rewind to here?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes this message and all the replies after it. Your message returns to the
+              box so you can edit it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogClose render={<Button variant="outline" size="sm" />}>
+              Cancel
+            </AlertDialogClose>
+            <Button size="sm" variant="outline" onClick={() => rewind(false)}>
+              Chat only
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => rewind(true)}>
+              Go back, files and chat
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogPopup>
+      </AlertDialog>
+    </>
   );
 }
 
