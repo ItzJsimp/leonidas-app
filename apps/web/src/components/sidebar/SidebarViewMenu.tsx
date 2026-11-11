@@ -63,7 +63,7 @@ export function SidebarViewMenu(props: {
       <PopoverTrigger render={<SidebarHeaderIconButton label="View options" />}>
         <SlidersHorizontalIcon className="size-4" />
       </PopoverTrigger>
-      <PopoverPopup align="end" padding="none" className="w-60">
+      <PopoverPopup align="end" padding="none" className="w-72">
         <div className="flex flex-col gap-2.5 p-3">
           <Segmented
             label="Group by"
@@ -72,6 +72,7 @@ export function SidebarViewMenu(props: {
               ["date", "Date", "Today, Yesterday, This week"],
               ["status", "Status", "Needs you, Running, Ready, Recent"],
               ["project", "Project", "One group for each project with chats"],
+              ["account", "Account", "One group for each connected account"],
               ["classic", "Manual", "One list in the order you drag"],
             ]}
             onChange={(groupBy) => setView({ groupBy })}
