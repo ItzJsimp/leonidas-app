@@ -66,9 +66,14 @@ describe("listSubagents", () => {
       tier: "confirm",
       enabled: true,
       context: [{ path: "DESIGN.md", tokens: 1_000 }],
+      instructions: "Design.",
       error: null,
     });
-    expect(byName.get("explorer")).toMatchObject({ tier: "free", enabled: false });
+    expect(byName.get("explorer")).toMatchObject({
+      tier: "free",
+      enabled: false,
+      instructions: "Find.",
+    });
     expect(byName.get("old")).toMatchObject({ legacy: true });
     expect(byName.get("roblox")).toMatchObject({
       source: "project",

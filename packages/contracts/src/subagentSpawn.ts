@@ -114,6 +114,8 @@ export const SubagentCatalogEntry = Schema.Struct({
   skills: Schema.optionalKey(Schema.Array(Schema.String)),
   canSpawn: Schema.optionalKey(Schema.Boolean),
   maxTurns: Schema.optionalKey(Schema.NullOr(NonNegativeInt)),
+  /** The instructions: the text after the frontmatter, cut at 20,000 characters. */
+  instructions: Schema.optionalKey(Schema.String),
   /** Old-format files from before format v1 show as legacy until they are migrated. */
   legacy: Schema.Boolean,
   error: Schema.NullOr(Schema.String),
@@ -215,8 +217,13 @@ export type SubagentDuplicateInput = typeof SubagentDuplicateInput.Type;
 export const SubagentDraftInput = Schema.Struct({
   name: TrimmedNonEmptyString.check(Schema.isMaxLength(64)),
   avatar: Schema.optional(TrimmedNonEmptyString.check(Schema.isMaxLength(80))),
-  /** The creator model. A confirm-tier model needs `confirmed: true` (ADR-0082). */
+  /** The agent's model: the draft writes it to the file's `model:` line. */
   model: TrimmedNonEmptyString,
+  /**
+   * The model that writes the draft. Absent: `model`. A confirm-tier creator model needs
+   * `confirmed: true` (ADR-0082), so a frontier agent can still be drafted on a free model.
+   */
+  creatorModel: Schema.optional(TrimmedNonEmptyString),
   request: TrimmedNonEmptyString.check(Schema.isMaxLength(2_000)),
   currentDraft: Schema.optional(Schema.String.check(Schema.isMaxLength(60_000))),
   confirmed: Schema.optional(Schema.Boolean),
@@ -232,7 +239,7 @@ export const SubagentDraftResult = Schema.Union([
     roughCost: Schema.String,
     capWarning: Schema.Boolean,
   }),
-  /** The model is confirm-tier: show the cost, then ask again with `confirmed: true`. */
+  /** The creator model is confirm-tier: show the cost, then ask again with `confirmed: true`. */
   Schema.Struct({
     kind: Schema.Literal("needs_confirm"),
     model: Schema.String,

@@ -136,19 +136,21 @@ export const makeDraft = (deps: DraftDeps) =>
   Effect.fn("SubagentDraft.draft")(function* (
     input: SubagentDraftInput,
   ): Effect.fn.Return<SubagentDraftResult, SubagentEditError> {
+    // The creator model writes the draft and goes through the gate. `input.model` is the agent's.
+    const creator = input.creatorModel ?? input.model;
     const instanceId = pickDraftInstance(
       yield* deps.providers,
-      input.model,
+      creator,
       yield* deps.preferredInstanceId,
     );
     if (instanceId === undefined) {
-      return yield* fail(`No connected account offers ${input.model}. Pick another model.`);
+      return yield* fail(`No connected account offers ${creator}. Pick another model.`);
     }
     const todaySpendUsd = yield* deps.spendToday(instanceId);
     const dailyCapUsd = yield* deps.dailyCapUsd;
     // The user, not a chat, asks: depth 0, no running children.
     const decision = decideSpawn({
-      model: input.model,
+      model: creator,
       appFreeModels: yield* deps.appFreeModels,
       aios: yield* deps.aiosTiers,
       callerDepth: 0,
@@ -161,13 +163,13 @@ export const makeDraft = (deps: DraftDeps) =>
     const roughCost = formatRoughCost(
       estimateSpawnCostUsd({
         startTokens: DRAFT_START_TOKENS,
-        rate: yield* deps.rate(input.model),
+        rate: yield* deps.rate(creator),
       }),
     );
     if (decision.kind === "card" && input.confirmed !== true) {
       return {
         kind: "needs_confirm",
-        model: input.model,
+        model: creator,
         roughCost,
         capWarning: decision.capWarning,
       };
@@ -182,7 +184,7 @@ export const makeDraft = (deps: DraftDeps) =>
             ? undefined
             : readDraftParts(input.currentDraft, input.name),
         tools: DRAFT_TOOLS,
-        modelSelection: { instanceId, model: input.model },
+        modelSelection: { instanceId, model: creator },
       })
       .pipe(Effect.mapError((error) => fail(`The draft failed. ${error.message}`)));
     const contents = yield* Effect.try({
@@ -194,7 +196,7 @@ export const makeDraft = (deps: DraftDeps) =>
     return {
       kind: "draft",
       contents,
-      model: input.model,
+      model: creator,
       roughCost,
       capWarning: decision.capWarning,
     };

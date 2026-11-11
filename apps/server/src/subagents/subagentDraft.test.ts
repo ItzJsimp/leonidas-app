@@ -192,6 +192,24 @@ describe("makeDraft", () => {
     }),
   );
 
+  it.effect(
+    "runs the draft on the creator model and writes the agent's own model to the file",
+    () =>
+      Effect.gen(function* () {
+        const { calls, draft } = setup();
+        const result = yield* draft({
+          ...input,
+          model: "claude-opus-5-5",
+          creatorModel: "claude-haiku-5-5",
+        });
+        expect(result.kind).toBe("draft");
+        if (result.kind !== "draft") return;
+        expect(result.model).toBe("claude-haiku-5-5");
+        expect(calls[0]?.modelSelection).toEqual({ instanceId: claude, model: "claude-haiku-5-5" });
+        expect(parseSubagentSpec(result.contents, "test-scout").model).toBe("claude-opus-5-5");
+      }),
+  );
+
   it.effect("passes the current draft to the model on a revision", () =>
     Effect.gen(function* () {
       const { calls, draft } = setup();

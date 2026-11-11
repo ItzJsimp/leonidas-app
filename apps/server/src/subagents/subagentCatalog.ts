@@ -123,6 +123,9 @@ export function catalogEntry(
       skills: spec.skills,
       canSpawn: spec.canSpawn,
       maxTurns: spec.maxTurns,
+      // shortcut: cut at 20,000 characters so the polled list stays small. Raise it with a
+      // separate read call if agents need longer instructions in the editor.
+      instructions: spec.body.trim().slice(0, 20_000),
       estimatedStartTokens: estimatePersonaStartTokens({
         systemPromptChars: promptChars,
         tools: spec.tools,
