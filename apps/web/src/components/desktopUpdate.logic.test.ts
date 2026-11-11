@@ -6,6 +6,8 @@ import {
   getArm64IntelBuildWarningDescription,
   getDesktopUpdateActionError,
   getDesktopUpdateButtonTooltip,
+  getDesktopUpdateDisabledReason,
+  getDesktopUpdateIdleTooltip,
   getDesktopUpdateInstallConfirmationMessage,
   getDesktopUpdateReleaseHistoryUrl,
   getDesktopUpdateReleaseUrl,
@@ -59,6 +61,26 @@ describe("desktop update button state", () => {
     };
     expect(resolveDesktopUpdateButtonAction(state)).toBe("download");
     expect(getDesktopUpdateButtonTooltip(state)).toContain("Click to retry");
+  });
+
+  it("says when the same version did not apply before", () => {
+    const state: DesktopUpdateState = {
+      ...baseState,
+      status: "downloaded",
+      availableVersion: "1.1.0",
+      downloadedVersion: "1.1.0",
+      notAppliedVersion: "1.1.0",
+    };
+    expect(getDesktopUpdateButtonTooltip(state)).toBe(
+      "Update 1.1.0 did not apply. Click to retry.",
+    );
+    expect(
+      getDesktopUpdateButtonTooltip({
+        ...state,
+        availableVersion: "1.2.0",
+        downloadedVersion: "1.2.0",
+      }),
+    ).toContain("1.2.0 downloaded");
   });
 
   it("keeps install action available after an install error", () => {
@@ -389,19 +411,33 @@ describe("getDesktopUpdateButtonTooltip", () => {
   });
 });
 
-describe("getWhatsNewItems", () => {
-  it("flattens release note groups in order and caps at 8 bullets", () => {
-    const items = Array.from({ length: 6 }, (_, i) => `item ${i}`);
-    const state = {
-      ...baseState,
-      releaseNotes: [
-        { version: "1.0.2", items, totalItems: 6 },
-        { version: "1.0.1", items, totalItems: 6 },
-      ],
-    };
-    const result = getWhatsNewItems(state);
-    expect(result).toHaveLength(8);
-    expect(result.slice(0, 2)).toEqual(["item 0", "item 1"]);
-    expect(getWhatsNewItems(baseState)).toEqual([]);
+describe("disabled update reason", () => {
+  const disabledState: DesktopUpdateState = {
+    ...baseState,
+    enabled: false,
+    status: "disabled",
+    message: "Automatic updates are only available in packaged production builds.",
+  };
+
+  it("explains why checking is unavailable", () => {
+    expect(getDesktopUpdateDisabledReason(disabledState)).toBe(
+      "Automatic updates are only available in packaged production builds.",
+    );
+    expect(getDesktopUpdateIdleTooltip(disabledState)).toEqual({
+      title: "Updates unavailable",
+      detail: "Automatic updates are only available in packaged production builds.",
+    });
+    expect(getDesktopUpdateDisabledReason({ ...disabledState, message: null })).toBe(
+      "Automatic updates are not available in this build.",
+    );
+  });
+
+  it("keeps the check prompt when updates are available", () => {
+    expect(getDesktopUpdateDisabledReason(baseState)).toBeNull();
+    expect(getDesktopUpdateDisabledReason(null)).toBeNull();
+    expect(getDesktopUpdateIdleTooltip(baseState)).toEqual({
+      title: "Check for updates",
+      detail: null,
+    });
   });
 });

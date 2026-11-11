@@ -247,7 +247,7 @@ const makeClaudeInstallation = Effect.fn("makeClaudeInstallation")(function* () 
           yield* SubscriptionRef.set(state, ready);
           return ready;
         }
-        const operationId = yield* crypto.randomUUIDv4;
+        const operationId = yield* crypto.randomUUIDv4();
         const next: ProviderInstallState = {
           ...current,
           operationId,

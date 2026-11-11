@@ -11,10 +11,10 @@ import {
 } from "react";
 import {
   ArchiveIcon,
+  BlocksIcon,
   BotIcon,
   CalendarClockIcon,
   CpuIcon,
-  createLucideIcon,
   FileDiffIcon,
   FlaskConicalIcon,
   FolderTreeIcon,
@@ -37,6 +37,7 @@ import {
   SmartphoneIcon,
   WrenchIcon,
   XIcon,
+  createLucideIcon,
 } from "lucide-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 
@@ -106,7 +107,6 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/threads": MessagesSquareIcon,
   "/settings/browser": GlobeIcon,
   "/settings/devices": SmartphoneIcon,
-  "/settings/scheduled-tasks": CalendarClockIcon,
   "/settings/source-control": GitBranchIcon,
   "/settings/worktrees": FolderTreeIcon,
   "/settings/environments": ServerIcon,

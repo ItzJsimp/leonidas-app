@@ -164,7 +164,7 @@ describe("workEntryIndicatesToolFailure", () => {
     } satisfies WorkLogPresentationEntry;
 
     expect(workEntryDisplayIndicatesToolFailure(entry)).toBe(false);
-    // Older activities can store output in this field, so that path stays separate.
+
     expect(workEntryIndicatesToolFailure(entry)).toBe(true);
     expect(workEntryDisplayIndicatesToolFailure({ ...entry, detail: "File not found" })).toBe(true);
   });
@@ -266,6 +266,28 @@ describe("summarizeToolGroup", () => {
     ).toBe("Used Chrome tool and ran 1 command");
   });
 
+  it.each([
+    [["Foo", "Foo"], "Used Foo tool and ran 1 command"],
+    [["Foo", "Bar", "Foo"], "Used Foo and Bar tools and ran 1 command"],
+  ] as const)(
+    "uses the displayed source names for integration plurality: %j",
+    (names, expected) => {
+      expect(
+        summarizeToolGroup([
+          ...names.map((name, index) =>
+            entry(`integration-${index}`, {
+              toolSource: { key: `integration-${index}`, name, kind: "integration" },
+            }),
+          ),
+          entry("command", {
+            itemType: "command_execution",
+            command: "git status",
+          }),
+        ]).summary,
+      ).toBe(expected);
+    },
+  );
+
   it("omits the integration suffix for special browser and computer sources", () => {
     expect(
       summarizeToolGroup([
@@ -279,6 +301,25 @@ describe("summarizeToolGroup", () => {
         }),
       ]).summary,
     ).toBe("Used Browser and Computer Use");
+  });
+
+  it("names Computer Use once when native-app and fallback sources share its label", () => {
+    expect(
+      summarizeToolGroup([
+        entry("inspect-app", {
+          label: "Inspect app",
+          toolSource: {
+            key: "native-app:com.t3tools.t3code",
+            name: "Computer Use",
+            kind: "computer",
+          },
+        }),
+        entry("failed-sky", {
+          label: "Restrict the breakpoint to Git actions",
+          toolSource: { key: "computer-use", name: "Computer Use", kind: "computer" },
+        }),
+      ]).summary,
+    ).toBe("Used Computer Use");
   });
 });
 
@@ -334,6 +375,49 @@ describe("resolveWorkEntryToolPresentation", () => {
         toolLifecycleStatus: "completed",
       })?.displayName,
     ).toBe(completed);
+  });
+
+  it("distinguishes an interrupted unwatch from a completed unwatch", () => {
+    const entry = { label: "T3-code.unwatch_pull_request" };
+    expect(
+      (["inProgress", "stopped", "completed"] as const).map(
+        (toolLifecycleStatus) =>
+          resolveWorkEntryToolPresentation({ ...entry, toolLifecycleStatus })?.displayName,
+      ),
+    ).toEqual([
+      "Unwatching a pull request",
+      "Stopped unwatching a pull request",
+      "Stopped watching a pull request",
+    ]);
+  });
+
+  it("describes starting review-guide writing in rows and groups without outcomes", () => {
+    const entry = {
+      id: "guides",
+      createdAt: "2026-10-07T00:00:00.000Z",
+      tone: "tool",
+      label: "T3-code.leo_write_pull_request_guides",
+      toolLifecycleStatus: "completed",
+    } satisfies WorkLogPresentationEntry;
+    expect({
+      row: resolveWorkEntryToolPresentation(entry)?.displayName,
+      single: summarizeToolGroup([entry]).summary,
+      repeated: summarizeToolGroup([entry, { ...entry, id: "guides-2" }]).summary,
+    }).toEqual({
+      row: "Started writing review guides",
+      single: "Started writing review guides",
+      repeated: "Started writing review guides 2 times",
+    });
+  });
+
+  it("describes delegated-task cancellation as an ongoing action then a request", () => {
+    const entry = { label: "leonidas.leo_task_cancel" };
+    expect(
+      (["inProgress", "completed"] as const).map(
+        (toolLifecycleStatus) =>
+          resolveWorkEntryToolPresentation({ ...entry, toolLifecycleStatus })?.displayName,
+      ),
+    ).toEqual(["Stopping a helper", "Requested a stop of a helper"]);
   });
 
   it("summarizes workflow stop targets separately from their parent thread", () => {

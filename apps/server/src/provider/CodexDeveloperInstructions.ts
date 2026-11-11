@@ -4,8 +4,15 @@ import { buildRuntimeInstructions } from "@t3tools/provider-core/server/runtimeI
 
 import {
   T3_CODE_BROWSER_TOOL_INSTRUCTIONS,
-  LEONIDAS_ORCHESTRATION_INSTRUCTIONS,
+  T3_CODE_ORCHESTRATION_SECTIONS,
 } from "@t3tools/provider-core/server/orchestrationInstructions";
+
+/**
+ * Codex cuts the middle out of any `additionalContext` value over 1,000 tokens,
+ * which it counts as UTF-8 bytes divided by four. It does this silently, so
+ * every value built here has to fit.
+ */
+export const CODEX_ADDITIONAL_CONTEXT_VALUE_MAX_BYTES = 4_000;
 
 const T3_CODE_DEVICE_TOOL_INSTRUCTIONS = `## Leonidas devices
 
@@ -22,11 +29,10 @@ const normalizeAvailability = (
   typeof availability === "boolean" ? { browser: availability, device: false } : availability;
 
 /**
- * Each block is omitted entirely when its tools aren't attached. Describing
- * `preview_*` or `device_*` tools that aren't in the turn's tool list would be
- * worse than saying nothing: the instructions actively steer the model away
- * from Playwright, agent-browser, and raw simctl/adb, so leaving them in would
- * talk it out of the only automation it still has.
+ * Describing `preview_*` or `device_*` tools that aren't in the turn's tool list would be worse
+ * than saying nothing: the instructions actively steer the model away from Playwright,
+ * agent-browser, and raw simctl/adb, so leaving them in would talk it out of the only automation
+ * it still has.
  */
 const toolInstructions = (availability: boolean | T3CodeToolAvailability): string => {
   const tools = normalizeAvailability(availability);
@@ -184,11 +190,10 @@ In Default mode, strongly prefer making reasonable assumptions and executing the
 export interface CodexRuntimeInfo {
   readonly model: string;
   readonly modelName?: string | undefined;
-  readonly reasoningEffort: string;
+  readonly reasoningEffort?: string | undefined;
   readonly replyStyle?: string | undefined;
 }
 
-/** Mode prompt for `turn/start.collaborationMode.settings.developer_instructions`. */
 export function buildCodexDeveloperInstructions(interactionMode: ProviderInteractionMode): string {
   return interactionMode === "plan"
     ? CODEX_PLAN_MODE_DEVELOPER_INSTRUCTIONS
@@ -196,31 +201,53 @@ export function buildCodexDeveloperInstructions(interactionMode: ProviderInterac
 }
 
 /**
- * Leonidas context for `turn/start.additionalContext`. Codex renders each entry
- * as a `<key>value</key>` developer message and resends it only when the value
- * changes.
- *
+ * Packs whole paragraphs into chunks that fit Codex's per-entry cap.
+ * shortcut: one paragraph over the cap stays whole and the cap test fails; split it by hand then.
+ */
+function splitForCodexEntry(text: string): ReadonlyArray<string> {
+  const chunks: Array<string> = [];
+  for (const paragraph of text.split("\n\n")) {
+    const last = chunks.at(-1);
+    const joined = last === undefined ? paragraph : `${last}\n\n${paragraph}`;
+    if (
+      last !== undefined &&
+      Buffer.byteLength(joined) <= CODEX_ADDITIONAL_CONTEXT_VALUE_MAX_BYTES
+    ) {
+      chunks[chunks.length - 1] = joined;
+    } else {
+      chunks.push(paragraph);
+    }
+  }
+  return chunks;
+}
+
+/**
  * This must stay out of the collaboration mode: when the model catalog ships
  * its own text for a mode, as newer models do, Codex uses that text and drops
  * the client's `developer_instructions` entirely.
  */
 export function buildCodexAdditionalContext(
   runtime: CodexRuntimeInfo,
-  /**
-   * Whether the `t3-code` MCP server is attached to this turn. Callers derive
-   * it from the session's actual MCP configuration rather than re-reading the
-   * setting, so the prompt cannot claim tools the turn doesn't have.
-   */
   toolsAvailable: boolean | T3CodeToolAvailability = true,
 ): Record<string, V2TurnStartParams__AdditionalContextEntry> {
   const tools = toolInstructions(toolsAvailable);
-  // Separate keys keep each value under Codex's per-entry token cap.
+  // Separate keys keep each value under Codex's per-entry cap. Codex emits
+  // entries in key order, so the numbering preserves the authored order.
   return {
-    t3_code_orchestration: { kind: "application", value: LEONIDAS_ORCHESTRATION_INSTRUCTIONS },
-    t3_code_runtime: {
-      kind: "application",
-      value: buildRuntimeInstructions({ harness: "Codex", ...runtime }),
-    },
+    ...Object.fromEntries(
+      T3_CODE_ORCHESTRATION_SECTIONS.map((section, index) => [
+        `t3_code_orchestration_${String(index + 1).padStart(2, "0")}`,
+        { kind: "application" as const, value: section },
+      ]),
+    ),
+    ...Object.fromEntries(
+      splitForCodexEntry(buildRuntimeInstructions({ harness: "Codex", ...runtime })).map(
+        (value, index) => [
+          index === 0 ? "t3_code_runtime" : `t3_code_runtime_${String(index + 1).padStart(2, "0")}`,
+          { kind: "application" as const, value },
+        ],
+      ),
+    ),
     ...(tools ? { t3_code_tools: { kind: "application", value: tools } } : {}),
   };
 }

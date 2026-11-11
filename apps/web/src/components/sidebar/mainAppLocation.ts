@@ -29,8 +29,6 @@ let mainAppHref: string | null = null;
 // Where a Settings or Usage modal returns: the last page that was not a modal, utility pages included.
 let appModalReturnHref: string | null = null;
 
-// Mount once in the app shell. Records the latest main app URL so Back can
-// return there no matter how many utility pages were visited since.
 export function MainAppLocationTracker() {
   const navigate = useNavigate();
   useEffect(() => {
@@ -51,11 +49,9 @@ export function MainAppLocationTracker() {
   return null;
 }
 
-// Leaves a utility page for the last main app URL, or the thread list when
-// the app was opened directly on a utility page.
 export function useNavigateToMainApp() {
   const navigate = useNavigate();
-  return useCallback(() => navigate({ href: mainAppHref ?? "/" }), [navigate]);
+  return () => navigate({ href: mainAppHref ?? "/" });
 }
 
 /** Leaves Settings or Usage for the page that opened it. */

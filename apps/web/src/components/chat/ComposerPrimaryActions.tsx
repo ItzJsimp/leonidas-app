@@ -27,11 +27,10 @@ interface ComposerPrimaryActionsProps {
   compact: boolean;
   canOperateThread: boolean;
   pendingAction: PendingActionState | null;
-  /** The turn is running: sending steers or queues instead of starting a turn. */
   isRunning: boolean;
-  /** Stop can reach a run, including one still preparing or starting. */
   canInterrupt: boolean;
   followUpBehavior?: "queue" | "steer";
+  canSteer?: boolean;
   alternateShortcutLabel?: string | null;
   stopShortcutLabel?: string | null;
   showPlanFollowUpPrompt: boolean;
@@ -50,9 +49,7 @@ interface ComposerPrimaryActionsProps {
   onPreviousPendingQuestion: () => void;
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
-  /** Tokens a stale session would re-read. When set, a Compact chip shows the count and Enter compacts first. */
   compactBeforeSendTokens?: number | null;
-  /** The Compact chip is turned off, so the next send keeps full history. */
   keepFullHistory?: boolean;
   onToggleKeepFullHistory?: () => void;
 }
@@ -75,8 +72,6 @@ const formatPendingPrimaryActionLabel = (input: {
   return input.questionIndex > 0 ? "Submit answers" : "Submit answer";
 };
 
-// The composer's labeled primary actions (Submit, Refine, Implement) share the send button's
-// message-action pill, so they are composer-owned buttons rather than restyled Buttons.
 const messageActionPillClassName =
   "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-primary font-medium text-base text-primary-foreground shadow-xs outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none sm:text-sm";
 
@@ -116,6 +111,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   isRunning,
   canInterrupt,
   followUpBehavior = "steer",
+  canSteer = true,
   alternateShortcutLabel = null,
   stopShortcutLabel = null,
   showPlanFollowUpPrompt,
@@ -147,6 +143,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     resolveComposerDispatchMode({
       running: isRunning,
       activeTurnDefault: followUpBehavior,
+      canSteer,
       alternateModifier: shortcutModifiers.metaKey || shortcutModifiers.ctrlKey,
     }) === "queue";
   const alternateAction = alternateComposerDispatchAction(followUpBehavior);
@@ -265,7 +262,9 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
                   "h-9 rounded-l-none border-l border-primary-foreground/20 px-2 sm:h-8",
                 )}
                 aria-label="Show more ways to build this plan"
-                {...pointerFocusProps}
+                onMouseDown={
+                  preserveComposerFocusOnPointerDown ? (event) => event.preventDefault() : undefined
+                }
                 disabled={isSendBusy || isSendDisabled || isConnecting || isEnvironmentUnavailable}
               />
             }
@@ -326,7 +325,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     submitStatus ??
     (compactsBeforeSend
       ? `Shorten the chat history (${compactTokens} tokens), then send`
-      : isRunning && !isEditingQueuedMessage
+      : isRunning && !isEditingQueuedMessage && canSteer
         ? `Click to ${dispatchActionLabel(followUpBehavior)}. Ctrl/⌘-click${alternateShortcutLabel ? ` or ${alternateShortcutLabel}` : ""} to ${dispatchActionLabel(alternateAction)}.`
         : submitLabel);
 
@@ -393,9 +392,12 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           <span>{compactTokens}</span>
         </TooltipTrigger>
         <TooltipPopup>
-          {keepFullHistory
-            ? `The next message keeps all ${compactTokens} tokens of history. Click to shorten it first.`
-            : `The next message shortens ${compactTokens} tokens of history first. Click to keep the full history.`}
+          <div>
+            {keepFullHistory
+              ? `Next send keeps all ${compactTokens} tokens.`
+              : `Next send compacts ${compactTokens} tokens first.`}
+          </div>
+          <div>{keepFullHistory ? "Click to compact first" : "Click to keep full history"}</div>
         </TooltipPopup>
       </Tooltip>
       {submit}

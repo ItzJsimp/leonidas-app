@@ -1,3 +1,4 @@
+import { useEnvironmentProviders } from "../../state/environments";
 import { DEFAULT_UNIFIED_SETTINGS } from "@t3tools/contracts";
 import { createModelSelection } from "@t3tools/shared/model";
 import {
@@ -41,11 +42,13 @@ export function PromptPredictionSettings() {
   const update = useUpdateScopedSettings();
   const writable = useScopedSettingsWriteAllowed();
   const { environment } = useSettingsScope();
-  const providers = (environment?.serverConfig?.providers ?? EMPTY_SERVER_PROVIDERS).filter(
-    (provider) => provider.supportsTextGeneration !== false && provider.driver !== "muse",
-  );
+  const providersByEnvironment = useEnvironmentProviders();
+  const providers = (
+    (environment ? providersByEnvironment.get(environment.environmentId) : undefined) ??
+    EMPTY_SERVER_PROVIDERS
+  ).filter((provider) => provider.supportsTextGeneration !== false && provider.driver !== "muse");
   const entries = sortProviderInstanceEntries(
-    applyProviderInstanceSettings(deriveProviderInstanceEntries(providers), settings),
+    applyProviderInstanceSettings(deriveProviderInstanceEntries(providers), settings, null),
   );
   const selection = resolveAppModelSelectionState(
     {

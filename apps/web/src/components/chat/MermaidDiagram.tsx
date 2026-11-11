@@ -220,7 +220,11 @@ function diagramImageUrl(svg: SVGSVGElement): string {
     if (value) element.style.setProperty(name, value);
   }
   element.style.maxWidth = "none";
-  element.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
+  // A standalone image inherits nothing from the page, including the text color
+  // that HTML labels such as math use.
+  const { backgroundColor, color } = getComputedStyle(document.body);
+  element.style.backgroundColor = backgroundColor;
+  element.style.color = color;
   if (expandedImageUrl) URL.revokeObjectURL(expandedImageUrl);
   expandedImageUrl = URL.createObjectURL(
     new Blob([new XMLSerializer().serializeToString(element)], { type: "image/svg+xml" }),

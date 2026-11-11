@@ -26,6 +26,7 @@ import { Route as ChatSettingsRouteImport } from './routes/_chat.settings'
 import { Route as ChatScribeRouteImport } from './routes/_chat.scribe'
 import { Route as ChatPullRequestsRouteImport } from './routes/_chat.pull-requests'
 import { Route as ChatProjectsRouteImport } from './routes/_chat.projects'
+import { Route as ChatNewRouteImport } from './routes/_chat.new'
 import { Route as ChatMemoryRouteImport } from './routes/_chat.memory'
 import { Route as ChatMeetingsRouteImport } from './routes/_chat.meetings'
 import { Route as ChatMarketingRouteImport } from './routes/_chat.marketing'
@@ -150,6 +151,11 @@ const ChatPullRequestsRoute = ChatPullRequestsRouteImport.update({
 const ChatProjectsRoute = ChatProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatNewRoute = ChatNewRouteImport.update({
+  id: '/new',
+  path: '/new',
   getParentRoute: () => ChatRoute,
 } as any)
 const ChatMemoryRoute = ChatMemoryRouteImport.update({
@@ -383,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/marketing': typeof ChatMarketingRoute
   '/meetings': typeof ChatMeetingsRoute
   '/memory': typeof ChatMemoryRoute
+  '/new': typeof ChatNewRoute
   '/projects': typeof ChatProjectsRoute
   '/pull-requests': typeof ChatPullRequestsRoute
   '/scribe': typeof ChatScribeRoute
@@ -441,6 +448,7 @@ export interface FileRoutesByTo {
   '/marketing': typeof ChatMarketingRoute
   '/meetings': typeof ChatMeetingsRoute
   '/memory': typeof ChatMemoryRoute
+  '/new': typeof ChatNewRoute
   '/projects': typeof ChatProjectsRoute
   '/pull-requests': typeof ChatPullRequestsRoute
   '/scribe': typeof ChatScribeRoute
@@ -502,6 +510,7 @@ export interface FileRoutesById {
   '/_chat/marketing': typeof ChatMarketingRoute
   '/_chat/meetings': typeof ChatMeetingsRoute
   '/_chat/memory': typeof ChatMemoryRoute
+  '/_chat/new': typeof ChatNewRoute
   '/_chat/projects': typeof ChatProjectsRoute
   '/_chat/pull-requests': typeof ChatPullRequestsRoute
   '/_chat/scribe': typeof ChatScribeRoute
@@ -564,6 +573,7 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/meetings'
     | '/memory'
+    | '/new'
     | '/projects'
     | '/pull-requests'
     | '/scribe'
@@ -622,6 +632,7 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/meetings'
     | '/memory'
+    | '/new'
     | '/projects'
     | '/pull-requests'
     | '/scribe'
@@ -682,6 +693,7 @@ export interface FileRouteTypes {
     | '/_chat/marketing'
     | '/_chat/meetings'
     | '/_chat/memory'
+    | '/_chat/new'
     | '/_chat/projects'
     | '/_chat/pull-requests'
     | '/_chat/scribe'
@@ -852,6 +864,13 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof ChatProjectsRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/new': {
+      id: '/_chat/new'
+      path: '/new'
+      fullPath: '/new'
+      preLoaderRoute: typeof ChatNewRouteImport
       parentRoute: typeof ChatRoute
     }
     '/_chat/memory': {
@@ -1220,6 +1239,7 @@ interface ChatRouteChildren {
   ChatMarketingRoute: typeof ChatMarketingRoute
   ChatMeetingsRoute: typeof ChatMeetingsRoute
   ChatMemoryRoute: typeof ChatMemoryRoute
+  ChatNewRoute: typeof ChatNewRoute
   ChatProjectsRoute: typeof ChatProjectsRoute
   ChatPullRequestsRoute: typeof ChatPullRequestsRoute
   ChatScribeRoute: typeof ChatScribeRoute
@@ -1249,6 +1269,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatMarketingRoute: ChatMarketingRoute,
   ChatMeetingsRoute: ChatMeetingsRoute,
   ChatMemoryRoute: ChatMemoryRoute,
+  ChatNewRoute: ChatNewRoute,
   ChatProjectsRoute: ChatProjectsRoute,
   ChatPullRequestsRoute: ChatPullRequestsRoute,
   ChatScribeRoute: ChatScribeRoute,

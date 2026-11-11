@@ -23,6 +23,8 @@ import { ProjectSetupScriptRunner } from "../project/ProjectSetupScriptRunner.ts
 import { ProviderAdapterRegistryV2 } from "../orchestration-v2/ProviderAdapterRegistry.ts";
 import { ProviderRegistry } from "./ProviderRegistry.ts";
 import { ReviewService } from "../review/ReviewService.ts";
+import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+import * as PullRequestReviewGuideService from "../pullRequest/PullRequestReviewGuideService.ts";
 import { SavedItemExecution } from "../savedItems/SavedItemExecution.ts";
 import { SavedItemService } from "../savedItems/SavedItemService.ts";
 import { ScheduledTaskService } from "../scheduledTasks/ScheduledTaskService.ts";
@@ -58,6 +60,8 @@ const toolHandlerServices = Layer.mergeAll(
   Layer.mock(ScribeEngine)({}),
   Layer.mock(ManagedProjectFolders)({ namedProjectsRoot: "" }),
   Layer.mock(ModelBenchmarks)({}),
+  McpProviderSessions.layer,
+  Layer.mock(PullRequestReviewGuideService.PullRequestReviewGuideService)({}),
   Layer.mock(OrchestratorV2)({}),
   Layer.mock(PreviewAutomationBroker)({}),
   Layer.mock(PreviewBrowser)({}),

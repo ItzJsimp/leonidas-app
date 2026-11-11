@@ -3,18 +3,6 @@ import type * as EffectAcpSchema from "effect-acp/compat";
 
 import type { AcpSessionModeState } from "./runtimeModel.ts";
 
-/**
- * Maps ACP session configuration and session modes onto T3's provider option
- * descriptors so the existing model-options UI can drive them.
- *
- * Model selection stays on the dedicated model picker: `category: "model"`
- * options are excluded here because they already surface as models. Session
- * modes advertised through the modes API (rather than a config option) are
- * folded into one synthetic descriptor that the ACP adapter routes to
- * `session/set_mode`.
- */
-
-/** Synthetic descriptor ID for agents that expose modes outside config options. */
 export const ACP_SESSION_MODE_OPTION_ID = "_t3/session-mode";
 
 /**
@@ -38,7 +26,7 @@ const boundedOpaqueValue = (value: string, maximumLength: number): string | unde
 const choiceId = (value: string): string | undefined =>
   value === "" ? ACP_EMPTY_OPTION_VALUE : boundedOpaqueValue(value, MAX_TEXT_LENGTH);
 
-function flattenSelectChoices(
+export function flattenSelectChoices(
   options: EffectAcpSchema.SessionConfigSelectOptions,
 ): ReadonlyArray<EffectAcpSchema.SessionConfigSelectOption> {
   return options.flatMap((candidate) => ("value" in candidate ? [candidate] : candidate.options));

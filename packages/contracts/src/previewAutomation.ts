@@ -343,6 +343,12 @@ export const PreviewAutomationSelectResult = Schema.Struct({
 });
 export type PreviewAutomationSelectResult = typeof PreviewAutomationSelectResult.Type;
 
+/** Its JSON schema keeps only the description on its last check. */
+const DescribedLocator = (description: string) =>
+  Schema.String.check(Schema.isTrimmed())
+    .check(Schema.isNonEmpty({ description }))
+    .annotateKey({ description });
+
 export const PreviewAutomationDragInput = Schema.Struct({
   ...PreviewAutomationTabTargetFields,
   source: Locator,
@@ -587,7 +593,9 @@ export type PreviewAutomationHostIdentity = typeof PreviewAutomationHostIdentity
 
 export const PreviewAutomationHost = Schema.Struct({
   ...PreviewAutomationHostIdentity.fields,
-  /** Missing means the V1 operation set from before capability negotiation. */
+  /**
+   * Missing means the pre-capability-negotiation V1 operation set.
+   */
   supportedOperations: Schema.optional(Schema.Array(PreviewAutomationOperation)),
 });
 export type PreviewAutomationHost = typeof PreviewAutomationHost.Type;
