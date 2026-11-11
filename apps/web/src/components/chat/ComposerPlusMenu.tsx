@@ -8,7 +8,7 @@ import {
   SparklesIcon,
   WandSparklesIcon,
 } from "lucide-react";
-import { memo, useRef, useState } from "react";
+import { memo, useRef, useState, type ReactNode } from "react";
 
 import { useFocusWidgetStore } from "../focus/focusWidgetStore";
 import { Button } from "../ui/button";
@@ -41,11 +41,13 @@ export const ComposerPlusMenu = memo(function ComposerPlusMenu(props: {
   skills: ReadonlyArray<ServerProviderSkill>;
   onSelectSkill: (skillName: string) => void;
   autoPick: ReturnType<typeof useAutoPickSkills>;
-  onOpenLibrary: () => void;
+  /** The prompt library; the menu shows it in a popover and gives it a way to close. */
+  renderLibrary: (close: () => void) => ReactNode;
 }) {
   const { snips, autoPick } = props;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [skillsOpen, setSkillsOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const notepadVisible = useFocusWidgetStore((state) => state.visible);
   const setNotepadVisible = useFocusWidgetStore((state) => state.setVisible);
 
@@ -126,7 +128,7 @@ export const ComposerPlusMenu = memo(function ComposerPlusMenu(props: {
               </MenuItem>
             </>
           ) : null}
-          <MenuItem onClick={props.onOpenLibrary}>
+          <MenuItem onClick={() => setLibraryOpen(true)}>
             <BookmarkIcon />
             Prompt library
           </MenuItem>
@@ -145,6 +147,17 @@ export const ComposerPlusMenu = memo(function ComposerPlusMenu(props: {
               setSkillsOpen(false);
             }}
           />
+        </PopoverPopup>
+      </Popover>
+      <Popover open={libraryOpen} onOpenChange={setLibraryOpen}>
+        <PopoverPopup
+          anchor={triggerRef}
+          side="top"
+          align="start"
+          padding="none"
+          className="w-175 max-w-[calc(100vw-2rem)]"
+        >
+          {props.renderLibrary(() => setLibraryOpen(false))}
         </PopoverPopup>
       </Popover>
     </>

@@ -146,7 +146,9 @@ import {
   SKILL_CONTEXT_WARNING_THRESHOLD,
 } from "./composerSkillPrefix";
 import { ComposerStashBadge } from "./ComposerStashBadge";
+import { ComposerPromptLibrary } from "./ComposerPromptLibrary";
 import { ComposerSavedItems } from "./ComposerSavedItems";
+import { insertPromptText } from "./promptLibrary";
 import { ComposerStashMenu } from "./ComposerStashMenu";
 
 import { useComposerTriggerState } from "./useComposerTriggerState";
@@ -6864,7 +6866,22 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                           setPrompt(prefixPromptWithSkill(promptRef.current, skillName))
                         }
                         autoPick={autoPick}
-                        onOpenLibrary={() => setIsPromptLibraryOpen(true)}
+                        renderLibrary={(close) => (
+                          <ComposerPromptLibrary
+                            environmentId={environmentId}
+                            projectId={savedItemsProjectId}
+                            draft={prompt}
+                            onUse={(body) => {
+                              setPrompt(insertPromptText(promptRef.current, body));
+                              close();
+                              focusComposer();
+                            }}
+                            onManage={() => {
+                              close();
+                              setIsPromptLibraryOpen(true);
+                            }}
+                          />
+                        )}
                       />
                       <ComposerSavedItems
                         environmentId={environmentId}

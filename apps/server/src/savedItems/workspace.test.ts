@@ -145,6 +145,19 @@ it.effect("isolates same-named folder prompts and their edits across workspaces"
             "personal",
           ),
         );
+        const created = yield* service.create({
+          commandId: CommandId.make("create-business"),
+          workspaceId: "business",
+          kind: "prompt",
+          title: "Rank my tasks",
+          body: "Rank them.",
+          tags: [],
+          projectId: null,
+        });
+        assert.ok(created.id.endsWith(":saved-prompt-rank-my-tasks.md"));
+        assert.ok(
+          NodeFS.existsSync(NodePath.join(roots[1]!, "prompts", "saved-prompt-rank-my-tasks.md")),
+        );
         assert.deepEqual((yield* service.list({ workspaceId: "missing" })).items, []);
         yield* service.transition({
           commandId: CommandId.make("delete-business"),
