@@ -51,3 +51,33 @@ it("discards cancelled audio and releases the microphone", async () => {
   expect(stop).toHaveBeenCalledOnce();
   expect(vi.getTimerCount()).toBe(0);
 });
+it("reads a level of 0 when the browser has no Web Audio", () => {
+  vi.stubGlobal("MediaRecorder", Recorder);
+  const session = recordVoice({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream);
+  expect(session.level()).toBe(0);
+  session.cancel();
+});
+it("reads the loudest sample and closes the audio context on release", async () => {
+  vi.stubGlobal("MediaRecorder", Recorder);
+  const close = vi.fn(() => Promise.resolve());
+  vi.stubGlobal(
+    "AudioContext",
+    class {
+      createAnalyser() {
+        return {
+          fftSize: 0,
+          getByteTimeDomainData: (samples: Uint8Array) => samples.fill(128).set([192, 100]),
+        };
+      }
+      createMediaStreamSource() {
+        return { connect: vi.fn() };
+      }
+      close = close;
+    },
+  );
+  const session = recordVoice({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream);
+  expect(session.level()).toBe(0.5);
+  session.stop();
+  await session.result;
+  expect(close).toHaveBeenCalledTimes(1);
+});

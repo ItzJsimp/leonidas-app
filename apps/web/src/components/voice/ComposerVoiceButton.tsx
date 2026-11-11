@@ -2,7 +2,7 @@ import { useAtomValue } from "@effect/atom-react";
 import { executeAtomQuery, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { MicIcon, SquareIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -21,6 +21,7 @@ import { DiscordTip, shouldShowDiscordTip } from "./DiscordTip";
 import { DiscordWalkthrough } from "./DiscordWalkthrough";
 import { VoiceSetup } from "./VoiceSetup";
 import { recordVoice, voiceAudioBase64 } from "./recordVoice";
+import { ScribePill } from "./ScribePill";
 import { describeVoiceFailure } from "./voiceErrors";
 
 export function ComposerVoiceButton({
@@ -35,7 +36,9 @@ export function ComposerVoiceButton({
   /** Answer the OS-wide dictation trigger (desktop) when this composer's pane is active. */
   globalTrigger?: boolean;
 }) {
-  const [state, setState] = useState<"idle" | "starting" | "listening" | "writing">("idle");
+  const [state, setState] = useState<"idle" | "starting" | "listening" | "writing" | "done">(
+    "idle",
+  );
   const [setup, setSetup] = useState(false);
   const [discordTip, setDiscordTip] = useState(false);
   const [discordSteps, setDiscordSteps] = useState(false);
@@ -78,6 +81,7 @@ export function ComposerVoiceButton({
     if (viaGlobal) void window.desktopBridge?.dictationStarted?.();
     busy.current = true;
     opening.current = true;
+    let pasted = false;
     setError("");
     setState("starting");
     try {
@@ -120,7 +124,8 @@ export function ComposerVoiceButton({
       });
       if (!active.current) return;
       if (result._tag === "Success") {
-        if (!insert.current(`${result.value.text} `)) setRetainedText(result.value.text);
+        if (insert.current(`${result.value.text} `)) pasted = true;
+        else setRetainedText(result.value.text);
       } else if (result._tag === "Failure") throw squashAtomCommandFailure(result);
     } catch (failure) {
       if (active.current) setError(describeVoiceFailure(failure));
@@ -128,11 +133,20 @@ export function ComposerVoiceButton({
       busy.current = false;
       opening.current = false;
       pendingEnd.current = null;
-      if (active.current) setState("idle");
+      if (active.current) {
+        setState(pasted ? "done" : "idle");
+        // The pill says Pasted for a moment; a new take in that time keeps its own state.
+        if (pasted)
+          setTimeout(
+            () => active.current && setState((now) => (now === "done" ? "idle" : now)),
+            1100,
+          );
+      }
       // Releases the Discord mute key at once when setup, the mic or the transcription failed.
       if (viaGlobal) void window.desktopBridge?.dictationEnded?.();
     }
   };
+  const levelOfTake = useCallback(() => recording.current?.level() ?? 0, []);
   const startRef = useRef(start);
   useEffect(() => {
     startRef.current = start;
@@ -158,7 +172,7 @@ export function ComposerVoiceButton({
           disabled={
             state === "starting" ||
             state === "writing" ||
-            (state === "idle" && (disabled || !allowed))
+            ((state === "idle" || state === "done") && (disabled || !allowed))
           }
           aria-label={
             state === "listening"
@@ -177,14 +191,18 @@ export function ComposerVoiceButton({
             <MicIcon aria-hidden className="size-4" />
           )}
         </Button>
-        {state !== "idle" && (
+        {state === "starting" && (
           <span role="status" className="text-xs text-muted-foreground">
-            {state === "listening"
-              ? `${seconds}s`
-              : state === "writing"
-                ? "Writing..."
-                : "Opening mic..."}
+            Opening mic...
           </span>
+        )}
+        {(state === "listening" || state === "writing" || state === "done") && (
+          <ScribePill
+            phase={state}
+            seconds={seconds}
+            level={levelOfTake}
+            onStop={() => recording.current?.stop()}
+          />
         )}
         {discordTip && (
           <DiscordTip
