@@ -36,6 +36,7 @@ vi.mock("./ConnectionsSettings", () => ({
   ConnectionsSettings: ({ view }: { view: string }) => <div data-page-panel={view} />,
 }));
 vi.mock("./LimitsSettings", () => ({ LimitsSettings: marker("limits") }));
+vi.mock("./McpServersSettings", () => ({ McpServersSettingsPanel: marker("tools") }));
 vi.mock("./ModelsSettings", () => ({ ModelsSettingsPanel: marker("models") }));
 vi.mock("./KeybindingsSettings", () => ({ KeybindingsSettingsPanel: marker("keybindings") }));
 vi.mock("./OpenSourceLicenses", () => ({

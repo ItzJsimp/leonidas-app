@@ -337,10 +337,12 @@ export function UsageProviderChart({
   const hoveredColumn = hoverIndex === null ? undefined : columns[hoverIndex];
   const partial = providers.some((provider) => loadingProviders.has(provider));
   const formatPeriod = (period: string) =>
-    resolution === "hour" ? formatHourShort(period, timeZone, withMinutes) : formatDayShort(period);
+    resolution === "hour"
+      ? formatHourShort(period, timeZone, true, withMinutes)
+      : formatDayShort(period);
   const formatTooltipPeriod = (period: string) =>
     resolution === "hour" && referenceTime !== undefined
-      ? formatRelativeHourShort(period, referenceTime, timeZone, withMinutes)
+      ? formatRelativeHourShort(period, referenceTime, timeZone, true, withMinutes)
       : formatPeriod(period);
 
   return (

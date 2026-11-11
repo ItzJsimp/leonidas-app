@@ -50,6 +50,7 @@ const GROUP_LABELS: Readonly<Record<SidebarView["groupBy"], string>> = {
   date: "By date",
   status: "By status",
   project: "By project",
+  account: "By account",
   classic: "Manual",
 };
 
@@ -77,7 +78,7 @@ export function SidebarViewMenu(props: {
         anchor={props.anchor}
         align="end"
         padding="none"
-        className="w-60"
+        className="w-72"
         aria-label="View options"
       >
         <div className="flex flex-col gap-2.5 p-3">
@@ -88,6 +89,7 @@ export function SidebarViewMenu(props: {
               ["date", "Date", "Today, Yesterday, This week"],
               ["status", "Status", "Needs you, Running, Ready, Recent"],
               ["project", "Project", "One group for each project with chats"],
+              ["account", "Account", "One group for each connected account"],
               ["classic", "Manual", "One list in the order you drag"],
             ]}
             onChange={(groupBy) => setView({ groupBy })}

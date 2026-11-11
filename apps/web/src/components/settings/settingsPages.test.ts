@@ -27,6 +27,9 @@ const routeSource = (slug: string): string | undefined =>
   routeSources[`../../routes/_chat.settings.${slug}.tsx`];
 
 const NAV_PATHS = SETTINGS_NAV_GROUPS.flatMap((group) => group.paths);
+// Pages that keep their route but not a nav row. Scheduled tasks left the nav on 2026-11-07:
+// the Automations tab links to it.
+const PAGES_OUTSIDE_NAV: readonly SettingsPath[] = ["/settings/scheduled-tasks"];
 
 /** The block of a settings page inside the shared page panel. */
 function pageBlock(source: string, page: string): string {
@@ -39,7 +42,7 @@ function pageBlock(source: string, page: string): string {
 describe("settings pages", () => {
   it("lists every page once in the nav, in concern groups", () => {
     expect(new Set(NAV_PATHS).size).toBe(NAV_PATHS.length);
-    expect([...NAV_PATHS].toSorted()).toEqual(
+    expect([...NAV_PATHS, ...PAGES_OUTSIDE_NAV].toSorted()).toEqual(
       (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[]).toSorted(),
     );
     expect(SETTINGS_NAV_GROUPS.map((group) => group.heading)).toEqual([
@@ -51,7 +54,7 @@ describe("settings pages", () => {
     ]);
   });
 
-  it.each(NAV_PATHS)("%s has a route file", (path) => {
+  it.each([...NAV_PATHS, ...PAGES_OUTSIDE_NAV])("%s has a route file", (path) => {
     const slug = path.replace("/settings/", "");
     expect(routeSource(slug)).toBeDefined();
   });

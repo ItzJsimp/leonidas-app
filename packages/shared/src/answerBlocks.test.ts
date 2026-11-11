@@ -133,3 +133,108 @@ describe("parseAnswerBlock aliases (shapes models guess)", () => {
     });
   });
 });
+
+describe("lesson block", () => {
+  it("reads the lesson type from a fence language", () => {
+    expect(answerBlockType("leo:lesson")).toBe("lesson");
+  });
+
+  it("parses tabs of cards with callout kinds, progress and actions", () => {
+    const result = parseAnswerBlock(
+      "lesson",
+      JSON.stringify({
+        title: "Prop trading from zero",
+        meta: "8 modules",
+        tabs: [
+          {
+            label: "Modules",
+            cards: [
+              { title: "Firm rules", body: "Daily loss limit.", meta: "Week 1", done: true },
+              { title: "Key idea", body: "Size from the stop.", kind: "key", actions: ["Quiz me"] },
+            ],
+          },
+        ],
+      }),
+      true,
+    );
+    expect(result).toEqual({
+      status: "block",
+      block: {
+        type: "lesson",
+        title: "Prop trading from zero",
+        meta: "8 modules",
+        tabs: [
+          {
+            label: "Modules",
+            cards: [
+              { title: "Firm rules", body: "Daily loss limit.", meta: "Week 1", done: true },
+              { title: "Key idea", body: "Size from the stop.", kind: "key", actions: ["Quiz me"] },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  it("maps guessed field names and wraps flat cards in one tab", () => {
+    const result = parseAnswerBlock(
+      "lesson",
+      '{"title":"RSI","modules":[{"name":"Read the line","text":"Above 70 is stretched.","type":"warning"}]}',
+      true,
+    );
+    expect(result).toEqual({
+      status: "block",
+      block: {
+        type: "lesson",
+        title: "RSI",
+        tabs: [
+          {
+            label: "Lesson",
+            cards: [{ title: "Read the line", body: "Above 70 is stretched.", kind: "warn" }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("falls back when no tab has cards, and drops empty tabs", () => {
+    expect(parseAnswerBlock("lesson", '{"title":"Empty","tabs":[]}', true)).toEqual({
+      status: "fallback",
+    });
+    expect(
+      parseAnswerBlock(
+        "lesson",
+        '{"title":"X","tabs":[{"label":"A","cards":[{"title":"One"}]},{"label":"B","cards":[]}]}',
+        true,
+      ),
+    ).toEqual({
+      status: "block",
+      block: { type: "lesson", title: "X", tabs: [{ label: "A", cards: [{ title: "One" }] }] },
+    });
+  });
+
+  it("turns an unknown kind into a plain card and trims repeated or empty actions", () => {
+    const result = parseAnswerBlock(
+      "lesson",
+      '{"title":"X","cards":[{"title":"A","kind":"constructor","actions":["Quiz me"," Quiz me ",""]}]}',
+      true,
+    );
+    expect(result).toEqual({
+      status: "block",
+      block: {
+        type: "lesson",
+        title: "X",
+        tabs: [{ label: "Lesson", cards: [{ title: "A", actions: ["Quiz me"] }] }],
+      },
+    });
+  });
+
+  it.each([
+    ["a done flag that is not true or false", '{"title":"X","cards":[{"title":"A","done":"yes"}]}'],
+    ["a card title that is not text", '{"title":"X","cards":[{"title":7}]}'],
+    ["a tab with no label", '{"title":"X","tabs":[{"cards":[{"title":"A"}]}]}'],
+    ["a lesson with no title", '{"cards":[{"title":"A"}]}'],
+  ])("falls back on %s", (_name, json) => {
+    expect(parseAnswerBlock("lesson", json, true)).toEqual({ status: "fallback" });
+  });
+});

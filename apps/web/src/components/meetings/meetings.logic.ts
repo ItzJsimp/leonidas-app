@@ -334,6 +334,142 @@ export function parseDetect(raw: unknown): string | null {
   return textOrNull(record(raw).app);
 }
 
+export interface AudioDevice {
+  readonly id: string;
+  readonly name: string;
+  readonly default: boolean;
+}
+
+export interface AudioApp {
+  readonly name: string;
+  readonly playing: boolean;
+}
+
+/** What the engine can record now (`GET sources`). */
+export interface AudioSources {
+  readonly mics: readonly AudioDevice[];
+  readonly outputs: readonly AudioDevice[];
+  readonly apps: readonly AudioApp[];
+  /** True when Windows can record one app alone (Windows 11, build 20348 or later). */
+  readonly perApp: boolean;
+}
+
+export const NO_SOURCES: AudioSources = { mics: [], outputs: [], apps: [], perApp: false };
+
+const devices = (value: unknown): readonly AudioDevice[] =>
+  list(value).flatMap((raw) => {
+    const row = record(raw);
+    const id = text(row.id);
+    return id === "" ? [] : [{ id, name: text(row.name) || id, default: row.default === true }];
+  });
+
+export function parseSources(raw: unknown): AudioSources {
+  const row = record(raw);
+  const seen = new Set<string>();
+  return {
+    mics: devices(row.mics),
+    outputs: devices(row.outputs),
+    apps: list(row.apps).flatMap((value) => {
+      const app = record(value);
+      const name = text(app.name).trim();
+      if (name === "" || seen.has(name)) return [];
+      seen.add(name);
+      return [{ name, playing: app.playing === true }];
+    }),
+    perApp: row.perApp === true,
+  };
+}
+
+/** The audio the user picked. Kept in the web app, so the next meeting starts the same way. */
+export interface AudioChoice {
+  /** A mic id, or null for the system default. */
+  readonly mic: string | null;
+  /** A speaker id for all computer audio, or null for the system default. */
+  readonly output: string | null;
+  /** App names to record. The detected call app is added when a meeting starts. */
+  readonly apps: readonly string[];
+  /** The user chose all computer audio on purpose. */
+  readonly all: boolean;
+}
+
+export const DEFAULT_CHOICE: AudioChoice = { mic: null, output: null, apps: [], all: false };
+
+const CHOICE_KEY = "leonidas.meetings.audio";
+
+export function parseChoice(raw: string | null): AudioChoice {
+  try {
+    const row = record(raw === null ? null : JSON.parse(raw));
+    return {
+      mic: textOrNull(row.mic),
+      output: textOrNull(row.output),
+      apps: list(row.apps).filter((app): app is string => typeof app === "string" && app !== ""),
+      all: row.all === true,
+    };
+  } catch {
+    return DEFAULT_CHOICE;
+  }
+}
+
+export function loadChoice(): AudioChoice {
+  try {
+    return parseChoice(localStorage.getItem(CHOICE_KEY));
+  } catch {
+    return DEFAULT_CHOICE;
+  }
+}
+
+export function saveChoice(choice: AudioChoice): void {
+  try {
+    localStorage.setItem(CHOICE_KEY, JSON.stringify(choice));
+  } catch {
+    // Private mode or a full disk: the choice lasts until the page closes.
+  }
+}
+
+/** Apps a new meeting records: the user's apps plus the call app that uses the mic now. */
+export function chosenApps(
+  choice: AudioChoice,
+  detected: string | null,
+  sources: AudioSources,
+): readonly string[] {
+  if (choice.all || !sources.perApp) return [];
+  const apps =
+    detected !== null && !choice.apps.includes(detected) ? [...choice.apps, detected] : choice.apps;
+  return apps;
+}
+
+/**
+ * The body for `POST start`. No chosen apps means all computer audio, as before. A saved mic or
+ * speaker that is no longer plugged in is left out, so the system default takes over.
+ */
+export function startBody(
+  choice: AudioChoice,
+  detected: string | null,
+  sources: AudioSources,
+): Record<string, unknown> {
+  const apps = chosenApps(choice, detected, sources);
+  const known = (id: string | null, from: readonly AudioDevice[]) =>
+    id !== null && from.some((device) => device.id === id) ? id : null;
+  const mic = known(choice.mic, sources.mics);
+  const output = apps.length === 0 ? known(choice.output, sources.outputs) : null;
+  return {
+    ...(mic === null ? {} : { mic }),
+    ...(output === null ? {} : { output }),
+    ...(apps.length === 0 ? {} : { apps }),
+  };
+}
+
+/** One line for the button that opens the audio panel. */
+export function audioSummary(
+  choice: AudioChoice,
+  detected: string | null,
+  sources: AudioSources,
+): string {
+  const apps = chosenApps(choice, detected, sources);
+  const mic = sources.mics.find((device) => device.id === choice.mic);
+  return `${mic?.name ?? "Default mic"} + ${apps.length === 0 ? "all computer audio" : apps.join(", ")}`;
+}
+
 export interface DiscordStatus {
   readonly configured: boolean;
   readonly connected: boolean;

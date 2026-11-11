@@ -1,3 +1,5 @@
+import { PullRequestContextMetadata } from "@t3tools/contracts";
+import { Schema } from "effect";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 
 /**
@@ -96,3 +98,13 @@ export function makeComposerMentionDragHandlers(
     },
   };
 }
+
+/**
+ * Drag payload type carrying a pull request, as JSON `PullRequestContextMetadata`. Set on drags
+ * that start on a pull request row; the composer drops it as the same chip the `#` picker adds.
+ */
+export const COMPOSER_PULL_REQUEST_DRAG_TYPE = "application/x-t3code-pull-request";
+
+/** The `COMPOSER_PULL_REQUEST_DRAG_TYPE` data for a pull request row's drag. */
+const PullRequestDragPayload = Schema.fromJsonString(PullRequestContextMetadata);
+export const encodePullRequestDragPayload = Schema.encodeSync(PullRequestDragPayload);

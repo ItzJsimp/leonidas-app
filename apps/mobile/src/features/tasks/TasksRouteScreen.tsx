@@ -21,11 +21,11 @@ import { useCallback, useState } from "react";
 import { Alert, AppState, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppText as Text, AppTextInput as TextInput } from "../../components/AppText";
-import { SymbolView } from "../../components/AppSymbol";
-import { ControlPillMenu } from "../../components/ControlPill";
-import { ScreenScrollView as ScrollView } from "../../components/ScreenScrollView";
-import { SegmentedControl } from "../../components/SegmentedControl";
+import { AppText as Text, AppTextInput as TextInput } from "../../components/ui/AppText";
+import { SymbolView } from "../../components/ui/AppSymbol";
+import { Menu } from "../../components/ui/Menu";
+import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
+import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { uuidv4 } from "../../lib/uuid";
 import { useEnvironmentQuery } from "../../state/query";
 import {
@@ -216,7 +216,7 @@ function EnvironmentDailyTasks(props: {
 
   const projectFilter =
     focus === "inbox" || projects.length === 0 ? undefined : (
-      <ControlPillMenu
+      <Menu
         actions={[
           { id: "all", title: "All projects", state: projectSlug === null ? "on" : "off" },
           ...projects.map((project) => ({
@@ -240,7 +240,7 @@ function EnvironmentDailyTasks(props: {
           </Text>
           <SymbolView name="chevron.down" size={12} tintColorClassName="accent-icon" />
         </Pressable>
-      </ControlPillMenu>
+      </Menu>
     );
 
   return (
@@ -357,7 +357,7 @@ function DailyTaskRow(props: {
           </Text>
         ) : null}
       </View>
-      <ControlPillMenu
+      <Menu
         actions={[
           { id: "toggle", title: done ? "Reopen" : "Complete", attributes: { disabled } },
           {
@@ -422,7 +422,7 @@ function DailyTaskRow(props: {
             type="monochrome"
           />
         </Pressable>
-      </ControlPillMenu>
+      </Menu>
     </View>
   );
 }

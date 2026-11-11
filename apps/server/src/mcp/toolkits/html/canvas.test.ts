@@ -1,3 +1,4 @@
+import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
 import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
@@ -85,6 +86,7 @@ it.effect("builds canvas HTML through production MCP and enforces skill loading 
         Layer.provide(NodeServices.layer),
         Layer.provide(FetchHttpClient.layer),
         Layer.provide(McpToolAccessTestkit.liveThreadsLayer),
+        Layer.provide(McpProviderSessions.layer),
       ),
     ),
   ),

@@ -6,7 +6,7 @@ import {
   type ProviderDriverKind,
   type ResolvedKeybindingsConfig,
 } from "@t3tools/contracts";
-import { memo, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useDeferredValue, useEffect, useState, type ReactNode } from "react";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useNowMinute } from "../../hooks/useNowMinute";
@@ -30,17 +30,12 @@ import { showFirstOpenTip } from "../onboarding/firstOpenTip";
 
 export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   environmentId: EnvironmentId | null;
-  /**
-   * The instance currently selected in the composer. Drives the trigger
-   * icon, label and the default-highlighted combobox row.
-   */
   activeInstanceId: ProviderInstanceId;
   model: string;
   selectedModels?: ReadonlyArray<{ instanceId: ProviderInstanceId; model: string }>;
   onToggleModel?: (instanceId: ProviderInstanceId, model: string) => void;
   lockedProvider: ProviderDriverKind | null;
   lockedContinuationGroupKey?: string | null;
-  /** Instance entries rendered in the sidebar + used to resolve display name. */
   instanceEntries: ReadonlyArray<ProviderInstanceEntry>;
   keybindings?: ResolvedKeybindingsConfig;
   modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<ModelEsque>>;
@@ -71,14 +66,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const listOpen = useDeferredValue(isMenuOpen);
   const size = props.size ?? "sm";
 
-  // Resolve the active instance entry by exact routing key. The composer
-  // resolves fallbacks before rendering this component; if the selected
-  // instance disappears, do not infer a replacement from its driver kind.
-  const activeEntry = useMemo(() => {
-    return (
-      props.instanceEntries.find((entry) => entry.instanceId === props.activeInstanceId) ?? null
-    );
-  }, [props.activeInstanceId, props.instanceEntries]);
+  const activeEntry =
+    props.instanceEntries.find((entry) => entry.instanceId === props.activeInstanceId) ?? null;
 
   const activeInstanceId = props.activeInstanceId;
   const nowMinute = useNowMinute();
@@ -113,7 +102,6 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
     };
   }, [props.environmentId, props.triggerLabel, activeInstanceId, refresh]);
   const selectedInstanceOptions = props.modelOptionsByInstance.get(activeInstanceId) ?? [];
-  // Account-specific catalogs must keep the selected model label while unavailable.
   const selectedModel =
     resolveModelPickerSelectedModel({
       driverKind: activeEntry?.driverKind,
@@ -340,6 +328,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         align="start"
         className="before:hidden"
         padding="none"
+        touchBackdrop
       >
         {/* The column renders with the placeholder, so the popup never resizes (and squeezes the list) when the list loads. */}
         <div className="flex min-w-0">

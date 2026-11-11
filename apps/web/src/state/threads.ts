@@ -51,13 +51,10 @@ export function useEnvironmentThread(
 }
 
 const isRunning = (status: string) =>
-  status === "preparing" || status === "starting" || status === "running";
+  status === "preparing" || status === "queued" || status === "starting" || status === "running";
 
 type KeptThreads = ReadonlyMap<EnvironmentId, ReadonlySet<ThreadId>>;
 
-// True once a thread's own stream no longer needs to stay open: it is in sync
-// and shows a settled session, or it cannot progress (deleted or failed). A
-// stream that is still loading or reconnecting keeps waiting for the stop.
 function isDetailDone<E>(result: AsyncResult.AsyncResult<EnvironmentThreadState, E>): boolean {
   if (!AsyncResult.isSuccess(result)) return true;
   const { status, data, error } = result.value;
@@ -89,13 +86,9 @@ function createRunningThreadIdsAtom(
 }
 
 /**
- * Keeps the thread state atom mounted for each running thread in the listed
- * environments. Mount the result; its value is only bookkeeping.
- *
- * The shell and detail streams are independent, so the shell can report a
- * stop before the detail loads or catches up. A stopped thread stays mounted
- * until its own detail is live and shows the stop too. Then the stream closes
- * and saves the settled state to disk.
+ * The shell and detail streams are independent, so the shell can report a stop
+ * before the detail loads or catches up. A stopped thread stays mounted until
+ * its own detail is live and shows the stop too.
  */
 export function createRunningThreadKeepAliveAtom<E>(input: {
   readonly environmentIdsAtom: Atom.Atom<ReadonlyArray<EnvironmentId>>;
@@ -112,7 +105,6 @@ export function createRunningThreadKeepAliveAtom<E>(input: {
   return Atom.make((get): KeptThreads => {
     const previous = Option.getOrUndefined(get.self<KeptThreads>());
     const kept = new Map<EnvironmentId, ReadonlySet<ThreadId>>();
-    // An environment that leaves the list is not visited, so its mounts drop.
     for (const environmentId of get(input.environmentIdsAtom)) {
       const threadIds = new Set(get(runningThreadIdsAtom(environmentId)));
       for (const threadId of previous?.get(environmentId) ?? []) {
@@ -122,7 +114,6 @@ export function createRunningThreadKeepAliveAtom<E>(input: {
         // stream open until some other change rebuilds this atom.
         if (isDetailDone(get.once(stateAtom))) continue;
         threadIds.add(threadId);
-        // Rebuild when this detail is done, not on each update.
         get.subscribe(stateAtom, (state) => {
           if (isDetailDone(state)) get.refreshSelf();
         });

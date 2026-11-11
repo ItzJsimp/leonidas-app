@@ -87,6 +87,8 @@ export interface Trade {
   readonly points?: number;
   readonly setup?: string;
   readonly ruleBreaks?: readonly string[];
+  /** The pack rule check at import: `waiting` for market bars, or `graded` with setup and breaks. */
+  readonly check?: "waiting" | "graded";
 }
 
 export interface LineIssue {
@@ -171,6 +173,7 @@ const TRADE_OPT: Fields = {
   points: signedNumber,
   setup: text,
   ruleBreaks: textList,
+  check: oneOf("waiting", "graded"),
 };
 
 /** Returns a reason, or null when the object fits. An unknown key fails. */
@@ -197,7 +200,8 @@ export function parseEvent(value: unknown): TradingEvent | string {
   return error ?? (value as TradingEvent);
 }
 
-function parseTrade(value: unknown): Trade | string {
+/** Returns the trade, or the reason it is not a valid line of `trades.jsonl`. */
+export function parseTrade(value: unknown): Trade | string {
   return shapeError(value, TRADE_REQ, TRADE_OPT) ?? (value as Trade);
 }
 
@@ -242,5 +246,7 @@ export function parseTrades(fileText: string) {
   const { items, issues } = parseLines(fileText, parseTrade);
   return { trades: items, issues };
 }
+
+export const serializeTrade = (trade: Trade): string => `${JSON.stringify(trade)}\n`;
 
 export const serializeEvent = (event: TradingEvent): string => `${JSON.stringify(event)}\n`;

@@ -37,6 +37,7 @@ const TokenResponse = Schema.Struct({
   access_token: Schema.NonEmptyString,
   expires_in: Schema.Number.check(Schema.isGreaterThan(0)),
 });
+const UserInfo = Schema.Struct({ id: Schema.NonEmptyString });
 const Quota = Schema.Struct({
   remainingFraction: Schema.optional(Schema.Number),
   resetTime: Schema.optional(Schema.String),
@@ -72,6 +73,7 @@ const Models = Schema.Struct({
 
 const decodeTokenFile = Schema.decodeEffect(Schema.fromJsonString(TokenFile));
 const decodeTokenResponse = Schema.decodeUnknownEffect(TokenResponse);
+const decodeUserInfo = Schema.decodeUnknownEffect(UserInfo);
 const decodeSummary = Schema.decodeUnknownEffect(Summary);
 const decodeModels = Schema.decodeUnknownEffect(Models);
 
@@ -116,7 +118,6 @@ function quotaWindow(
   };
 }
 
-/** The summary names the actual shared buckets; Claude and GPT consume one allowance. */
 function summaryWindows(summary: typeof Summary.Type) {
   const windows = new Map<string, ServerProviderUsageWindow>();
   const groups = summary.groups?.some((group) => group.buckets?.length)
@@ -180,7 +181,6 @@ function modelWindows(models: typeof Models.Type) {
   return [...windows.values()];
 }
 
-/** Reads this instance's Google profile, with a memory-only access token and no credential writes. */
 export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(function* (input: {
   readonly profileDirectory: string;
   readonly authMethod: AntigravitySettings["authMethod"];
@@ -192,8 +192,19 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
   const platform = yield* HostProcess.Platform;
   const architecture = yield* HostProcess.Architecture;
   const tokenPath = path.join(input.profileDirectory, "antigravity-acp", "acp_token.json");
-  let cached: { fingerprint: string; accessToken: string; expiresAt: number } | undefined;
+  let cached:
+    | { fingerprint: string; account: string; accessToken: string; expiresAt: number }
+    | undefined;
   let generation = 0;
+
+  const sha256 = (text: string) =>
+    crypto
+      .digest("SHA-256", new TextEncoder().encode(text))
+      .pipe(
+        Effect.map((digest) =>
+          Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(""),
+        ),
+      );
 
   const request = (request: HttpClientRequest.HttpClientRequest) =>
     client.execute(request).pipe(
@@ -223,17 +234,12 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
           new ProbeStepError({ message: describeFailure("Reading the sign-in file", error) }),
       ),
     );
-    const fingerprint = Array.from(
-      yield* crypto.digest(
-        "SHA-256",
-        new TextEncoder().encode(
-          `${token.client_id}\0${token.refresh_token}\0${token.project_id ?? ""}`,
-        ),
-      ),
-      (byte) => byte.toString(16).padStart(2, "0"),
-    ).join("");
+    const fingerprint = yield* sha256(
+      `${token.client_id}\0${token.refresh_token}\0${token.project_id ?? ""}`,
+    );
     const now = yield* Clock.currentTimeMillis;
     let accessToken: string;
+    let account: string;
     if (cached?.fingerprint !== fingerprint || cached.expiresAt <= now + 60_000) {
       cached = undefined;
       const refreshed = yield* request(
@@ -253,13 +259,33 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
         ),
       );
       accessToken = refreshed.access_token;
+      // Each machine's sign-in has its own refresh token, so the Google
+      // account id is what lets clients merge one account across environments.
+      account = yield* request(
+        HttpClientRequest.get("https://www.googleapis.com/oauth2/v2/userinfo").pipe(
+          HttpClientRequest.setHeaders({ Authorization: `Bearer ${accessToken}` }),
+        ),
+      ).pipe(
+        Effect.flatMap(decodeUserInfo),
+        Effect.flatMap((info) => sha256(`google-account\0${info.id}`)),
+        Effect.orElseSucceed(() => fingerprint),
+      );
       if (generation === startedGeneration) {
-        cached = { fingerprint, accessToken, expiresAt: now + refreshed.expires_in * 1000 };
+        cached = {
+          fingerprint,
+          account,
+          accessToken,
+          expiresAt: now + refreshed.expires_in * 1000,
+        };
       }
     } else {
       accessToken = cached.accessToken;
+      account = cached.account;
     }
     const failures: string[] = [];
+    // Endpoints can report different quota groups (the daily endpoint has
+    // returned the Claude/GPT group without Gemini), so merge every endpoint's
+    // windows. The most-used reading of a bucket wins, as in modelWindows.
     const fetchWindows = Effect.fn("AntigravityUsageProbe.fetchWindows")(function* <E>(
       operation: string,
       parse: (response: unknown) => Effect.Effect<ServerProviderUsageWindow[], E>,
@@ -308,7 +334,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
           : "Antigravity returned no usable quota information.",
       });
     }
-    return { ...makeUsageLimits({ checkedAt, windows }), credentialFingerprint: fingerprint };
+    return { ...makeUsageLimits({ checkedAt, windows }), credentialFingerprint: account };
   });
   const probe = read.pipe(
     Effect.timeout("30 seconds"),

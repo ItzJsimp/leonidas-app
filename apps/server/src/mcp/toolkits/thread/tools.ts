@@ -199,7 +199,7 @@ const ThreadSearchTool = Tool.make("leo_thread_search", {
 const ScheduledTaskRunTool = Tool.make("leo_run_scheduled_task_now", {
   ...commandTool,
   description:
-    "Run one scheduled task now. Needs a full-access or default caller. Each call is a new run. Success means dispatched, not finished.",
+    "Run one scheduled task now. Needs a full-access or default caller. Returns the chat this run started in, or null if it could not start. Each call is a new run. Success means dispatched, not finished.",
   parameters: Schema.Struct({ taskId: ScheduledTaskId }),
   success: Schema.Struct({
     taskId: ScheduledTaskId,

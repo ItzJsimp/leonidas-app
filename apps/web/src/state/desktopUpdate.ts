@@ -83,31 +83,58 @@ export function createDesktopUpdateStateAtom(getBridge: () => DesktopUpdateBridg
 
 const desktopUpdateStateAtom = createDesktopUpdateStateAtom(getDesktopUpdateBridge);
 
-/** True once the user chose "Update when safe"; DesktopUpdateCoordinator acts on it. */
-export const useUpdateWhenSafeStore = create<{
-  readonly updateWhenSafe: boolean;
-  readonly setUpdateWhenSafe: (updateWhenSafe: boolean) => void;
+export type UpdateNoticeLevel = "notable" | "all" | "never";
+
+/**
+ * Update preferences, kept on this device. `autoUpdateWhenSafe` keeps its old key so a person who
+ * turned it off before still has it off. New installs start with it on.
+ */
+export const useUpdatePreferencesStore = create<{
+  /** Install a downloaded update when the AI is done and the user is idle, or when the app quits. */
   readonly autoUpdateWhenSafe: boolean;
   readonly setAutoUpdateWhenSafe: (enabled: boolean) => void;
-  /** True while a downloaded update waits for running agents; new sends are held so they can finish. */
-  readonly draining: boolean;
-  readonly setDraining: (draining: boolean) => void;
+  /** Which updates show the "Update ready" pill. Small fixes still install in every case. */
+  readonly updateNotice: UpdateNoticeLevel;
+  readonly setUpdateNotice: (level: UpdateNoticeLevel) => void;
+  /** Version that was running last time, so the first run after an update can say what changed. */
+  readonly lastRunVersion: string | null;
+  readonly setLastRunVersion: (version: string) => void;
 }>()(
   persist(
     (set) => ({
-      updateWhenSafe: false,
-      setUpdateWhenSafe: (updateWhenSafe) => set({ updateWhenSafe }),
-      draining: false,
-      setDraining: (draining) => set({ draining }),
-      autoUpdateWhenSafe: false,
+      autoUpdateWhenSafe: true,
       setAutoUpdateWhenSafe: (autoUpdateWhenSafe) => set({ autoUpdateWhenSafe }),
+      updateNotice: "notable",
+      setUpdateNotice: (updateNotice) => set({ updateNotice }),
+      lastRunVersion: null,
+      setLastRunVersion: (lastRunVersion) => set({ lastRunVersion }),
     }),
     {
       name: "leonidas-safe-updates",
-      partialize: ({ autoUpdateWhenSafe }) => ({ autoUpdateWhenSafe }),
+      partialize: ({ autoUpdateWhenSafe, updateNotice, lastRunVersion }) => ({
+        autoUpdateWhenSafe,
+        updateNotice,
+        lastRunVersion,
+      }),
     },
   ),
 );
+
+/** The big "What's new" window. `since` is the version the user ran before; null shows the newest few. */
+export interface UpdateDetailsRange {
+  readonly since: string | null;
+  readonly through: string;
+}
+
+export const useUpdateDetailsStore = create<{
+  readonly range: UpdateDetailsRange | null;
+  readonly show: (range: UpdateDetailsRange) => void;
+  readonly close: () => void;
+}>()((set) => ({
+  range: null,
+  show: (range) => set({ range }),
+  close: () => set({ range: null }),
+}));
 
 export function useDesktopUpdateState(): DesktopUpdateState | null {
   return AsyncResult.getOrElse(useAtomValue(desktopUpdateStateAtom), () => null);

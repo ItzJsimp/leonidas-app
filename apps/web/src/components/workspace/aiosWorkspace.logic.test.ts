@@ -4,9 +4,10 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   pickActiveWorkspace,
   homeRepository,
-  newBusinessFolder,
+  newWorkspaceFolder,
   scopeToWorkspace,
   suggestWorkspaceId,
+  uniqueWorkspaceId,
   workspaceFolderName,
   workspaceScopeInput,
   workspaceForProject,
@@ -156,11 +157,20 @@ describe("homeRepository", () => {
   });
 });
 
-describe("newBusinessFolder", () => {
-  it("puts the business beside the managed projects folder, with the folder's own slashes", () => {
-    expect(newBusinessFolder(String.raw`C:\Users\J\.t3\userdata\projects`, "Acme Studio")).toBe(
-      String.raw`C:\Users\J\.t3\userdata\businesses\acme-studio`,
+describe("newWorkspaceFolder", () => {
+  it("puts a new workspace beside the managed projects folder, with the folder's own slashes", () => {
+    expect(
+      newWorkspaceFolder(String.raw`D:\data\.t3\userdata\projects`, "businesses", "acme-studio"),
+    ).toBe(String.raw`D:\data\.t3\userdata\businesses\acme-studio`);
+    expect(newWorkspaceFolder("/home/j/.t3/projects/", "workspaces", "trading")).toBe(
+      "/home/j/.t3/workspaces/trading",
     );
-    expect(newBusinessFolder("/home/j/.t3/projects/", "Acme")).toBe("/home/j/.t3/businesses/acme");
+  });
+});
+
+describe("uniqueWorkspaceId", () => {
+  it("adds the first free number when another workspace uses the id", () => {
+    expect(uniqueWorkspaceId("Trading", [])).toBe("trading");
+    expect(uniqueWorkspaceId("Trading", ["trading", "trading-2"])).toBe("trading-3");
   });
 });

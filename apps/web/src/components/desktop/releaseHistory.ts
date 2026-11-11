@@ -7,6 +7,8 @@ export interface ReleaseHistoryMeta {
   readonly authors?: ReadonlyArray<string>;
   readonly coAuthors?: ReadonlyArray<string>;
   readonly authorCommits?: Readonly<Record<string, number>>;
+  /** Newest version, up to this release, that users should hear about. */
+  readonly notableSince?: string;
 }
 
 export interface ReleaseHistoryEntry {

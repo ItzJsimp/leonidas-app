@@ -2,8 +2,44 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   HIDDEN_BROWSER_WEBVIEW_OFFSET,
+  isBrowserWebviewRendering,
   resolveHostedBrowserWebviewWrapperStyle,
 } from "./hostedBrowserWebviewStyle";
+
+describe("isBrowserWebviewRendering", () => {
+  const idle = {
+    active: false,
+    backgroundActivity: false,
+    pictureInPicture: false,
+    recordingActive: false,
+    agentDriven: false,
+  };
+
+  it("parks a tab that nothing shows, records or drives", () => {
+    expect(isBrowserWebviewRendering(idle)).toBe(false);
+  });
+
+  it("keeps an agent-owned tab painting while the panel shows another tab", () => {
+    expect(isBrowserWebviewRendering({ ...idle, agentDriven: true })).toBe(true);
+  });
+
+  it("keeps painting for each existing reason", () => {
+    for (const reason of ["active", "backgroundActivity", "pictureInPicture", "recordingActive"]) {
+      expect(isBrowserWebviewRendering({ ...idle, [reason]: true })).toBe(true);
+    }
+  });
+
+  it("puts an agent-owned tab inside the window instead of the parking offset", () => {
+    const style = resolveHostedBrowserWebviewWrapperStyle({
+      active: false,
+      renderingActive: isBrowserWebviewRendering({ ...idle, agentDriven: true }),
+      rect: null,
+      hiddenSize: { width: 1280, height: 800 },
+    });
+    expect(style.left).toBe(0);
+    expect(style.visibility).toBe("visible");
+  });
+});
 
 describe("resolveHostedBrowserWebviewWrapperStyle", () => {
   it("places an active webview on its presented surface", () => {

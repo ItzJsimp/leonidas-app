@@ -243,7 +243,11 @@ interface MessagesTimelineProps {
     readonly scopeId: string;
   }) => void;
   supportsConversationRollback: boolean;
-  onRevertToTurnCount: (targetTurnCount: number, messageId: MessageId) => void;
+  onRevertToTurnCount: (
+    targetTurnCount: number,
+    messageId: MessageId,
+    restoreFiles?: boolean,
+  ) => void;
   onUseArtifactTemplate?: (template: CodexArtifactTemplate) => void;
   onDockReply?: (text: string) => void;
   onSendAppMessage?: (text: string) => Promise<void>;
@@ -660,6 +664,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     readonly workspaceRoot: string | undefined;
     readonly projection: MessagesTimelineRowsProjection;
   } | null>(null);
+  const showStepUpdates = useClientSettings((settings) => settings.showStepUpdates);
   const rawRows = useMemo(() => {
     const previous = rowsProjectionRef.current;
     const projection = deriveMessagesTimelineRowsWithState(
@@ -676,6 +681,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
         turnDiffSummaries,
         supportsConversationRollback,
         worktreeSetup,
+        showStepUpdates,
       },
       previous?.threadKey === listIdentityKey && previous.workspaceRoot === workspaceRoot
         ? previous.projection
@@ -699,6 +705,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     turnDiffSummaries,
     supportsConversationRollback,
     worktreeSetup,
+    showStepUpdates,
   ]);
   const rows = useStableRows(rawRows, listIdentityKey);
 

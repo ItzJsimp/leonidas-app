@@ -2,7 +2,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   classifyRelease,
   coAuthorNames,
+  isNotableRelease,
   nextReleaseVersion,
+  previousNotableSince,
   previousRelease,
   releaseMetaComment,
   releaseNotes,
@@ -200,5 +202,41 @@ describe("Leonidas release policy", () => {
     expect(previousRelease(releases, true)?.tag_name).toBe("v0.5.8");
     expect(previousRelease(releases, false)?.tag_name).toBe("v1.0.16");
     expect(previousRelease([], true)).toBeUndefined();
+  });
+
+  it("marks a release notable for a story, a minor bump or an explicit tag, never for a small patch", () => {
+    const patch = { subject: "fix: counter", body: "Release-Note: Fixed the counter." };
+    expect(isNotableRelease([patch], "patch")).toBe(false);
+    expect(isNotableRelease([patch], "minor")).toBe(true);
+    expect(
+      isNotableRelease([{ subject: "feat: x", body: "Release-Post: release-posts/x.md" }], "patch"),
+    ).toBe(true);
+    expect(
+      isNotableRelease(
+        [{ subject: "fix: x", body: "Release-Notable: Sign-in needs a restart." }],
+        "patch",
+      ),
+    ).toBe(true);
+    expect(isNotableRelease([{ subject: "fix: x", body: "Release-Notable: none" }], "patch")).toBe(
+      false,
+    );
+  });
+
+  it("carries the newest notable version forward through small patches", () => {
+    const body = releaseNotes(
+      [{ subject: "fix: x", body: "Release-Note: Fixed x." }],
+      "0.125.1",
+      true,
+      "abc",
+      "",
+      "0.125.0",
+    );
+    expect(body).toContain('"notableSince":"0.125.0"');
+    expect(previousNotableSince(body)).toBe("0.125.0");
+    expect(previousNotableSince("no metadata here")).toBeUndefined();
+    expect(
+      previousNotableSince('<!-- leonidas-release {"notableSince":"nope"} -->'),
+    ).toBeUndefined();
+    expect(previousNotableSince(null)).toBeUndefined();
   });
 });

@@ -6,7 +6,7 @@ import { sendUsageEvent } from "../../lib/usageAnalytics/sendUsageEvent";
 import { useUsageAnalyticsStore } from "../../lib/usageAnalytics/usageAnalyticsStore";
 import { daysSince, featureIdFromPathname } from "../../lib/usageAnalytics/usageEvents";
 import { APP_VERSION } from "../../branding";
-import { usePrimaryEnvironment, usePrimaryEnvironmentId } from "../../state/environments";
+import { useEnvironmentProviders, usePrimaryEnvironmentId } from "../../state/environments";
 import { useEnvironmentQuery } from "../../state/query";
 import { aiosUsageShapeQuery } from "../../state/taskBoard";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
@@ -36,8 +36,9 @@ export function UsageAnalyticsCoordinator() {
   ).data;
   const aiosShapeSent = useRef(false);
   const providersSent = useRef(false);
-  const connectedDrivers = usePrimaryEnvironment()
-    ?.serverConfig?.providers.filter((provider) => provider.enabled && provider.installed)
+  const providersByEnvironment = useEnvironmentProviders();
+  const connectedDrivers = (environmentId ? providersByEnvironment.get(environmentId) : undefined)
+    ?.filter((provider) => provider.enabled && provider.installed)
     .map((provider) => String(provider.driver));
 
   // providers_connected: driver kinds from a fixed list, once per launch.

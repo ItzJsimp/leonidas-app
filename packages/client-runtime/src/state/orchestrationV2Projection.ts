@@ -1,3 +1,4 @@
+import { applyThreadPullRequestLinkUpdate } from "@t3tools/shared/threadPullRequests";
 import type {
   OrchestrationV2DomainEvent,
   OrchestrationV2Run,
@@ -141,7 +142,6 @@ function shouldDropMissingPartialTurnItem(
   ) {
     return false;
   }
-  // Later items of a run already in the window can raise the watermark first.
   if (
     projection.visibleTurnItems.some(
       (row) =>
@@ -188,7 +188,10 @@ export function upsertVisibleTurnItem(
   latestLocalTurnOrdinal: number | null | undefined,
 ): OrchestrationV2ThreadProjection["visibleTurnItems"] {
   const rows = projection.visibleTurnItems;
-  const index = rows.findIndex((row) => row.sourceItemId === item.id);
+  // Streamed updates land on the newest rows. Item ids are unique, so the
+  // search can start there.
+  let index = rows.length - 1;
+  while (index >= 0 && rows[index]!.sourceItemId !== item.id) index -= 1;
   const previous = index === -1 ? undefined : rows[index]!;
   const previousLocal =
     previous?.visibility === "local" && previous.sourceThreadId === item.threadId
@@ -236,7 +239,6 @@ export function upsertVisibleTurnItem(
   return renumberVisibleItems(updated);
 }
 
-/** Applies one committed event to a matching thread projection. */
 export function applyOrchestrationV2ProjectionEvent(
   projection: OrchestrationV2ThreadProjection | null,
   event: OrchestrationV2DomainEvent,
@@ -248,6 +250,11 @@ export function applyOrchestrationV2ProjectionEvent(
   const latestLocalTurnOrdinal = options?.latestLocalTurnOrdinal;
   const base = { ...projection, updatedAt: event.occurredAt };
   switch (event.type) {
+    case "thread.pull-request-link-updated":
+      return {
+        ...base,
+        thread: applyThreadPullRequestLinkUpdate(projection.thread, event.payload),
+      };
     case "thread.created":
     case "thread.archived":
     case "thread.unarchived":

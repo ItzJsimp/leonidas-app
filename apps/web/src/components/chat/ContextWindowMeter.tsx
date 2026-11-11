@@ -8,6 +8,7 @@ import {
   formatContextWindowCost,
 } from "./ContextWindowMeter.logic";
 import { Minimize2Icon } from "lucide-react";
+import { cn } from "~/lib/utils";
 import { formatTpsLabel } from "./AgentVelocityMeter.logic";
 import { composerFloatingLayerProps } from "./composerEventScope";
 import { CacheSection, OverheadRows, SpeedSection, type ThreadTarget } from "./AgentVelocityMeter";
@@ -29,10 +30,53 @@ function formatPercentage(value: number | null): string | null {
   return `${Math.round(value)}%`;
 }
 
+const RING_RADIUS = 9.75;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+/** The context ring: blue while normal, amber near the limit, red at it. */
+export function ContextRing({
+  usedPercentage,
+  className,
+}: {
+  usedPercentage: number | null;
+  className?: string;
+}) {
+  const percent = Math.max(0, Math.min(100, usedPercentage ?? 0));
+  return (
+    <span className={cn("relative flex size-4 shrink-0 items-center justify-center", className)}>
+      <svg
+        viewBox="0 0 24 24"
+        className="-rotate-90 absolute inset-0 size-full transform-gpu mx-0!"
+        aria-hidden="true"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r={RING_RADIUS}
+          fill="none"
+          className="stroke-muted-foreground/24"
+          strokeWidth="3"
+        />
+        <circle
+          cx="12"
+          cy="12"
+          r={RING_RADIUS}
+          fill="none"
+          stroke={SEVERITY_COLOR[usageSeverity(percent)]}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={RING_CIRCUMFERENCE}
+          strokeDashoffset={RING_CIRCUMFERENCE * (1 - percent / 100)}
+          className="transition-[stroke-dashoffset,stroke] duration-500 ease-out motion-reduce:transition-none"
+        />
+      </svg>
+    </span>
+  );
+}
+
 /**
  * The composer's one usage control, beside Send: a context ring with the tokens in context.
- * Hover or focus shows context, prompt cache and speed in one card. It never changes the
- * top-left overlay; only the top-right "memory and accounts" button does that.
+ * Hover or focus shows context, prompt cache and speed in one card.
  */
 export function ContextWindowMeter(props: {
   usage: ContextWindowSnapshot | null;
@@ -65,12 +109,9 @@ export function ContextWindowMeter(props: {
     );
   const usedPercentage = formatPercentage(usage?.usedPercentage ?? null);
   const normalizedPercentage = Math.max(0, Math.min(100, usage?.usedPercentage ?? 0));
-  const radius = 9.75;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - normalizedPercentage / 100);
+  const usageColor = SEVERITY_COLOR[usageSeverity(normalizedPercentage)];
   const totalProcessedTokens = usage?.totalProcessedTokens ?? null;
   const showTotalProcessed = totalProcessedTokens !== null && totalProcessedTokens > 0;
-  const usageColor = SEVERITY_COLOR[usageSeverity(normalizedPercentage)];
 
   return (
     <>
@@ -92,34 +133,7 @@ export function ContextWindowMeter(props: {
                     : `Chat memory: ${formatContextWindowTokens(usage.usedTokens)} tokens used`
               }${velocity?.modelStreamTps != null || velocity?.averageTurnTps != null ? `, last reply ${formatTpsLabel(velocity.modelStreamTps ?? velocity.averageTurnTps)}` : ""}. Show usage details`}
             >
-              <span className="relative flex size-4 items-center justify-center">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="-rotate-90 absolute inset-0 size-full transform-gpu mx-0!"
-                  aria-hidden="true"
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r={radius}
-                    fill="none"
-                    className="stroke-muted-foreground/24"
-                    strokeWidth="3"
-                  />
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r={radius}
-                    fill="none"
-                    stroke={usageColor}
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={dashOffset}
-                    className="transition-[stroke-dashoffset,stroke] duration-500 ease-out motion-reduce:transition-none"
-                  />
-                </svg>
-              </span>
+              <ContextRing usedPercentage={usage?.usedPercentage ?? null} />
               <span className="text-2xs tabular-nums" aria-hidden>
                 {usage === null ? "--" : formatContextWindowTokens(usage.usedTokens)}
               </span>

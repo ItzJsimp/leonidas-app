@@ -3,8 +3,7 @@ import * as NodePath from "node:path";
 import { assert, it } from "@effect/vitest";
 import { PNG } from "pngjs";
 
-import showcaseConfig, {
-  DEFAULT_SHOWCASE_THEME,
+import {
   resolveShowcaseAndroidAbi,
   SHOWCASE_THEMES,
   type ShowcaseConfig,
@@ -112,8 +111,6 @@ it("parses repeatable and expanded theme filters", () => {
   );
 });
 
-// The app normalizes an unknown id back to its default palette, so a typo here
-// would otherwise produce screenshots labeled with a theme they do not show.
 it("rejects unsupported themes instead of capturing the default palette", () => {
   assert.throws(() => parseShowcaseCliArgs(["--theme", "sunset"]), /Unsupported theme 'sunset'/u);
 });
@@ -181,8 +178,6 @@ it("expands both appearances into independent upload-ready directories", () => {
   );
 });
 
-// Every palette needs its own leaf folder: one directory holding several themes
-// would mix upload slots and break the per-store screenshot count limits.
 it("expands themes into independent upload-ready directories per appearance", () => {
   const options = parseShowcaseCliArgs([
     "--device",
@@ -294,7 +289,6 @@ it("configures every default device with an exact upload-ready store target", ()
     ],
   );
 });
-
 it("selects a reachable LAN IPv4 address", () => {
   assert.equal(
     selectLanIpv4Address([
@@ -333,8 +327,6 @@ it("seeds a playful multi-environment project spectrum", () => {
   }
   const primaryThread = SHOWCASE_THREADS.find((thread) => thread.id === "remote-command-center");
   assert.equal(primaryThread !== undefined && !("snoozeMinutes" in primaryThread), true);
-  // Every project contributes to both the active block and the settled tail,
-  // so each list scope screenshots with the same two-part structure.
   for (const project of SHOWCASE_PROJECTS) {
     const projectThreads = SHOWCASE_THREADS.filter((thread) => thread.projectId === project.id);
     assert.equal(

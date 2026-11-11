@@ -10,7 +10,6 @@ import {
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
-import { useCallback } from "react";
 
 import { readEnvironmentScope } from "./session";
 import { useAtomCommand } from "./use-atom-command";
@@ -27,29 +26,25 @@ const GUIDANCE_COMMANDS: Readonly<Record<string, GuidanceAction>> = {
 export const ORCHESTRATION_OPERATE_DENIED_MESSAGE =
   "This connection cannot change chats or projects.";
 
-/** Recheck the target grant for every step of a thread or project mutation. */
 export function useOrchestrationCommand<W extends { readonly environmentId: EnvironmentId }, A, E>(
   command: AtomCommand<W, A, E>,
   options?: string | AtomCommandOptions,
 ): (value: W) => Promise<AtomCommandResult<A, E | EnvironmentAuthorizationError>> {
   const run = useAtomCommand(command, options);
-  return useCallback(
-    async (value: W): Promise<AtomCommandResult<A, E | EnvironmentAuthorizationError>> => {
-      if (!readEnvironmentScope(value.environmentId, AuthOrchestrationOperateScope)) {
-        return AsyncResult.failure(
-          Cause.fail(
-            new EnvironmentAuthorizationError({
-              requiredScope: AuthOrchestrationOperateScope,
-              message: ORCHESTRATION_OPERATE_DENIED_MESSAGE,
-            }),
-          ),
-        );
-      }
-      const result = await run(value);
-      const action = GUIDANCE_COMMANDS[command.label];
-      if (result._tag === "Success" && action) emitGuidanceAction(value.environmentId, action);
-      return result;
-    },
-    [command.label, run],
-  );
+  return async (value: W): Promise<AtomCommandResult<A, E | EnvironmentAuthorizationError>> => {
+    if (!readEnvironmentScope(value.environmentId, AuthOrchestrationOperateScope)) {
+      return AsyncResult.failure(
+        Cause.fail(
+          new EnvironmentAuthorizationError({
+            requiredScope: AuthOrchestrationOperateScope,
+            message: ORCHESTRATION_OPERATE_DENIED_MESSAGE,
+          }),
+        ),
+      );
+    }
+    const result = await run(value);
+    const action = GUIDANCE_COMMANDS[command.label];
+    if (result._tag === "Success" && action) emitGuidanceAction(value.environmentId, action);
+    return result;
+  };
 }
