@@ -135,6 +135,7 @@ import {
   type PromptStashEntry,
 } from "../../promptStashStore";
 import { ComposerPlusMenu } from "./ComposerPlusMenu";
+import { ComposerReplyStyleControl } from "./ComposerReplyStyleControl";
 import { useAutoPickSkills } from "./useAutoPickSkills";
 import { useComposerSubagents } from "../subagents/useComposerSubagents";
 import { searchSubagentOptions } from "../subagents/subagentThread.logic";
@@ -687,6 +688,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     activeThreadId,
     activeThreadEnvironmentId: _activeThreadEnvironmentId,
     activeThread,
+    activeThreadShell,
     promptHistoryMessages,
     isServerThread: _isServerThread,
     isLocalDraftThread: _isLocalDraftThread,
@@ -769,6 +771,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const {
     restingControlsHost,
     restingControlsHaveLeadingContext,
+    settingsControlsHost,
     onRestingControlsVisibilityChange,
     getTimelineScrollableNode,
     isTimelineAtLogicalEnd,
@@ -4567,12 +4570,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     setIsComposerScrollCollapsed,
   ]);
 
-  const restingHiddenBlockCount = composerControlsCollapsed
-    ? restingControlsHiddenBlockCount
-    : expandedControlsLayout.hiddenBlockCount;
-  const iconOnlyBlockCount = composerControlsCollapsed
-    ? restingControlsIconOnlyBlockCount
-    : expandedControlsLayout.iconOnlyBlockCount;
+  // On the new chat screen the settings (permission, reply style) sit under the card, not in the bar.
+  const settingsHost = showProviderUnavailable ? null : settingsControlsHost;
+  const controlSize = composerControlsCollapsed || settingsHost ? "xs" : "sm";
+  const restingHiddenBlockCount = settingsHost
+    ? 0
+    : composerControlsCollapsed
+      ? restingControlsHiddenBlockCount
+      : expandedControlsLayout.hiddenBlockCount;
+  const iconOnlyBlockCount = settingsHost
+    ? 0
+    : composerControlsCollapsed
+      ? restingControlsIconOnlyBlockCount
+      : expandedControlsLayout.iconOnlyBlockCount;
   const restingBlockDefs = [
     {
       id: "mode",
@@ -4582,10 +4592,24 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           interactionMode={interactionMode}
           runtimeMode={compatibleRuntimeMode}
           runtimeModeOptions={compatibleRuntimeModeOptions}
-          size={composerControlsCollapsed ? "xs" : "sm"}
+          size={controlSize}
           hidden={composerControlsHidden || restingHiddenBlockCount > 0}
           onToggleInteractionMode={toggleInteractionMode}
           onRuntimeModeChange={handleRuntimeModeChange}
+        />
+      ),
+    },
+    {
+      // Last, so it is the first to hide when the bar runs out of room.
+      id: "replyStyle",
+      content: (
+        <ComposerReplyStyleControl
+          threadRef={routeThreadRef}
+          serverValue={activeThreadShell?.replyStyle}
+          environmentId={routeThreadRef.environmentId}
+          projectId={savedItemsProjectId}
+          cwd={gitCwd}
+          size="xs"
         />
       ),
     },
@@ -4720,50 +4744,54 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         }}
         onOpenProviderSetup={onOpenProviderSetup}
       />
-      <>
-        {restingBlockDefs.map((def, index) => {
-          const hidden = index >= restingBlockDefs.length - restingHiddenBlockCount;
-          return (
-            <div
-              key={def.id}
-              data-resting-block={def.id}
-              data-composer-block-icon-only={
-                index >= restingBlockDefs.length - iconOnlyBlockCount ? "true" : "false"
+      {settingsHost ? null : (
+        <>
+          {restingBlockDefs.map((def, index) => {
+            const hidden = index >= restingBlockDefs.length - restingHiddenBlockCount;
+            return (
+              <div
+                key={def.id}
+                data-resting-block={def.id}
+                data-composer-block-icon-only={
+                  index >= restingBlockDefs.length - iconOnlyBlockCount ? "true" : "false"
+                }
+                aria-hidden={hidden || undefined}
+                inert={hidden || undefined}
+                className={cn(
+                  "flex w-max min-w-max shrink-0 items-center gap-1",
+                  hidden && "pointer-events-none invisible absolute",
+                  index >= restingBlockDefs.length - iconOnlyBlockCount &&
+                    "[&_[data-composer-control-label]]:pointer-events-none [&_[data-composer-control-label]]:invisible [&_[data-composer-control-label]]:absolute [&_[data-composer-control-label]]:w-max [&_[data-composer-control-label]]:max-w-none [&_[data-composer-control-compact-icon]]:[visibility:inherit] [&_[data-composer-control-compact-icon]]:relative",
+                )}
+              >
+                {def.content}
+              </div>
+            );
+          })}
+          <div
+            data-resting-controls-overflow
+            aria-hidden={hiddenRestingBlockIds.length === 0 || undefined}
+            inert={hiddenRestingBlockIds.length === 0 || undefined}
+            className={cn(
+              "min-w-0 shrink-0",
+              hiddenRestingBlockIds.length === 0 && "pointer-events-none invisible absolute",
+            )}
+          >
+            <CompactComposerControlsMenu
+              interactionMode={interactionMode}
+              runtimeMode={compatibleRuntimeMode}
+              runtimeModeOptions={compatibleRuntimeModeOptions}
+              size={composerControlsCollapsed ? "xs" : "sm"}
+              hidden={composerControlsHidden || hiddenRestingBlockIds.length === 0}
+              showInteractionModeToggle={
+                planModeUiEnabled && hiddenRestingBlockIds.includes("mode")
               }
-              aria-hidden={hidden || undefined}
-              inert={hidden || undefined}
-              className={cn(
-                "flex w-max min-w-max shrink-0 items-center gap-1",
-                hidden && "pointer-events-none invisible absolute",
-                index >= restingBlockDefs.length - iconOnlyBlockCount &&
-                  "[&_[data-composer-control-label]]:pointer-events-none [&_[data-composer-control-label]]:invisible [&_[data-composer-control-label]]:absolute [&_[data-composer-control-label]]:w-max [&_[data-composer-control-label]]:max-w-none [&_[data-composer-control-compact-icon]]:[visibility:inherit] [&_[data-composer-control-compact-icon]]:relative",
-              )}
-            >
-              {def.content}
-            </div>
-          );
-        })}
-        <div
-          data-resting-controls-overflow
-          aria-hidden={hiddenRestingBlockIds.length === 0 || undefined}
-          inert={hiddenRestingBlockIds.length === 0 || undefined}
-          className={cn(
-            "min-w-0 shrink-0",
-            hiddenRestingBlockIds.length === 0 && "pointer-events-none invisible absolute",
-          )}
-        >
-          <CompactComposerControlsMenu
-            interactionMode={interactionMode}
-            runtimeMode={compatibleRuntimeMode}
-            runtimeModeOptions={compatibleRuntimeModeOptions}
-            size={composerControlsCollapsed ? "xs" : "sm"}
-            hidden={composerControlsHidden || hiddenRestingBlockIds.length === 0}
-            showInteractionModeToggle={planModeUiEnabled && hiddenRestingBlockIds.includes("mode")}
-            onToggleInteractionMode={toggleInteractionMode}
-            onRuntimeModeChange={handleRuntimeModeChange}
-          />
-        </div>
-      </>
+              onToggleInteractionMode={toggleInteractionMode}
+              onRuntimeModeChange={handleRuntimeModeChange}
+            />
+          </div>
+        </>
+      )}
     </>
   );
   const showTasksTab =
@@ -5886,6 +5914,26 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               {composerControls}
             </div>,
             restingControlsHost,
+          )
+        : null}
+      {settingsHost
+        ? createPortal(
+            <div
+              data-chat-composer-settings-controls="true"
+              className="flex min-w-0 items-center gap-1 font-normal text-muted-foreground/70 [&_button]:text-xs!"
+            >
+              {/* Reply style, then permission, as in the approved design. */}
+              {restingBlockDefs.toReversed().map((def) => (
+                <div
+                  key={def.id}
+                  data-settings-block={def.id}
+                  className="flex shrink-0 items-center"
+                >
+                  {def.content}
+                </div>
+              ))}
+            </div>,
+            settingsHost,
           )
         : null}
       {/* Cards live in their own full-width column; the button bar never shares a row with them. */}

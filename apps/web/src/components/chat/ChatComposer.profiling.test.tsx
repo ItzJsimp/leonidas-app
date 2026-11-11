@@ -101,6 +101,7 @@ describe("ChatComposer active conversation rendering profile", () => {
           layout={{
             restingControlsHost: null,
             restingControlsHaveLeadingContext: false,
+            settingsControlsHost: null,
             onRestingControlsVisibilityChange: () => {},
             getTimelineScrollableNode: () => null,
             isTimelineAtLogicalEnd: () => true,
@@ -186,6 +187,7 @@ describe("ChatComposer active conversation rendering profile", () => {
     const stableLayout: ComposerLayoutSlice = {
       restingControlsHost: null,
       restingControlsHaveLeadingContext: false,
+      settingsControlsHost: null,
       onRestingControlsVisibilityChange: () => {},
       getTimelineScrollableNode: () => null,
       isTimelineAtLogicalEnd: () => true,

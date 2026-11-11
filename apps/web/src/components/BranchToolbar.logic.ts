@@ -80,6 +80,18 @@ export function shouldShowComposerContextStrip(input: {
   );
 }
 
+/**
+ * Reply style and permission sit at the right end of the strip under the card on the new chat
+ * screen. Anywhere else, or when the strip is hidden, they stay in the composer bar so the user
+ * can always reach them.
+ */
+export function shouldHostSettingsInStrip(input: {
+  isDraftHeroState: boolean;
+  contextStripVisible: boolean;
+}): boolean {
+  return input.isDraftHeroState && input.contextStripVisible;
+}
+
 // Labels collapse to icons when the strip's content no longer fits. A small
 // hysteresis on the way back out keeps the boundary from flapping.
 const CONTEXT_STRIP_COMPACT_EXPAND_HYSTERESIS_PX = 16;
