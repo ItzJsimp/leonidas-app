@@ -16,7 +16,7 @@ import {
 const appFreeModels = DEFAULT_SUBAGENT_FREE_TIER_MODELS;
 
 describe("resolveSpawnTier", () => {
-  it("spawns Haiku 5.5 free and asks first for Opus and unknown models", () => {
+  it("decision 3: spawns Haiku 5.5 free and asks first for Opus and unknown models", () => {
     expect(
       resolveSpawnTier({ model: "claude-haiku-5-5", appFreeModels, aios: null }),
     ).toMatchObject({ tier: "free", source: "app" });
@@ -28,7 +28,7 @@ describe("resolveSpawnTier", () => {
     );
   });
 
-  it("lets the AIOS file override the app map in both directions", () => {
+  it("decision 3: lets the AIOS file override the app map in both directions", () => {
     const aios = parseModelTiers(
       JSON.stringify({
         free: ["claude-sonnet-5-5"],

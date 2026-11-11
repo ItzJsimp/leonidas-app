@@ -9,6 +9,9 @@ export const SubagentSpawnTier = Schema.Literals(["free", "confirm"]);
 export type SubagentSpawnTier = typeof SubagentSpawnTier.Type;
 
 /** The app's default free tier. Settings edits it; an AIOS model-tiers.json overrides it. */
+/** The daily cap on subagent run cost, in USD, for each account (ADR-0098). */
+export const DEFAULT_SUBAGENT_DAILY_CAP_USD = 2;
+
 export const DEFAULT_SUBAGENT_FREE_TIER_MODELS: ReadonlyArray<string> = [
   "claude-haiku-5-5",
   "gpt-6-luna",
