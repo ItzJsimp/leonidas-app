@@ -1386,6 +1386,38 @@ function deriveTimelineTurnFolds(
   });
 }
 
+/**
+ * Background wake-ups start new runs after one prompt, and each run would draw
+ * its own changed-files box. Keep one chip on the last reply of each prompt,
+ * listing every file that the runs changed (the latest change wins per path).
+ */
+function keepOneDiffSummaryPerPrompt(
+  entries: ReadonlyArray<TimelineEntry>,
+  byAssistantMessageId: Map<MessageId, TurnDiffSummary>,
+) {
+  let chain: Array<{ id: MessageId; summary: TurnDiffSummary }> = [];
+  const flush = () => {
+    const last = chain.at(-1);
+    if (last && chain.length > 1) {
+      const files = new Map<string, TurnDiffSummary["files"][number]>();
+      for (const { summary } of chain) {
+        for (const file of summary.files) files.set(file.path, file);
+      }
+      for (const { id } of chain.slice(0, -1)) byAssistantMessageId.delete(id);
+      byAssistantMessageId.set(last.id, { ...last.summary, files: [...files.values()] });
+    }
+    chain = [];
+  };
+  for (const entry of entries) {
+    if (entry.kind !== "message") continue;
+    if (entry.message.role === "user") flush();
+    const summary =
+      entry.message.role === "assistant" ? byAssistantMessageId.get(entry.message.id) : undefined;
+    if (summary) chain.push({ id: entry.message.id, summary });
+  }
+  flush();
+}
+
 export function deriveMessagesTimelineRows(input: {
   timelineEntries: ReadonlyArray<TimelineEntry>;
   latestRun?: TimelineLatestRun | null;
@@ -1414,6 +1446,7 @@ export function deriveMessagesTimelineRows(input: {
       turnDiffSummaryByAssistantMessageId.set(summary.assistantMessageId, summary);
     }
   }
+  keepOneDiffSummaryPerPrompt(timelineEntries, turnDiffSummaryByAssistantMessageId);
   const revertTurnCountByUserMessageId = input.supportsConversationRollback
     ? deriveRevertTurnCountByUserMessageId({
         timelineEntries: timelineEntries,

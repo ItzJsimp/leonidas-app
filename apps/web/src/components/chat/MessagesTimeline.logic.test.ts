@@ -1298,6 +1298,69 @@ describe("deriveMessagesTimelineRows", () => {
     expect(assistantRow?.assistantTurnDiffSummary).toBe(assistantTurnDiffSummary);
   });
 
+  it("keeps one merged changed-files summary on the last reply of a prompt", () => {
+    const message = (id: string, role: "user" | "assistant", second: number, runId: string) => ({
+      id: `${id}-entry`,
+      kind: "message" as const,
+      createdAt: `2026-01-01T00:00:${String(second).padStart(2, "0")}Z`,
+      message: {
+        id: id as never,
+        role,
+        text: id,
+        runId: runId as never,
+        ...(role === "user" ? { inputIntent: "turn_start" as const } : {}),
+        createdAt: `2026-01-01T00:00:${String(second).padStart(2, "0")}Z`,
+        updatedAt: `2026-01-01T00:00:${String(second).padStart(2, "0")}Z`,
+        streaming: false,
+      },
+    });
+    const summary = (assistantMessageId: string, files: Array<[string, number]>) => ({
+      runId: "turn-1" as never,
+      completedAt: "2026-01-01T00:00:30Z",
+      assistantMessageId: assistantMessageId as never,
+      checkpointTurnCount: 1,
+      checkpointRef: "checkpoint" as never,
+      status: "ready" as const,
+      files: files.map(([path, additions]) => ({
+        path,
+        kind: "modified" as const,
+        additions,
+        deletions: 0,
+      })),
+    });
+
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        message("user-1", "user", 0, "turn-1"),
+        message("assistant-1", "assistant", 5, "turn-1"),
+        message("assistant-2", "assistant", 10, "turn-2"),
+        message("user-2", "user", 15, "turn-3"),
+        message("assistant-3", "assistant", 20, "turn-3"),
+      ],
+      isWorking: false,
+      activeTurnStartedAt: null,
+      turnDiffSummaries: [
+        summary("assistant-1", [["a.ts", 1]]),
+        summary("assistant-2", [
+          ["a.ts", 5],
+          ["b.ts", 2],
+        ]),
+        summary("assistant-3", [["c.ts", 1]]),
+      ],
+      supportsConversationRollback: false,
+    });
+    const files = (id: string) => {
+      const row = rows.find((r) => r.kind === "message" && r.message.id === id);
+      return row?.kind === "message"
+        ? row.assistantTurnDiffSummary?.files.map((file) => `${file.path}:${file.additions}`)
+        : undefined;
+    };
+
+    expect(files("assistant-1")).toBeUndefined();
+    expect(files("assistant-2")).toEqual(["a.ts:5", "b.ts:2"]);
+    expect(files("assistant-3")).toEqual(["c.ts:1"]);
+  });
+
   it("folds the first assistant message and settled work before the terminal response", () => {
     const timelineEntries = [
       {
