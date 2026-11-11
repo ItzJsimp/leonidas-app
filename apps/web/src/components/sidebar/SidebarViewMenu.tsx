@@ -50,6 +50,7 @@ const GROUP_LABELS: Readonly<Record<SidebarView["groupBy"], string>> = {
   date: "By date",
   status: "By status",
   project: "By project",
+  account: "By account",
   classic: "Manual",
 };
 
