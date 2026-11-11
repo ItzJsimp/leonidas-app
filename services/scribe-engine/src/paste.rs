@@ -200,7 +200,7 @@ mod win {
                     wScan: 0,
                     dwFlags: if up { KEYEVENTF_KEYUP } else { 0 },
                     time: 0,
-                    dwExtraInfo: 0,
+                    dwExtraInfo: crate::hotkeys::SCRIBE_INPUT_TAG,
                 },
             },
         }

@@ -4,7 +4,7 @@
 //! The always-on Scribe engine process. Leonidas supervises it over the contract.
 //!
 //! Flags: `--config <path>` (default `%APPDATA%\Leonidas\scribe-engine\config.json`),
-//! `--accept-injected` (the latency bench sends synthetic hotkeys),
+//! `--accept-injected` (kept for older latency bench versions),
 //! `--null-audio` (the CI bench has no microphone).
 
 use scribe_engine::audio::{CpalRecorder, NullRecorder};
@@ -39,7 +39,7 @@ fn run() -> Result<(), String> {
     let started = Instant::now();
     let mut args = std::env::args().skip(1);
     let mut config_path: Option<PathBuf> = None;
-    let mut accept_injected = false;
+    let mut accept_injected = hotkeys::ACCEPT_INJECTED_INPUT;
     let mut null_audio = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {

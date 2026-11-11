@@ -264,6 +264,18 @@ impl Matcher {
     }
 }
 
+/// Accept simulated keys from remote-control and accessibility tools.
+pub const ACCEPT_INJECTED_INPUT: bool = true;
+
+/// Marks keys Scribe sends itself, so they never trigger its shortcuts.
+#[cfg(windows)]
+pub(crate) const SCRIBE_INPUT_TAG: usize = 0x5343_5242;
+
+#[cfg(windows)]
+fn is_scribe_input(injected: bool, extra_info: usize) -> bool {
+    injected && extra_info == SCRIBE_INPUT_TAG
+}
+
 /// Owns the hook thread. Dropping the handle stops and joins it.
 pub struct HotkeyHandle {
     #[cfg(windows)]
@@ -377,6 +389,9 @@ mod platform {
         {
             // Windows supplies this structure for the duration of the callback.
             let event = unsafe { &*(data as *const KBDLLHOOKSTRUCT) };
+            if is_scribe_input(event.flags & LLKHF_INJECTED != 0, event.dwExtraInfo) {
+                return unsafe { CallNextHookEx(null_mut(), code, message, data) };
+            }
             if dispatch(
                 Input::Key(event.vkCode as u16),
                 matches!(message as u32, WM_KEYDOWN | WM_SYSKEYDOWN),
@@ -489,6 +504,7 @@ mod platform {
 
 #[cfg(test)]
 mod tests {
+    mod injected;
     use super::*;
 
     #[test]
@@ -687,55 +703,6 @@ mod tests {
         assert_eq!(m.feed(escape, true, false, at, true), (None, true));
         assert_eq!(m.feed(escape, false, false, at, false), (None, false));
         assert_eq!(m.feed(escape, true, false, at, false), (None, false));
-    }
-
-    #[test]
-    fn injected_events_do_not_change_state_or_consume_input() {
-        let at = Instant::now();
-        let mut m = matcher(&["Ctrl+T"], &["Mouse5"]);
-        assert_eq!(
-            m.feed(Input::Key(0xA2), true, true, at, false),
-            (None, false)
-        );
-        assert_eq!(key(&mut m, 0x54, true, at), (None, false));
-        key(&mut m, 0x54, false, at);
-        key(&mut m, 0xA2, true, at);
-        assert_eq!(
-            key(&mut m, 0x54, true, at),
-            (Some(HotkeyEvent::HoldDown(at)), true)
-        );
-        assert_eq!(
-            m.feed(Input::Key(0x54), false, true, at, false),
-            (None, false)
-        );
-        assert_eq!(
-            key(&mut m, 0x54, false, at),
-            (Some(HotkeyEvent::HoldUp(at)), true)
-        );
-        assert_eq!(
-            m.feed(Input::Mouse(MouseButton::Mouse5), true, true, at, false),
-            (None, false)
-        );
-        key(&mut m, 0xA2, false, at);
-        assert_eq!(
-            m.feed(Input::Mouse(MouseButton::Mouse5), true, false, at, false),
-            (Some(HotkeyEvent::Toggle(at)), true)
-        );
-    }
-
-    #[test]
-    fn injected_input_can_be_enabled() {
-        let mut m = matcher(&[], &["F8"]);
-        m.accept_injected = true;
-        let at = Instant::now();
-        assert_eq!(
-            m.feed(Input::Key(0x77), true, true, at, false),
-            (Some(HotkeyEvent::Toggle(at)), true)
-        );
-        assert_eq!(
-            m.feed(Input::Key(0x77), false, true, at, false),
-            (None, true)
-        );
     }
 
     #[test]
