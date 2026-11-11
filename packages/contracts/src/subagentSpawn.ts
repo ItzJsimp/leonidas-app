@@ -148,6 +148,18 @@ export const SubagentSpecPatch = Schema.Struct({
   model: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   tools: Schema.optional(Schema.Array(TrimmedNonEmptyString)),
   context: Schema.optional(Schema.Array(TrimmedNonEmptyString)),
+  /** A library id such as `felt/researcher`. `null` removes the line. */
+  avatar: Schema.optional(Schema.NullOr(TrimmedNonEmptyString.check(Schema.isMaxLength(80)))),
+  /** The effort option the child runs at. `null` removes the line. */
+  effort: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+  /** Skill names that join the Context List. An empty list removes the line. */
+  skills: Schema.optional(Schema.Array(TrimmedNonEmptyString)),
+  /** `true` marks the orchestrator. `null` removes the line. */
+  canSpawn: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  /** A whole number of 1 or more. `null` removes the line. */
+  maxTurns: Schema.optional(Schema.NullOr(Schema.Number)),
+  /** The instructions: the text after the frontmatter. */
+  body: Schema.optional(Schema.String.check(Schema.isMaxLength(60_000))),
 });
 export type SubagentSpecPatch = typeof SubagentSpecPatch.Type;
 
@@ -174,5 +186,24 @@ export const SubagentCreateInput = Schema.Struct({
     Schema.Struct({ kind: Schema.Literal("aios") }),
     Schema.Struct({ kind: Schema.Literal("project"), projectName: TrimmedNonEmptyString }),
   ]),
+  /**
+   * What to do when `<name>.md` exists. `error` (the default) refuses, so the editor can reject a
+   * duplicate name. `number` writes the first free `<name>-N.md`, with N from 2, as Import does.
+   */
+  onNameTaken: Schema.optional(Schema.Literals(["error", "number"])),
 });
 export type SubagentCreateInput = typeof SubagentCreateInput.Type;
+
+export const SubagentDeleteInput = Schema.Struct({
+  ...studioWorkspace,
+  /** A `specPath` from the catalog. The server refuses any other file. */
+  specPath: TrimmedNonEmptyString,
+});
+export type SubagentDeleteInput = typeof SubagentDeleteInput.Type;
+
+export const SubagentDeleteResult = Schema.Struct({ specPath: Schema.String });
+export type SubagentDeleteResult = typeof SubagentDeleteResult.Type;
+
+/** Copies a listed agent into the AIOS folder as the first free `<name>-N.md`. */
+export const SubagentDuplicateInput = SubagentDeleteInput;
+export type SubagentDuplicateInput = typeof SubagentDuplicateInput.Type;

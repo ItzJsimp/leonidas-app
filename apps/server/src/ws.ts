@@ -17,7 +17,12 @@ import * as AreaSyncService from "./areaSync/AreaSyncService.ts";
 import { SpawnApprovals } from "./subagents/SpawnApprovals.ts";
 import { listSubagents, subagentSources } from "./subagents/subagentCatalog.ts";
 import { subagentWorkspaceProjects } from "./subagents/workspaceProjects.ts";
-import { createStudioSubagent, updateStudioSubagent } from "./subagents/subagentStudioWrites.ts";
+import {
+  createStudioSubagent,
+  deleteStudioSubagent,
+  duplicateStudioSubagent,
+  updateStudioSubagent,
+} from "./subagents/subagentStudioWrites.ts";
 import { appendDraft, feedStream } from "./events/eventsRpc.ts";
 import * as AutomationService from "./automations/AutomationService.ts";
 import * as MarketingRpc from "./marketing/marketingRpc.ts";
@@ -2981,6 +2986,28 @@ const layerWsRpc = (
             const scope = yield* studioWriteScope(input.workspaceId);
             return yield* Effect.try({
               try: () => createStudioSubagent(scope, input),
+              catch: (error) =>
+                new SubagentEditError({
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+            });
+          }),
+        [WS_METHODS.subagentsDelete]: (input) =>
+          Effect.gen(function* () {
+            const scope = yield* studioWriteScope(input.workspaceId);
+            return yield* Effect.try({
+              try: () => deleteStudioSubagent(scope, input),
+              catch: (error) =>
+                new SubagentEditError({
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+            });
+          }),
+        [WS_METHODS.subagentsDuplicate]: (input) =>
+          Effect.gen(function* () {
+            const scope = yield* studioWriteScope(input.workspaceId);
+            return yield* Effect.try({
+              try: () => duplicateStudioSubagent(scope, input),
               catch: (error) =>
                 new SubagentEditError({
                   message: error instanceof Error ? error.message : String(error),

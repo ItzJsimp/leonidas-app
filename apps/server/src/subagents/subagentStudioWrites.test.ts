@@ -5,7 +5,12 @@ import * as NodePath from "node:path";
 
 import { afterEach, describe, expect, it } from "@effect/vitest";
 
-import { createStudioSubagent, updateStudioSubagent } from "./subagentStudioWrites.ts";
+import {
+  createStudioSubagent,
+  deleteStudioSubagent,
+  duplicateStudioSubagent,
+  updateStudioSubagent,
+} from "./subagentStudioWrites.ts";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -72,5 +77,53 @@ describe("studio writes", () => {
         destination: { kind: "aios" },
       }),
     ).toThrow(/already exists/);
+  });
+});
+
+describe("studio duplicate and delete (S6)", () => {
+  it("duplicate adds exactly one new file in the AIOS folder and leaves the original", () => {
+    const { folder, scope } = makeAios();
+    const original = NodePath.join(folder, "explorer.md");
+    const before = NodeFs.readdirSync(folder).sort();
+    const copy = duplicateStudioSubagent(scope, { specPath: original });
+    const after = NodeFs.readdirSync(folder).sort();
+    expect(before).toEqual(["explorer.md"]);
+    expect(after).toEqual(["explorer-2.md", "explorer.md"]);
+    expect(copy.name).toBe("explorer-2");
+    expect(NodeFs.readFileSync(original, "utf8")).toBe(STARTER);
+  });
+
+  it("delete removes only that file, and the original stays", () => {
+    const { folder, scope } = makeAios();
+    const original = NodePath.join(folder, "explorer.md");
+    const copy = duplicateStudioSubagent(scope, { specPath: original });
+    deleteStudioSubagent(scope, { specPath: copy.specPath });
+    expect(NodeFs.existsSync(copy.specPath)).toBe(false);
+    expect(NodeFs.existsSync(original)).toBe(true);
+  });
+
+  it("refuses to delete or duplicate a file that the catalog does not list", () => {
+    const { aios, scope } = makeAios();
+    const stray = NodePath.join(aios, "notes.md");
+    NodeFs.writeFileSync(stray, "x");
+    expect(() => deleteStudioSubagent(scope, { specPath: stray })).toThrow(
+      /not in the Studio list/,
+    );
+    expect(() => duplicateStudioSubagent(scope, { specPath: stray })).toThrow(
+      /not in the Studio list/,
+    );
+    expect(NodeFs.existsSync(stray)).toBe(true);
+  });
+
+  it("create from a starter numbers the name when it is taken", () => {
+    const { folder, scope } = makeAios();
+    const entry = createStudioSubagent(scope, {
+      name: "explorer",
+      contents: STARTER,
+      destination: { kind: "aios" },
+      onNameTaken: "number",
+    });
+    expect(entry.name).toBe("explorer-2");
+    expect(NodeFs.existsSync(NodePath.join(folder, "explorer-2.md"))).toBe(true);
   });
 });
