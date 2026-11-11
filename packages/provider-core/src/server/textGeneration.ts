@@ -121,6 +121,11 @@ export interface ThreadAssessmentResult {
 
 /** Commit, change request, branch, and title generation backed by one provider instance. */
 export interface ProviderTextGeneration {
+  readonly improveImagePrompt?: (input: {
+    cwd: string;
+    prompt: string;
+    modelSelection: ModelSelection;
+  }) => Effect.Effect<{ prompt: string }, TextGenerationError>;
   readonly generateVoiceLogDraft?: (input: {
     cwd: string;
     texts: ReadonlyArray<string>;

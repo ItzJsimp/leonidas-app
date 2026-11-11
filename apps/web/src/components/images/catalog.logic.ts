@@ -25,8 +25,16 @@ export function formatBytes(bytes: number): string {
  */
 export function computeFit(
   modelVramBytes: number,
-  hardware: Pick<ImageHardwareFit, "vramBytes" | "ramBytes">,
+  hardware: Pick<ImageHardwareFit, "vramBytes" | "ramBytes" | "unifiedMemory">,
 ): { readonly fit: ImageModelFit; readonly reason: string } {
+  if (hardware.unifiedMemory)
+    return modelVramBytes <= hardware.ramBytes * 1.5
+      ? {
+          fit: "runs-slow",
+          reason:
+            "Apple Silicon support is Beta. This model uses shared memory. Performance is not verified.",
+        }
+      : { fit: "too-big", reason: "This model exceeds the shared memory estimate for this Mac." };
   const need = formatBytes(modelVramBytes);
   const card = formatBytes(hardware.vramBytes);
   if (modelVramBytes <= hardware.vramBytes) {

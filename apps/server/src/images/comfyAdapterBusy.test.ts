@@ -74,10 +74,10 @@ describe("cold or busy ComfyUI", () => {
     expect(fake.counts.get("/history/p1")).toBe(3);
   });
 
-  it("retries a refused /prompt but never repeats a timed out /prompt", async () => {
+  it("never repeats a submission after a connection failure or timeout", async () => {
     const refusedOnce = scriptedComfy({ "/prompt": ["refused", "ok"] });
-    await expect(refusedOnce.adapter.generate(request)).resolves.toBeTruthy();
-    expect(refusedOnce.counts.get("/prompt")).toBe(2);
+    await expect(refusedOnce.adapter.generate(request)).rejects.toThrow("Cannot reach ComfyUI");
+    expect(refusedOnce.counts.get("/prompt")).toBe(1);
 
     const timedOut = scriptedComfy({ "/prompt": ["timeout"] });
     await expect(timedOut.adapter.generate(request)).rejects.toThrow(

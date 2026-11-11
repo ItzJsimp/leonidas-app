@@ -25,6 +25,12 @@ const GB = 1024 ** 3;
 const pc = (vram: number, ram = 32) => ({ vramBytes: vram * GB, ramBytes: ram * GB });
 
 describe("computeFit", () => {
+  it("labels shared memory as an unverified Mac Beta estimate", () => {
+    const hardware = { ...pc(0, 8), unifiedMemory: true };
+    expect(computeFit(10 * GB, hardware)).toMatchObject({ fit: "runs-slow" });
+    expect(computeFit(10 * GB, hardware).reason).toContain("Beta");
+    expect(computeFit(20 * GB, hardware).fit).toBe("too-big");
+  });
   it("runs well when the model fits on the card", () => {
     expect(computeFit(10 * GB, pc(12)).fit).toBe("runs-well");
   });

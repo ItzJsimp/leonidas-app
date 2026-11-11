@@ -1,5 +1,5 @@
 import { FlaskConicalIcon } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { Badge } from "../ui/badge";
@@ -12,16 +12,26 @@ import { Switch } from "../ui/switch";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { WindowHeader } from "../twoState/WindowHeader";
 import { ASPECTS, SIZES, dimensionsFor } from "./catalog.logic";
-import { CreateView } from "./CreateView";
+import { WorkbenchView } from "./WorkbenchView";
 import { GalleryView } from "./GalleryView";
 import { ImagesQueueBar } from "./ImagesQueueBar";
 import { describeQueue, sourcePhase } from "./images.logic";
-import type { GalleryItem } from "./images.mock";
+import type { GalleryItem } from "./imageTypes";
 import { ModelsView } from "./ModelsView";
 import { AddressField, SetupCard } from "./SetupCard";
 import { useCreateMemory, type CreateMemory, type ImagesView } from "./useCreateMemory";
 import { useImagesCatalog, type ImagesApi, type PreviewSettings } from "./useImagesCatalog";
 import { useImagesLive } from "./useImagesLive";
+import { ImagesStorageControls } from "./ImagesStorageControls";
+import {
+  AlertDialog,
+  AlertDialogPopup,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogClose,
+} from "../ui/alert-dialog";
 
 /** Finds the aspect and size presets that give these pixels. Null when no preset matches. */
 function presetsFor(width: number, height: number): Pick<CreateMemory, "aspect" | "size"> | null {
@@ -96,7 +106,7 @@ const BADGE = {
 
 function ConnectionBadge(props: { readonly api: ImagesApi }) {
   const { source } = props.api;
-  const phase = sourcePhase(source);
+  const phase = props.api.setupState?.phase === "ready" ? "online" : sourcePhase(source);
   return (
     <Popover>
       <PopoverTrigger
@@ -108,7 +118,7 @@ function ConnectionBadge(props: { readonly api: ImagesApi }) {
         }
       >
         <Badge variant={BADGE[phase].variant} size="lg">
-          {BADGE[phase].text}
+          {props.api.setupState?.phase === "ready" ? "Ready on this computer" : BADGE[phase].text}
         </Badge>
       </PopoverTrigger>
       <PopoverPopup className="w-80">
@@ -124,24 +134,24 @@ function ConnectionBadge(props: { readonly api: ImagesApi }) {
 
 const VIEWS: ReadonlyArray<{ id: ImagesView; label: string }> = [
   { id: "create", label: "Create" },
+  { id: "gallery", label: "Library" },
   { id: "models", label: "Models" },
-  { id: "gallery", label: "Gallery" },
 ];
 
 /** Make pictures with models on this computer, compare models and keep the best results. */
-function ImagesPageBody() {
-  const sampleApi = useImagesCatalog();
-  const liveApi = useImagesLive();
-  const sample = sampleApi.preview.sample;
-  const api: ImagesApi = sample ? sampleApi : liveApi;
+function ImagesPageBody({
+  api,
+  previewControls,
+}: {
+  readonly api: ImagesApi;
+  readonly previewControls?: ReactNode;
+}) {
+  const sample = api.mode === "sample";
   const [memory, patch] = useCreateMemory();
+  const [deleteCandidate, setDeleteCandidate] = useState<GalleryItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { items, catalog } = api;
   const queue = useMemo(() => describeQueue(items), [items]);
-  const latestJob = items[0]?.jobId ?? null;
-  const latest = useMemo(
-    () => (latestJob ? items.filter((item) => item.jobId === latestJob) : []),
-    [items, latestJob],
-  );
   const doneCount = useMemo(() => items.filter((item) => item.status === "done").length, [items]);
 
   const reuse = useCallback(
@@ -175,7 +185,7 @@ function ImagesPageBody() {
     imageUrl: api.imageUrl,
     onKeep: api.keep,
     onRetry: api.retry,
-    onRemove: api.remove ?? undefined,
+    onRemove: api.remove ? setDeleteCandidate : undefined,
     onReuse: reuse,
     onLockSeed: lockSeed,
   };
@@ -188,19 +198,63 @@ function ImagesPageBody() {
 
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
+      <AlertDialog
+        open={deleteCandidate !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteCandidate(null);
+        }}
+      >
+        <AlertDialogPopup>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this image?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the image and its Recipe from the project.
+              {deleteCandidate?.kept ? " It also removes the kept copy." : ""} You cannot undo this
+              action.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogClose render={<Button variant="outline" disabled={deleting} />}>
+              Cancel
+            </AlertDialogClose>
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => {
+                if (!deleteCandidate || !api.remove) return;
+                setDeleting(true);
+                void Promise.resolve(api.remove(deleteCandidate))
+                  .then((result) => {
+                    if (result !== false) setDeleteCandidate(null);
+                  })
+                  .finally(() => setDeleting(false));
+              }}
+            >
+              {deleting ? "Deleting" : "Delete image"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogPopup>
+      </AlertDialog>
       <WindowHeader
         title="Images"
         actions={
           <>
+            <Badge variant="outline" size="lg">
+              Beta
+            </Badge>
             {sample ? (
               <Badge variant="outline" size="lg">
                 Sample data
               </Badge>
             ) : null}
             <ConnectionBadge api={api} />
-            {import.meta.env.DEV ? (
-              <PreviewMenu preview={sampleApi.preview} onChange={sampleApi.patchPreview} />
+            {api.setupState?.phase === "downloading" || api.setupState?.phase === "extracting" ? (
+              <Button size="sm" variant="outline" onClick={() => void api.cancel(true)}>
+                Cancel setup
+              </Button>
             ) : null}
+            {memory.view === "gallery" ? <ImagesStorageControls api={api} /> : null}
+            {previewControls}
           </>
         }
         tabs={tabs}
@@ -216,9 +270,6 @@ function ImagesPageBody() {
       >
         <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 p-4 sm:p-6">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <p className="min-w-0 flex-1 text-sm text-muted-foreground">
-              Make pictures on your own PC. Give many models the same prompt and compare them.
-            </p>
             {api.projects.length > 1 ? (
               <Select
                 value={api.projectId ?? ""}
@@ -241,7 +292,7 @@ function ImagesPageBody() {
             ) : null}
           </div>
 
-          {api.ready && sourcePhase(api.source) === "offline" ? (
+          {api.ready && !api.setupState && sourcePhase(api.source) === "offline" ? (
             <SetupCard
               source={api.source}
               checking={api.checking}
@@ -253,30 +304,7 @@ function ImagesPageBody() {
           <ImagesQueueBar queue={queue} clockSkew={api.clockSkew} onCancel={api.cancel} />
 
           {memory.view === "create" ? (
-            <div className="grid items-start gap-5 lg:grid-cols-[minmax(22rem,28rem)_minmax(0,1fr)]">
-              <CreateView
-                memory={memory}
-                onChange={patch}
-                catalog={catalog}
-                items={items}
-                online={api.source.online}
-                checking={sourcePhase(api.source) === "checking"}
-                canAdjust={api.canAdjust}
-                onGenerate={(request) => void api.generate(request)}
-                onOpenModels={() => patch({ view: "models" })}
-              />
-              <div className="flex min-w-0 flex-col gap-3">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold">Latest run</h2>
-                  {items.length > 0 ? (
-                    <Button size="sm" variant="ghost" onClick={() => patch({ view: "gallery" })}>
-                      Open Gallery
-                    </Button>
-                  ) : null}
-                </div>
-                <GalleryView items={latest} compact {...galleryActions} />
-              </div>
-            </div>
+            <WorkbenchView api={api} memory={memory} onChange={patch} />
           ) : memory.view === "models" ? (
             <ModelsView
               catalog={catalog}
@@ -301,6 +329,23 @@ function ImagesPageBody() {
   );
 }
 
+function LiveImagesPage() {
+  return <ImagesPageBody api={useImagesLive()} />;
+}
+
+function PreviewImagesPage() {
+  const sampleApi = useImagesCatalog();
+  const liveApi = useImagesLive();
+  return (
+    <ImagesPageBody
+      api={sampleApi.preview.sample ? sampleApi : liveApi}
+      previewControls={
+        <PreviewMenu preview={sampleApi.preview} onChange={sampleApi.patchPreview} />
+      }
+    />
+  );
+}
+
 /** Waits for the environment id first: picture addresses cannot be asked for without it. */
 export function ImagesPage() {
   const environmentId = usePrimaryEnvironmentId();
@@ -311,5 +356,5 @@ export function ImagesPage() {
       </SidebarInset>
     );
   }
-  return <ImagesPageBody />;
+  return import.meta.env.DEV ? <PreviewImagesPage /> : <LiveImagesPage />;
 }

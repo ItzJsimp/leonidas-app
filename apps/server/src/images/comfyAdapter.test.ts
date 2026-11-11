@@ -46,7 +46,8 @@ function fakeComfy(options: {
       );
     }
     if (url.pathname === "/free") return new Response(null, { status: 200 });
-    if (url.pathname === "/system_stats") return new Response("{}", { status: 200 });
+    if (url.pathname === "/system_stats")
+      return Response.json({ system: { comfyui_version: "0.42.1" }, devices: [] });
     return new Response("{}", { status: 200 });
   }) as typeof fetch;
   return { calls, fetchFake };
@@ -71,11 +72,169 @@ describe("normalizeBaseUrl", () => {
     expect(normalizeBaseUrl("file:///etc/passwd")).toBeNull();
     expect(normalizeBaseUrl("http://user:pw@host")).toBeNull();
     expect(normalizeBaseUrl("http://")).toBeNull();
+    expect(normalizeBaseUrl("https://remote.example:8188")).toBeNull();
+    expect(normalizeBaseUrl("http://192.168.1.10:8188")).toBeNull();
+    expect(normalizeBaseUrl("http://[::1]:8188")).toBe("http://[::1]:8188");
   });
 });
 
 describe("comfy adapter generate", () => {
   const request = { modelId: "flux2klein", prompt: "ghost", seed: 5 };
+  it("stops its job when cancellation arrives before the submission response", async () => {
+    const fake = fakeComfy({ history: [success], running: ["p1"] });
+    const controller = new AbortController();
+    const adapter = createComfyAdapter({
+      baseUrl: () => "http://localhost:8188",
+      fetch: (async (input, init) => {
+        const response = await fake.fetchFake(input, init);
+        if (new URL(String(input)).pathname === "/prompt") controller.abort();
+        return response;
+      }) as typeof fetch,
+    });
+    await expect(adapter.generate(request, { signal: controller.signal })).rejects.toBeInstanceOf(
+      ImageCancelledError,
+    );
+    expect(fake.calls.find((call) => call.path === "/interrupt")?.body).toEqual({
+      prompt_id: "p1",
+    });
+  });
+  it("composites a brush edit through the mask and retains the original alpha outside it", async () => {
+    const fake = fakeComfy({ history: [success] });
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGNgaGD4TxEeNWDUgFED/g8TAwDrCH8Qy9YD6gAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    let uploads = 0;
+    const adapter = createComfyAdapter({
+      baseUrl: () => "http://localhost:8188",
+      fetch: (async (input, init) => {
+        if (new URL(String(input)).pathname === "/upload/image")
+          return Response.json({ name: ++uploads === 1 ? "reference.png" : "mask.png" });
+        return fake.fetchFake(input, init);
+      }) as typeof fetch,
+    });
+    const result = await adapter.generate({ ...request, referenceImage: png, maskImage: png });
+    const body = fake.calls.find((call) => call.path === "/prompt")?.body as {
+      prompt: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+    };
+    expect(body.prompt["19"]?.inputs.image).toBe("mask.png");
+    expect(body.prompt["21"]?.class_type).toBe("ImageCompositeMasked");
+    expect(body.prompt["23"]?.inputs.destination).toEqual(["4", 1]);
+    expect(body.prompt["14"]?.inputs.images).toEqual(["24", 0]);
+    expect(result.settings.width).toBe(16);
+    expect(result.settings.height).toBe(16);
+  });
+  it("keeps a job-start event that arrives before the submit response", async () => {
+    const fake = fakeComfy({ history: [success] });
+    let receive: ((data: unknown) => void) | undefined;
+    const progress: number[][] = [];
+    const adapter = createComfyAdapter({
+      baseUrl: () => "http://localhost:8188",
+      progressSocket: () => ({
+        onMessage: (listener) => {
+          receive = listener;
+        },
+        close: () => {},
+      }),
+      fetch: (async (input, init) => {
+        if (new URL(String(input)).pathname === "/prompt")
+          receive?.(JSON.stringify({ type: "execution_start", data: { prompt_id: "p1" } }));
+        return fake.fetchFake(input, init);
+      }) as typeof fetch,
+    });
+    await adapter.generate(request, { onProgress: (value, max) => progress.push([value, max]) });
+    expect(progress).toEqual([[0, 4]]);
+  });
+  it("uploads an edit reference and conditions the sampler on it", async () => {
+    const fake = fakeComfy({ history: [success] });
+    let uploaded = false;
+    const adapter = createComfyAdapter({
+      baseUrl: () => "http://localhost:8188",
+      fetch: (async (input, init) => {
+        if (new URL(String(input)).pathname === "/upload/image") {
+          expect(init?.body).toBeInstanceOf(FormData);
+          uploaded = true;
+          return Response.json({ name: "reference.png" });
+        }
+        return fake.fetchFake(input, init);
+      }) as typeof fetch,
+    });
+    await adapter.generate({ ...request, referenceImage: new Uint8Array([1]) });
+    expect(uploaded).toBe(true);
+    const prompt = fake.calls.find((call) => call.path === "/prompt")?.body as {
+      prompt: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+    };
+    expect(prompt.prompt["4"]?.inputs.image).toBe("reference.png");
+    expect(prompt.prompt["16"]?.class_type).toBe("ReferenceLatent");
+    expect(prompt.prompt["8"]?.inputs.positive).toEqual(["16", 0]);
+  });
+  it("stops reading an oversized picture", async () => {
+    const fake = fakeComfy({ history: [success] });
+    let cancelled = false;
+    const adapter = createComfyAdapter({
+      baseUrl: () => "http://localhost:8188",
+      fetch: (async (input, init) => {
+        if (new URL(String(input)).pathname === "/view") {
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(new Uint8Array(32 * 1024 ** 2 + 1));
+              },
+              cancel() {
+                cancelled = true;
+              },
+            }),
+          );
+        }
+        return fake.fetchFake(input, init);
+      }) as typeof fetch,
+    });
+    await expect(adapter.generate(request)).rejects.toThrow("32 MB limit");
+    expect(cancelled).toBe(true);
+  });
+  it("reports only this job's step progress and closes the progress socket", async () => {
+    const fake = fakeComfy({ history: [{}, success] });
+    let receive: ((data: unknown) => void) | undefined;
+    let closed = false;
+    const progress: number[][] = [];
+    const adapter = createComfyAdapter({
+      baseUrl: () => "http://comfy.test",
+      fetch: fake.fetchFake,
+      progressSocket: () => ({
+        onMessage: (listener) => {
+          receive = listener;
+        },
+        close: () => {
+          closed = true;
+        },
+      }),
+      sleep: async () => {
+        receive?.(
+          JSON.stringify({ type: "progress", data: { prompt_id: "other", value: 1, max: 4 } }),
+        );
+        receive?.(
+          JSON.stringify({ type: "progress", data: { prompt_id: "p1", value: 2, max: 4 } }),
+        );
+      },
+    });
+    await adapter.generate(request, { onProgress: (step, total) => progress.push([step, total]) });
+    expect(progress).toEqual([[2, 4]]);
+    expect(closed).toBe(true);
+  });
+
+  it("uses the requested size and records it in the Recipe", async () => {
+    const fake = fakeComfy({ history: [success] });
+    const adapter = createComfyAdapter({
+      baseUrl: () => "http://comfy.test",
+      fetch: fake.fetchFake,
+    });
+    const result = await adapter.generate({ ...request, width: 768, height: 1024 });
+    const posted = fake.calls[0]!.body as {
+      prompt: Record<string, { inputs: Record<string, unknown> }>;
+    };
+    expect(posted.prompt["7"]!.inputs).toMatchObject({ width: 768, height: 1024 });
+    expect(result.settings).toMatchObject({ width: 768, height: 1024 });
+  });
 
   it("posts the prompt, polls the history, then reads the image with /view", async () => {
     const fake = fakeComfy({ history: [{}, {}, success] });
@@ -190,6 +349,13 @@ describe("comfy adapter generate", () => {
 });
 
 describe("comfy adapter control calls", () => {
+  it("does not treat another HTTP service as ComfyUI", async () => {
+    const adapter = createComfyAdapter({
+      baseUrl: () => "http://localhost:8188",
+      fetch: (async () => Response.json({})) as typeof fetch,
+    });
+    expect((await adapter.status()).online).toBe(false);
+  });
   it("checks the connection with /system_stats", async () => {
     const fake = fakeComfy({});
     const adapter = createComfyAdapter({

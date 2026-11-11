@@ -1491,6 +1491,7 @@ const layerWsRpc = (
           return yield* use(project.value);
         });
       const images = yield* ImageService.ImageService;
+      const imageTextGeneration = yield* TextGeneration.TextGeneration;
       const localModels = yield* LocalModelsService.LocalModelsService;
       const attachmentArchive = yield* AttachmentArchive.AttachmentArchive;
       const subagentRuns = yield* SubagentRuns.SubagentRuns;
@@ -3067,6 +3068,59 @@ const layerWsRpc = (
           ),
         [WS_METHODS.imagesGenerate]: (input) =>
           withImagesProject(input.projectId, (project) => images.generate(project, input)),
+        [WS_METHODS.imagesImportReference]: (input) =>
+          withImagesProject(input.projectId, (project) => images.importReference(project, input)),
+        [WS_METHODS.imagesDelete]: (input) =>
+          withImagesProject(input.projectId, (project) => images.remove(project, input)),
+        [WS_METHODS.imagesSetRetention]: (input) => images.setRetention(input),
+        [WS_METHODS.imagesImprovePrompt]: (input) =>
+          withImagesProject(input.projectId, () =>
+            Effect.gen(function* () {
+              const settings = yield* serverSettings.getSettings.pipe(
+                Effect.mapError(
+                  () =>
+                    new ImagesError({
+                      reason: "invalid_input",
+                      detail: "Could not read the selected AI account.",
+                    }),
+                ),
+              );
+              const fileSystem = yield* FileSystem.FileSystem;
+              const cwd = yield* fileSystem
+                .makeTempDirectoryScoped({ prefix: "leonidas-image-prompt-" })
+                .pipe(
+                  Effect.mapError(
+                    () =>
+                      new ImagesError({
+                        reason: "storage",
+                        detail: "Could not prepare prompt improvement.",
+                      }),
+                  ),
+                );
+              if (!imageTextGeneration.improveImagePrompt)
+                return yield* new ImagesError({
+                  reason: "invalid_input",
+                  detail: "Choose an AI account in Settings to improve prompts.",
+                });
+              return yield* imageTextGeneration
+                .improveImagePrompt({
+                  cwd,
+                  prompt: input.prompt,
+                  modelSelection: settings.textGenerationModelSelection,
+                })
+                .pipe(
+                  Effect.timeout("60 seconds"),
+                  Effect.mapError(
+                    () =>
+                      new ImagesError({
+                        reason: "invalid_input",
+                        detail:
+                          "Could not improve the prompt. Check your AI account in Settings and try again.",
+                      }),
+                  ),
+                );
+            }).pipe(Effect.scoped),
+          ),
         [WS_METHODS.imagesCancel]: (input) => images.cancel(input),
         [WS_METHODS.imagesKeep]: (input) =>
           withImagesProject(input.projectId, (project) => images.keep(project, input)),

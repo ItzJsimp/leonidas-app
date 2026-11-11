@@ -13,6 +13,7 @@ export async function installImageModel(input: {
   readonly existingFolders: readonly string[];
   readonly signal?: AbortSignal;
   readonly onProgress?: (received: number, total: number) => void;
+  readonly reserveBytes?: number;
 }) {
   const assets = IMAGE_MODEL_ASSETS[input.modelId];
   if (!assets) throw new Error("This model has no verified download yet.");
@@ -67,7 +68,7 @@ export async function installImageModel(input: {
     needed += asset.size - partialSize;
   }
   const disk = await NodeFSP.statfs(input.folder);
-  if (disk.bavail * disk.bsize < needed) {
+  if (disk.bavail * disk.bsize < needed + (input.reserveBytes ?? 0)) {
     throw new Error("There is not enough free space for this model. Choose another drive.");
   }
   for (const { asset, reused } of plan) {
@@ -101,6 +102,8 @@ export async function writeImageModelPaths(file: string, folders: readonly strin
         diffusion_models: "diffusion_models",
         text_encoders: "text_encoders",
         vae: "vae",
+        checkpoints: "checkpoints",
+        background_removal: "background_removal",
       },
     ]),
   );

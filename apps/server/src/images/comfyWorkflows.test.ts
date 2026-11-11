@@ -8,9 +8,16 @@ import {
   qwen21Workflow,
   qwenWorkflow,
   zimageWorkflow,
+  upscaleWorkflow,
 } from "./comfyWorkflows.ts";
 
-const input = { prompt: "a ghost slime", seed: 42, width: 1024, height: 1024 };
+const input = {
+  prompt: "a ghost slime",
+  seed: 42,
+  width: 1024,
+  height: 1024,
+  referenceImageName: "reference.png",
+};
 
 describe("flux2kleinWorkflow", () => {
   const graph = flux2kleinWorkflow(input);
@@ -114,6 +121,15 @@ describe("zimageWorkflow", () => {
 });
 
 describe("workflow table", () => {
+  it("restores the source alpha before resizing its pixels", () => {
+    const graph = upscaleWorkflow(input);
+    expect(graph["2"]).toEqual({
+      class_type: "JoinImageWithAlpha",
+      inputs: { image: ["1", 0], alpha: ["1", 1] },
+    });
+    expect(graph["3"]?.inputs.image).toEqual(["2", 0]);
+    expect(graph["4"]?.inputs.images).toEqual(["3", 0]);
+  });
   it("has a builder and Recipe settings for every model id", () => {
     for (const id of COMFY_MODEL_IDS) {
       expect(COMFY_WORKFLOWS[id](input)).toBeTruthy();

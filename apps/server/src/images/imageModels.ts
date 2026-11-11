@@ -11,6 +11,33 @@ import type { ComfyModelId } from "./comfyWorkflows.ts";
 
 export const COMFY_MODELS: ReadonlyArray<ImageModel & { readonly id: ComfyModelId }> = [
   {
+    id: "upscale",
+    sourceId: "comfyui",
+    label: "Upscale 2x",
+    sizeLabel: "No download",
+    typicalSeconds: 1,
+    licence: "Built-in image resizing",
+    commercialUse: "yes",
+  },
+  {
+    id: "hidream",
+    sourceId: "comfyui",
+    label: "HiDream O1 Dev",
+    sizeLabel: "8.1 GB",
+    typicalSeconds: 30,
+    licence: "Check the model licence before commercial use.",
+    commercialUse: "check",
+  },
+  {
+    id: "birefnet",
+    sourceId: "comfyui",
+    label: "Background removal",
+    sizeLabel: "444 MB",
+    typicalSeconds: 5,
+    licence: "MIT",
+    commercialUse: "yes",
+  },
+  {
     id: "flux2klein",
     sourceId: "comfyui",
     label: "FLUX.2 klein 4B",

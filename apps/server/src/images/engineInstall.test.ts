@@ -57,6 +57,8 @@ describe("installImageEngine", () => {
     };
     const first = await installImageEngine(input, deps);
     expect(first.args).toContain("--disable-all-custom-nodes");
+    expect(first.args).toContain("--disable-dynamic-vram");
+    expect(first.args).toContain("--reserve-vram");
     expect(first.args).toContain("127.0.0.1");
     expect(first.command).toContain("python.exe");
     expect(progress.at(-1)).toBe(engineDownloadBytes("win32"));

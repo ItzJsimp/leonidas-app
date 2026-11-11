@@ -15,6 +15,7 @@ import {
   type ComfyWorkflow,
 } from "./comfyWorkflows.ts";
 import { COMFY_MODELS } from "./imageModels.ts";
+import { flux2kleinEdit } from "./comfyEdits.ts";
 import {
   ImageCancelledError,
   type GenerateHooks,
@@ -35,6 +36,7 @@ export function normalizeBaseUrl(input: string): string | null {
     const url = new URL(withScheme);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
     if (url.username !== "" || url.password !== "") return null;
+    if (!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) return null;
     return `${url.origin}${url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "")}`;
   } catch {
     return null;
@@ -42,6 +44,7 @@ export function normalizeBaseUrl(input: string): string | null {
 }
 
 export interface ComfyAdapterOptions {
+  readonly progressSocket?: (url: string) => ProgressSocket;
   /** Read on every call, so a change in settings applies at once. */
   readonly baseUrl: () => string;
   readonly fetch?: typeof fetch;
@@ -52,6 +55,32 @@ export interface ComfyAdapterOptions {
   readonly maxWaitMs?: number;
   /** Longest wait for one answer. A cold ComfyUI is silent while it loads a model. */
   readonly requestTimeoutMs?: number;
+}
+
+interface ProgressSocket {
+  readonly ready?: Promise<void>;
+  readonly onMessage: (receive: (data: unknown) => void) => void;
+  readonly close: () => void;
+}
+
+function progressSocket(url: string): ProgressSocket {
+  const socket = new WebSocket(url);
+  socket.addEventListener("error", () => undefined);
+  const ready = new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, 1500);
+    const finish = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    socket.addEventListener("open", finish, { once: true });
+    socket.addEventListener("error", finish, { once: true });
+    socket.addEventListener("close", finish, { once: true });
+  });
+  return {
+    ready,
+    onMessage: (receive) => socket.addEventListener("message", (event) => receive(event.data)),
+    close: () => socket.close(),
+  };
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -126,6 +155,33 @@ const BACKOFF_MS = [1_000, 2_000] as const;
 const isTimeout = (error: unknown) =>
   error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
 
+const MAX_IMAGE_BYTES = 32 * 1024 ** 2;
+
+async function readImageBytes(response: Response): Promise<Uint8Array> {
+  if (!response.body) throw new Error("ComfyUI sent no picture.");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_IMAGE_BYTES) throw new Error("The image exceeds the 32 MB limit.");
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel();
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
 export function createComfyAdapter(options: ComfyAdapterOptions): ImageSource {
   const doFetch = options.fetch ?? fetch;
   const sleep = options.sleep ?? defaultSleep;
@@ -139,7 +195,12 @@ export function createComfyAdapter(options: ComfyAdapterOptions): ImageSource {
 
   const call = async (init: RequestInit, path: string, timeoutMs: number): Promise<Response> => {
     try {
-      return await doFetch(`${base()}${path}`, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+      return await doFetch(`${base()}${path}`, {
+        ...init,
+        signal: init.signal
+          ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
+          : AbortSignal.timeout(timeoutMs),
+      });
     } catch (cause) {
       throw new ComfyConnectionError(isTimeout(cause) ? "timeout" : "unreachable", base());
     }
@@ -156,23 +217,16 @@ export function createComfyAdapter(options: ComfyAdapterOptions): ImageSource {
       timeoutMs,
     );
 
-  const get = (path: string, timeoutMs = requestTimeoutMs) => call({}, path, timeoutMs);
+  const get = (path: string, timeoutMs = requestTimeoutMs, signal?: AbortSignal) =>
+    call(signal ? { signal } : {}, path, timeoutMs);
 
-  /**
-   * Retries a transient failure up to twice, with a short wait. A timeout is retried only when
-   * `retryTimeouts` is true: a timed out POST may already be queued, and a retry would run it twice.
-   */
-  const retrying = async <T>(
-    action: () => Promise<T>,
-    retryTimeouts: boolean,
-    signal?: AbortSignal,
-  ): Promise<T> => {
+  /** Reading a picture twice is safe. Image submissions use no automatic retry. */
+  const retrying = async <T>(action: () => Promise<T>, signal?: AbortSignal): Promise<T> => {
     for (let attempt = 0; ; attempt += 1) {
       try {
         return await action();
       } catch (error) {
-        const retryable =
-          error instanceof ComfyConnectionError && (retryTimeouts || error.kind === "unreachable");
+        const retryable = error instanceof ComfyConnectionError;
         if (!retryable || attempt >= MAX_RETRIES) throw error;
         await sleep(BACKOFF_MS[attempt] ?? 2_000);
         if (signal?.aborted) throw new ImageCancelledError();
@@ -186,6 +240,19 @@ export function createComfyAdapter(options: ComfyAdapterOptions): ImageSource {
       if (!response.ok) {
         return { online: false, message: `ComfyUI answered ${String(response.status)}.` };
       }
+      const stats: unknown = await response.json();
+      if (
+        !stats ||
+        typeof stats !== "object" ||
+        !("system" in stats) ||
+        !stats.system ||
+        typeof stats.system !== "object" ||
+        !("comfyui_version" in stats.system) ||
+        typeof stats.system.comfyui_version !== "string" ||
+        !("devices" in stats) ||
+        !Array.isArray(stats.devices)
+      )
+        return { online: false, message: "This address did not answer as ComfyUI." };
       return { online: true, message: null };
     } catch (error) {
       if (error instanceof ComfyConnectionError && error.kind === "timeout") {
@@ -197,6 +264,40 @@ export function createComfyAdapter(options: ComfyAdapterOptions): ImageSource {
 
   const listModels = async (): Promise<ReadonlyArray<ImageModel>> => COMFY_MODELS;
 
+  const uploadImage = async (
+    bytes: Uint8Array,
+    label: "reference" | "mask",
+    signal?: AbortSignal,
+  ) => {
+    if (bytes.byteLength > (label === "mask" ? 256 * 1024 : MAX_IMAGE_BYTES))
+      throw new Error("The image exceeds its upload size limit.");
+    const form = new FormData();
+    form.set(
+      "image",
+      new Blob([bytes.slice().buffer], { type: "image/png" }),
+      `leonidas-${clientId}-${label}.png`,
+    );
+    form.set("type", "input");
+    // The queue has one worker. Reuse its two input files between edits.
+    form.set("overwrite", "true");
+    const upload = await call(
+      { method: "POST", body: form, ...(signal ? { signal } : {}) },
+      "/upload/image",
+      requestTimeoutMs,
+    );
+    if (!upload.ok) throw new Error(describeComfyError(upload.status, await upload.text()));
+    const result: unknown = await upload.json();
+    if (
+      !result ||
+      typeof result !== "object" ||
+      !("name" in result) ||
+      typeof result.name !== "string" ||
+      !/^[a-zA-Z0-9_.-]+\.png$/.test(result.name)
+    )
+      throw new Error("ComfyUI did not accept the reference image.");
+    return result.name;
+  };
+
   const generate = async (
     request: GenerateRequest,
     hooks: GenerateHooks = {},
@@ -204,28 +305,113 @@ export function createComfyAdapter(options: ComfyAdapterOptions): ImageSource {
     if (!isComfyModelId(request.modelId)) {
       throw new Error(`Unknown model: ${request.modelId}.`);
     }
-    const workflow: ComfyWorkflow = COMFY_WORKFLOWS[request.modelId]({
+    const workflowInput = {
       prompt: request.prompt,
       seed: request.seed,
-      width: IMAGE_SIZE,
-      height: IMAGE_SIZE,
-    });
-    const queued = await retrying(
-      () => post("/prompt", { prompt: workflow, client_id: clientId }),
-      false,
-      hooks.signal,
-    );
-    if (!queued.ok) throw new Error(describeComfyError(queued.status, await queued.text()));
-    const { prompt_id: promptId } = (await queued.json()) as { prompt_id: string };
-    currentPromptId = promptId;
+      width: request.width ?? IMAGE_SIZE,
+      height: request.height ?? IMAGE_SIZE,
+    };
+    let referenceName: string | undefined;
+    if (request.referenceImage) {
+      if (
+        request.modelId !== "flux2klein" &&
+        request.modelId !== "birefnet" &&
+        request.modelId !== "upscale"
+      )
+        throw new Error("Image edits need FLUX.2 klein 4B.");
+      referenceName = await uploadImage(request.referenceImage, "reference", hooks.signal);
+    }
+    if (request.maskImage && (!referenceName || request.modelId !== "flux2klein"))
+      throw new Error("A brush mask needs a reference image and FLUX.2 klein 4B.");
+    const maskName = request.maskImage
+      ? await uploadImage(request.maskImage, "mask", hooks.signal)
+      : undefined;
+    const workflow: ComfyWorkflow =
+      referenceName && request.modelId === "flux2klein"
+        ? flux2kleinEdit({
+            ...workflowInput,
+            image: referenceName,
+            ...(maskName ? { mask: maskName } : {}),
+          })
+        : COMFY_WORKFLOWS[request.modelId]({
+            ...workflowInput,
+            ...(referenceName ? { referenceImageName: referenceName } : {}),
+          });
+    let promptId: string | null = null;
+    let progress: ProgressSocket | null = null;
+    const earlyEvents: string[] = [];
+    let reportedStart = false;
+    const receiveProgress = (raw: unknown) => {
+      if (typeof raw !== "string") return;
+      if (promptId === null) {
+        if (earlyEvents.length < 16) earlyEvents.push(raw);
+        return;
+      }
+      let event: { type?: unknown; data?: { prompt_id?: unknown; value?: unknown; max?: unknown } };
+      try {
+        event = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      const data = event?.data;
+      if (data?.prompt_id !== promptId) return;
+      if (!reportedStart && (event.type === "execution_start" || event.type === "executing")) {
+        reportedStart = true;
+        const steps =
+          COMFY_WORKFLOW_SETTINGS[request.modelId as keyof typeof COMFY_WORKFLOW_SETTINGS].steps;
+        if (typeof steps === "number") hooks.onProgress?.(0, steps);
+      }
+      if (event.type !== "progress") return;
+      const { value, max } = data;
+      if (
+        typeof value === "number" &&
+        typeof max === "number" &&
+        Number.isInteger(value) &&
+        Number.isInteger(max) &&
+        max > 0 &&
+        value >= 0 &&
+        value <= max
+      ) {
+        reportedStart = true;
+        hooks.onProgress?.(value, max);
+      }
+    };
     try {
+      if (hooks.onProgress) {
+        const address = new URL(`${base()}/ws`);
+        address.protocol = address.protocol === "https:" ? "wss:" : "ws:";
+        address.searchParams.set("clientId", clientId);
+        progress = (options.progressSocket ?? progressSocket)(address.href);
+        progress.onMessage(receiveProgress);
+        await progress.ready;
+      }
+      if (hooks.signal?.aborted) throw new ImageCancelledError();
+      // A lost response can still leave a queued job. Never submit that job twice.
+      const queued = await post("/prompt", { prompt: workflow, client_id: clientId });
+      if (!queued.ok) throw new Error(describeComfyError(queued.status, await queued.text()));
+      const result: unknown = await queued.json();
+      if (
+        !result ||
+        typeof result !== "object" ||
+        !("prompt_id" in result) ||
+        typeof result.prompt_id !== "string" ||
+        !result.prompt_id
+      )
+        throw new Error("ComfyUI did not return an image job id.");
+      promptId = result.prompt_id;
+      currentPromptId = promptId;
+      for (const event of earlyEvents.splice(0)) receiveProgress(event);
       const deadline = Date.now() + maxWaitMs;
       let refusals = 0;
       for (;;) {
         if (hooks.signal?.aborted) throw new ImageCancelledError();
         let response: Response | null = null;
         try {
-          response = await get(`/history/${encodeURIComponent(promptId)}`);
+          response = await get(
+            `/history/${encodeURIComponent(promptId)}`,
+            requestTimeoutMs,
+            hooks.signal,
+          );
           refusals = 0;
         } catch (error) {
           // A timeout means ComfyUI is busy, for example while it loads a model. Keep waiting.
@@ -255,19 +441,47 @@ export function createComfyAdapter(options: ComfyAdapterOptions): ImageSource {
               subfolder: picture.subfolder ?? "",
               type: picture.type ?? "output",
             }).toString();
-            const view = await retrying(() => get(`/view?${query}`), true, hooks.signal);
+            const view = await retrying(
+              () => get(`/view?${query}`, requestTimeoutMs, hooks.signal),
+              hooks.signal,
+            );
             if (!view.ok) throw new Error(describeComfyError(view.status, await view.text()));
             return {
-              bytes: new Uint8Array(await view.arrayBuffer()),
+              bytes: await readImageBytes(view),
               mimeType: "image/png",
-              settings: COMFY_WORKFLOW_SETTINGS[request.modelId],
+              settings: {
+                ...COMFY_WORKFLOW_SETTINGS[request.modelId],
+                width: (request.width ?? IMAGE_SIZE) * (request.modelId === "upscale" ? 2 : 1),
+                height: (request.height ?? IMAGE_SIZE) * (request.modelId === "upscale" ? 2 : 1),
+                ...(maskName && request.referenceImage
+                  ? {
+                      width: new DataView(
+                        request.referenceImage.buffer,
+                        request.referenceImage.byteOffset,
+                        request.referenceImage.byteLength,
+                      ).getUint32(16),
+                      height: new DataView(
+                        request.referenceImage.buffer,
+                        request.referenceImage.byteOffset,
+                        request.referenceImage.byteLength,
+                      ).getUint32(20),
+                    }
+                  : {}),
+              },
             };
           }
         }
         if (Date.now() > deadline) throw new Error("ComfyUI took too long to make this image.");
         await sleep(pollMs);
       }
+    } catch (error) {
+      if (hooks.signal?.aborted) {
+        await interrupt();
+        throw new ImageCancelledError();
+      }
+      throw error;
     } finally {
+      progress?.close();
       currentPromptId = null;
     }
   };

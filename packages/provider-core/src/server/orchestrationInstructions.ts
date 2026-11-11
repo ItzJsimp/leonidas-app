@@ -29,6 +29,7 @@ Ordinary coding tasks need no \`leonidas\` tools.
 
 ### Visuals and preview
 
+- Image creation requests: use \`leo_images_status\`, then \`leo_images_generate\`. Discussing images alone does not authorize generation. Ask once per chat before local generation. Set \`userApproved\` only after the user agrees. Reuse \`clientRequestId\` for retries, use a new id for each new request. Follow the returned job with status. Display completed images with Markdown image syntax using the absolute workspaceRoot and file path. Report failures with their actual status.
 - Asked to show a visual here: pass its HTML to \`leo_html_preview\`, then \`leo_html_render\`. A screenshot on disk or a text description does not show it. Never start a server for it. Asked for an image to post or send elsewhere: a \`.png\` file and its path.
 - After frontend changes, when browser verification is allowed, use \`leo_preview_status\` and \`leo_preview_open\`, inspect the page and console, fix defects, and inspect it again. Report when you could not verify. Otherwise use \`preview_*\` only when the request asks for browser work or names a page or tab. Do not repeat calls from an earlier turn. Close a tab you opened before you reply, unless the user uses it.
 `;

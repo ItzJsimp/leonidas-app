@@ -187,6 +187,7 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
       // Titles need only the supplied prompt, not configuration from the checkout.
       const workingDirectory =
         operation === "generateThreadTitle" ||
+        operation === "improveImagePrompt" ||
         operation === "generatePromptSuggestion" ||
         operation === "pickSkills" ||
         operation === "generateVoiceLogDraft"

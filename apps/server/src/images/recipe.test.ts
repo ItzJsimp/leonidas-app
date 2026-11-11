@@ -1,5 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off globalTimers:off globalDate:off - Test drives plain async code against a temp folder.
-import * as NodeFS from "node:fs/promises";
+import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
@@ -15,10 +15,10 @@ import {
 
 let root: string;
 beforeEach(async () => {
-  root = await NodeFS.mkdtemp(NodePath.join(NodeOS.tmpdir(), "images-recipe-"));
+  root = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "images-recipe-"));
 });
 afterEach(async () => {
-  await NodeFS.rm(root, { recursive: true, force: true });
+  await NodeFSP.rm(root, { recursive: true, force: true });
 });
 
 const recipe = {
@@ -45,6 +45,14 @@ describe("file names", () => {
 });
 
 describe("saveImageWithRecipe", () => {
+  it("preserves a Recipe whose image file is missing", async () => {
+    const dir = NodePath.join(root, "images");
+    await NodeFSP.mkdir(dir);
+    await NodeFSP.writeFile(NodePath.join(dir, "a.json"), "original");
+    const saved = await saveImageWithRecipe({ dir, base: "a", bytes: new Uint8Array([1]), recipe });
+    expect(saved.name).toBe("a-2");
+    expect(await NodeFSP.readFile(NodePath.join(dir, "a.json"), "utf8")).toBe("original");
+  });
   it("writes the PNG and a Recipe sidecar with the same base name", async () => {
     const dir = NodePath.join(root, "images");
     const saved = await saveImageWithRecipe({
@@ -54,8 +62,8 @@ describe("saveImageWithRecipe", () => {
       recipe,
     });
     expect(saved.name).toBe("a_1");
-    expect([...(await NodeFS.readFile(saved.pngPath))]).toEqual([1, 2, 3]);
-    const written = JSON.parse(await NodeFS.readFile(saved.recipePath, "utf8"));
+    expect([...(await NodeFSP.readFile(saved.pngPath))]).toEqual([1, 2, 3]);
+    const written = JSON.parse(await NodeFSP.readFile(saved.recipePath, "utf8"));
     expect(written).toEqual({ version: 1, ...recipe, file: "a_1.png" });
   });
 
@@ -70,7 +78,7 @@ describe("saveImageWithRecipe", () => {
     });
     expect(first.name).toBe("a");
     expect(second.name).toBe("a-2");
-    expect([...(await NodeFS.readFile(first.pngPath))]).toEqual([1]);
+    expect([...(await NodeFSP.readFile(first.pngPath))]).toEqual([1]);
   });
 });
 
@@ -97,12 +105,12 @@ describe("keep and read back", () => {
     const dir = NodePath.join(root, "images");
     const saved = await saveImageWithRecipe({ dir, bytes: new Uint8Array([9]), base: "k", recipe });
     await setKept(dir, saved.name, true);
-    expect([...(await NodeFS.readFile(NodePath.join(dir, "kept", "k.png")))]).toEqual([9]);
+    expect([...(await NodeFSP.readFile(NodePath.join(dir, "kept", "k.png")))]).toEqual([9]);
     expect((await readStoredImages(dir, 10))[0]?.kept).toBe(true);
     await setKept(dir, saved.name, false);
     expect((await readStoredImages(dir, 10))[0]?.kept).toBe(false);
     // The original stays.
-    expect((await NodeFS.stat(saved.pngPath)).size).toBe(1);
+    expect((await NodeFSP.stat(saved.pngPath)).size).toBe(1);
   });
 
   it("lists the newest images first, up to the limit, and skips sidecars without a PNG", async () => {
@@ -110,7 +118,7 @@ describe("keep and read back", () => {
     for (const base of ["20260101-000000_a_1", "20260102-000000_a_2", "20260103-000000_a_3"]) {
       await saveImageWithRecipe({ dir, bytes: new Uint8Array([1]), base, recipe });
     }
-    await NodeFS.rm(NodePath.join(dir, "20260103-000000_a_3.png"));
+    await NodeFSP.rm(NodePath.join(dir, "20260103-000000_a_3.png"));
     const stored = await readStoredImages(dir, 2);
     expect(stored.map((s) => s.name)).toEqual(["20260102-000000_a_2", "20260101-000000_a_1"]);
   });

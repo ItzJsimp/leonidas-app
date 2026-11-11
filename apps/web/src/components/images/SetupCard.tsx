@@ -7,7 +7,7 @@ import { Input } from "../ui/input";
 import { useBuilderMode } from "../twoState/useBuilderMode";
 import { Spinner } from "../ui/spinner";
 import { HelpText } from "./catalogBadges";
-import { COMFY_INSTALL_URL, COMFY_START_COMMAND } from "./images.mock";
+import { COMFY_INSTALL_URL, COMFY_START_COMMAND } from "./imageTypes";
 
 /** The ComfyUI address field. Saving checks the connection again. */
 export function AddressField(props: {

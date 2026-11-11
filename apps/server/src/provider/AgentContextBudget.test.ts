@@ -44,10 +44,12 @@ import {
   makeClaudeQueryOptions,
 } from "../orchestration-v2/Adapters/ClaudeAdapterV2.ts";
 import { buildCodexAdditionalContext } from "./CodexDeveloperInstructions.ts";
+import { ImageService } from "../images/ImageService.ts";
 import budget from "./agentContextBudget.json" with { type: "json" };
 
 // Registration only stores tool definitions, so the handlers' services are never called.
 const toolHandlerServices = Layer.mergeAll(
+  Layer.mock(ImageService)({}),
   Layer.mock(Calendar)({}),
   Layer.mock(DeviceService)({}),
   Layer.mock(GitVcsDriver)({}),

@@ -2,11 +2,12 @@ import {
   squashAtomCommandFailure,
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
-import type { ImageItem, ImagesState, ProjectId } from "@t3tools/contracts";
+import type { ImageItem, ImagesState, ProjectId, ImagesSetupInput } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import { useCallback, useMemo } from "react";
 
 import { useLocalStorage } from "~/hooks/useLocalStorage";
+import { randomUUID } from "~/lib/utils";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useProjects } from "~/state/entities";
 import {
@@ -16,12 +17,18 @@ import {
   imagesLive,
   imagesRetry,
   imagesSetBaseUrl,
+  imagesSetup,
+  imagesImportReference,
+  imagesDelete,
+  imagesSetRetention,
+  imagesImprovePrompt,
 } from "~/state/images";
 import { useEnvironmentQuery } from "~/state/query";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { toastManager } from "~/components/ui/toast";
 
 import { resolveSelectedModels } from "./images.logic";
+import { discardReferenceUpload, uploadReference } from "./importReference";
 
 /** What the form remembers between visits. */
 const FormMemory = Schema.Struct({
@@ -81,6 +88,49 @@ export function useImages() {
   const runRetry = useAtomCommand(imagesRetry, { reportFailure: false });
   const runKeep = useAtomCommand(imagesKeep, { reportFailure: false });
   const runSetBaseUrl = useAtomCommand(imagesSetBaseUrl, { reportFailure: false });
+  const runSetup = useAtomCommand(imagesSetup, { reportFailure: false });
+  const runImportReference = useAtomCommand(imagesImportReference, { reportFailure: false });
+  const runDelete = useAtomCommand(imagesDelete, { reportFailure: false });
+  const runSetRetention = useAtomCommand(imagesSetRetention, { reportFailure: false });
+  const runImprovePrompt = useAtomCommand(imagesImprovePrompt, { reportFailure: false });
+  const improvePrompt = useCallback(
+    async (prompt: string) => {
+      if (!environmentId || !project) throw new Error("Add a project before improving a prompt.");
+      return unwrap(
+        await runImprovePrompt({ environmentId, input: { projectId: project.id, prompt } }),
+      ).prompt;
+    },
+    [environmentId, project, runImprovePrompt],
+  );
+
+  const importReference = useCallback(
+    async (file: File, signal?: AbortSignal): Promise<string | null> => {
+      let attachmentId: string | null = null;
+      try {
+        if (!environmentId || !project) throw new Error("Add a project before importing an image.");
+        attachmentId = await uploadReference(environmentId, file, signal);
+        signal?.throwIfAborted();
+        const result = unwrap(
+          await runImportReference({
+            environmentId,
+            input: { projectId: project.id, attachmentId },
+          }),
+        );
+        return result.itemId;
+      } catch (error) {
+        if (signal?.aborted) return null;
+        toastManager.add({
+          type: "error",
+          title: "Could not import the image",
+          description: errorText(error),
+        });
+        return null;
+      } finally {
+        if (environmentId && attachmentId) discardReferenceUpload(environmentId, attachmentId);
+      }
+    },
+    [environmentId, project, runImportReference],
+  );
 
   const attempt = useCallback(async (title: string, action: () => Promise<void>) => {
     try {
@@ -93,24 +143,41 @@ export function useImages() {
   }, []);
 
   const start = useCallback(
-    (input: {
+    async (input: {
       readonly prompt: string;
       readonly modelIds: ReadonlyArray<string>;
       readonly seed: number | null;
       readonly count: number;
-    }) =>
-      attempt("Could not start the images", async () => {
+      readonly width?: number;
+      readonly height?: number;
+      readonly referenceItemId?: string;
+      readonly maskPng?: string;
+    }) => {
+      try {
         if (environmentId === null || project === null) {
           throw new Error("Add a project first. Images are saved in its folder.");
         }
-        unwrap(
+        return unwrap(
           await runGenerate({
             environmentId,
-            input: { projectId: project.id, ...input, prompt: input.prompt.trim() },
+            input: {
+              projectId: project.id,
+              ...input,
+              clientRequestId: randomUUID(),
+              prompt: input.prompt.trim(),
+            },
           }),
         );
-      }),
-    [attempt, environmentId, project, runGenerate],
+      } catch (error) {
+        toastManager.add({
+          type: "error",
+          title: "Could not start the images",
+          description: errorText(error),
+        });
+        return false;
+      }
+    },
+    [environmentId, project, runGenerate],
   );
 
   const generate = useCallback(
@@ -120,10 +187,15 @@ export function useImages() {
   );
 
   const cancel = useCallback(
-    (stopRunning: boolean) =>
+    (stopRunning: boolean, jobId?: string) =>
       attempt("Could not cancel", async () => {
         if (environmentId === null) return;
-        unwrap(await runCancel({ environmentId, input: { stopRunning } }));
+        unwrap(
+          await runCancel({
+            environmentId,
+            input: { stopRunning, ...(jobId === undefined ? {} : { jobId }) },
+          }),
+        );
       }),
     [attempt, environmentId, runCancel],
   );
@@ -162,7 +234,37 @@ export function useImages() {
     [attempt, environmentId, runSetBaseUrl],
   );
 
+  const setup = useCallback(
+    (input: ImagesSetupInput) =>
+      attempt("Could not set up Images", async () => {
+        if (environmentId === null) throw new Error("Connect to your computer first.");
+        unwrap(await runSetup({ environmentId, input }));
+      }),
+    [attempt, environmentId, runSetup],
+  );
+
+  const remove = useCallback(
+    (item: ImageItem) =>
+      attempt("Could not delete the image", async () => {
+        if (!environmentId || !project) throw new Error("Select the image project first.");
+        unwrap(
+          await runDelete({ environmentId, input: { projectId: project.id, itemId: item.id } }),
+        );
+      }),
+    [attempt, environmentId, project, runDelete],
+  );
+  const setRetention = useCallback(
+    (enabled: boolean) =>
+      attempt("Could not change image cleanup", async () => {
+        if (!environmentId) throw new Error("Connect to the computer first.");
+        unwrap(await runSetRetention({ environmentId, input: { enabled } }));
+      }),
+    [attempt, environmentId, runSetRetention],
+  );
+
   return {
+    remove,
+    setRetention,
     environmentId,
     projects,
     projectId: (project?.id ?? null) as ProjectId | null,
@@ -178,5 +280,8 @@ export function useImages() {
     keep,
     retry,
     setBaseUrl,
+    setup,
+    importReference,
+    improvePrompt,
   };
 }

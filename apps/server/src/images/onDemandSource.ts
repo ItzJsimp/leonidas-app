@@ -3,7 +3,7 @@
  * This wrapper starts it on the first image request, frees its memory shortly after the queue
  * ends, and stops it after a long idle time. It stops only a process that it started itself.
  */
-import type { ImageSource } from "./imageSource.ts";
+import { ImageCancelledError, type ImageSource } from "./imageSource.ts";
 
 export interface LaunchConfig {
   /** Shell command that starts ComfyUI, for example `python main.py --port 8188`. */
@@ -35,6 +35,8 @@ const START_TIMEOUT_MS = 120_000;
 const START_POLL_MS = 2_000;
 
 export interface OnDemandSource extends ImageSource {
+  /** Stop the owned idle engine so the next request reads the new configuration. */
+  readonly reset: () => void;
   /** Stop a process that this wrapper started. Call it when the server stops. */
   readonly dispose: () => void;
 }
@@ -75,9 +77,10 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
     );
   };
 
-  const waitUntilOnline = async () => {
+  const waitUntilOnline = async (signal?: AbortSignal) => {
     for (let waited = 0; waited < START_TIMEOUT_MS; waited += START_POLL_MS) {
       if (disposed) throw new Error("The image engine was stopped.");
+      if (signal?.aborted) throw new ImageCancelledError();
       if (child?.hasExited()) {
         throw new Error(
           "The image engine stopped during startup. Check its installation and try again.",
@@ -89,7 +92,8 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
     throw new Error("ComfyUI did not start in time. Check the start command in the settings.");
   };
 
-  const ensureRunning = async () => {
+  const ensureRunning = async (signal?: AbortSignal) => {
+    if (signal?.aborted) throw new ImageCancelledError();
     if (disposed) throw new Error("The image engine was stopped.");
     const config = deps.readConfig();
     if (child?.hasExited()) child = null;
@@ -101,14 +105,19 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
         try {
           if (child?.hasExited()) child = null;
           if (child === null) {
+            if (signal?.aborted) throw new ImageCancelledError();
             const launched = await deps.launch(config);
+            if (signal?.aborted) {
+              if (!launched.hasExited()) launched.kill();
+              throw new ImageCancelledError();
+            }
             if (disposed) {
               if (!launched.hasExited()) launched.kill();
               throw new Error("The image engine was stopped.");
             }
             child = launched;
           }
-          await waitUntilOnline();
+          await waitUntilOnline(signal);
         } catch (cause) {
           stopChild();
           throw cause;
@@ -125,7 +134,8 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
     generate: async (request, hooks) => {
       clearTimers();
       try {
-        await ensureRunning();
+        await ensureRunning(hooks?.signal);
+        if (hooks?.signal?.aborted) throw new ImageCancelledError();
         return await source.generate(request, hooks);
       } finally {
         armIdle();
@@ -133,6 +143,10 @@ export function withOnDemandStart(source: ImageSource, deps: OnDemandDeps): OnDe
     },
     dispose: () => {
       disposed = true;
+      clearTimers();
+      stopChild();
+    },
+    reset: () => {
       clearTimers();
       stopChild();
     },

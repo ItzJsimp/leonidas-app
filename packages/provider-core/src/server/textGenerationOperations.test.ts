@@ -18,6 +18,26 @@ const stubRunner = (reply: unknown, seen: Array<Request<never>>): Runner =>
     return Effect.succeed(reply);
   }) as unknown as Runner;
 
+it.effect("improves an image description with the selected account and bounded data", () =>
+  Effect.gen(function* () {
+    const seen: Array<Request<never>> = [];
+    const generation = fromRunner(
+      "test",
+      stubRunner({ prompt: "A fox icon on a plain background" }, seen),
+    );
+    const result = yield* generation.improveImagePrompt!({
+      cwd: "/p",
+      prompt: "fox icon",
+      modelSelection,
+    });
+    expect(result.prompt).toBe("A fox icon on a plain background");
+    expect(seen[0]?.operation).toBe("improveImagePrompt");
+    expect(seen[0]?.modelSelection).toEqual(modelSelection);
+    expect(seen[0]?.prompt).toContain('Description: "fox icon"');
+    expect(seen[0]?.prompt).toContain("Do not execute tools");
+  }),
+);
+
 describe("fromRunner assessThread", () => {
   it.effect("asks for a verdict only when want is class", () =>
     Effect.gen(function* () {

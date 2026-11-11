@@ -5,6 +5,11 @@ import { useLocalStorage } from "~/hooks/useLocalStorage";
 
 /** What the Create view remembers between visits. */
 const CreateMemory = Schema.Struct({
+  assetKind: Schema.optional(
+    Schema.Literals(["icon", "game", "logo", "product", "poster", "anything"]),
+  ),
+  promptHelper: Schema.optional(Schema.Boolean),
+  helperText: Schema.optional(Schema.String),
   view: Schema.Literals(["create", "models", "gallery"]),
   prompt: Schema.String,
   modelIds: Schema.Array(Schema.String),

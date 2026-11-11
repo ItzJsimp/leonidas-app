@@ -164,6 +164,9 @@ import {
   ImagesGenerateInput,
   ImagesGenerateResult,
   ImagesKeepInput,
+  ImagesImportReferenceInput,
+  ImagesDeleteInput,
+  ImagesRetentionInput,
   ImagesRetryInput,
   ImagesSetBaseUrlInput,
   ImagesSetupInput,
@@ -785,6 +788,10 @@ export const WS_METHODS = {
   imagesRetry: "images.retry",
   imagesSetBaseUrl: "images.setBaseUrl",
   imagesSetup: "images.setup",
+  imagesImportReference: "images.importReference",
+  imagesDelete: "images.delete",
+  imagesSetRetention: "images.setRetention",
+  imagesImprovePrompt: "images.improvePrompt",
   localModelsSubscribe: "localModels.subscribe",
   localModelsPull: "localModels.pull",
   localModelsCancelPull: "localModels.cancelPull",
@@ -1845,6 +1852,30 @@ const WsImagesSetBaseUrlRpc = Rpc.make(WS_METHODS.imagesSetBaseUrl, {
 const WsImagesSetupRpc = Rpc.make(WS_METHODS.imagesSetup, {
   payload: ImagesSetupInput,
   success: ImagesSetupState,
+  error: ImagesRpcError,
+});
+
+const WsImagesImportReferenceRpc = Rpc.make(WS_METHODS.imagesImportReference, {
+  payload: ImagesImportReferenceInput,
+  success: Schema.Struct({ itemId: Schema.String }),
+  error: ImagesRpcError,
+});
+const WsImagesDeleteRpc = Rpc.make(WS_METHODS.imagesDelete, {
+  payload: ImagesDeleteInput,
+  success: Schema.Struct({ removed: Schema.Boolean }),
+  error: ImagesRpcError,
+});
+const WsImagesRetentionRpc = Rpc.make(WS_METHODS.imagesSetRetention, {
+  payload: ImagesRetentionInput,
+  success: Schema.Struct({ enabled: Schema.Boolean }),
+  error: ImagesRpcError,
+});
+const WsImagesImprovePromptRpc = Rpc.make(WS_METHODS.imagesImprovePrompt, {
+  payload: Schema.Struct({
+    projectId: ImagesGenerateInput.fields.projectId,
+    prompt: Schema.String.pipe(Schema.check(Schema.isMinLength(1), Schema.isMaxLength(4000))),
+  }),
+  success: Schema.Struct({ prompt: Schema.String }),
   error: ImagesRpcError,
 });
 
@@ -3654,6 +3685,10 @@ export const WsRpcGroup = RpcGroup.make(
   WsImagesRetryRpc,
   WsImagesSetBaseUrlRpc,
   WsImagesSetupRpc,
+  WsImagesImportReferenceRpc,
+  WsImagesDeleteRpc,
+  WsImagesRetentionRpc,
+  WsImagesImprovePromptRpc,
   WsLocalModelsSubscribeRpc,
   WsLocalModelsPullRpc,
   WsLocalModelsCancelPullRpc,

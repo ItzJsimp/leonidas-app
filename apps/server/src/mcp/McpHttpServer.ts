@@ -75,6 +75,8 @@ import { ActionToolkit } from "./toolkits/actions/tools.ts";
 import * as InsightHandlers from "./toolkits/insight/handlers.ts";
 import { InsightToolkit } from "./toolkits/insight/tools.ts";
 import { ContentToolkit } from "./toolkits/content/tools.ts";
+import * as ImagesHandlers from "./toolkits/images/handlers.ts";
+import { ImagesToolkit } from "./toolkits/images/tools.ts";
 
 /** Where an MCP client discovers how to sign in (RFC 9728), at this request's own origin. */
 const mcpResourceMetadataUrl = (request: HttpServerRequest.HttpServerRequest) =>
@@ -953,6 +955,7 @@ export const layerTools = Layer.mergeAll(
   layerHtmlToolkit,
   toolkitRegistration(MarketingToolkit, MarketingHandlers.layer),
   toolkitRegistration(ContentToolkit, ContentHandlers.layer),
+  toolkitRegistration(ImagesToolkit, ImagesHandlers.layer),
   toolkitRegistration(InsightToolkit, InsightHandlers.layer),
   toolkitRegistration(ActionToolkit, ActionHandlers.layer),
 );

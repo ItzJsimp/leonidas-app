@@ -63,8 +63,8 @@ export class ImageQueue<T extends QueueEntry> {
   }
 
   /** Marks every waiting entry cancelled. The running entry stays. Returns the changed entries. */
-  cancelWaiting(): T[] {
-    const cancelled = this.entries.filter((entry) => entry.status === "waiting");
+  cancelWaiting(matches: (entry: T) => boolean = () => true): T[] {
+    const cancelled = this.entries.filter((entry) => entry.status === "waiting" && matches(entry));
     for (const entry of cancelled) entry.status = "cancelled";
     return cancelled;
   }

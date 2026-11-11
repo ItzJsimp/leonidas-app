@@ -32,7 +32,7 @@ import {
 } from "./catalog.logic";
 import { ElapsedText } from "./ElapsedText";
 import { canRetry, formatSeconds } from "./images.logic";
-import type { GalleryItem } from "./images.mock";
+import type { GalleryItem } from "./imageTypes";
 
 /** Runs shown before "Show older runs". Pictures are full size files, so the first screen stays small. */
 const RUNS_PER_PAGE = 6;

@@ -16,6 +16,7 @@ export type ComfyNode = {
 export type ComfyWorkflow = Readonly<Record<string, ComfyNode>>;
 
 export interface WorkflowInput {
+  readonly referenceImageName?: string;
   readonly prompt: string;
   readonly seed: number;
   readonly width: number;
@@ -27,7 +28,15 @@ export type WorkflowSettings = Readonly<Record<string, string | number>>;
 
 export const IMAGE_SIZE = 1024;
 
-export const COMFY_MODEL_IDS = ["flux2klein", "qwen", "qwen21", "zimage"] as const;
+export const COMFY_MODEL_IDS = [
+  "flux2klein",
+  "qwen",
+  "qwen21",
+  "zimage",
+  "hidream",
+  "birefnet",
+  "upscale",
+] as const;
 export type ComfyModelId = (typeof COMFY_MODEL_IDS)[number];
 
 export const isComfyModelId = (value: string): value is ComfyModelId =>
@@ -194,6 +203,71 @@ export function zimageWorkflow({ prompt, seed, width, height }: WorkflowInput): 
   };
 }
 
+export function hidreamWorkflow({ prompt, seed, width, height }: WorkflowInput): ComfyWorkflow {
+  return {
+    "1": {
+      class_type: "CheckpointLoaderSimple",
+      inputs: { ckpt_name: "hidream_o1_image_dev_fp8_scaled.safetensors" },
+    },
+    "2": { class_type: "ModelNoiseScale", inputs: { model: ["1", 0], noise_scale: 7.6 } },
+    "3": { class_type: "CLIPTextEncode", inputs: { clip: ["1", 1], text: prompt } },
+    "4": { class_type: "CLIPTextEncode", inputs: { clip: ["1", 1], text: "" } },
+    "5": { class_type: "EmptyHiDreamO1LatentImage", inputs: { width, height, batch_size: 1 } },
+    "6": { class_type: "SamplerLCM", inputs: { s_noise: 1, s_noise_end: 1, noise_clip_std: 2.5 } },
+    "7": {
+      class_type: "BasicScheduler",
+      inputs: { model: ["2", 0], scheduler: "normal", steps: 28, denoise: 1 },
+    },
+    "8": {
+      class_type: "SamplerCustom",
+      inputs: {
+        model: ["2", 0],
+        add_noise: true,
+        noise_seed: seed,
+        cfg: 1,
+        positive: ["3", 0],
+        negative: ["4", 0],
+        sampler: ["6", 0],
+        sigmas: ["7", 0],
+        latent_image: ["5", 0],
+      },
+    },
+    "9": { class_type: "VAEDecode", inputs: { samples: ["8", 0], vae: ["1", 2] } },
+    "10": { class_type: "PreviewImage", inputs: { images: ["9", 0] } },
+  };
+}
+
+export function backgroundWorkflow({ referenceImageName }: WorkflowInput): ComfyWorkflow {
+  if (!referenceImageName) throw new Error("Choose an image before removing its background.");
+  return {
+    "1": { class_type: "LoadImage", inputs: { image: referenceImageName } },
+    "2": {
+      class_type: "LoadBackgroundRemovalModel",
+      inputs: { bg_removal_name: "birefnet.safetensors" },
+    },
+    "3": {
+      class_type: "RemoveBackground",
+      inputs: { image: ["1", 0], bg_removal_model: ["2", 0] },
+    },
+    "4": { class_type: "InvertMask", inputs: { mask: ["3", 0] } },
+    "5": { class_type: "JoinImageWithAlpha", inputs: { image: ["1", 0], alpha: ["4", 0] } },
+    "6": { class_type: "PreviewImage", inputs: { images: ["5", 0] } },
+  };
+}
+
+export function upscaleWorkflow({ referenceImageName }: WorkflowInput): ComfyWorkflow {
+  if (!referenceImageName) throw new Error("Choose an image before enlarging it.");
+  return {
+    "1": { class_type: "LoadImage", inputs: { image: referenceImageName } },
+    "2": { class_type: "JoinImageWithAlpha", inputs: { image: ["1", 0], alpha: ["1", 1] } },
+    "3": {
+      class_type: "ImageScaleBy",
+      inputs: { image: ["2", 0], upscale_method: "lanczos", scale_by: 2 },
+    },
+    "4": { class_type: "PreviewImage", inputs: { images: ["3", 0] } },
+  };
+}
+
 export const COMFY_WORKFLOWS: Readonly<
   Record<ComfyModelId, (input: WorkflowInput) => ComfyWorkflow>
 > = {
@@ -201,10 +275,24 @@ export const COMFY_WORKFLOWS: Readonly<
   qwen: qwenWorkflow,
   qwen21: qwen21Workflow,
   zimage: zimageWorkflow,
+  hidream: hidreamWorkflow,
+  birefnet: backgroundWorkflow,
+  upscale: upscaleWorkflow,
 };
 
 /** What a Recipe records about the sampler. It matches the numbers in the builders above. */
 export const COMFY_WORKFLOW_SETTINGS: Readonly<Record<ComfyModelId, WorkflowSettings>> = {
+  hidream: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
+    steps: 28,
+    cfg: 1,
+    sampler: "lcm",
+    scheduler: "normal",
+    noise_scale: 7.6,
+  },
+  birefnet: { width: IMAGE_SIZE, height: IMAGE_SIZE, operation: "remove-background" },
+  upscale: { width: IMAGE_SIZE, height: IMAGE_SIZE, operation: "upscale-2x" },
   flux2klein: { width: IMAGE_SIZE, height: IMAGE_SIZE, steps: 4, cfg: 1.0, sampler: "euler" },
   qwen: {
     width: IMAGE_SIZE,

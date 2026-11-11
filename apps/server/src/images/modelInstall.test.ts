@@ -19,6 +19,19 @@ async function fixture() {
 }
 
 describe("model installation", () => {
+  it("reserves engine space before any model download", async () => {
+    const fetchFake = vi.fn();
+    vi.stubGlobal("fetch", fetchFake);
+    await expect(
+      installImageModel({
+        modelId: "flux2klein",
+        folder: await fixture(),
+        existingFolders: [],
+        reserveBytes: Number.MAX_SAFE_INTEGER,
+      }),
+    ).rejects.toThrow("not enough free space");
+    expect(fetchFake).not.toHaveBeenCalled();
+  });
   it("reports a refused model download without creating a ready model", async () => {
     const folder = await fixture();
     const fetchFake = vi.fn(async () => new Response("Forbidden", { status: 403 }));
@@ -50,6 +63,8 @@ describe("model installation", () => {
         diffusion_models: "diffusion_models",
         text_encoders: "text_encoders",
         vae: "vae",
+        checkpoints: "checkpoints",
+        background_removal: "background_removal",
       },
     });
   });

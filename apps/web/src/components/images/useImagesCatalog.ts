@@ -1,4 +1,10 @@
-import type { ImageCatalogModel, ImageHardwareFit, ImageSourceStatus } from "@t3tools/contracts";
+import type {
+  ImageCatalogModel,
+  ImageHardwareFit,
+  ImageSourceStatus,
+  ImagesSetupState,
+  ImagesSetupInput,
+} from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -43,6 +49,8 @@ const DEFAULT_PREVIEW: PreviewSettings = {
 };
 
 export interface GenerateRequest {
+  readonly maskPng?: string;
+  readonly referenceItemId?: string;
   readonly prompt: string;
   readonly modelIds: ReadonlyArray<string>;
   readonly count: number;
@@ -61,6 +69,13 @@ const mockDurationMs = (seconds: number) => Math.min(2500, Math.max(500, seconds
 
 /** What the Images page needs from a data source. The sample hook and the live hook both give it. */
 export interface ImagesApi {
+  readonly retentionEnabled?: boolean;
+  readonly setRetention?: (enabled: boolean) => Promise<boolean>;
+  readonly importReference?: (file: File, signal?: AbortSignal) => Promise<string | null>;
+  readonly improvePrompt?: (prompt: string) => Promise<string>;
+  readonly storageVolumes?: readonly { readonly mount: string; readonly freeBytes: number }[];
+  readonly setupState?: ImagesSetupState | undefined;
+  readonly setup?: (input: ImagesSetupInput) => Promise<boolean>;
   readonly mode: "sample" | "live";
   /** False until the first answer from the server. */
   readonly ready: boolean;
@@ -79,11 +94,11 @@ export interface ImagesApi {
   readonly imageUrl: (item: GalleryItem) => string | null;
   readonly generate: (request: GenerateRequest) => unknown;
   readonly runBenchmark: (modelIds: ReadonlyArray<string>) => unknown;
-  readonly cancel: (stopRunning: boolean) => unknown;
+  readonly cancel: (stopRunning: boolean, jobId?: string) => unknown;
   readonly keep: (item: GalleryItem, kept: boolean) => unknown;
   readonly retry: (item: GalleryItem) => unknown;
   /** Null when the server cannot delete a picture yet. */
-  readonly remove: ((item: GalleryItem) => void) | null;
+  readonly remove: ((item: GalleryItem) => unknown) | null;
   readonly install: (model: ImageCatalogModel) => void;
   readonly recheck: () => Promise<boolean>;
   readonly setBaseUrl: (value: string) => Promise<boolean>;

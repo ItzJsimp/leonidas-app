@@ -7,12 +7,17 @@ import type { ImageModel, ImageSourceId } from "@t3tools/contracts";
 import type { WorkflowSettings } from "./comfyWorkflows.ts";
 
 export interface GenerateRequest {
+  readonly referenceImage?: Uint8Array;
+  readonly maskImage?: Uint8Array;
   readonly modelId: string;
   readonly prompt: string;
   readonly seed: number;
+  readonly width?: number;
+  readonly height?: number;
 }
 
 export interface GenerateHooks {
+  readonly onProgress?: (completed: number, total: number) => void;
   /** Aborting must stop the wait and make `generate` throw. */
   readonly signal?: AbortSignal;
 }

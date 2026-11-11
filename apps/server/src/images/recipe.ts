@@ -52,7 +52,12 @@ const exists = (path: string) =>
 /** Picks `base`, or `base-2`, `base-3` when the name is taken. */
 async function freeBaseName(dir: string, base: string): Promise<string> {
   let candidate = base;
-  for (let n = 2; await exists(NodePath.join(dir, `${candidate}.png`)); n += 1) {
+  for (
+    let n = 2;
+    (await exists(NodePath.join(dir, `${candidate}.png`))) ||
+    (await exists(NodePath.join(dir, `${candidate}.json`)));
+    n += 1
+  ) {
     candidate = `${base}-${String(n)}`;
   }
   return candidate;
@@ -72,8 +77,11 @@ export async function saveImageWithRecipe(input: {
   const pngPath = NodePath.join(input.dir, `${name}.png`);
   const recipePath = NodePath.join(input.dir, `${name}.json`);
   const recipe: Recipe = { version: 1, ...input.recipe, file: `${name}.png` };
-  await NodeFSP.writeFile(pngPath, input.bytes);
-  await NodeFSP.writeFile(recipePath, `${JSON.stringify(recipe, null, 2)}\n`, "utf8");
+  await NodeFSP.writeFile(pngPath, input.bytes, { flag: "wx" });
+  await NodeFSP.writeFile(recipePath, `${JSON.stringify(recipe, null, 2)}\n`, {
+    encoding: "utf8",
+    flag: "wx",
+  });
   return { name, pngPath, recipePath };
 }
 

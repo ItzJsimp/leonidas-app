@@ -92,6 +92,8 @@ export async function installImageEngine(
       "127.0.0.1",
       "--disable-all-custom-nodes",
       "--disable-api-nodes",
+      // Measured on Windows: this keeps total VRAM below the release limit.
+      ...(platform === "win32" ? ["--disable-dynamic-vram", "--reserve-vram", "2"] : []),
       "--base-directory",
       NodePath.join(root, "data"),
     ],

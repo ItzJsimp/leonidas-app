@@ -29,7 +29,7 @@ import {
   type CatalogSort,
 } from "./catalog.logic";
 import { formatSeconds, toggleModel } from "./images.logic";
-import { ARENA_URL, BENCHMARK_PROMPTS, type GalleryItem } from "./images.mock";
+import { ARENA_URL, BENCHMARK_PROMPTS, type GalleryItem } from "./imageTypes";
 
 const FILTERS: ReadonlyArray<{ id: CatalogFilter; label: string }> = [
   { id: "installed", label: "Installed" },
@@ -294,6 +294,11 @@ function ModelRow(props: {
         {model.licenceVerifiedOn === null ? <Unverified /> : null}
       </div>
       <div className="flex flex-wrap items-center gap-2 lg:w-56 lg:justify-end">
+        {model.state === "ready" ? (
+          <Button size="sm" variant="outline" onClick={props.onInstall}>
+            Verify files
+          </Button>
+        ) : null}
         {model.state === "not-installed" || model.state === "broken" ? (
           <Button
             size="sm"
@@ -391,6 +396,15 @@ function ModelDetailSheet(props: {
                   </Button>
                   <HelpText>{install.text}</HelpText>
                 </div>
+              ) : null}
+              {model.state === "ready" ? (
+                <Button
+                  className="self-start"
+                  variant="outline"
+                  onClick={() => props.onInstall(model)}
+                >
+                  Verify files
+                </Button>
               ) : null}
               <section>
                 <h3 className="mb-1 text-sm font-semibold">Speed</h3>

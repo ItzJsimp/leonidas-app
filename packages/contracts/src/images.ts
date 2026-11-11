@@ -38,6 +38,10 @@ export type ImageItemStatus = typeof ImageItemStatus.Type;
 
 /** One image in the queue or the grid. */
 export const ImageItem = Schema.Struct({
+  completedSteps: Schema.optional(NonNegativeInt),
+  totalSteps: Schema.optional(PositiveInt),
+  width: Schema.optional(PositiveInt),
+  height: Schema.optional(PositiveInt),
   id: TrimmedNonEmptyString,
   jobId: TrimmedNonEmptyString,
   prompt: Schema.String,
@@ -72,6 +76,9 @@ export type ImageSourceStatus = typeof ImageSourceStatus.Type;
 export const IMAGE_SOURCE_CHECKING = "Checking...";
 
 export const ImagesSetupState = Schema.Struct({
+  platform: Schema.optional(Schema.String),
+  architecture: Schema.optional(Schema.String),
+  modelId: Schema.optional(Schema.String),
   phase: Schema.Literals([
     "not-installed",
     "downloading",
@@ -91,7 +98,9 @@ export type ImagesSetupState = typeof ImagesSetupState.Type;
 
 export const ImagesSetupInput = Schema.Struct({
   folder: TrimmedNonEmptyString.check(Schema.isMaxLength(1000)),
-  modelId: Schema.optional(Schema.Literals(["flux2klein", "zimage"])),
+  modelId: Schema.optional(
+    Schema.Literals(["flux2klein", "zimage", "qwen", "hidream", "birefnet"]),
+  ),
   existingFolders: Schema.optional(
     Schema.Array(TrimmedNonEmptyString).check(Schema.isMaxLength(8)),
   ),
@@ -99,6 +108,7 @@ export const ImagesSetupInput = Schema.Struct({
 export type ImagesSetupInput = typeof ImagesSetupInput.Type;
 
 export const ImagesState = Schema.Struct({
+  retentionEnabled: Schema.optional(Schema.Boolean),
   setup: Schema.optional(ImagesSetupState),
   source: ImageSourceStatus,
   models: Schema.Array(ImageModel),
@@ -117,6 +127,20 @@ export const ImagesSubscribeInput = Schema.Struct({ projectId: ProjectId });
 export type ImagesSubscribeInput = typeof ImagesSubscribeInput.Type;
 
 export const ImagesGenerateInput = Schema.Struct({
+  maskPng: Schema.optional(
+    TrimmedNonEmptyString.check(
+      Schema.isMaxLength(349528),
+      Schema.isPattern(/^[A-Za-z0-9+/]+={0,2}$/),
+    ),
+  ),
+  referenceItemId: Schema.optional(TrimmedNonEmptyString),
+  clientRequestId: Schema.optional(TrimmedNonEmptyString.check(Schema.isMaxLength(128))),
+  width: Schema.optional(
+    PositiveInt.check(Schema.isBetween({ minimum: 256, maximum: 2048 }), Schema.isMultipleOf(64)),
+  ),
+  height: Schema.optional(
+    PositiveInt.check(Schema.isBetween({ minimum: 256, maximum: 2048 }), Schema.isMultipleOf(64)),
+  ),
   projectId: ProjectId,
   prompt: TrimmedNonEmptyString.check(Schema.isMaxLength(IMAGES_PROMPT_MAX_LENGTH)),
   modelIds: Schema.Array(TrimmedNonEmptyString).check(Schema.isMinLength(1), Schema.isMaxLength(8)),
@@ -133,6 +157,7 @@ export const ImagesGenerateResult = Schema.Struct({
 export type ImagesGenerateResult = typeof ImagesGenerateResult.Type;
 
 export const ImagesCancelInput = Schema.Struct({
+  jobId: Schema.optional(TrimmedNonEmptyString),
   /** True also stops the image that runs now. */
   stopRunning: Schema.Boolean,
 });
@@ -150,6 +175,20 @@ export const ImagesRetryInput = Schema.Struct({
   itemId: TrimmedNonEmptyString,
 });
 export type ImagesRetryInput = typeof ImagesRetryInput.Type;
+
+export const ImagesImportReferenceInput = Schema.Struct({
+  projectId: ProjectId,
+  attachmentId: TrimmedNonEmptyString.check(Schema.isMaxLength(200)),
+});
+export type ImagesImportReferenceInput = typeof ImagesImportReferenceInput.Type;
+
+export const ImagesDeleteInput = Schema.Struct({
+  projectId: ProjectId,
+  itemId: TrimmedNonEmptyString,
+});
+export type ImagesDeleteInput = typeof ImagesDeleteInput.Type;
+export const ImagesRetentionInput = Schema.Struct({ enabled: Schema.Boolean });
+export type ImagesRetentionInput = typeof ImagesRetentionInput.Type;
 
 export const ImagesSetBaseUrlInput = Schema.Struct({
   baseUrl: TrimmedNonEmptyString.check(Schema.isMaxLength(300)),
@@ -234,6 +273,7 @@ export type ImageCatalogModel = typeof ImageCatalogModel.Type;
 
 /** The PC facts that decide fit. Same source as hardwareWatch/localModelCapacity.ts. */
 export const ImageHardwareFit = Schema.Struct({
+  unifiedMemory: Schema.optional(Schema.Boolean),
   gpuName: Schema.String,
   vramBytes: NonNegativeInt,
   ramBytes: NonNegativeInt,

@@ -1,11 +1,11 @@
 // @effect-diagnostics nodeBuiltinImport:off globalTimers:off globalDate:off - Test drives plain async code against a temp folder.
-import * as NodeFS from "node:fs/promises";
+import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { COMFY_MODELS } from "./imageModels.ts";
-import { ImagesEngine } from "./ImagesEngine.ts";
+import { ImagesEngine as CoreImagesEngine, type ImagesEngineOptions } from "./ImagesEngine.ts";
 import {
   ImageCancelledError,
   type GenerateHooks,
@@ -14,11 +14,25 @@ import {
 } from "./imageSource.ts";
 
 let root: string;
+class ImagesEngine extends CoreImagesEngine {
+  readonly changes: EventTarget;
+  constructor(options: ImagesEngineOptions) {
+    const changes = new EventTarget();
+    super({
+      ...options,
+      onChange: () => {
+        options.onChange?.();
+        changes.dispatchEvent(new Event("change"));
+      },
+    });
+    this.changes = changes;
+  }
+}
 beforeEach(async () => {
-  root = await NodeFS.mkdtemp(NodePath.join(NodeOS.tmpdir(), "images-engine-"));
+  root = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "images-engine-"));
 });
 afterEach(async () => {
-  await NodeFS.rm(root, { recursive: true, force: true });
+  await NodeFSP.rm(root, { recursive: true, force: true });
 });
 
 /** A source that records its calls. `gates` hold an image until the test opens the gate. */
@@ -59,16 +73,236 @@ function fakeSource(options: { failModel?: string; hold?: boolean } = {}) {
 
 /** Waits until the engine has no waiting or running image. */
 async function settle(engine: ImagesEngine) {
-  for (let i = 0; i < 200; i += 1) {
-    const items = engine.snapshot(root).items;
-    if (items.length > 0 && items.every((i) => i.status !== "waiting" && i.status !== "running"))
-      return;
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-  throw new Error("queue did not settle");
+  await new Promise<void>((resolve) => {
+    const check = () => {
+      if (engine.isBusy()) return;
+      engine.changes.removeEventListener("change", check);
+      resolve();
+    };
+    engine.changes.addEventListener("change", check);
+    check();
+  });
 }
 
 describe("ImagesEngine", () => {
+  it("bounds active work and permits cancellation when the queue is full", async () => {
+    const fake = fakeSource({ hold: true });
+    const engine = new ImagesEngine({ source: fake.source });
+    const input = {
+      workspaceRoot: root,
+      prompt: "p",
+      modelIds: ["flux2klein"],
+      seed: 1,
+      count: 12,
+    };
+    for (let i = 0; i < 8; i += 1) engine.enqueue({ ...input, seed: i * 12 });
+    expect(() => engine.enqueue({ ...input, count: 1 })).toThrow("queue is full");
+    await engine.cancel({ stopRunning: true });
+    await settle(engine);
+    expect(engine.isBusy()).toBe(false);
+  });
+  it("stores the exact brush mask and rejects masks without a reference", async () => {
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGNgaGD4TxEeNWDUgFED/g8TAwDrCH8Qy9YD6gAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const fake = fakeSource();
+    const requests: GenerateRequest[] = [];
+    const engine = new ImagesEngine({
+      source: {
+        ...fake.source,
+        generate: async (request) => {
+          requests.push(request);
+          return { bytes: png, mimeType: "image/png", settings: { width: 16, height: 16 } };
+        },
+      },
+    });
+    const input = { workspaceRoot: root, prompt: "p", modelIds: ["flux2klein"], seed: 1, count: 1 };
+    const maskPng = png.toString("base64");
+    expect(() => engine.enqueue({ ...input, maskPng })).toThrow("needs a reference");
+    engine.enqueue(input);
+    await settle(engine);
+    const reference = engine.snapshot(root).items[0]!;
+    const job = engine.enqueue({ ...input, referenceItemId: reference.id, maskPng });
+    await settle(engine);
+    expect(requests[1]?.maskImage).toEqual(png);
+    const item = engine.snapshot(root).items.find((item) => item.jobId === job.jobId)!;
+    const recipe = JSON.parse(
+      await NodeFSP.readFile(NodePath.join(root, item.file!.replace(/\.png$/, ".json")), "utf8"),
+    );
+    expect(recipe.settings.maskPng).toBe(maskPng);
+    expect(() =>
+      engine.enqueue({
+        ...input,
+        referenceItemId: reference.id,
+        maskPng: Buffer.alloc(256 * 1024 + 1).toString("base64"),
+      }),
+    ).toThrow("256 KB");
+  });
+  it("imports a reference after initial hydration and preserves the source file", async () => {
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGNgaGD4TxEeNWDUgFED/g8TAwDrCH8Qy9YD6gAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const file = NodePath.join(root, "uploaded.png");
+    await NodeFSP.writeFile(file, png);
+    const fake = fakeSource();
+    const engine = new ImagesEngine({ source: fake.source });
+    await engine.hydrate(root);
+    const result = await engine.importReference({ workspaceRoot: root, file });
+    const item = engine.snapshot(root).items.find((item) => item.id === result.itemId)!;
+    expect(item.modelLabel).toBe("Imported image");
+    expect(item.width).toBe(16);
+    expect(item.height).toBe(16);
+    expect(await NodeFSP.readFile(NodePath.join(root, item.file!))).toEqual(png);
+    expect(await NodeFSP.readFile(file)).toEqual(png);
+  });
+  it("uses reference dimensions for resizing and rejects output above the pixel limit", async () => {
+    const fake = fakeSource();
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGNgaGD4TxEeNWDUgFED/g8TAwDrCH8Qy9YD6gAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const engine = new ImagesEngine({
+      source: {
+        ...fake.source,
+        generate: async (request) => ({
+          bytes: png,
+          mimeType: "image/png",
+          settings: {
+            width: (request.width ?? 1024) * (request.modelId === "upscale" ? 2 : 1),
+            height: (request.height ?? 1024) * (request.modelId === "upscale" ? 2 : 1),
+          },
+        }),
+      },
+    });
+    const input = { workspaceRoot: root, prompt: "p", modelIds: ["flux2klein"], seed: 1, count: 1 };
+    engine.enqueue(input);
+    await settle(engine);
+    let reference = engine.snapshot(root).items[0]!;
+    for (const size of [2048, 4096]) {
+      const job = engine.enqueue({
+        ...input,
+        modelIds: ["upscale"],
+        referenceItemId: reference.id,
+      });
+      await settle(engine);
+      reference = engine.snapshot(root).items.find((item) => item.jobId === job.jobId)!;
+      expect(reference.width).toBe(size);
+      expect(reference.height).toBe(size);
+    }
+    expect(() =>
+      engine.enqueue({ ...input, modelIds: ["upscale"], referenceItemId: reference.id }),
+    ).toThrow("2048 pixels");
+  });
+  it("edits a completed image from the same project without replacing the original", async () => {
+    const fake = fakeSource();
+    const requests: GenerateRequest[] = [];
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGNgaGD4TxEeNWDUgFED/g8TAwDrCH8Qy9YD6gAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const engine = new ImagesEngine({
+      source: {
+        ...fake.source,
+        generate: async (request) => {
+          requests.push(request);
+          return { bytes: png, mimeType: "image/png", settings: { steps: 4 } };
+        },
+      },
+    });
+    const input = {
+      workspaceRoot: root,
+      prompt: "first",
+      modelIds: ["flux2klein"],
+      seed: 1,
+      count: 1,
+    };
+    engine.enqueue(input);
+    await settle(engine);
+    const original = engine.snapshot(root).items[0]!;
+    expect(() =>
+      engine.enqueue({ ...input, workspaceRoot: `${root}-other`, referenceItemId: original.id }),
+    ).toThrow("not found in this project");
+    expect(() =>
+      engine.enqueue({ ...input, modelIds: ["zimage"], referenceItemId: original.id }),
+    ).toThrow("FLUX.2 klein");
+    engine.enqueue({ ...input, prompt: "make it blue", referenceItemId: original.id });
+    await settle(engine);
+    expect(requests[1]?.referenceImage).toEqual(new Uint8Array(png));
+    expect(engine.snapshot(root).items).toHaveLength(2);
+    expect(await NodeFSP.readFile(NodePath.join(root, original.file!))).toEqual(png);
+  });
+  it("returns the same job when a submission is retried with its request id", async () => {
+    const fake = fakeSource();
+    const engine = new ImagesEngine({ source: fake.source });
+    const input = {
+      workspaceRoot: root,
+      prompt: "p",
+      modelIds: ["flux2klein"],
+      seed: 1,
+      count: 1,
+      clientRequestId: "request-one",
+    };
+    const first = engine.enqueue(input);
+    expect(engine.enqueue(input)).toEqual(first);
+    expect(() => engine.enqueue({ ...input, prompt: "different" })).toThrow(/request id/);
+    await settle(engine);
+    expect(fake.log.filter((line) => line.startsWith("generate"))).toHaveLength(1);
+  });
+
+  it("cancels a waiting job without stopping another running job", async () => {
+    const fake = fakeSource({ hold: true });
+    const engine = new ImagesEngine({ source: fake.source });
+    const first = engine.enqueue({
+      workspaceRoot: root,
+      prompt: "first",
+      modelIds: ["flux2klein"],
+      seed: 1,
+      count: 1,
+    });
+    const second = engine.enqueue({
+      workspaceRoot: root,
+      prompt: "second",
+      modelIds: ["flux2klein"],
+      seed: 2,
+      count: 1,
+    });
+    expect(await engine.cancel({ jobId: second.jobId, stopRunning: true })).toBe(1);
+    expect(fake.log).not.toContain("interrupt");
+    fake.gates.shift()?.();
+    await settle(engine);
+    expect(engine.snapshot(root).items).toMatchObject([{ jobId: first.jobId, status: "done" }]);
+  });
+  it("keeps requested dimensions through generation and retry", async () => {
+    const fake = fakeSource({ hold: true });
+    const received: GenerateRequest[] = [];
+    const engine = new ImagesEngine({
+      source: {
+        ...fake.source,
+        generate: async (request) => {
+          received.push(request);
+          throw new Error("retry this image");
+        },
+      },
+    });
+    engine.enqueue({
+      workspaceRoot: root,
+      prompt: "p",
+      modelIds: ["flux2klein"],
+      seed: 1,
+      count: 1,
+      width: 768,
+      height: 1024,
+    });
+    await settle(engine);
+    const first = engine.snapshot(root).items[0]!;
+    expect(first).toMatchObject({ width: 768, height: 1024 });
+    engine.retry({ workspaceRoot: root, itemId: first.id });
+    await settle(engine);
+    expect(received).toHaveLength(2);
+    expect(received[1]).toMatchObject({ width: 768, height: 1024 });
+  });
   it("runs 2 variations, frees memory once, and saves 2 PNGs with 2 Recipes", async () => {
     const fake = fakeSource();
     const engine = new ImagesEngine({ source: fake.source });
@@ -83,7 +317,7 @@ describe("ImagesEngine", () => {
     await settle(engine);
 
     expect(fake.log).toEqual(["free", "generate flux2klein 100", "generate flux2klein 101"]);
-    const files = (await NodeFS.readdir(NodePath.join(root, "images"))).toSorted();
+    const files = (await NodeFSP.readdir(NodePath.join(root, "images"))).toSorted();
     expect(files.filter((f) => f.endsWith(".png"))).toHaveLength(2);
     expect(files.filter((f) => f.endsWith(".json"))).toHaveLength(2);
 
@@ -91,7 +325,7 @@ describe("ImagesEngine", () => {
     expect(items.map((i) => i.status)).toEqual(["done", "done"]);
     const first = items.find((i) => i.seed === 100)!;
     const recipe = JSON.parse(
-      await NodeFS.readFile(NodePath.join(root, first.file!.replace(/\.png$/, ".json")), "utf8"),
+      await NodeFSP.readFile(NodePath.join(root, first.file!.replace(/\.png$/, ".json")), "utf8"),
     );
     expect(recipe).toMatchObject({
       version: 1,
@@ -223,11 +457,11 @@ describe("ImagesEngine", () => {
     await settle(engine);
     const item = engine.snapshot(root).items[0]!;
     expect(await engine.keep({ workspaceRoot: root, itemId: item.id, kept: true })).toBe(true);
-    const keptFiles = await NodeFS.readdir(NodePath.join(root, "images", "kept"));
+    const keptFiles = await NodeFSP.readdir(NodePath.join(root, "images", "kept"));
     expect(keptFiles.toSorted()).toHaveLength(2);
     expect(engine.snapshot(root).items[0]?.kept).toBe(true);
     expect(await engine.keep({ workspaceRoot: root, itemId: item.id, kept: false })).toBe(false);
-    expect(await NodeFS.readdir(NodePath.join(root, "images", "kept"))).toEqual([]);
+    expect(await NodeFSP.readdir(NodePath.join(root, "images", "kept"))).toEqual([]);
     expect(await engine.keep({ workspaceRoot: root, itemId: "nope", kept: true })).toBeNull();
   });
 
@@ -258,7 +492,7 @@ describe("ImagesEngine", () => {
   it("keeps projects apart", async () => {
     const fake = fakeSource();
     const engine = new ImagesEngine({ source: fake.source });
-    const other = await NodeFS.mkdtemp(NodePath.join(NodeOS.tmpdir(), "images-other-"));
+    const other = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "images-other-"));
     try {
       engine.enqueue({
         workspaceRoot: root,
@@ -270,7 +504,7 @@ describe("ImagesEngine", () => {
       await settle(engine);
       expect(engine.snapshot(other).items).toEqual([]);
     } finally {
-      await NodeFS.rm(other, { recursive: true, force: true });
+      await NodeFSP.rm(other, { recursive: true, force: true });
     }
   });
 

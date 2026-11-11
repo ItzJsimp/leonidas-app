@@ -94,12 +94,34 @@ describe("withOnDemandStart", () => {
     expect(log).toEqual(["launch", "generate"]);
     wrapped.dispose();
   });
+  it("stops a late launch when its image request is cancelled", async () => {
+    let finish!: () => void;
+    const waitForLaunch = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const { wrapped, log } = setup({ config: { ...config, args: [] }, waitForLaunch });
+    const controller = new AbortController();
+    const generation = wrapped.generate(request, { signal: controller.signal });
+    controller.abort();
+    finish();
+    await expect(generation).rejects.toThrow("Stopped");
+    expect(log).toEqual(["launch", "kill"]);
+    wrapped.dispose();
+  });
   it("starts a new process after the engine exits", async () => {
     const { wrapped, log, crash } = setup();
     await wrapped.generate(request);
     crash();
     await wrapped.generate(request);
     expect(log).toEqual(["launch", "generate", "launch", "generate"]);
+    wrapped.dispose();
+  });
+  it("restarts its owned engine after configuration changes", async () => {
+    const { wrapped, log } = setup({ config: { ...config, args: [] } });
+    await wrapped.generate(request);
+    wrapped.reset();
+    await wrapped.generate(request);
+    expect(log).toEqual(["launch", "generate", "kill", "launch", "generate"]);
     wrapped.dispose();
   });
 

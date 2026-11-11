@@ -9,6 +9,9 @@ import {
   type ImagesGenerateInput,
   type ImagesGenerateResult,
   type ImagesKeepInput,
+  type ImagesImportReferenceInput,
+  type ImagesDeleteInput,
+  type ImagesRetentionInput,
   type ImagesRetryInput,
   type ImagesSetBaseUrlInput,
   type ImagesState,
@@ -22,6 +25,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as PubSub from "effect/PubSub";
+import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
 import * as NodeFS from "node:fs";
 import * as NodeFSP from "node:fs/promises";
@@ -38,6 +42,11 @@ import { withOnDemandStart, type LaunchConfig } from "./onDemandSource.ts";
 import { engineDownloadBytes, installImageEngine } from "./engineInstall.ts";
 import { modelDownloadBytes } from "@t3tools/shared/imageAssets";
 import { installImageModel, writeImageModelPaths } from "./modelInstall.ts";
+import {
+  parseThreadSegmentFromAttachmentId,
+  PENDING_ATTACHMENT_THREAD_SEGMENT,
+  resolveAttachmentPathById,
+} from "../attachmentStore.ts";
 
 /** How often the panel re-checks that ComfyUI answers while it is open. */
 const STATUS_POLL_MS = 5_000;
@@ -51,6 +60,17 @@ export class ImageService extends Context.Service<
       project: Project,
       input: ImagesGenerateInput,
     ) => Effect.Effect<ImagesGenerateResult, ImagesError>;
+    readonly importReference: (
+      project: Project,
+      input: ImagesImportReferenceInput,
+    ) => Effect.Effect<{ readonly itemId: string }, ImagesError>;
+    readonly remove: (
+      project: Project,
+      input: ImagesDeleteInput,
+    ) => Effect.Effect<{ readonly removed: boolean }, ImagesError>;
+    readonly setRetention: (
+      input: ImagesRetentionInput,
+    ) => Effect.Effect<{ readonly enabled: boolean }, ImagesError>;
     readonly cancel: (
       input: ImagesCancelInput,
     ) => Effect.Effect<{ readonly cancelled: number }, ImagesError>;
@@ -148,11 +168,15 @@ const make = Effect.gen(function* () {
   const config = yield* ServerConfig.ServerConfig;
   const net = yield* NetService.NetService;
   const settingsFile = NodePath.join(config.stateDir, "images", "settings.json");
+  const retentionFile = NodePath.join(config.stateDir, "images", "retention.json");
+  let retentionEnabled = readSettings(retentionFile)["enabled"] === true;
   let baseUrl = readSavedBaseUrl(settingsFile) ?? DEFAULT_COMFY_URL;
 
   const changes = yield* PubSub.sliding<void>(1);
   let setupController: AbortController | null = null;
   let setupState: ImagesSetupState = {
+    platform,
+    architecture: arch,
     phase: readLaunchConfig(settingsFile)?.args ? "ready" : "not-installed",
     received: 0,
     total: platform === "win32" || platform === "darwin" ? engineDownloadBytes(platform) : 0,
@@ -202,6 +226,31 @@ const make = Effect.gen(function* () {
       detail: cause instanceof Error ? cause.message : String(cause),
     });
 
+  const cleanupQueue = yield* Queue.sliding<string>(128);
+  const cleanupLast = new Map<string, number>();
+  yield* Stream.fromQueue(cleanupQueue).pipe(
+    Stream.runForEach((root) =>
+      Effect.tryPromise({
+        try: (signal) => engine.cleanup(root, () => retentionEnabled && !signal.aborted),
+        catch: storage,
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.logWarning("Image cleanup failed", { detail: error.detail }),
+        ),
+      ),
+    ),
+    Effect.forkIn(scope),
+  );
+  const scheduleCleanup = (root: string) =>
+    Effect.gen(function* () {
+      const now = clock.currentTimeMillisUnsafe();
+      if (!retentionEnabled || now - (cleanupLast.get(root) ?? 0) < 86400000) return;
+      cleanupLast.delete(root);
+      cleanupLast.set(root, now);
+      if (cleanupLast.size > 128) cleanupLast.delete(cleanupLast.keys().next().value!);
+      yield* Queue.offer(cleanupQueue, root);
+    });
+
   const subscribe = (project: Project): Stream.Stream<ImagesState, ImagesError> =>
     Stream.unwrap(
       Effect.gen(function* () {
@@ -209,9 +258,11 @@ const make = Effect.gen(function* () {
           try: () => engine.hydrate(project.workspaceRoot),
           catch: storage,
         });
+        yield* scheduleCleanup(project.workspaceRoot);
         const snapshot = Effect.sync(() => ({
           ...engine.snapshot(project.workspaceRoot),
           setup: setupState,
+          retentionEnabled,
         }));
         // The first snapshot goes out at once. The tick checks the connection and publishes a change.
         const polling = Stream.tick(STATUS_POLL_MS).pipe(
@@ -236,12 +287,34 @@ const make = Effect.gen(function* () {
           detail: `Unknown model: ${unknown}`,
         });
       }
-      return engine.enqueue({
-        workspaceRoot: project.workspaceRoot,
-        prompt: input.prompt,
-        modelIds: input.modelIds,
-        seed: input.seed,
-        count: input.count,
+      if (setupController)
+        return yield* new ImagesError({
+          reason: "invalid_input",
+          detail: "Wait for image setup to finish.",
+        });
+      return yield* Effect.try({
+        try: () =>
+          engine.enqueue({
+            workspaceRoot: project.workspaceRoot,
+            prompt: input.prompt,
+            modelIds: input.modelIds,
+            seed: input.seed,
+            count: input.count,
+            ...(input.width === undefined ? {} : { width: input.width }),
+            ...(input.height === undefined ? {} : { height: input.height }),
+            ...(input.referenceItemId === undefined
+              ? {}
+              : { referenceItemId: input.referenceItemId }),
+            ...(input.maskPng === undefined ? {} : { maskPng: input.maskPng }),
+            ...(input.clientRequestId === undefined
+              ? {}
+              : { clientRequestId: input.clientRequestId }),
+          }),
+        catch: (cause) =>
+          new ImagesError({
+            reason: "invalid_input",
+            detail: cause instanceof Error ? cause.message : "Invalid image request.",
+          }),
       });
     });
 
@@ -321,6 +394,12 @@ const make = Effect.gen(function* () {
             "Setup needs NVIDIA graphics with 6 GB or Apple Silicon, plus 8 GB of memory. Wait for the hardware check.",
         });
       }
+      if (setupController) return setupState;
+      if (engine.isBusy())
+        return yield* new ImagesError({
+          reason: "invalid_input",
+          detail: "Finish or cancel the image queue before setup.",
+        });
       const controller = new AbortController();
       const modelId = input.modelId ?? "flux2klein";
       const engineBytes = engineDownloadBytes(platform === "darwin" ? "darwin" : "win32");
@@ -333,29 +412,12 @@ const make = Effect.gen(function* () {
         received: 0,
         error: null,
         total: totalBytes,
+        modelId,
       };
       PubSub.publishUnsafe(changes, undefined);
       const install = Effect.tryPromise({
         try: async () => {
           let lastUpdate = 0;
-          const launch = await installImageEngine({
-            folder: input.folder,
-            platform,
-            arch,
-            signal: controller.signal,
-            onProgress: (received, total) => {
-              setupState = {
-                ...setupState,
-                received,
-                total: totalBytes,
-                phase: received === total ? "extracting" : "downloading",
-              };
-              if (clock.currentTimeMillisUnsafe() - lastUpdate >= 250 || received === total) {
-                lastUpdate = clock.currentTimeMillisUnsafe();
-                PubSub.publishUnsafe(changes, undefined);
-              }
-            },
-          });
           const root = NodePath.join(input.folder, "LeonidasImages");
           const savedSettings = readSettings(settingsFile);
           const previousFolders = Array.isArray(savedSettings["modelFolders"])
@@ -372,17 +434,36 @@ const make = Effect.gen(function* () {
             modelId,
             folder: NodePath.join(root, "data", "models"),
             existingFolders: [...(input.existingFolders ?? []), ...previousFolders],
+            reserveBytes: 12 * 1024 ** 3,
             signal: controller.signal,
             onProgress: (received) => {
               setupState = {
                 ...setupState,
                 phase: "downloading",
-                received: engineBytes + received,
+                received,
               };
               if (
                 clock.currentTimeMillisUnsafe() - lastUpdate >= 1000 ||
                 setupState.received === totalBytes
               ) {
+                lastUpdate = clock.currentTimeMillisUnsafe();
+                PubSub.publishUnsafe(changes, undefined);
+              }
+            },
+          });
+          const launch = await installImageEngine({
+            folder: input.folder,
+            platform,
+            arch,
+            signal: controller.signal,
+            onProgress: (received, total) => {
+              setupState = {
+                ...setupState,
+                received: modelDownloadBytes(modelId) + received,
+                total: totalBytes,
+                phase: received === total ? "extracting" : "downloading",
+              };
+              if (clock.currentTimeMillisUnsafe() - lastUpdate >= 250 || received === total) {
                 lastUpdate = clock.currentTimeMillisUnsafe();
                 PubSub.publishUnsafe(changes, undefined);
               }
@@ -408,6 +489,7 @@ const make = Effect.gen(function* () {
               modelFolders,
             }),
           );
+          source.reset();
           setupState = { ...setupState, phase: "ready", error: null, installedModelIds };
         },
         catch: storage,
@@ -433,11 +515,60 @@ const make = Effect.gen(function* () {
     });
 
   return ImageService.of({
+    remove: (project, input) =>
+      Effect.tryPromise({
+        try: async () => ({
+          removed: await engine.remove({
+            workspaceRoot: project.workspaceRoot,
+            itemId: input.itemId,
+          }),
+        }),
+        catch: storage,
+      }),
+    setRetention: (input) =>
+      Effect.gen(function* () {
+        yield* Effect.try({
+          try: () => {
+            NodeFS.mkdirSync(NodePath.dirname(retentionFile), { recursive: true });
+            NodeFS.writeFileSync(
+              `${retentionFile}.tmp`,
+              JSON.stringify({ enabled: input.enabled }),
+            );
+            NodeFS.renameSync(`${retentionFile}.tmp`, retentionFile);
+            retentionEnabled = input.enabled;
+            cleanupLast.clear();
+            PubSub.publishUnsafe(changes, undefined);
+          },
+          catch: storage,
+        });
+        for (const root of engine.workspaceRoots()) yield* scheduleCleanup(root);
+        return { enabled: retentionEnabled };
+      }),
+    importReference: (project, input) =>
+      Effect.gen(function* () {
+        const file =
+          parseThreadSegmentFromAttachmentId(input.attachmentId) ===
+          PENDING_ATTACHMENT_THREAD_SEGMENT
+            ? resolveAttachmentPathById({
+                attachmentsDir: config.attachmentsDir,
+                attachmentId: input.attachmentId,
+              })
+            : null;
+        if (!file)
+          return yield* new ImagesError({
+            reason: "invalid_input",
+            detail: "Upload a PNG image before importing it.",
+          });
+        return yield* Effect.tryPromise({
+          try: () => engine.importReference({ workspaceRoot: project.workspaceRoot, file }),
+          catch: storage,
+        });
+      }),
     subscribe,
     generate,
     cancel: (input) =>
       Effect.promise(() => {
-        if (input.stopRunning) setupController?.abort();
+        if (input.stopRunning && input.jobId === undefined) setupController?.abort();
         return engine.cancel(input);
       }).pipe(Effect.map((cancelled) => ({ cancelled }))),
     keep,

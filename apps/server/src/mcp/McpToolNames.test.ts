@@ -8,6 +8,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { ActionToolkit } from "./toolkits/actions/tools.ts";
 import { AttachmentToolkit } from "./toolkits/attachment/tools.ts";
 import { ContentToolkit } from "./toolkits/content/tools.ts";
+import { ImagesToolkit } from "./toolkits/images/tools.ts";
 import { DeviceToolkit } from "./toolkits/device/tools.ts";
 import { EnvironmentToolkit } from "./toolkits/environment/tools.ts";
 import { HtmlToolkit } from "./toolkits/html/tools.ts";
@@ -26,6 +27,7 @@ const toolkits = [
   ActionToolkit,
   AttachmentToolkit,
   ContentToolkit,
+  ImagesToolkit,
   DeviceToolkit,
   EnvironmentToolkit,
   HtmlToolkit,

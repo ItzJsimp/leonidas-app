@@ -31,6 +31,7 @@ export class TextGeneration extends Context.Service<TextGeneration, ProviderText
 ) {}
 
 type TextGenerationOp =
+  | "improveImagePrompt"
   | "generateCommitMessage"
   | "generatePrContent"
   | "generateBranchName"
@@ -64,6 +65,19 @@ export const make = Effect.gen(function* () {
   const registry = yield* ProviderInstanceRegistry.ProviderInstanceRegistry;
   const sourceControl = yield* SourceControlProviderRegistry.SourceControlProviderRegistry;
   return TextGeneration.of({
+    improveImagePrompt: (input) =>
+      resolveInstance(registry, "improveImagePrompt", input.modelSelection.instanceId).pipe(
+        Effect.flatMap((generation) =>
+          generation.improveImagePrompt
+            ? generation.improveImagePrompt(input)
+            : Effect.fail(
+                new TextGenerationError({
+                  operation: "improveImagePrompt",
+                  detail: "This account cannot improve image prompts.",
+                }),
+              ),
+        ),
+      ),
     generateVoiceLogDraft: (input) =>
       resolveInstance(registry, "generateVoiceLogDraft", input.modelSelection.instanceId).pipe(
         Effect.flatMap((generation) =>

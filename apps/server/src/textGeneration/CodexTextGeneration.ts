@@ -252,6 +252,7 @@ export const makeCodexTextGeneration = Effect.fn("makeCodexTextGeneration")(func
 
     const runCodexCommand = Effect.fn("runCodexJson.runCodexCommand")(function* () {
       const workingDirectory =
+        operation === "improveImagePrompt" ||
         operation === "generatePromptSuggestion" ||
         operation === "pickSkills" ||
         operation === "generateVoiceLogDraft"

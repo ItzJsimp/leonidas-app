@@ -18,6 +18,7 @@ const OpenCodeTextGenerationOperation = Schema.Literals([
   "evaluateGoal",
   "assessThread",
   "generatePromptSuggestion",
+  "improveImagePrompt",
   "pickSkills",
   "generateVoiceLogDraft",
 ]);

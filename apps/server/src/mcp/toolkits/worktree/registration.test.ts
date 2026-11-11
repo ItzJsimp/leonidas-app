@@ -43,8 +43,10 @@ import * as HardwareWatch from "#server/hardwareWatch/HardwareWatch.ts";
 import * as LocalModelsService from "#server/localModels/LocalModelsService.ts";
 import * as ScribeEngine from "#server/scribe/ScribeEngine.ts";
 import * as ReviewService from "#server/review/ReviewService.ts";
+import * as ImageService from "#server/images/ImageService.ts";
 
 const layerStubServices = Layer.mergeAll(
+  Layer.mock(ImageService.ImageService)({}),
   Layer.mock(SavedItems.SavedItemService)({}),
   Layer.mock(SavedItemExecution.SavedItemExecution)({}),
   Layer.mock(Orchestrator.OrchestratorV2)({}),
