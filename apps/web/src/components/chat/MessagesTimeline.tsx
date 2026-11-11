@@ -243,7 +243,11 @@ interface MessagesTimelineProps {
     readonly scopeId: string;
   }) => void;
   supportsConversationRollback: boolean;
-  onRevertToTurnCount: (targetTurnCount: number, messageId: MessageId) => void;
+  onRevertToTurnCount: (
+    targetTurnCount: number,
+    messageId: MessageId,
+    restoreFiles?: boolean,
+  ) => void;
   onUseArtifactTemplate?: (template: CodexArtifactTemplate) => void;
   onDockReply?: (text: string) => void;
   onSendAppMessage?: (text: string) => Promise<void>;

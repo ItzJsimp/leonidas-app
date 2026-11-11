@@ -8156,9 +8156,8 @@ export default function ChatView(props: ChatViewProps) {
   }, [activeThreadId, composerRef]);
 
   const onRevertToTurnCount = useCallback(
-    // Conversation-only: files stay as the agent left them, so one click is safe.
-    async (turnCount: number, messageId: MessageId) => {
-      const restoreFiles = false;
+    // Files stay as the agent left them unless the user picks "files and chat" in the dialog.
+    async (turnCount: number, messageId: MessageId, restoreFiles = false) => {
       const localApi = readLocalApi();
       if (
         !localApi ||
@@ -10935,9 +10934,12 @@ export default function ChatView(props: ChatViewProps) {
   // reference is fully stable and never busts TimelineRowCtx identity.
   const onRevertToTurnCountRef = useRef(onRevertToTurnCount);
   onRevertToTurnCountRef.current = onRevertToTurnCount;
-  const onRevertTimelineTurn = useCallback((targetTurnCount: number, messageId: MessageId) => {
-    void onRevertToTurnCountRef.current(targetTurnCount, messageId);
-  }, []);
+  const onRevertTimelineTurn = useCallback(
+    (targetTurnCount: number, messageId: MessageId, restoreFiles?: boolean) => {
+      void onRevertToTurnCountRef.current(targetTurnCount, messageId, restoreFiles);
+    },
+    [],
+  );
 
   const pendingSidebarFileDrops = useSidebarPendingFileDropStore((state) => state.pending);
   const consumePendingFileDrop = useSidebarPendingFileDropStore(
