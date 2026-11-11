@@ -1,3 +1,4 @@
+import { environmentPresentations } from "../../state/presentation";
 import { ThreadHoverCardPopup } from "../ThreadHoverCard";
 import { resolveModelSwitchChange } from "@t3tools/client-runtime/handoff";
 import { AgentElapsed } from "./AgentElapsed";
@@ -775,5 +776,28 @@ export function ModelSwitchRow(props: {
         {describe(from, change.effort?.from)} → {describe(to, change.effort?.to)}
       </span>
     </div>
+  );
+}
+
+/**
+ * Reads only the two provider fields the avatar draws. Provider status pushes
+ * replace the provider objects (fresh `checkedAt`), so selecting strings keeps
+ * the avatar from re-rendering when nothing it shows changed.
+ */
+export function EnvironmentSubagentAvatar({
+  environmentId,
+  providerInstanceId,
+  ...props
+}: {
+  environmentId: EnvironmentId;
+  providerInstanceId: ProviderInstanceId;
+  driver?: ProviderDriverKind | undefined;
+  status?: OrchestrationV2TurnItem["status"] | undefined;
+}) {
+  const providers = useAtomValue(environmentPresentations.providersByEnvironmentAtom).get(
+    environmentId,
+  );
+  return (
+    <SubagentAvatar {...props} providerInstanceId={providerInstanceId} providers={providers} />
   );
 }

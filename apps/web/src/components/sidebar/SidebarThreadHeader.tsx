@@ -37,11 +37,8 @@ import { SidebarViewMenu, viewOptionsLabel } from "./SidebarViewMenu";
 import { useSidebarViewStore } from "./sidebarViewStore";
 
 export interface SidebarThreadHeaderProps {
-  /** Lands on the search field so the scope and view popups can anchor to its width. */
   searchFieldRef: RefObject<HTMLDivElement | null>;
-  /** Without projects there is nothing to scope, so those menu items stay out. */
   hasProjects: boolean;
-  /** The project scope combobox, without a trigger. `onOpenProjectScope` opens it. */
   projectScope: ReactNode;
   /** The current scope, shown in the menu: "All projects" or the project names. */
   projectScopeLabel: string;
@@ -51,12 +48,10 @@ export interface SidebarThreadHeaderProps {
   /** Where Review old chats may run. Without a project folder the item stays out. */
   sweep: { readonly environmentId: EnvironmentId | null; readonly cwd: string | null };
   onNewProject: () => void;
-  /** Receives the click so Shift+click can skip the project picker. */
   onNewThread: (event: ReactMouseEvent) => void;
   newThreadDisabled: boolean;
   newThreadShortcutLabel: string | null | undefined;
   newThreadInProjectShortcutLabel: string | null | undefined;
-  /** Shift+click only matters once there is more than one project to pick. */
   showNewThreadInProjectHint: boolean;
   searchInputRef: RefObject<HTMLInputElement | null>;
   searchQuery: string;
@@ -258,7 +253,6 @@ export function SidebarHeaderIconButton({
   children,
   ...rest
 }: {
-  /** Accessible name; also the tooltip unless `tooltip` says more. */
   label: string;
   tooltip?: ReactNode;
   className?: string | undefined;
@@ -281,7 +275,6 @@ export function SidebarHeaderIconButton({
         }
       >
         {children}
-        {/* Coarse-pointer hit area, matching the rest of the sidebar chrome. */}
         <span
           aria-hidden
           className="pointer-events-none absolute left-1/2 top-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"

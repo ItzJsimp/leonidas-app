@@ -1821,6 +1821,18 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
       })),
       projectKeyOf: (thread) =>
         projectKeyByRef?.get(`${thread.environmentId}:${thread.projectId}`) ?? null,
+      accountKeyOf: (thread) => {
+        const instanceId = thread.runtime?.providerInstanceId ?? thread.modelSelection.instanceId;
+        if (!instanceId || instanceId === "t3code_no_provider") return null;
+        return instanceId;
+      },
+      accountLabelOf: (instanceId) => {
+        for (const entries of providerEntriesByEnvironment.values()) {
+          const entry = entries.get(instanceId);
+          if (entry?.displayName) return entry.displayName;
+        }
+        return instanceId;
+      },
       timeOf: (thread) =>
         threadSortOrder === "created_at"
           ? thread.createdAt
@@ -1847,6 +1859,7 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
     lastVisitedAtById,
     nowMinute,
     projectGroups,
+    providerEntriesByEnvironment,
     sidebarView.groupBy,
     snoozeNow,
     threadSortOrder,

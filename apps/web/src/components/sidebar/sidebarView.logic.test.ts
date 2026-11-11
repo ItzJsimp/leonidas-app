@@ -25,6 +25,11 @@ describe("parseSidebarView", () => {
     expect(view).toEqual({ ...DEFAULT_SIDEBAR_VIEW, groupBy: "status", showTime: false });
   });
 
+  it("parses account grouping", () => {
+    const view = parseSidebarView(JSON.stringify({ groupBy: "account" }));
+    expect(view.groupBy).toBe("account");
+  });
+
   it("defaults to the timeline with the project rail off", () => {
     expect(DEFAULT_SIDEBAR_VIEW.groupBy).toBe("date");
     expect(DEFAULT_SIDEBAR_VIEW.showRail).toBe(false);
@@ -114,6 +119,27 @@ describe("groupSidebarThreads", () => {
       ["API", ["b"]],
       ["Web", ["c", "a"]],
       ["Other", ["d"]],
+    ]);
+  });
+
+  it("groups by account ordered by most recent activity and puts unmatched chats in Other", () => {
+    const accountOf = { a: "personal", b: "work", c: "codex", d: null } as const;
+    const accountLabels: Record<string, string> = {
+      personal: "Claude Personal",
+      work: "Anthropic Work",
+      codex: "Codex",
+    };
+    const groups = groupSidebarThreads(threads, {
+      ...options,
+      groupBy: "account",
+      accountKeyOf: (thread) => accountOf[thread.id as keyof typeof accountOf],
+      accountLabelOf: (key) => accountLabels[key] ?? key,
+    });
+    expect(groups.map((group) => [group.label, group.items.map((item) => item.id)])).toEqual([
+      ["Codex", ["c"]],
+      ["Anthropic Work", ["b"]],
+      ["Other", ["d"]],
+      ["Claude Personal", ["a"]],
     ]);
   });
 

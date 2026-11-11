@@ -3,12 +3,10 @@ import * as Schema from "effect/Schema";
 import { TrimmedNonEmptyString } from "./baseSchemas.ts";
 
 /**
- * Input for the `leo_worktree_handoff` MCP tool.
- *
- * Creates a git worktree for the calling agent thread and re-points the
- * thread at it. Changing the thread's workspace detaches the live provider
- * session, so the current turn ends shortly after the handoff is recorded;
- * the conversation continues inside the worktree on the thread's next run.
+ * The server picks the location in its managed worktrees folder.
+ * Changing the thread's workspace detaches the live provider session, so the
+ * current turn ends shortly after the handoff is recorded; the conversation
+ * continues inside the worktree on the thread's next run.
  */
 export const WorktreeMcpHandoffInput = Schema.Struct({
   branch: TrimmedNonEmptyString,

@@ -495,7 +495,7 @@ effectIt.effect("ignores a partial Windows netstat snapshot when one query exits
   );
 
   return Effect.gen(function* () {
-    const scanner = yield* PortScanner.PortDiscovery;
+    const scanner = yield* ownedScanner();
     yield* scanner.registerTerminalProcesses({
       threadId: "scanner-thread",
       terminalId: "scanner-terminal",

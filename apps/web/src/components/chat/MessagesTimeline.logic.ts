@@ -1464,6 +1464,7 @@ export function deriveMessagesTimelineRows(input: {
     ? deriveRevertTurnCountByUserMessageId({
         timelineEntries: timelineEntries,
         checkpoints: input.turnDiffSummaries,
+        threadStartCheckpointReady: true,
       })
     : new Map<MessageId, number>();
   const nextRows: MessagesTimelineRow[] = [];

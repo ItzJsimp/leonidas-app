@@ -11,10 +11,10 @@ import {
 } from "react";
 import {
   ArchiveIcon,
+  BlocksIcon,
   BotIcon,
   CalendarClockIcon,
   CpuIcon,
-  createLucideIcon,
   FileDiffIcon,
   FlaskConicalIcon,
   FolderTreeIcon,
@@ -38,6 +38,7 @@ import {
   SmartphoneIcon,
   WrenchIcon,
   XIcon,
+  createLucideIcon,
 } from "lucide-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 

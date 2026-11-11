@@ -73,6 +73,15 @@ const encodeReplayTranscriptJson = Schema.encodeEffect(replayTranscriptJson);
 const decodeReplayTranscriptJson = Schema.decodeUnknownEffect(replayTranscriptJson);
 const encodeStringJson = Schema.encodeEffect(Schema.fromJsonString(Schema.String));
 
+/** Codex receives the orchestration text as numbered sections; join them to read the whole text. */
+const orchestrationContext = (
+  context: Record<string, { readonly value: string } | undefined> | undefined,
+): string =>
+  Object.entries(context ?? {})
+    .filter(([key]) => key.startsWith("t3_code_orchestration"))
+    .map(([, entry]) => entry?.value ?? "")
+    .join("\n");
+
 describe("Codex context usage compatibility", () => {
   const previous: ModelSelection = {
     instanceId: ProviderInstanceId.make("codex"),
@@ -534,11 +543,11 @@ describe("CodexAdapterV2 runtime policy", () => {
 
       assert.equal(params.collaborationMode?.mode, "default");
       assert.include(
-        params.additionalContext?.t3_code_orchestration?.value ?? "",
+        orchestrationContext(params.additionalContext),
         "Use `leo_delegate_task` for another provider",
       );
       assert.include(
-        params.additionalContext?.t3_code_orchestration?.value ?? "",
+        orchestrationContext(params.additionalContext),
         "is an object, never JSON text",
       );
     }),
@@ -717,8 +726,11 @@ describe("CodexAdapterV2 process spawning", () => {
       if (!ChildProcess.isStandardCommand(command)) {
         return;
       }
-      assert.equal(command.command, '^"C:\\npm\\codex.cmd^"');
-      assert.deepEqual(command.args, ['^"app-server^"', '^"argument^ with^ spaces^"']);
+      assert.equal(
+        command.command,
+        '^"C:\\npm\\codex.cmd^" ^"app-server^" ^"argument^ with^ spaces^"',
+      );
+      assert.deepEqual(command.args, []);
       assert.equal(command.options.shell, true);
       assert.equal(command.options.cwd, "C:\\workspace");
       assert.deepEqual(command.options.env, { CUSTOM: "1" });
@@ -874,7 +886,7 @@ describe("CodexAdapterV2 dynamic tool projection", () => {
       assert.equal(
         (yield* CodexAdapterV2.projectCodexDynamicToolItem({ ...call, arguments: { title: "  " } }))
           .title,
-        "js",
+        "Computer use",
       );
       assert.equal(
         (yield* CodexAdapterV2.projectCodexDynamicToolItem({ ...call, server: "github" })).title,
@@ -3021,10 +3033,7 @@ describe("CodexAdapterV2 post-settle continuation", () => {
           modelSelection: CODEX_TEST_MODEL_SELECTION,
           hasT3Mcp: true,
         });
-        assert.include(
-          params.additionalContext?.t3_code_orchestration?.value ?? "",
-          "delegate_task",
-        );
+        assert.include(orchestrationContext(params.additionalContext), "delegate_task");
         const entries = codexReplayPreamble({ nativeThreadId, nativeTurnId, prompt: "work" });
         const transcript = makeCodexReplayTranscript({
           scenario: "restore-context",

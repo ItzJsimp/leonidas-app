@@ -137,6 +137,11 @@ const EMPTY_DRAFT: DraftState = {
   ...WEBHOOK_SIGNATURE_DEFAULTS,
   signatureSecret: "",
   maxDeliveryAgeMinutes: "",
+  replayKey: "",
+  coalesceKey: "",
+  coalesceWindowSeconds: "",
+  filters: [],
+  savedFilters: [],
 };
 
 /** Labelled field: a caption sitting above its control. */
@@ -220,11 +225,21 @@ const DELIVERY_OUTCOME_LABELS: Record<ScheduledTaskWebhookDeliveryOutcome, strin
   disabled: "Task paused",
   rate_limited: "Too many requests",
   expired: "Too old",
+  duplicate: "Already received",
+  coalesced: "Merged into another run",
+  filtered: "Skipped by a filter",
 };
 
 function deliveryOutcomeVariant(outcome: ScheduledTaskWebhookDeliveryOutcome) {
   if (outcome === "accepted") return "success";
-  if (outcome === "disabled" || outcome === "rate_limited" || outcome === "expired") {
+  if (
+    outcome === "disabled" ||
+    outcome === "rate_limited" ||
+    outcome === "expired" ||
+    outcome === "duplicate" ||
+    outcome === "coalesced" ||
+    outcome === "filtered"
+  ) {
     return "warning";
   }
   return "error";
@@ -573,8 +588,12 @@ function WebhookDeliveriesDialog({
           ) : selected ? (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant={deliveryOutcomeVariant(selected.outcome)}>
-                  {DELIVERY_OUTCOME_LABELS[selected.outcome]}
+                <Badge
+                  variant={deliveryOutcomeVariant(
+                    selected.outcome as ScheduledTaskWebhookDeliveryOutcome,
+                  )}
+                >
+                  {DELIVERY_OUTCOME_LABELS[selected.outcome as ScheduledTaskWebhookDeliveryOutcome]}
                 </Badge>
                 <span>
                   {selected.method} · {relativeLabel(selected.receivedAt)}
@@ -619,8 +638,16 @@ function WebhookDeliveriesDialog({
                     className="flex w-full flex-wrap items-center gap-2 py-2 text-left text-sm hover:bg-accent/40"
                     onClick={() => setSelectedId(delivery.id)}
                   >
-                    <Badge variant={deliveryOutcomeVariant(delivery.outcome)}>
-                      {DELIVERY_OUTCOME_LABELS[delivery.outcome]}
+                    <Badge
+                      variant={deliveryOutcomeVariant(
+                        delivery.outcome as ScheduledTaskWebhookDeliveryOutcome,
+                      )}
+                    >
+                      {
+                        DELIVERY_OUTCOME_LABELS[
+                          delivery.outcome as ScheduledTaskWebhookDeliveryOutcome
+                        ]
+                      }
                     </Badge>
                     <span>{delivery.method}</span>
                     <span className="text-muted-foreground">
@@ -809,7 +836,7 @@ function ScheduledTaskEditorDialog({
   const instanceEntries = useMemo(
     () =>
       sortProviderInstanceEntries(
-        applyProviderInstanceSettings(deriveProviderInstanceEntries(providers), settings),
+        applyProviderInstanceSettings(deriveProviderInstanceEntries(providers), settings, null),
       ),
     [providers, settings],
   );
@@ -1383,4 +1410,9 @@ function ScheduledTaskEditorDialog({
       </DialogPopup>
     </Dialog>
   );
+}
+
+// shortcut: no minute ticker, the label updates on the next render; add one if rows go stale.
+export function ScheduledRelativeLabel(props: { value: string | null }) {
+  return relativeLabel(props.value);
 }

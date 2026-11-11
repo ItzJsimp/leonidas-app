@@ -1,13 +1,21 @@
+// @effect-diagnostics nodeBuiltinImport:off -- the fake CLI and its leftover child are real processes.
 import * as ClaudeSdk from "@anthropic-ai/claude-agent-sdk";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { assert, it } from "@effect/vitest";
+import { assert, describe, it } from "@effect/vitest";
 import { ProviderSessionId, ThreadId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Stream from "effect/Stream";
+import * as Path from "effect/Path";
 import { vi } from "vite-plus/test";
 
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { ProviderEventLoggers } from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as PortScanner from "../../preview/PortScanner.ts";
 import {

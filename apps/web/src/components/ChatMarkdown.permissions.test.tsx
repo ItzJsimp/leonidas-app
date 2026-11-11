@@ -75,9 +75,19 @@ vi.mock("../state/session", async () => {
     usePreparedConnection: () => ({ _tag: "None" }),
   };
 });
-vi.mock("../state/server", () => ({
-  serverEnvironment: { configValueAtom: () => "config" },
-}));
+vi.mock("../state/server", async (importOriginal) => {
+  const { Atom } = await import("effect/reactivity");
+  return {
+    ...(await importOriginal<typeof import("../state/server")>()),
+    serverEnvironment: { configValueAtom: () => "config" },
+    // The pull request link mode reads the environment's capabilities from here.
+    environmentServerConfigsAtom: Atom.make(
+      new Map([
+        ["selected", { environment: { capabilities: { threadPullRequestLinking: true } } }],
+      ]),
+    ),
+  };
+});
 vi.mock("../state/threads", () => ({
   threadEnvironment: { updateMetadata: "updateMetadata" },
 }));

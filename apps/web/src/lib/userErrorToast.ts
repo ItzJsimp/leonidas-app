@@ -28,7 +28,9 @@ export function registerUserErrorNavigator(navigate: (to: string) => void): void
 }
 
 function detectPlatform(): DescribeUserErrorOptions["platform"] {
-  const platform = typeof navigator === "undefined" ? "" : navigator.platform.toLowerCase();
+  const platform = (
+    typeof navigator === "undefined" ? "" : (navigator.platform ?? "")
+  ).toLowerCase();
   if (platform.includes("mac")) return "mac";
   if (platform.includes("linux")) return "linux";
   return "windows";

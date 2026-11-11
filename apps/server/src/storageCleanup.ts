@@ -442,6 +442,7 @@ const make = Effect.gen(function* () {
         : snapshot.projects.find((entry) => entry.id === thread.projectId);
       const entry: StorageCleanupReportEntry = {
         kind: "worktree",
+        projectPath: null,
         outcome: "kept",
         reason: "",
         path: worktreePath,
@@ -709,6 +710,7 @@ const make = Effect.gen(function* () {
         Effect.gen(function* () {
           entries.push({
             kind: "worktree",
+            projectPath: null,
             outcome: "failed",
             reason: cleanupFailureReason(error),
             path: null,
@@ -741,6 +743,7 @@ const make = Effect.gen(function* () {
         Effect.map(({ files, bytes }) =>
           entries.push({
             kind: category.kind,
+            projectPath: null,
             outcome: files > 0 ? "removed" : "kept",
             reason: files === 0 ? "No expired files" : `Removed ${files} ${category.label}`,
             path: null,
@@ -754,6 +757,7 @@ const make = Effect.gen(function* () {
           Effect.gen(function* () {
             entries.push({
               kind: category.kind,
+              projectPath: null,
               outcome: "failed",
               reason: cleanupFailureReason(error),
               path: null,

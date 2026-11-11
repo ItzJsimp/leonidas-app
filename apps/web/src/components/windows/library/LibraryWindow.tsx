@@ -13,6 +13,7 @@ import {
 } from "~/components/twoState/RailWindow";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useServerConfigs } from "~/state/entities";
+import { useEnvironmentProviders } from "~/state/environments";
 
 import { packRows, skillRows } from "./skillRows";
 
@@ -57,10 +58,11 @@ export function LibraryWindow() {
 function Skills() {
   const environmentId = usePrimaryEnvironmentId();
   const config = useServerConfigs().get(environmentId as never);
+  const providers = useEnvironmentProviders().get(environmentId as never);
   const [query, setQuery] = useState("");
   const skills = useMemo(
-    () => (config?.providers ?? []).flatMap((provider) => provider.skills),
-    [config],
+    () => (providers ?? []).flatMap((provider) => provider.skills),
+    [providers],
   );
   const rows = useMemo(() => skillRows(skills, query), [skills, query]);
   const total = useMemo(() => skillRows(skills, "").length, [skills]);

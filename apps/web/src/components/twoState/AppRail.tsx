@@ -210,7 +210,7 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
         {bottom.map(renderItem)}
         {/* Shows only while an update is on its way, directly under Settings. */}
         <SidebarMenu className={cn("empty:hidden", expanded ? "items-start" : "items-center")}>
-          <SidebarUpdatePill className="ml-0" />
+          <SidebarUpdatePill className="ml-0" expanded={expanded} />
         </SidebarMenu>
       </div>
     </nav>

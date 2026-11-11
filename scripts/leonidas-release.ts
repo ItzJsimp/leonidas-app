@@ -36,6 +36,7 @@ interface PublishedRelease {
   tag_name: string;
   draft: boolean;
   prerelease: boolean;
+  body?: string | null;
 }
 
 /** The highest published plain version; GitHub lists releases by creation, not by version. */
@@ -95,6 +96,33 @@ export interface ReleaseMeta {
   coAuthors: string[];
   /** Commits per author in this release, for the "who built it" share in the update dialog. */
   authorCommits?: Record<string, number>;
+  /** Newest version, up to this one, that users should hear about. Small patches carry it forward and stay silent. */
+  notableSince?: string;
+}
+
+/**
+ * A release is notable when it finishes a ladder step, carries an illustrated story,
+ * or a commit asks for it with `Release-Notable: <reason>`. Small patches install without a notice.
+ */
+const NOTABLE_TRAILER = /^Release-(?:Post|Notable):[ \t]*(?!none\.?[ \t]*$)\S/im;
+
+export function isNotableRelease(
+  commits: ReadonlyArray<ReleaseCommit>,
+  kind: ReleaseKind,
+): boolean {
+  return kind !== "patch" || commits.some(({ body }) => NOTABLE_TRAILER.test(body));
+}
+
+/** Reads `notableSince` from the metadata comment of an earlier release body. */
+export function previousNotableSince(body: string | null | undefined): string | undefined {
+  const match = /<!--\s*leonidas-release\s+({.*?})\s*-->/.exec(body ?? "");
+  if (!match?.[1]) return undefined;
+  try {
+    const value = (JSON.parse(match[1]) as { notableSince?: unknown }).notableSince;
+    return typeof value === "string" && /^\d+\.\d+\.\d+$/.test(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function aliasName(name: string): string {
@@ -121,6 +149,7 @@ export function releaseMetaComment(meta: ReleaseMeta): string {
     authors: meta.authors,
     coAuthors: meta.coAuthors,
     ...(meta.authorCommits ? { authorCommits: meta.authorCommits } : {}),
+    ...(meta.notableSince ? { notableSince: meta.notableSince } : {}),
   })
     .replace(/</g, "\\u003c")
     .replace(/>/g, "\\u003e");
@@ -138,6 +167,7 @@ export function releaseNotes(
   development: boolean,
   commit = "",
   post = "",
+  notableSince?: string,
 ): string {
   const rank = (subject: string) =>
     /^feat(?:\(|:)/i.test(subject) || /^Build:/i.test(subject)
@@ -213,7 +243,7 @@ export function releaseNotes(
     ((post ? postDetails : extra).length
       ? `\n## Details\n${bullets(post ? postDetails : extra)}\n`
       : "") +
-    `\n${releaseMetaComment({ commit, authors, coAuthors, authorCommits })}\n`
+    `\n${releaseMetaComment({ commit, authors, coAuthors, authorCommits, ...(notableSince ? { notableSince } : {}) })}\n`
   );
 }
 
@@ -293,9 +323,19 @@ function main() {
     )
     .at(-1);
   const post = postFile ? loadReleasePost(process.cwd(), postFile, repo, sourceCommit) : "";
+  const notableSince = isNotableRelease(commits, kind)
+    ? version
+    : previousNotableSince(previous?.body);
   NodeFS.writeFileSync(
     "notes.md",
-    releaseNotes(commits, version, development && kind !== "launch", sourceCommit, post),
+    releaseNotes(
+      commits,
+      version,
+      development && kind !== "launch",
+      sourceCommit,
+      post,
+      notableSince,
+    ),
   );
   if (process.env.GITHUB_OUTPUT)
     NodeFS.appendFileSync(

@@ -18,10 +18,10 @@ const NO_LOAD: AccountLoad = { chats: 0, running: 0 };
  */
 export function useAccountLoad(): (scopedInstanceId: string) => AccountLoad {
   const threads = useThreadShells();
-  const presentations = useAtomValue(environmentPresentations.presentationsAtom);
+  const providersByEnvironment = useAtomValue(environmentPresentations.providersByEnvironmentAtom);
   return useMemo(() => {
-    const providers = [...presentations].flatMap(([environmentId, presentation]) =>
-      (presentation.serverConfig?.providers ?? []).map((provider) => ({
+    const providers = [...providersByEnvironment].flatMap(([environmentId, environmentProviders]) =>
+      environmentProviders.map((provider) => ({
         ...provider,
         environmentId: String(environmentId),
       })),
@@ -34,5 +34,5 @@ export function useAccountLoad(): (scopedInstanceId: string) => AccountLoad {
       const key = keys.get(scopedInstanceId);
       return (key && byAccount.get(key)) || NO_LOAD;
     };
-  }, [presentations, threads]);
+  }, [providersByEnvironment, threads]);
 }

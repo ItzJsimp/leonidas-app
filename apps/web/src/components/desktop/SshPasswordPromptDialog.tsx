@@ -1,4 +1,7 @@
+import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import type { DesktopSshPasswordPromptRequest } from "@t3tools/contracts";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
+import * as Cause from "effect/Cause";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "../ui/button";
@@ -26,7 +29,7 @@ function getPromptErrorMessage(error: unknown): string {
   const message =
     error instanceof Error ? error.message : "Could not send the SSH password. Try again.";
   return message.includes("expired") || message.includes("no longer pending")
-    ? "This SSH password request expired. Try connecting again."
+    ? "This SSH verification request expired. Try connecting again."
     : message;
 }
 
@@ -96,7 +99,7 @@ function ActiveSshPasswordPrompt({
   const remainingLabel =
     remainingSeconds === null ? null : formatRemainingSeconds(remainingSeconds);
   const visibleResponseError = isExpired
-    ? "This SSH password request expired. Try connecting again."
+    ? "This SSH verification request expired. Try connecting again."
     : responseError;
 
   const respond = async (nextPassword: string | null) => {
@@ -106,26 +109,23 @@ function ActiveSshPasswordPrompt({
 
     const requestId = request.requestId;
     if (nextPassword !== null && isExpired) {
-      setResponseError("This SSH password request expired. Try connecting again.");
+      setResponseError("This SSH verification request expired. Try connecting again.");
       return;
     }
 
     isRespondingRef.current = true;
     setIsResponding(true);
     setResponseError(null);
-    try {
-      await window.desktopBridge?.resolveSshPasswordPrompt(requestId, nextPassword);
+    const result = await settlePromise(async () =>
+      window.desktopBridge?.resolveSshPasswordPrompt(requestId, nextPassword),
+    );
+    if (AsyncResult.isSuccess(result) || nextPassword === null) {
       onRemove(requestId);
-    } catch (error) {
-      if (nextPassword === null) {
-        onRemove(requestId);
-      } else {
-        setResponseError(getPromptErrorMessage(error));
-      }
-    } finally {
-      isRespondingRef.current = false;
-      setIsResponding(false);
+    } else {
+      setResponseError(getPromptErrorMessage(Cause.squash(result.cause)));
     }
+    isRespondingRef.current = false;
+    setIsResponding(false);
   };
 
   const dismissExpiredPrompt = () => {
@@ -153,11 +153,11 @@ function ActiveSshPasswordPrompt({
     >
       <DialogPopup className="max-w-md" showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Enter your SSH password</DialogTitle>
+          <DialogTitle>SSH verification required</DialogTitle>
           <DialogDescription>
-            Leonidas needs your SSH password to connect to <code>{target}</code>. It sends the
-            password to SSH on this computer for this connection only. It does not save the
-            password.
+            Enter the password or verification code required by <code>{target}</code>. Leonidas
+            passes your response to the local SSH process and keeps it in memory to reuse for this
+            host. Leonidas does not write it to disk.
           </DialogDescription>
         </DialogHeader>
         <DialogPanel scrollFade={false}>
@@ -198,7 +198,8 @@ function ActiveSshPasswordPrompt({
               <p className="text-sm text-destructive">{visibleResponseError}</p>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Set up SSH keys to stop this password request.
+                SSH keys may replace a password, but your server can still require a verification
+                code.
               </p>
             )}
           </form>

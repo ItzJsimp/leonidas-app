@@ -153,3 +153,22 @@ export const ThreadErrorBanner = memo(function ThreadErrorBanner({
     </div>
   );
 });
+
+export function getThreadErrorBannerMessage(error: string): string {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(error);
+  } catch {
+    return error;
+  }
+  if (typeof payload !== "object" || payload === null || !("error" in payload)) {
+    return error;
+  }
+  const nestedError = payload.error;
+  if (typeof nestedError !== "object" || nestedError === null || !("message" in nestedError)) {
+    return error;
+  }
+  return typeof nestedError.message === "string" && nestedError.message.trim().length > 0
+    ? nestedError.message
+    : error;
+}

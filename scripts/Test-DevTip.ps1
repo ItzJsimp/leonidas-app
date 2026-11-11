@@ -3,8 +3,9 @@
   The green gate for the dev branch: type-checks and tests what a candidate `dev` tip changed.
 .DESCRIPTION
   Runs in the merge worktree (default C:/lcw/dev-merge) at its current commit.
-  - tsc --noEmit for apps/web and apps/server (only when files under that app or packages/ changed).
-    A check fails only on errors that origin/main (-Base) does not already have.
+  - `vp run typecheck` (the CI command) for apps/web and apps/server (only when files under that app or packages/ changed).
+    Errors and warnings both count: the Effect checker exits 2 on a warning, and CI stops there.
+    A check fails only on diagnostics that origin/main (-Base) does not already have.
   - vitest on the changed test files and on the sibling test of each changed source file.
     A test fails the gate only when origin/main (-Base) does not already fail it (compared by test name).
   - -Keys re-runs only the named checks (used while bisecting to a culprit branch).
@@ -32,7 +33,6 @@ function Get-Package([string]$file) { if ($file -match '^(apps/[^/]+|packages/[^
 $lockHash = (Get-FileHash -LiteralPath (Join-Path $Worktree 'pnpm-lock.yaml') -Algorithm SHA1).Hash
 $stamp = Join-Path $Worktree 'node_modules/.dev-gate-lock'
 $vp = Join-Path $Worktree 'node_modules/.bin/vp.cmd'
-$tsc = Join-Path $Worktree 'node_modules/.bin/tsc.cmd'
 if (-not (Test-Path -LiteralPath $vp) -or -not (Test-Path -LiteralPath $stamp) -or ((Get-Content -LiteralPath $stamp -Raw).Trim() -ne $lockHash)) {
     $notes.Add('installing dependencies in the merge worktree')
     Push-Location $Worktree
@@ -47,15 +47,20 @@ if (-not (Test-Path -LiteralPath $vp) -or -not (Test-Path -LiteralPath $stamp) -
 function Get-TscErrors([string]$package) {
     Push-Location (Join-Path $Worktree $package)
     try {
-        $out = & $tsc --noEmit 2>&1
-        @($out | ForEach-Object { "$_" } | Where-Object { $_ -match ': error TS\d+:' } |
+        # The CI command. Plain tsc misses the Effect checker, whose warnings exit 2 (2026-11-11: a release run failed on one).
+        $out = @(& $vp run typecheck 2>&1 | ForEach-Object { "$_" -replace '\x1b\[[0-9;]*m', '' })
+        $code = $LASTEXITCODE
+        $diag = @($out | Where-Object { $_ -match ': (error|warning) TS\d+:' } |
                 ForEach-Object { ($_ -replace '\(\d+,\d+\)', '') } | Sort-Object -Unique)
+        # A failed run with no diagnostic line must still fail the gate.
+        if ($code -ne 0 -and $diag.Count -eq 0) { $diag = @("typecheck exited $code with no diagnostic line") }
+        $diag
     } finally { Pop-Location }
 }
 
 # Errors origin/main already has, per package, cached by its commit.
 function Get-BaselineErrors([string]$package) {
-    $cache = Join-Path $common ("leonidas-gate-baseline-{0}-{1}.txt" -f $Base.Substring(0, 10), ($package -replace '/', '_'))
+    $cache = Join-Path $common ("leonidas-gate-tc2-baseline-{0}-{1}.txt" -f $Base.Substring(0, 10), ($package -replace '/', '_'))
     if (Test-Path -LiteralPath $cache) { return @(Get-Content -LiteralPath $cache) }
     $head = (git -C $Worktree rev-parse HEAD).Trim()
     git -C $Worktree checkout -q --detach $Base

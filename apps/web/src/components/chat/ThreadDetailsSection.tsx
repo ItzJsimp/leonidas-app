@@ -8,7 +8,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 /** Marks a section body the user opened in a short panel; density measuring skips it. */
 export const THREAD_DETAILS_FOLD_EXEMPT = { "data-thread-details-fold-exempt": "" };
 
-/** Sections share header and content insets in both the sidebar and popover. */
 export function ThreadDetailsSection({
   headingId,
   title,
@@ -97,7 +96,7 @@ export function ThreadDetailsFoldButton({
             size="icon-xs"
             variant="ghost-muted"
             aria-label={`Fold ${label}`}
-            className="size-5"
+            className="size-6"
             onClick={onFold}
           />
         }
