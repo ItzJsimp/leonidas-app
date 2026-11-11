@@ -501,6 +501,7 @@ import {
   type EnvironmentOption,
   resolveEffectiveEnvMode,
   resolveLocalCheckoutBranchMismatch,
+  shouldHostSettingsInStrip,
   shouldShowComposerContextStrip,
   shouldShowEnvironmentIndicator,
 } from "./BranchToolbar.logic";
@@ -1060,6 +1061,7 @@ export default function ChatView(props: ChatViewProps) {
   const pasteAsTextShortcutUntilRef = useRef(0);
   const [restingComposerControlsHost, setRestingComposerControlsHost] =
     useState<HTMLDivElement | null>(null);
+  const [settingsControlsHost, setSettingsControlsHost] = useState<HTMLDivElement | null>(null);
   const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useState(false);
   const citeAssistantText = useCallback(
     (citation: AssistantCitation, sourceAnchor: AssistantCitationSourceAnchor) => {
@@ -8482,12 +8484,17 @@ export default function ChatView(props: ChatViewProps) {
     if (compactDisabled) return;
     void sendStandaloneCommand("/compact", "Could not compact context.");
   };
+  const settingsInStrip = shouldHostSettingsInStrip({
+    isDraftHeroState,
+    contextStripVisible: showComposerContextStrip,
+  });
   const composerLayoutLeadingContext =
     mountComposerContextStrip && (isGitRepo || showComposerEnvironmentIndicator);
   const composerLayout: ComposerLayoutSlice = useMemo(
     () => ({
       restingControlsHost: restingComposerControlsHost,
       restingControlsHaveLeadingContext: composerLayoutLeadingContext,
+      settingsControlsHost: settingsInStrip ? settingsControlsHost : null,
       onRestingControlsVisibilityChange: setRestingComposerControlsVisible,
       getTimelineScrollableNode,
       isTimelineAtLogicalEnd,
@@ -8501,6 +8508,8 @@ export default function ChatView(props: ChatViewProps) {
     [
       restingComposerControlsHost,
       composerLayoutLeadingContext,
+      settingsInStrip,
+      settingsControlsHost,
       setRestingComposerControlsVisible,
       getTimelineScrollableNode,
       isTimelineAtLogicalEnd,
@@ -11954,6 +11963,7 @@ export default function ChatView(props: ChatViewProps) {
                                 }
                                 availableEnvironments={logicalProjectEnvironments}
                                 composerControlsHostRef={setRestingComposerControlsHost}
+                                settingsControlsHostRef={setSettingsControlsHost}
                                 contextStripVisible={showComposerContextStrip}
                               />
                             </div>

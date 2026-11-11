@@ -101,6 +101,8 @@ interface BranchToolbarProps {
   availableEnvironments?: readonly EnvironmentOption[];
   onEnvironmentChange?: (environmentId: EnvironmentId) => void;
   composerControlsHostRef?: (element: HTMLDivElement | null) => void;
+  /** Right end of the strip, after the branch picker. The composer portals reply style and permission here. */
+  settingsControlsHostRef?: (element: HTMLDivElement | null) => void;
   contextStripVisible?: boolean;
 }
 
@@ -625,6 +627,7 @@ export const BranchToolbar = memo(function BranchToolbar({
   availableEnvironments,
   onEnvironmentChange,
   composerControlsHostRef,
+  settingsControlsHostRef,
   contextStripVisible = true,
 }: BranchToolbarProps) {
   const branchSelectorRef = useRef<BranchToolbarBranchSelectorHandle>(null);
@@ -866,6 +869,14 @@ export const BranchToolbar = memo(function BranchToolbar({
           onStartFromOriginChange={onStartFromOriginChange}
           {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
           {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
+        />
+      ) : null}
+      {settingsControlsHostRef ? (
+        <div
+          ref={settingsControlsHostRef}
+          data-composer-context-control
+          data-chat-settings-controls-host="true"
+          className="flex shrink-0 items-center gap-1 empty:hidden"
         />
       ) : null}
     </ComposerSurface.ContextStrip>
