@@ -5,18 +5,11 @@ import {
   type ServerProviderSkill,
 } from "@t3tools/contracts";
 import { createEnvironmentRpcQueryAtomFamily } from "@t3tools/client-runtime/state/runtime";
-import * as Schema from "effect/Schema";
-import { WandSparklesIcon } from "lucide-react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { connectionAtomRuntime } from "../../connection/runtime";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
-import { Button } from "../ui/button";
-import { Popover, PopoverPopup } from "../ui/popover";
-import { Spinner } from "../ui/spinner";
 import { toastManager } from "../ui/toast";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
   autoPickSkills,
   describeEngine,
@@ -27,7 +20,6 @@ import {
   type ModelEngine,
   type ModelRequest,
 } from "./composerAutoPick";
-import { ComposerBanner } from "./ComposerBanner";
 import {
   mentionedSkillNames,
   prefixPromptWithSkills,
@@ -35,8 +27,7 @@ import {
 } from "./composerSkillPrefix";
 import { rankSkills } from "./composerSkillSuggest";
 
-const INTRO_SEEN_KEY = "leonidas:auto-pick-skills:intro-seen";
-/** The first-use note and the nudge wait for a draft this long: shorter ones rarely need a skill. */
+/** The nudge waits for a draft this long: shorter ones rarely need a skill. */
 const MIN_WORDS = 6;
 /** The nudge waits for the user to stop typing, so it never flickers mid-sentence. */
 const NUDGE_IDLE_MS = 1_500;
@@ -72,11 +63,11 @@ function countWords(text: string): number {
 }
 
 /**
- * Shoulder tab that reads the draft, picks the skills it needs and leads the draft with
- * them, as if the user had typed each `$skill`. Clicking again picks again for the
- * current text and replaces its own earlier picks. A toast offers Undo.
+ * Reads the draft, picks the skills it needs and leads the draft with them, as if the user had
+ * typed each `$skill`. Running it again picks again for the current text and replaces its own
+ * earlier picks. A toast offers Undo. The plus menu calls `pick`.
  */
-export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkillsButton(props: {
+export function useAutoPickSkills(props: {
   environmentId: EnvironmentId;
   /** The project folder. Without one the model cannot run, so the keyword pick answers. */
   cwd: string | null;
@@ -112,8 +103,6 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
   const [nudgedFor, setNudgedFor] = useState<string | null>(null);
   /** Blocks a second click before the first one has re-rendered. */
   const busyRef = useRef(false);
-  const [introSeen, setIntroSeen] = useLocalStorage(INTRO_SEEN_KEY, false, Schema.Boolean);
-  const rowRef = useRef<HTMLDivElement>(null);
   /** The `$skill ` chips the last click put at the start of the draft. */
   const leadRef = useRef<string | null>(null);
   /** The last model answer, so a repeat click on the same text is instant, free and identical. */
@@ -122,7 +111,6 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
 
   const hasText = prompt.trim().length > 0;
   const words = countWords(withoutSkillMentions(prompt));
-  const showIntro = !introSeen && !busy && words >= MIN_WORDS;
   const nudge = !busy && nudgedFor === prompt;
 
   // Nudge: a draft with no skill that the free keyword pass says could use one.
@@ -162,7 +150,6 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
       });
       return;
     }
-    setIntroSeen(true);
     // Drop the chips an earlier click added, so this click judges the text on its own.
     const previousLead = leadRef.current;
     const base =
@@ -183,7 +170,7 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
       toastManager.add({
         type: "info",
         title: "Your message changed",
-        description: "Click Auto-pick skills again to pick for the new text.",
+        description: "Choose Auto-pick skills again to pick for the new text.",
       });
       return;
     }
@@ -228,76 +215,7 @@ export const ComposerAutoPickSkillsButton = memo(function ComposerAutoPickSkills
         },
       },
     });
-  }, [askModel, cap, engine, getPrompt, projectText, setIntroSeen, setPrompt, skills]);
+  }, [askModel, cap, engine, getPrompt, projectText, setPrompt, skills]);
 
-  return (
-    <>
-      <ComposerBanner.Root density="comfortable" width="content" data-composer-shoulder-tab>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <ComposerBanner.Row
-                ref={rowRef}
-                render={<button type="button" onClick={pick} />}
-                aria-label="Auto-pick skills: add the skills this message needs"
-                aria-disabled={!hasText || busy}
-                data-tour="composer-auto-pick-skills"
-                className={
-                  hasText && !busy
-                    ? "relative touch-hit text-muted-foreground transition-colors duration-200 hover:text-foreground data-[nudge]:text-foreground"
-                    : "relative touch-hit text-muted-foreground opacity-60"
-                }
-                data-nudge={nudge ? "" : undefined}
-                onPointerDown={(event) => event.preventDefault()}
-              />
-            }
-          >
-            <ComposerBanner.Icon>{busy ? <Spinner /> : <WandSparklesIcon />}</ComposerBanner.Icon>
-            <ComposerBanner.Content>
-              {busy ? "Picking…" : "Auto-pick skills"}
-            </ComposerBanner.Content>
-            {nudge ? (
-              <span
-                aria-hidden
-                className="absolute top-1.5 right-1 size-1.5 rounded-full bg-primary"
-              />
-            ) : null}
-          </TooltipTrigger>
-          <TooltipPopup side="top">
-            <div className="max-w-64 space-y-1 text-left">
-              <p className="font-medium">
-                {nudge ? "Skills fit this message. Click to add them." : "Auto-pick skills"}
-              </p>
-              <p className="text-muted-foreground">
-                Reads your message and adds the skills it needs. Changed your message? Click again
-                to pick again.
-              </p>
-            </div>
-          </TooltipPopup>
-        </Tooltip>
-      </ComposerBanner.Root>
-      <Popover open={showIntro} onOpenChange={(open) => !open && setIntroSeen(true)}>
-        <PopoverPopup
-          anchor={rowRef}
-          side="top"
-          align="start"
-          width="sm"
-          padding="compact"
-          initialFocus={false}
-          finalFocus={false}
-        >
-          <div className="space-y-2 text-sm">
-            <p className="font-medium">New: Auto-pick skills</p>
-            <p className="text-muted-foreground">
-              Click it and it reads your message, then adds the skills the agent needs. Click again
-              after you edit the message.
-            </p>
-            <Button size="xs" onClick={() => setIntroSeen(true)}>
-              Got it
-            </Button>
-          </div>
-        </PopoverPopup>
-      </Popover>
-    </>
-  );
-});
+  return { pick, busy, hasText, nudge };
+}

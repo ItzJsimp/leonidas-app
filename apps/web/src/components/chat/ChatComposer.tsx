@@ -134,14 +134,10 @@ import {
   usePromptStashStore,
   type PromptStashEntry,
 } from "../../promptStashStore";
-import { ComposerNotepadButton } from "./ComposerNotepadButton";
-import { ComposerSkillsButton } from "./ComposerSkillsButton";
-import { ComposerAutoPickSkillsButton } from "./ComposerAutoPickSkillsButton";
-import { ComposerSubagentsButton } from "../subagents/ComposerSubagentsButton";
+import { ComposerPlusMenu } from "./ComposerPlusMenu";
+import { useAutoPickSkills } from "./useAutoPickSkills";
 import { useComposerSubagents } from "../subagents/useComposerSubagents";
 import { searchSubagentOptions } from "../subagents/subagentThread.logic";
-import { useThreadSubagentAttach } from "../subagents/useThreadSubagentAttach";
-import { ComposerToolbar } from "./ComposerToolbar";
 import {
   countMentionedSkills,
   hoistCommandToPromptStart,
@@ -260,7 +256,7 @@ import {
 } from "~/lib/composerContextRecords";
 import { matchComposerThreadItems } from "@t3tools/client-runtime/composerThreadItems";
 import { THREAD_CONTEXT_DROP_EVENT, threadContextDropTargetProps } from "./threadContextDrag";
-import { readThreadShell, useThreadShell, useThreadShells } from "~/state/entities";
+import { readThreadShell, useThreadShells } from "~/state/entities";
 import { requestConfirmDialog } from "~/confirmDialog";
 import { encodeComposerContextFragment } from "@t3tools/shared/composerContextClipboard";
 import type { ComposerContextClipboardFragment, ComposerContextRecord } from "@t3tools/contracts";
@@ -285,7 +281,6 @@ import {
 import { applySkillFolderView } from "./composerSkillFolders.logic";
 import { ComposerPendingApprovalActions } from "./ComposerPendingApprovalActions";
 import { CompactComposerControlsMenu } from "./CompactComposerControlsMenu";
-import { ComposerReplyStyleControl } from "./ComposerReplyStyleControl";
 import { ComposerImageThumbnail } from "./ComposerImageThumbnail";
 import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
 import { ComposerPendingApprovalPanel } from "./ComposerPendingApprovalPanel";
@@ -358,16 +353,9 @@ const EMPTY_PULL_REQUEST_LIST_TARGETS: ReadonlyArray<EnvironmentQueryTarget<Pull
 import { Button } from "../ui/button";
 
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { ComposerSnipButton } from "./ComposerSnipButton";
+import { ComposerSnipButton, useDesktopSnips } from "./ComposerSnipButton";
 import { toastManager } from "../ui/toast";
-import {
-  AtSignIcon,
-  CircleAlertIcon,
-  PaperclipIcon,
-  PlayIcon,
-  ShieldIcon,
-  XIcon,
-} from "lucide-react";
+import { AtSignIcon, CircleAlertIcon, PlayIcon, ShieldIcon, XIcon } from "lucide-react";
 import { proposedPlanTitle } from "@t3tools/shared/proposedPlanText";
 import { hasProviderSetup } from "./ProviderStatusBanner";
 import {
@@ -414,7 +402,6 @@ import {
 import { resolveSkillFolders } from "@t3tools/client-runtime/skillFolders";
 import { searchProviderSkills } from "../../providerSkillSearch";
 import { useDelayedStatus } from "../../hooks/useDelayedStatus";
-import { useUpdateClientSettings } from "../../hooks/useSettings";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { usePanelAnimationSettings } from "../../panelAnimations";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -701,7 +688,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     activeThreadEnvironmentId: _activeThreadEnvironmentId,
     activeThread,
     promptHistoryMessages,
-    isServerThread,
+    isServerThread: _isServerThread,
     isLocalDraftThread: _isLocalDraftThread,
     forceExpandedOnMobile,
     projectSelectionRequired,
@@ -1225,15 +1212,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const composerSubagents = useComposerSubagents(
     routeKind === "draft" && draftId ? draftId : routeThreadRef,
   );
-  const attachThreadShell = useThreadShell(isServerThread ? routeThreadRef : null);
-  const {
-    attached: attachedSubagent,
-    attach: attachSubagent,
-    detach: detachSubagent,
-  } = useThreadSubagentAttach({
-    threadRef: routeThreadRef,
-    serverValue: attachThreadShell?.attachedSubagent,
-  });
   const selectedProviderSkills = useMemo(
     () =>
       selectedProviderStatus ? resolveProviderSkillsForCwd(selectedProviderStatus, gitCwd) : [],
@@ -1436,7 +1414,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     }
     return out;
   }, [providerInstanceEntries, selectedInstanceId, selectedModelForPicker, settings]);
-  const updateClientSettings = useUpdateClientSettings();
   const selectedModelForPickerWithCustomFallback = useMemo(() => {
     const currentOptions = modelOptionsByInstance.get(selectedInstanceId) ?? [];
     return currentOptions.some((option) => option.slug === selectedModelForPicker)
@@ -4334,8 +4311,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   // Banners and the tasks badge dock above the surface rather than inside
   // it, so they do not hold the composer open; only surface-internal chrome
   // does.
-  // Question and approval cards take the full width, so the bar steps out of their way.
-  const showComposerToolbar = pendingUserInputs.length === 0;
   const composerHasExpandedChrome =
     showComposerTopDrawer ||
     composerMenuOpen ||
@@ -5788,6 +5763,27 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     ],
   );
 
+  const snips = useDesktopSnips((file) => {
+    void addComposerAttachments([file]).then((inserted) => {
+      if (!inserted) focusComposer();
+    });
+  });
+  const autoPick = useAutoPickSkills({
+    environmentId,
+    cwd: gitCwd ?? null,
+    prompt,
+    projectText: gitCwd?.split(/[\/]/).findLast(Boolean) ?? "",
+    skills: selectedProviderSkills,
+    cap: settings.composerSuggestSkillCap,
+    engine: settings.composerAutoPickEngine,
+    openRouterModel: settings.composerAutoPickOpenRouterModel,
+    groqModel: settings.composerAutoPickGroqModel,
+    localModel: settings.composerAutoPickLocalModel,
+    getPrompt: () => promptRef.current,
+    setPrompt,
+  });
+  const [isPromptLibraryOpen, setIsPromptLibraryOpen] = useState(false);
+
   // Render
   // ------------------------------------------------------------------
   return (
@@ -6049,85 +6045,16 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               <ComposerTasksBadge progress={activeTasksProgress} />
             </ComposerBanner.Attachment>
           ) : null}
-          {showComposerToolbar ? (
-            <ComposerToolbar
-              prefs={settings.composerToolbar}
-              collapsed={settings.composerToolbarCollapsed}
-              onFillPrompt={setPrompt}
-              onCollapsedChange={(collapsed) =>
-                void updateClientSettings({ composerToolbarCollapsed: collapsed })
-              }
-              onPrefsChange={(composerToolbar) => void updateClientSettings({ composerToolbar })}
-              builtins={{
-                replyStyle: (
-                  <ComposerReplyStyleControl
-                    threadRef={routeThreadRef}
-                    serverValue={attachThreadShell?.replyStyle}
-                    environmentId={routeThreadRef.environmentId}
-                    projectId={savedItemsProjectId}
-                    cwd={gitCwd}
-                    size="xs"
-                  />
-                ),
-                saved: (
-                  <ComposerSavedItems
-                    environmentId={environmentId}
-                    projectId={savedItemsProjectId}
-                    target={composerDraftTarget}
-                    modelSelection={selectedModelSelection}
-                    runtimeMode={runtimeMode}
-                    interactionMode={interactionMode}
-                    canSave={canOperateThread}
-                    threadId={routeKind === "server" ? activeThreadId : null}
-                  />
-                ),
-                stash: (
-                  <ComposerStashBadge
-                    count={stashQueue.length}
-                    menuOpen={isStashMenuOpen}
-                    pulseKey={stashPulse.key}
-                    pulsing={stashPulse.active}
-                    onToggleMenu={toggleStashMenu}
-                  />
-                ),
-                skills:
-                  selectedProviderSkills.length > 0 ? (
-                    <>
-                      <ComposerAutoPickSkillsButton
-                        environmentId={environmentId}
-                        cwd={gitCwd ?? null}
-                        prompt={prompt}
-                        projectText={gitCwd?.split(/[\\/]/).findLast(Boolean) ?? ""}
-                        skills={selectedProviderSkills}
-                        cap={settings.composerSuggestSkillCap}
-                        engine={settings.composerAutoPickEngine}
-                        openRouterModel={settings.composerAutoPickOpenRouterModel}
-                        groqModel={settings.composerAutoPickGroqModel}
-                        localModel={settings.composerAutoPickLocalModel}
-                        getPrompt={() => promptRef.current}
-                        setPrompt={setPrompt}
-                      />
-                      <ComposerSkillsButton
-                        skills={selectedProviderSkills}
-                        alignRight={false}
-                        onSelect={(skillName) =>
-                          setPrompt(prefixPromptWithSkill(promptRef.current, skillName))
-                        }
-                      />
-                    </>
-                  ) : null,
-                subagents:
-                  composerSubagents.length > 0 || attachedSubagent !== null ? (
-                    <ComposerSubagentsButton
-                      options={composerSubagents}
-                      attached={attachedSubagent}
-                      onAttach={attachSubagent}
-                      onDetach={detachSubagent}
-                    />
-                  ) : null,
-                nextAction: <ComposerNotepadButton alignRight={false} />,
-              }}
-            />
+          {pendingUserInputs.length === 0 && stashQueue.length > 0 ? (
+            <ComposerBanner.Attachment>
+              <ComposerStashBadge
+                count={stashQueue.length}
+                menuOpen={isStashMenuOpen}
+                pulseKey={stashPulse.key}
+                pulsing={stashPulse.active}
+                onToggleMenu={toggleStashMenu}
+              />
+            </ComposerBanner.Attachment>
           ) : null}
         </ComposerBanner.Column>
       </>
@@ -6875,27 +6802,28 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                           });
                         }}
                       />
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onPointerDown={(event) => event.preventDefault()}
-                              onClick={() => attachmentInputRef.current?.click()}
-                              aria-label="Attach files"
-                            />
-                          }
-                        >
-                          <PaperclipIcon />
-                        </TooltipTrigger>
-                        <TooltipPopup>
-                          {attachShortcutLabel
-                            ? `Attach files (${attachShortcutLabel})`
-                            : "Attach files"}
-                        </TooltipPopup>
-                      </Tooltip>
+                      <ComposerPlusMenu
+                        onAttach={() => attachmentInputRef.current?.click()}
+                        attachShortcutLabel={attachShortcutLabel}
+                        snips={snips}
+                        skills={selectedProviderSkills}
+                        onSelectSkill={(skillName) =>
+                          setPrompt(prefixPromptWithSkill(promptRef.current, skillName))
+                        }
+                        autoPick={autoPick}
+                        onOpenLibrary={() => setIsPromptLibraryOpen(true)}
+                      />
+                      <ComposerSavedItems
+                        environmentId={environmentId}
+                        projectId={savedItemsProjectId}
+                        target={composerDraftTarget}
+                        modelSelection={selectedModelSelection}
+                        runtimeMode={runtimeMode}
+                        interactionMode={interactionMode}
+                        canSave={canOperateThread}
+                        threadId={routeKind === "server" ? activeThreadId : null}
+                        sheet={{ open: isPromptLibraryOpen, onOpenChange: setIsPromptLibraryOpen }}
+                      />
                       <ComposerSnipButton
                         onSnip={(file) => {
                           void addComposerAttachments([file]).then((inserted) => {

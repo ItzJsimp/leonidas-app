@@ -28,9 +28,9 @@ export const TOUR_TARGETS = {
     steps: [
       {
         title: "Keep a message for later",
-        body: "Use Save beside the message box to keep a message you have not sent. The arrow also saves notes or tasks. Open Saved messages to edit or delete a message, add it to the open chat, start a new chat with it, or schedule it to run once.",
+        body: "Click the plus button, then Prompt library, to edit or delete a saved message, add it to the open chat, start a new chat with it, or schedule it to run once.",
         route: "/",
-        anchor: "saved-items",
+        anchor: "composer-plus-menu",
         tryPrompt:
           "Save a note titled Saved items test with the text: Review my saved prompts before starting more work.",
       },
@@ -52,9 +52,9 @@ export const TOUR_TARGETS = {
     steps: [
       {
         title: "Notepad",
-        body: "Click Notepad to show or hide your notes. Add a note, tick it off, pin it, or attach a file or image. Open the task board from the sidebar.",
+        body: "Click the plus button, then Notepad, to show or hide your notes. Add a note, tick it off, pin it, or attach a file or image. Open the task board from the sidebar.",
         route: "/",
-        anchor: "composer-next-action",
+        anchor: "composer-plus-menu",
       },
     ],
   },
