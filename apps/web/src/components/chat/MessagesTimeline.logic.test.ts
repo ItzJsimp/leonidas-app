@@ -1315,7 +1315,7 @@ describe("deriveMessagesTimelineRows", () => {
       },
     });
     const summary = (assistantMessageId: string, files: Array<[string, number]>) => ({
-      runId: "turn-1" as never,
+      runId: `turn-${assistantMessageId.at(-1)}` as never,
       completedAt: "2026-01-01T00:00:30Z",
       assistantMessageId: assistantMessageId as never,
       checkpointTurnCount: 1,
@@ -1340,7 +1340,10 @@ describe("deriveMessagesTimelineRows", () => {
       isWorking: false,
       activeTurnStartedAt: null,
       turnDiffSummaries: [
-        summary("assistant-1", [["a.ts", 1]]),
+        summary("assistant-1", [
+          ["a.ts", 1],
+          ["earlier.ts", 3],
+        ]),
         summary("assistant-2", [
           ["a.ts", 5],
           ["b.ts", 2],
@@ -1357,7 +1360,13 @@ describe("deriveMessagesTimelineRows", () => {
     };
 
     expect(files("assistant-1")).toBeUndefined();
-    expect(files("assistant-2")).toEqual(["a.ts:5", "b.ts:2"]);
+    expect(files("assistant-2")).toEqual(["a.ts:5", "earlier.ts:3", "b.ts:2"]);
+    const merged = rows.find((row) => row.kind === "message" && row.message.id === "assistant-2");
+    expect(merged?.kind === "message" && merged.assistantTurnDiffSummary?.fileRunIds).toEqual({
+      "a.ts": "turn-2",
+      "earlier.ts": "turn-1",
+      "b.ts": "turn-2",
+    });
     expect(files("assistant-3")).toEqual(["c.ts:1"]);
   });
 

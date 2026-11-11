@@ -424,7 +424,9 @@ function AssistantChangedFilesSectionInner({
       onToggleAllDirectories={() =>
         setExpanded(routeThreadKey, turnSummary.runId, !allDirectoriesExpanded)
       }
-      onOpenTurnDiff={onOpenTurnDiff}
+      onOpenTurnDiff={(runId, filePath) =>
+        onOpenTurnDiff((filePath && turnSummary.fileRunIds?.[filePath]) || runId, filePath)
+      }
       onFileContextMenu={(filePath, event) =>
         onFileContextMenu(
           {

@@ -1403,11 +1403,19 @@ function keepOneDiffSummaryPerPrompt(
     const last = chain.at(-1);
     if (last && chain.length > 1) {
       const files = new Map<string, TurnDiffSummary["files"][number]>();
+      const fileRunIds: Record<string, RunId> = Object.create(null);
       for (const { summary } of chain) {
-        for (const file of summary.files) files.set(file.path, file);
+        for (const file of summary.files) {
+          files.set(file.path, file);
+          fileRunIds[file.path] = summary.fileRunIds?.[file.path] ?? summary.runId;
+        }
       }
       for (const { id } of chain.slice(0, -1)) byAssistantMessageId.delete(id);
-      byAssistantMessageId.set(last.id, { ...last.summary, files: [...files.values()] });
+      byAssistantMessageId.set(last.id, {
+        ...last.summary,
+        files: [...files.values()],
+        fileRunIds,
+      });
     }
     chain = [];
   };
