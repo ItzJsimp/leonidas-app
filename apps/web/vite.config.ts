@@ -9,6 +9,7 @@ import babel from "@rolldown/plugin-babel";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import compression from "compression";
 import { defineProject, type TestProjectInlineConfiguration } from "vite-plus/test/config";
+import { playwright } from "vite-plus/test/browser-playwright";
 import "vite-plus/test/config";
 import { defineConfig, type Connect, type Plugin } from "vite-plus";
 import pkg from "./package.json" with { type: "json" };
@@ -20,6 +21,7 @@ import {
 
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
+import { KNOWN_FAILING_BROWSER_TESTS } from "./browserTestsKnownFailing";
 import { formatDevVersionLabel } from "./src/devVersionLabel";
 import { tailwindPlugins } from "./vite/tailwind";
 
@@ -105,12 +107,41 @@ const unitTestProject = {
   test: {
     name: "unit",
     include: ["src/**/*.test.{ts,tsx}"],
+    // Screen tests need a real browser; the browser project runs them.
+    exclude: ["src/**/*.browser.test.{ts,tsx}", "**/node_modules/**"],
     // The web runtime suite exercises auth bootstrap, saved environments,
     // and websocket subscription lifecycles. Under the full monorepo test
     // run, those async tests can exceed Vitest's default 5s budget.
     hookTimeout: 15_000,
     testTimeout: 15_000,
     setupFiles: ["../../packages/shared/src/testing/longTempDir.ts"],
+  },
+} satisfies TestProjectInlineConfiguration;
+
+// Renders real screens in headless Chromium. This is what catches a render loop or a crash on a
+// screen before it ships. Run `playwright install --only-shell chromium` once on a new machine.
+const browserTestProject = {
+  extends: true,
+  server: {
+    // Concurrent runs claim the next free port.
+    strictPort: false,
+  },
+  // Prebundle these up front; finding them mid-run makes Vite reload a test.
+  optimizeDeps: { include: ["heic-to/next", "tiff"] },
+  test: {
+    name: "browser",
+    include: ["src/**/*.browser.test.{ts,tsx}"],
+    exclude: [...KNOWN_FAILING_BROWSER_TESTS, "**/node_modules/**"],
+    hookTimeout: 30_000,
+    testTimeout: 30_000,
+    browser: {
+      enabled: true,
+      provider: playwright() as never,
+      instances: [{ browser: "chromium" }],
+      headless: true,
+      api: { strictPort: false },
+    },
+    fileParallelism: false,
   },
 } satisfies TestProjectInlineConfiguration;
 
@@ -419,7 +450,7 @@ export default defineConfig(() => {
     },
     worker: { format: "es" },
     test: {
-      projects: [defineProject(unitTestProject)],
+      projects: [defineProject(unitTestProject), defineProject(browserTestProject)],
     },
   };
 });
