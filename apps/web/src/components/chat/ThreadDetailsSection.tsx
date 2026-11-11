@@ -97,7 +97,7 @@ export function ThreadDetailsFoldButton({
             size="icon-xs"
             variant="ghost-muted"
             aria-label={`Fold ${label}`}
-            className="size-5"
+            className="size-6"
             onClick={onFold}
           />
         }

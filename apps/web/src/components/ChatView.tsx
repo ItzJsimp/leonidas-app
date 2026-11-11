@@ -399,6 +399,7 @@ import {
   type ComposerImageAttachment,
   type DraftThreadEnvMode,
   useComposerDraftStore,
+  useEffectiveComposerModelState,
   DraftId,
 } from "../composerDraftStore";
 import {
@@ -3587,11 +3588,38 @@ export default function ChatView(props: ChatViewProps) {
   const showProviderSubagentBar = isProviderSubagent;
   const composerMounted = !showProviderSubagentBar;
   const providerSubagentModels = selectedProviderEntry?.models ?? EMPTY_PROVIDER_MODELS;
+  // A draft has no model of its own: the details panel shows the one the composer will send with.
+  const draftModelState = useEffectiveComposerModelState({
+    threadRef: composerDraftTarget,
+    providers: providerStatuses,
+    selectedProvider,
+    selectedInstanceId: activeProviderInstanceId,
+    threadModelSelection: activeThread?.modelSelection,
+    projectModelSelection: activeProjectDefaultModelSelection,
+    settings,
+  });
+  const detailsModelSelection = useMemo(
+    () =>
+      isServerThread || activeProviderInstanceId === null
+        ? activeThread?.modelSelection
+        : createModelSelection(
+            activeProviderInstanceId,
+            draftModelState.selectedModel,
+            draftModelState.modelOptions?.[activeProviderInstanceId],
+          ),
+    [
+      activeProviderInstanceId,
+      activeThread?.modelSelection,
+      draftModelState.modelOptions,
+      draftModelState.selectedModel,
+      isServerThread,
+    ],
+  );
   // Providers can report a dated id or alias (claude-haiku-4-5-20251001).
   const providerSubagentModelSlug = selectedProviderEntry
     ? resolveSelectableModel(
         selectedProviderEntry.driverKind,
-        activeThread?.modelSelection.model,
+        detailsModelSelection?.model,
         providerSubagentModels,
       )
     : null;
@@ -3603,18 +3631,18 @@ export default function ChatView(props: ChatViewProps) {
     () =>
       withKnownContextWindow(
         activeContextWindow,
-        contextWindowTokensForModel(providerSubagentCatalogModel, activeThread?.modelSelection),
+        contextWindowTokensForModel(providerSubagentCatalogModel, detailsModelSelection),
       ),
-    [activeContextWindow, activeThread?.modelSelection, providerSubagentCatalogModel],
+    [activeContextWindow, detailsModelSelection, providerSubagentCatalogModel],
   );
   const providerSubagentModelLabel = providerSubagentCatalogModel
     ? getTriggerDisplayModelName(providerSubagentCatalogModel)
-    : formatModelSlugName(activeThread?.modelSelection.model ?? "");
+    : formatModelSlugName(detailsModelSelection?.model ?? "");
   const providerSubagentEffortLabel =
-    activeThread === undefined
+    detailsModelSelection === undefined
       ? null
       : formatModelSelectionEffort(
-          activeThread.modelSelection,
+          detailsModelSelection,
           providerSubagentModels,
           reportedModelSelection,
         );
@@ -11670,7 +11698,7 @@ export default function ChatView(props: ChatViewProps) {
                   {isDraftHeroState ? (
                     <div className="absolute inset-x-0 bottom-full">
                       <div
-                        className="pb-4 group-has-data-[composer-shoulder-tab]/composer-stack:pb-0"
+                        className="pb-6"
                         style={
                           forceExpandedMobileComposer
                             ? { viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME }
