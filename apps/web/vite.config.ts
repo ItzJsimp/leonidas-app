@@ -439,6 +439,7 @@ export default defineConfig(() => {
     },
     worker: { format: "es" },
     test: {
+      api: { strictPort: false },
       projects: [defineProject(unitTestProject), defineProject(browserTestProject)],
     },
   };

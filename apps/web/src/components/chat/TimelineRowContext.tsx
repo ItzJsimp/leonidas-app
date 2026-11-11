@@ -49,6 +49,7 @@ export interface TimelineRowSharedState {
   ) => void;
   onUseArtifactTemplate: (template: CodexArtifactTemplate) => void;
   onDockReply: ((text: string) => void) | undefined;
+  onRetryRun?: ((runId: RunId) => void) | undefined;
   /** Sends text an MCP App asked to post, after the user approved it. */
   onSendAppMessage: ((text: string) => Promise<void>) | undefined;
   /**
