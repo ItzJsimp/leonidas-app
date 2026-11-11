@@ -35,6 +35,7 @@ import {
 } from "@t3tools/client-runtime/state/subagent-display";
 import { WorkLogBlock } from "./WorkLog";
 import { Collapsible, CollapsibleTrigger, CollapsiblePanel } from "../ui/collapsible";
+import { RetryRunButton } from "./RetryRunButton";
 
 type V2EventTone = "muted" | "warning" | "danger" | "success";
 
@@ -202,6 +203,7 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
               {visibility === "inherited" ? "From an earlier chat" : "Added by the app"}
             </span>
           ) : null}
+          {item.status === "failed" ? <RetryRunButton runId={item.runId} /> : null}
           <ChevronDownIcon className="size-3 shrink-0 text-muted-foreground/60 transition-transform group-open:rotate-180" />
         </summary>
         <div className="border-t border-border/45 px-3 py-2 ps-8">
