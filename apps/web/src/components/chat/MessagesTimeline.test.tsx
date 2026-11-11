@@ -1669,6 +1669,7 @@ describe("MessagesTimeline", () => {
     const markup = renderToStaticMarkup(
       <MessagesTimeline
         {...buildProps()}
+        onDockReply={() => {}}
         timelineEntries={[
           {
             id: "assistant-message-1",
@@ -1690,6 +1691,8 @@ describe("MessagesTimeline", () => {
     );
 
     expect(markup).toContain('aria-label="Start a new chat from this reply"');
+    // Reply buttons are icons with tooltips: Copy, Branch and Adjust.
+    expect(markup).toContain('aria-label="Adjust this reply"');
   });
 
   it("renders inline terminal labels with the composer chip UI", async () => {
