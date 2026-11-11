@@ -30,6 +30,8 @@ import {
 } from "@t3tools/shared/usageMerge";
 
 import { cn } from "../../lib/utils";
+import { usePrimarySettings } from "../../hooks/useSettings";
+import { resolveHour12 } from "../../timestampFormat";
 import { environmentPresentations } from "../../state/presentation";
 import { primaryServerKeybindingsAtom, serverEnvironment } from "../../state/server";
 import { isCommandPaletteOpen } from "../../commandPaletteBus";
@@ -123,6 +125,7 @@ const providerLabel = (provider: UsageProviderKind) => PROVIDER_PRESENTATION[pro
 export function UsagePage() {
   const [preferences, setPreferences] = useState(readUsagePagePreferences);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
+  const hour12 = usePrimarySettings((settings) => resolveHour12(settings.timestampFormat));
   const shortcutTitle = (
     option: { readonly label: string } & {
       readonly command?:
@@ -192,6 +195,7 @@ export function UsagePage() {
   const isProviderLoading = (provider: UsageProviderKind) =>
     loading.everyProvider || loading.providers.has(provider);
   const presentations = useAtomValue(environmentPresentations.presentationsAtom);
+  const providersByEnvironment = useAtomValue(environmentPresentations.providersByEnvironmentAtom);
   const cursorAccessEnvironments = hiddenProviders.has("cursor")
     ? []
     : cursorKeychainAccessEnvironments(selectedEnvironments);
@@ -416,7 +420,7 @@ export function UsagePage() {
   // Names the period on screen, which is the previous one until the new one answers.
   const windowLabel =
     shownHourly && shownWindow.sinceTime !== undefined && shownWindow.untilTime !== undefined
-      ? `${formatDateTimeShort(shownWindow.sinceTime, shownWindow.timeZone, shownMinutes)} to ${formatDateTimeShort(shownWindow.untilTime, shownWindow.timeZone, shownMinutes)}`
+      ? `${formatDateTimeShort(shownWindow.sinceTime, shownWindow.timeZone, hour12, shownMinutes)} to ${formatDateTimeShort(shownWindow.untilTime, shownWindow.timeZone, hour12, shownMinutes)}`
       : `${formatDayShort(shownWindow.sinceDay)} to ${formatDayShort(shownWindow.untilDay)}`;
   const topbarContent = (
     <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 xl:flex">
@@ -622,10 +626,10 @@ export function UsagePage() {
                     </div>
 
                     {!hiddenProviders.has("codex") &&
-                    [...presentations].some(
-                      ([id, presentation]) =>
+                    [...providersByEnvironment].some(
+                      ([id, providers]) =>
                         (selectedEnvironmentIds === null || selectedEnvironmentIds.has(id)) &&
-                        presentation.serverConfig?.providers.some(usesChatGptSharing),
+                        providers.some(usesChatGptSharing),
                     ) ? (
                       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                         <span>ChatGPT shared usage</span>
@@ -1214,6 +1218,7 @@ export function UsagePage() {
                                   ? formatHourShort(
                                       period.hourStart,
                                       shownWindow.timeZone,
+                                      hour12,
                                       shownMinutes,
                                     )
                                   : formatDayShort(period.day)}

@@ -41,8 +41,7 @@ export function UpdatedNoticeBar() {
         // No notes, no bar. The update history still has them.
       });
     return () => controller.abort();
-    // Runs once per launch. A later change of the notice setting must not re-open the bar.
-  }, []);
+  }, [lastRun, level]);
 
   if (!notice) return null;
   return (

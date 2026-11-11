@@ -15,6 +15,14 @@
 !macroend
 
 !macro customInstall
+  !ifndef DO_NOT_CREATE_START_MENU_SHORTCUT
+    ${IfNot} ${FileExists} "$newStartMenuLink"
+      !insertmacro createMenuDirectory
+      CreateShortCut "$newStartMenuLink" "$appExe" "" "$appExe" 0 "" "" "${APP_DESCRIPTION}"
+      ClearErrors
+      WinShell::SetLnkAUMI "$newStartMenuLink" "${APP_ID}"
+    ${EndIf}
+  !endif
   nsExec::ExecToLog 'powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\resources\update-shortcut-icons.ps1" -InstallDirectory "$INSTDIR" -ExecutableName "${APP_EXECUTABLE_FILENAME}" -IconPath "$INSTDIR\resources\leonidas-shortcut-${VERSION}.ico" -DisplayName "${PRODUCT_NAME}"'
   Pop $0
   ${If} $0 != 0

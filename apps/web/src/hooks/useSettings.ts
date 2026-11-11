@@ -196,7 +196,7 @@ export function useMigrateModelPreferences(
   }, [clientSettings, environmentId, hydrated, migrate, settings]);
 }
 
-function useMergedSettings<T>(
+export function useMergedSettings<T>(
   serverSettings: ServerSettings,
   selector: ((settings: UnifiedSettings) => T) | undefined,
 ): T {
@@ -613,6 +613,10 @@ export function useUpdateEnvironmentSettings(environmentId: EnvironmentId | null
 
 export function useUpdatePrimarySettings() {
   return useUpdateSettingsTarget(usePrimaryEnvironment()?.environmentId ?? null);
+}
+
+export function updateClientSettings(patch: ClientSettingsPatch): Promise<void> {
+  return persistClientSettingsPatch(patch);
 }
 
 export function useUpdateClientSettings() {

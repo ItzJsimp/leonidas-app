@@ -18,7 +18,7 @@ import type {
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -34,7 +34,7 @@ import { ensureLocalApi } from "../../localApi";
 import { serverEnvironment } from "../../state/server";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { formatRelativeTime } from "../../timestampFormat";
+import { useRelativeTimeState } from "../../hooks/useRelativeTimeState";
 import { Button } from "../ui/button";
 import { MorphIcon } from "~/components/MorphIcon";
 import { ScrollArea } from "../ui/scroll-area";
@@ -188,12 +188,8 @@ function SourceStatusBadge({
 }
 
 function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
-  useRelativeTimeTick();
-  if (!sampledAt) {
-    return <span className="text-xs text-muted-foreground">Waiting for a reading</span>;
-  }
-  const relative = formatRelativeTime(DateTime.formatIso(sampledAt));
-  if (!relative) {
+  const relative = useRelativeTimeState(sampledAt ? DateTime.formatIso(sampledAt) : null);
+  if (relative.status !== "relative") {
     return <span className="text-xs text-muted-foreground">Waiting for a reading</span>;
   }
   return (
@@ -453,11 +449,8 @@ function ProcessTable({
   onSignal: (process: ResourceTelemetryProcess, signal: ServerProcessSignal) => void;
 }) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
-  const visible = useMemo(
-    () => visibleResourceTelemetryProcesses(processes, collapsed),
-    [collapsed, processes],
-  );
-  const toggle = useCallback((process: ResourceTelemetryProcess) => {
+  const visible = visibleResourceTelemetryProcesses(processes, collapsed);
+  const toggle = (process: ResourceTelemetryProcess) => {
     const identityKey = processIdentityKey(process);
     setCollapsed((current) => {
       const next = new Set(current);
@@ -468,7 +461,7 @@ function ProcessTable({
       }
       return next;
     });
-  }, []);
+  };
 
   return (
     <div className="border-t border-border/60">
@@ -750,92 +743,89 @@ export function LeonidasAppPanel({ environmentId }: { environmentId: Environment
   const snapshot = telemetry.data;
   const allT3 = snapshot?.groups.allT3;
 
-  const signalProcess = useCallback(
-    async (process: ResourceTelemetryProcess, signal: ServerProcessSignal) => {
-      const targetEnvironmentId = environmentIdRef.current;
-      if (
-        targetEnvironmentId === null ||
-        !readEnvironmentScope(targetEnvironmentId, AuthEnvironmentMaintainScope)
-      )
-        return;
-      const identityKey = processIdentityKey(process);
-      if (signalingKeysRef.current.has(identityKey)) return;
-      const nextSignalingKeys = new Set(signalingKeysRef.current).add(identityKey);
-      signalingKeysRef.current = nextSignalingKeys;
-      setSignalingKeys(nextSignalingKeys);
-      const clearSignaling = () => {
-        const next = new Set(signalingKeysRef.current);
-        next.delete(identityKey);
-        signalingKeysRef.current = next;
-        setSignalingKeys(next);
-      };
+  const signalProcess = async (process: ResourceTelemetryProcess, signal: ServerProcessSignal) => {
+    const targetEnvironmentId = environmentIdRef.current;
+    if (
+      targetEnvironmentId === null ||
+      !readEnvironmentScope(targetEnvironmentId, AuthEnvironmentMaintainScope)
+    )
+      return;
+    const identityKey = processIdentityKey(process);
+    if (signalingKeysRef.current.has(identityKey)) return;
+    const nextSignalingKeys = new Set(signalingKeysRef.current).add(identityKey);
+    signalingKeysRef.current = nextSignalingKeys;
+    setSignalingKeys(nextSignalingKeys);
+    const clearSignaling = () => {
+      const next = new Set(signalingKeysRef.current);
+      next.delete(identityKey);
+      signalingKeysRef.current = next;
+      setSignalingKeys(next);
+    };
 
-      if (signal === "SIGKILL") {
-        let confirmed = false;
-        try {
-          confirmed = await ensureLocalApi().dialogs.confirm(
-            `Force process ${process.identity.pid} to stop (SIGKILL)? The process cannot refuse or save its work.`,
-            { variant: "destructive" },
-          );
-        } catch (error) {
-          clearSignaling();
-          toastManager.add({
-            type: "error",
-            title: "Could not confirm signal",
-            ...userErrorToastFields(error),
-          });
-          return;
-        }
-        if (!confirmed) {
-          clearSignaling();
-          return;
-        }
+    if (signal === "SIGKILL") {
+      let confirmed = false;
+      try {
+        confirmed = await ensureLocalApi().dialogs.confirm(
+          `Force process ${process.identity.pid} to stop (SIGKILL)? The process cannot refuse or save its work.`,
+          { variant: "destructive" },
+        );
+      } catch (error) {
+        clearSignaling();
+        toastManager.add({
+          type: "error",
+          title: "Could not confirm signal",
+          ...userErrorToastFields(error),
+        });
+        return;
       }
-      if (
-        environmentIdRef.current !== targetEnvironmentId ||
-        !readEnvironmentScope(targetEnvironmentId, AuthEnvironmentMaintainScope)
-      ) {
+      if (!confirmed) {
         clearSignaling();
         return;
       }
-      void signalServerProcess({
-        environmentId: targetEnvironmentId,
-        input: {
-          pid: process.identity.pid,
-          startTimeMs: process.identity.startTimeMs,
-          signal,
-        },
-      })
-        .then((result) => {
-          if (result._tag === "Failure") {
-            if (isAtomCommandInterrupted(result)) return;
-            throw squashAtomCommandFailure(result);
-          }
-          if (result.value.signaled) return;
-          toastManager.add({
-            type: "error",
-            title: `Could not send ${signal}`,
-            description: Option.getOrElse(
-              result.value.message,
-              () => `Could not send ${signal} to process ${process.identity.pid}. Try again.`,
-            ),
-          });
-        })
-        .catch((error: unknown) => {
-          toastManager.add({
-            type: "error",
-            title: `Could not send ${signal}`,
-            ...userErrorToastFields(error),
-          });
-        })
-        .finally(() => {
-          clearSignaling();
+    }
+    if (
+      environmentIdRef.current !== targetEnvironmentId ||
+      !readEnvironmentScope(targetEnvironmentId, AuthEnvironmentMaintainScope)
+    ) {
+      clearSignaling();
+      return;
+    }
+    void signalServerProcess({
+      environmentId: targetEnvironmentId,
+      input: {
+        pid: process.identity.pid,
+        startTimeMs: process.identity.startTimeMs,
+        signal,
+      },
+    })
+      .then((result) => {
+        if (result._tag === "Failure") {
+          if (isAtomCommandInterrupted(result)) return;
+          throw squashAtomCommandFailure(result);
+        }
+        if (result.value.signaled) return;
+        toastManager.add({
+          type: "error",
+          title: `Could not send ${signal}`,
+          description: Option.getOrElse(
+            result.value.message,
+            () => `Failed to send ${signal} to process ${process.identity.pid}.`,
+          ),
         });
-    },
-    [signalServerProcess],
-  );
+      })
+      .catch((error: unknown) => {
+        toastManager.add({
+          type: "error",
+          title: `Could not send ${signal}`,
+          ...userErrorToastFields(error),
+        });
+      })
+      .finally(() => {
+        clearSignaling();
+      });
+  };
 
-  const retryCollector = useCallback(() => {
+  const retryCollector = () => {
     const environmentId = environmentIdRef.current;
     if (
       environmentId === null ||
@@ -854,7 +844,7 @@ export function LeonidasAppPanel({ environmentId }: { environmentId: Environment
       .finally(() => {
         setIsRetrying(false);
       });
-  }, [retryTelemetry]);
+  };
 
   const speedLimit = snapshot ? Option.getOrNull(snapshot.speedLimitPercent) : null;
   const collectorNeedsRetry = shouldShowResourceMonitorRetry({

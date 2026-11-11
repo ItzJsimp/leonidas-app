@@ -30,7 +30,9 @@ export function DesktopUpdateCoordinator() {
   const autoUpdateWhenSafe = useUpdatePreferencesStore((store) => store.autoUpdateWhenSafe);
   const showDetails = useUpdateDetailsStore((store) => store.show);
   const runningCountRef = useRef(runningCount);
-  runningCountRef.current = runningCount;
+  useEffect(() => {
+    runningCountRef.current = runningCount;
+  }, [runningCount]);
 
   // The main process installs on quit only while automatic updates are on.
   useEffect(() => {
@@ -57,8 +59,9 @@ export function DesktopUpdateCoordinator() {
     sendUsageEvent("update_downloaded");
   }, [downloadedVersion]);
 
-  const lastInputAtRef = useRef(Date.now());
+  const lastInputAtRef = useRef(0);
   useEffect(() => {
+    lastInputAtRef.current = Date.now();
     const markActive = () => {
       lastInputAtRef.current = Date.now();
     };

@@ -86,6 +86,7 @@ describe("connected usage accounts", () => {
     input.set(env, {
       entry: { target: { label: "Hub" } },
       serverConfig: {
+        providers: [],
         usageLimitSources: [
           {
             id: UsageLimitSourceId.make("proxy"),

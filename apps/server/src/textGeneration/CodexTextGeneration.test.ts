@@ -1,7 +1,9 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
@@ -14,6 +16,7 @@ import { expect } from "vite-plus/test";
 import { CodexSettings, ProviderInstanceId, TextGenerationError } from "@t3tools/contracts";
 
 import * as ServerConfig from "../config.ts";
+import { makeProcessProbe, processProbeSource } from "../testUtils/processProbe.ts";
 import * as TextGeneration from "./TextGeneration.ts";
 import { makeCodexTextGeneration } from "./CodexTextGeneration.ts";
 import { writeFakeCli } from "@t3tools/provider-testing/fakeCli";
@@ -30,6 +33,7 @@ const layerCodexTextGenerationTest = ServerConfig.ServerConfig.layerTest(process
 
 interface FakeCodexInput {
   output: string;
+  lifecycle?: { port: number; command: "exec" | "mcp list" };
   exitCode?: number;
   stderr?: string;
   requireImage?: boolean;
@@ -45,10 +49,6 @@ interface FakeCodexInput {
   mcpServers?: ReadonlyArray<{ name: string; enabled: boolean }> | number;
 }
 
-// The stub walks argv the way the shell script it replaced did: `--image`,
-// `--config key=value`, and `--output-last-message <path>` are consumed, the
-// prompt arrives on stdin, and each check exits with its own code so a
-// failing test names the assertion that tripped.
 function makeFakeCodexBinary(dir: string, input: FakeCodexInput) {
   const check = JSON.stringify({
     requireImage: input.requireImage ?? false,
@@ -462,7 +462,7 @@ it.layer(layerCodexTextGenerationTest)("CodexTextGeneration", (it) => {
           });
 
           expect(generated.subject).toBe("Add important change");
-          expect(generated.branch).toBe("feature/fix/important-system-change");
+          expect(generated.branch).toBe("fix/important-system-change");
         }),
     ),
   );

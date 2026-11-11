@@ -95,6 +95,10 @@ const emitStaleXAiPromptCompleteBeforeSecondHang =
 const emitOverlappingXAiPromptCompleteOutOfOrder =
   process.env.T3_ACP_EMIT_OVERLAPPING_XAI_PROMPT_COMPLETE_OUT_OF_ORDER === "1";
 const failPrompt = process.env.T3_ACP_FAIL_PROMPT === "1";
+const failPromptOrdinal = Number(process.env.T3_ACP_FAIL_PROMPT_ORDINAL);
+const compactionPromptOrdinals = new Set(
+  (process.env.T3_ACP_COMPACTION_PROMPT_ORDINALS ?? "").split(",").map(Number),
+);
 const failSetConfigOption = process.env.T3_ACP_FAIL_SET_CONFIG_OPTION === "1";
 const failSetModeConfigOption = process.env.T3_ACP_FAIL_SET_MODE_CONFIG_OPTION === "1";
 const exitOnSetConfigOption = process.env.T3_ACP_EXIT_ON_SET_CONFIG_OPTION === "1";
@@ -442,13 +446,14 @@ function modeState(): AcpCompat.SessionModeState {
 }
 
 // Mirrors the real Grok ACP: it advertises versioned model ids, never the CLI's own
-// "grok-build" product name. Native helper model switching has its own v1 fixture.
+// "grok-build" product name.
 const grokAcpModels: ReadonlyArray<AcpCompat.ModelInfo> = [
   {
-    modelId: "grok-4.6",
+    modelId: process.env.T3_ACP_GROK_MODEL ?? "grok-4.6",
     name: "Grok 4.6",
     _meta: {
-      totalContextTokens: 500_000,
+      totalContextTokens: Number(process.env.T3_ACP_GROK_CONTEXT_TOKENS ?? 500_000),
+      contextWindows: [256_000, 500_000],
       supportsReasoningEffort: true,
       reasoningEffort: initialGrokReasoningEffort ?? "high",
       reasoningEfforts: [
@@ -467,7 +472,7 @@ function modelState(): AcpCompat.SessionModelState {
   }
   const modelId = grokAcpModels.some((model) => model.modelId === currentModelId)
     ? currentModelId
-    : "grok-4.6";
+    : (process.env.T3_ACP_GROK_MODEL ?? "grok-4.6");
   return {
     currentModelId: modelId,
     availableModels: grokAcpModels,
@@ -873,8 +878,6 @@ const program = Effect.gen(function* () {
         });
       }
       if (emitTaskBackgroundedAfterCancel) {
-        // Grok cancel-as-detach: the foreground command is re-run as a
-        // background task that later completes on its own.
         yield* Effect.sync(() => {
           writeJsonRpcNotification("_x.ai/task_backgrounded", {
             sessionId: cancelledSessionId,
@@ -959,7 +962,6 @@ const program = Effect.gen(function* () {
           requestedSessionId,
           requestedSessionId,
         ].entries()) {
-          // Progress from an earlier tool must not end the retry.
           if (index === 2 && vibeRetryOutcome === "recovered") {
             yield* Effect.sync(() =>
               writeJsonRpcNotification("session/update", {
@@ -1385,6 +1387,19 @@ const program = Effect.gen(function* () {
         yield* Effect.sleep(`${promptDelayMs} millis`);
       }
 
+      if (compactionPromptOrdinals.has(promptCount)) {
+        for (const status of ["in_progress", "completed"] as const) {
+          yield* agent.client.sessionUpdate({
+            sessionId: requestedSessionId,
+            update: {
+              sessionUpdate: "compaction_update",
+              compactionId: `compact-${promptCount}`,
+              status,
+            },
+          });
+        }
+      }
+
       if (lostConnectionMarkerPath !== undefined && !NodeFS.existsSync(lostConnectionMarkerPath)) {
         NodeFS.writeFileSync(lostConnectionMarkerPath, "lost");
         yield* agent.client.sessionUpdate({
@@ -1425,7 +1440,7 @@ const program = Effect.gen(function* () {
         return yield* finishPrompt(requestedSessionId, "end_turn");
       }
 
-      if (failPrompt) {
+      if (failPrompt || promptCount === failPromptOrdinal) {
         return yield* AcpError.AcpRequestError.internalError("Mock prompt failure");
       }
 
@@ -1587,7 +1602,6 @@ const program = Effect.gen(function* () {
           yield* Effect.sleep("100 millis");
           return yield* Effect.sync(() => process.exit(0));
         }
-        // Stay open until session/cancel so interrupt tests can observe a running tool.
         while (!cancelledSessions.has(requestedSessionId)) {
           yield* Effect.sleep("25 millis");
         }
@@ -1842,8 +1856,6 @@ const program = Effect.gen(function* () {
       }
 
       if (emitBackgroundToolDuringAnswer) {
-        // A command backgrounded earlier reports progress and then finishes
-        // while the next answer is still streaming.
         const toolCallId = "background-1";
         const say = (text: string) =>
           agent.client.sessionUpdate({
@@ -1876,7 +1888,6 @@ const program = Effect.gen(function* () {
         yield* say("| x |\n");
         yield* progress("completed", "done");
         yield* say("| 2 | y |\n");
-        // Agents can repeat a terminal update after the call finished.
         yield* progress("completed", "done");
         yield* say("| 3 | z |");
         return yield* finishPrompt(requestedSessionId, "end_turn");
@@ -2117,9 +2128,6 @@ const program = Effect.gen(function* () {
         return yield* finishPrompt(requestedSessionId, "end_turn");
       }
 
-      // In-turn monitor + TaskOutput hydrate, then a late post-finalize
-      // duplicate terminal TaskOutput for the same task. Exercises the
-      // already-handled short-circuit: must not pin hasPendingBackgroundWork.
       if (emitInTurnTaskOutputThenLateDuplicate) {
         const monitorToolCallId = "tool-call-monitor-1";
         yield* agent.client.sessionUpdate({
@@ -2169,9 +2177,6 @@ const program = Effect.gen(function* () {
             content: { type: "text", text: "Monitor listing ready in-turn." },
           },
         });
-        // After deferred finalize (~2s) clears activeTurn, re-emit a terminal
-        // TaskOutput for the same task so bufferPostSettleWake sees
-        // alreadyHandledToolUpdate with a non-empty wake path.
         yield* Effect.gen(function* () {
           yield* Effect.sleep("2500 millis");
           yield* Effect.sync(() => {
@@ -2215,10 +2220,6 @@ const program = Effect.gen(function* () {
           },
         });
 
-        // After the prompt settles, replay the CLI-injected monitor-event
-        // turn: end notice, TaskOutput hydration, then (once the trigger
-        // file exists) the report chunk. Detached fiber on the real clock;
-        // it outlives the prompt handler.
         yield* Effect.gen(function* () {
           yield* Effect.sleep("150 millis");
           yield* Effect.sync(() => {
@@ -2338,7 +2339,6 @@ const program = Effect.gen(function* () {
         const planRoot = process.env.T3_ACP_PLAN_ROOT ?? "/tmp/mock-home/.grok";
         const planPath = `${planRoot}/sessions/${requestedSessionId}/plan.md`;
         const planBody = "# Mock plan\n\n- Write the feature\n- Add a test\n- Ship it\n";
-        // enter_plan_mode first so the adapter arms planModeActive.
         yield* agent.client.sessionUpdate({
           sessionId: requestedSessionId,
           update: {

@@ -98,6 +98,19 @@ Moved out of [agent-playbook.md](../agent-playbook.md) so it is not loaded every
 - **`routeTree.gen.ts` updates only when Vite runs:** a new route file fails typecheck until `vp run dev` or a build regenerates it. Commit the regenerated file.
 - **`vp lint` blocks native `title` tooltips, outset focus rings and restyled `Input` padding:** use the Tooltip component, add `focus-visible:ring-inset`, and keep icons out of `Input`.
 
+### Chat details panel work (2026-11-10)
+
+- **`Start-AgentTask.ps1` needs `-Card <slug>` in a builder's AIOS:** make the card with `scripts/New-Task.ps1 -Name "<title>"` in the AIOS. `board_task_create` writes no `tasks/*.md` file. To reuse an installed worktree, run `-Card <slug> -NoWorktree`, then `git switch -c task/<slug> origin/main` there. A stale main checkout has an old script without `-Card`: run the script from the worktree.
+- **`pnpm install` dies in Git Bash with a Node loader error:** use `vp install --frozen-lockfile` in PowerShell (about 4 minutes).
+- **The dev server rewrites `apps/web/src/routeTree.gen.ts`:** stop the server, then run `git checkout -- apps/web/src/routeTree.gen.ts` before you commit. Keep the change only when you added a route.
+- **A pairing code works once:** a new URL that changes only the `#token` does not reload the pair page. Type the new code in the field, or make one with `node apps/server/src/bin.ts pair --base-dir <worktree>/.t3`.
+- **Stop a dev server by the PID you captured at spawn:** `taskkill /T /F /PID <pid>` ends its child processes too. Never kill by name.
+- **Preview automation:** use `button[aria-label="New chat (Ctrl+Shift+O)"]` or the shortcut, then pick the project in the palette. In a fresh incognito tab the telemetry "Decline" can hang, and a reload clears it. Screenshots scale to 1280 wide, so measure with `leo_preview_evaluate`, not by eye.
+- **Doop:** a first `create_frame` can vanish, so confirm with `get_frame_screenshot`. `edit_frame_html` takes `old_str` and `new_str`. A stray edit once moved the greeting block into another panel, so screenshot after every edit. Compare the approved pick frame, not the merged frame, before you copy an element: the merged frame had a haze the pick did not have.
+- **`Measure-ChangeFootprint.ps1 -Paths` needs an array variable in PowerShell:** a comma string is read as one path and the script measures nothing.
+- **Probe tests that call `console.log` print nothing in vitest:** work out the expected numbers from the layout rule instead.
+- **Dead ends:** the old `besideShift` centring (chat kept on the window centre) was removed on purpose. One card per account was rejected: the gap between percent and reset was too large. A forced fix of the 1024 px title offset would cover the header buttons.
+
 ### Older gotchas
 
 - **Watchdog forcefully crashing the renderer causes an infinite reload loop (2026-10-19):** RendererHangRecovery.ts pinged the renderer every 5 s and called webContents.forcefullyCrashRenderer() after 30 s of silence. Under normal load (initial rehydration, history rendering, GC) the renderer's V8 thread pauses or misses pings, triggering the crash. Each crash forces a reload, which incurs another heavy boot, causing another timeout after the 3-minute cooldown, looping forever. Retired: renderers must not be forcefully crashed by a timer.

@@ -60,7 +60,9 @@ export function relayProtectedErrorMessage(error: RelayProtectedError): string {
     case "RelayEnvironmentLinkFailedError":
       return `Remote access could not link this computer (${error.reason}). Try again.`;
     case "RelayEnvironmentLinkUnavailableError":
-      return `Remote access cannot set up the connection (${error.reason}). Try again later.`;
+      return `Relay cannot provision the managed endpoint (${error.reason}).${
+        error.provisioningStage ? ` Failed stage: ${error.provisioningStage}.` : ""
+      }`;
     case "RelayEnvironmentLinkLimitExceededError":
       return `This account already has ${error.maxTunnels} remote access connections. That is the most it can have. Remove a computer to make room.`;
     case "RelayAgentActivityPublishProofExpiredError":
@@ -72,13 +74,24 @@ export function relayProtectedErrorMessage(error: RelayProtectedError): string {
   }
 }
 
-// A host with a current build gets a new tunnel on its own within minutes of
-// coming back, which clears this reason. While it is still reported, the host
-// is either still off or running a build too old to do that.
+// The relay cuts off a request it cannot finish in time with a 504 that no
+// endpoint declares, so the client sees only the status.
+export const RELAY_GATEWAY_TIMEOUT_MESSAGE =
+  "Relay timed out before it finished the request (HTTP 504). Try again in a few minutes. If it keeps failing, copy the trace ID when you report it.";
+
+export function relayRequestFailureDetail(error: {
+  readonly relayError?: RelayProtectedError | undefined;
+  readonly status?: number | undefined;
+}): string | null {
+  if (error.relayError) return relayProtectedErrorMessage(error.relayError);
+  if (error.status === 504) return RELAY_GATEWAY_TIMEOUT_MESSAGE;
+  if (error.status !== undefined) return `Relay returned an unexpected HTTP ${error.status}.`;
+  return null;
+}
+
 export const RELAY_TUNNEL_RELEASED_MESSAGE =
   "This computer was offline for a while, so remote access was removed. Start Leonidas there and update it to reconnect.";
 
-/** User-facing text for an offline status, or null when the relay gave no known reason. */
 export function relayOfflineReasonMessage(
   status: Pick<RelayEnvironmentStatusResponse, "offlineReason">,
 ): string | null {

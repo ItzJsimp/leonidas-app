@@ -1,11 +1,9 @@
-import type { ServerProviderUsageWindow, UsageLimitsReport } from "@t3tools/contracts";
-import { ProviderDriverKind } from "@t3tools/contracts";
+import type { ServerProviderUsageWindow } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
   accountFreshnessLabel,
   accountTitle,
-  compactPercentNumber,
   compactWindowLabel,
   contextWindowFigures,
   contextWindowTokensForModel,
@@ -15,14 +13,12 @@ import {
   formatResetLabel,
   formatTokenCount,
   glanceLimitRows,
-  groupAccountsByProvider,
   limitLabel,
   limitsFreshness,
   orderPlanWindows,
   parseContextWindowSize,
   percentText,
   shortPlanName,
-  siblingAccountSummary,
   splitAccountHeader,
   usageSeverity,
   withKnownContextWindow,
@@ -221,8 +217,6 @@ describe("glance and panel helpers", () => {
     expect(percentText(38.4)).toBe("38% used");
     expect(percentText(38.4, "left")).toBe("62% left");
     expect(percentText(120, "left")).toBe("0% left");
-    expect(compactPercentNumber(38.4)).toBe("38%");
-    expect(compactPercentNumber(38.4, "left")).toBe("62%");
   });
 
   it("formats compact window labels and lists extra windows", () => {
@@ -264,55 +258,6 @@ describe("glance and panel helpers", () => {
     ).toEqual({
       primaryName: "Claude",
       subtitle: "Jake · Max",
-    });
-  });
-
-  it("groups sibling accounts under their provider card and rotates siblings for Swap", () => {
-    const claudeDriver = ProviderDriverKind.make("claudeAgent");
-    const codexDriver = ProviderDriverKind.make("codex");
-    const makeAcct = (
-      id: string,
-      driver: ProviderDriverKind,
-      displayName: string,
-      used5h: number,
-      usedWk: number,
-    ): UsageLimitsReport["accounts"][number] => ({
-      id,
-      driver,
-      label: displayName,
-      displayName,
-      limits: {
-        checkedAt: "2026-10-09T12:00:00Z",
-        windows: [
-          window(`${id}-5h`, "session", "Session", {
-            windowDurationMins: 300,
-            usedPercent: used5h,
-          }),
-          window(`${id}-wk`, "weekly", "Weekly", { usedPercent: usedWk }),
-        ],
-      },
-    });
-    const jake = makeAcct("c-jake", claudeDriver, "Claude (Jake)", 37, 71);
-    const justine = makeAcct("c-justine", claudeDriver, "Claude (Justine)", 48, 41);
-    const backup = makeAcct("c-backup", claudeDriver, "Claude (Backup)", 10, 12);
-    const codex = makeAcct("cx-jake", codexDriver, "Codex (Jake)", 24, 20);
-    const groups = groupAccountsByProvider([codex, jake, justine, backup], new Set(["c-jake"]));
-    expect(groups).toHaveLength(2);
-    expect(groups[1]?.primary.id).toBe("c-jake");
-    expect(groups[1]?.siblings.map((s) => s.id)).toEqual(["c-justine", "c-backup"]);
-
-    const swappedOnce = groupAccountsByProvider(
-      [codex, jake, justine, backup],
-      new Set(["c-jake"]),
-      { [claudeDriver]: "c-justine" },
-    );
-    expect(swappedOnce[1]?.primary.id).toBe("c-justine");
-    expect(swappedOnce[1]?.siblings.map((s) => s.id)).toEqual(["c-backup", "c-jake"]);
-
-    expect(siblingAccountSummary(justine, "Claude", "used")).toEqual({
-      id: "c-justine",
-      name: "Justine",
-      summary: "5h 48% · wk 41%",
     });
   });
 

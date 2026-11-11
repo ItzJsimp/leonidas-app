@@ -115,7 +115,6 @@ function UpdateDetailsDialog({
   const state = useDesktopUpdateState();
   const runningCount = useAtomValue(runningThreadCountAtom);
   const [load, setLoad] = useState<Load>({ status: "loading" });
-  const [attempt, setAttempt] = useState(0);
   const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
@@ -128,7 +127,7 @@ function UpdateDetailsDialog({
         if (!controller.signal.aborted) setLoad({ status: "error" });
       });
     return () => controller.abort();
-  }, [range, attempt]);
+  }, [range]);
 
   const readyVersion =
     state?.status === "downloaded" ? getDesktopUpdateDownloadedVersion(state) : null;
@@ -172,8 +171,9 @@ function UpdateDetailsDialog({
                 size="sm"
                 variant="outline"
                 onClick={() => {
+                  // A new range object runs the load effect again.
                   setLoad({ status: "loading" });
-                  setAttempt((n) => n + 1);
+                  useUpdateDetailsStore.getState().show({ ...range });
                 }}
               >
                 Try again

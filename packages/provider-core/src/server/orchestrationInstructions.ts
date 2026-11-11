@@ -101,9 +101,7 @@ export function t3AcpPromptWithInstructions(input: {
 }
 
 /**
- * Providers without a system/developer-instruction channel receive this
- * context in the first prompt. Keep the wrapper explicit so it cannot be
- * mistaken for text authored by the user.
+ * Keep the wrapper explicit so it cannot be mistaken for text authored by the user.
  */
 function prependT3OrchestrationInstructions(prompt: string): string {
   return `<leonidas_orchestration_instructions>${LEONIDAS_ORCHESTRATION_INSTRUCTIONS.trim()}</leonidas_orchestration_instructions>\n\n<user_request>\n${prompt}\n</user_request>`;
@@ -124,3 +122,10 @@ export function t3OrchestrationSystemPrompt(hasT3Mcp: boolean): string | undefin
 }
 
 export const T3_CODE_ORCHESTRATION_INSTRUCTIONS = LEONIDAS_ORCHESTRATION_INSTRUCTIONS;
+
+/**
+ * Codex cuts the middle out of any instruction entry over 4,000 bytes, so it
+ * receives the instructions one heading at a time.
+ */
+export const T3_CODE_ORCHESTRATION_SECTIONS: ReadonlyArray<string> =
+  LEONIDAS_ORCHESTRATION_INSTRUCTIONS.trim().split(/\n\n(?=#{2,3} )/);

@@ -5,10 +5,14 @@ import {
   ProviderDriverKind,
   ProviderInstanceId,
 } from "@t3tools/contracts";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
+import * as ServerConfig from "../config.ts";
+import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as EventStore from "./EventStore.ts";
 import * as EventSink from "./EventSink.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
@@ -24,11 +28,18 @@ const layerTestEventSink = EventSink.layer.pipe(
   Layer.provide(Layer.mergeAll(layerTestStores, layerTestDatabase)),
 );
 
+const layerGit = GitVcsDriver.layer.pipe(
+  Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "ingestor-git-" })),
+  Layer.provideMerge(NodeServices.layer),
+);
+
 export const layerTest = Layer.mergeAll(
+  layerTestDatabase,
   layerTestStores,
   layerTestEventSink,
   IdAllocator.layer,
   ThreadCommandExecutor.layer,
+  layerGit,
   ProviderEventIngestor.layer.pipe(
     Layer.provide(
       Layer.mergeAll(
@@ -36,10 +47,34 @@ export const layerTest = Layer.mergeAll(
         layerTestEventSink,
         IdAllocator.layer,
         ThreadCommandExecutor.layer,
+        layerGit,
       ),
     ),
   ),
 );
+export const makeSharedWorktree = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const git = yield* GitVcsDriver.GitVcsDriver;
+  const directory = yield* fs.makeTempDirectoryScoped({ prefix: "ingestor-worktree-" });
+  const repo = `${directory}/repo`;
+  const worktreePath = `${directory}/shared`;
+  yield* fs.makeDirectory(repo);
+  const command = (cwd: string, args: string[]) =>
+    git.execute({ operation: "ingestor-test", cwd, args });
+  yield* command(repo, ["init", "-b", "main"]);
+  yield* command(repo, [
+    "-c",
+    "user.name=Test",
+    "-c",
+    "user.email=test@example.test",
+    "commit",
+    "--allow-empty",
+    "-m",
+    "initial",
+  ]);
+  yield* command(repo, ["worktree", "add", "-b", "t3/abcd1234", worktreePath]);
+  return { repo, worktreePath, command };
+});
 export const modelSelection = {
   instanceId: ProviderInstanceId.make("codex"),
   model: "gpt-5.4",

@@ -1,9 +1,7 @@
 import type {
   ModelSelection,
-  ProviderDriverKind,
   ServerProviderModel,
   ServerProviderUsageWindow,
-  UsageLimitsReport,
 } from "@t3tools/contracts";
 import { getProviderOptionCurrentValue, getProviderOptionDescriptors } from "@t3tools/shared/model";
 
@@ -192,12 +190,6 @@ export function withKnownContextWindow(
 export function percentText(usedPercent: number, mode: "used" | "left" = "used"): string {
   const used = usedPercentLabel(usedPercent);
   return mode === "used" ? `${used}% used` : `${100 - used}% left`;
-}
-
-/** Short numeric percentage (`6%` or `94%`) for compact inline meter columns. */
-export function compactPercentNumber(usedPercent: number, mode: "used" | "left" = "used"): string {
-  const used = usedPercentLabel(usedPercent);
-  return mode === "used" ? `${used}%` : `${100 - used}%`;
 }
 
 /**
@@ -420,72 +412,6 @@ export function splitAccountHeader(
     primaryName: driverLabel,
     subtitle: parts.length > 0 ? parts.join(" · ") : null,
   };
-}
-
-/** Short sibling summary for the provider card sub-pill (`Justine: 5h 48% · wk 41%`). */
-export function siblingAccountSummary(
-  account: UsageLimitsReport["accounts"][number],
-  driverLabel: string,
-  mode: "used" | "left" = "used",
-  now?: number,
-): { readonly id: string; readonly name: string; readonly summary: string } {
-  const { subtitle } = splitAccountHeader(account, driverLabel);
-  const name = subtitle ?? accountTitle(account, driverLabel);
-  const rows = glanceLimitRows(account.limits.windows, now);
-  const session = rows.find((r) => r.window?.kind === "session")?.window ?? null;
-  const weekly = rows.find((r) => r.window?.kind === "weekly")?.window ?? null;
-  const metrics = [
-    session ? `5h ${compactPercentNumber(session.usedPercent, mode)}` : null,
-    weekly ? `wk ${compactPercentNumber(weekly.usedPercent, mode)}` : null,
-  ].filter((part): part is string => part !== null);
-  return {
-    id: account.id,
-    name,
-    summary: metrics.length > 0 ? metrics.join(" · ") : "pending",
-  };
-}
-
-export interface ProviderAccountGroup {
-  readonly driver: ProviderDriverKind;
-  readonly primary: UsageLimitsReport["accounts"][number];
-  readonly siblings: ReadonlyArray<UsageLimitsReport["accounts"][number]>;
-  readonly hasActive: boolean;
-}
-
-/**
- * Group connected accounts by provider driver so 4 Claude accounts render as one sleek
- * provider card with a sibling summary/swap strip instead of 4 full card blocks.
- */
-export function groupAccountsByProvider(
-  accounts: ReadonlyArray<UsageLimitsReport["accounts"][number]>,
-  activeIds: ReadonlySet<string>,
-  selectedPrimaryByDriver?: Readonly<Record<string, string>>,
-): ReadonlyArray<ProviderAccountGroup> {
-  const byDriver = new Map<ProviderDriverKind, Array<UsageLimitsReport["accounts"][number]>>();
-  for (const account of accounts) {
-    const existing = byDriver.get(account.driver);
-    if (existing) existing.push(account);
-    else byDriver.set(account.driver, [account]);
-  }
-  return [...byDriver.entries()].map(([driver, members]) => {
-    const pinnedId = selectedPrimaryByDriver?.[driver];
-    const primary =
-      (pinnedId ? members.find((m) => m.id === pinnedId) : undefined) ??
-      members.find((m) => activeIds.has(m.id)) ??
-      members[0]!;
-    const primaryIndex = members.findIndex((m) => m.id === primary.id);
-    // Rotate siblings after the current primary so clicking Swap cycles A -> B -> C -> A.
-    const siblings =
-      primaryIndex >= 0
-        ? [...members.slice(primaryIndex + 1), ...members.slice(0, primaryIndex)]
-        : members.filter((m) => m.id !== primary.id);
-    return {
-      driver,
-      primary,
-      siblings,
-      hasActive: members.some((m) => activeIds.has(m.id)),
-    };
-  });
 }
 
 export type ContextWindowFigures =

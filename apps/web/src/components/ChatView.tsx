@@ -398,6 +398,7 @@ import {
   type ComposerImageAttachment,
   type DraftThreadEnvMode,
   useComposerDraftStore,
+  useEffectiveComposerModelState,
   DraftId,
 } from "../composerDraftStore";
 import {
@@ -440,7 +441,11 @@ import { vcsEnvironment } from "../state/vcs";
 import { sourceControlEnvironment } from "../state/sourceControl";
 import { useProjectClone } from "../state/projectClones";
 import { projectCloneDisplayName, projectCloneProgressSummary } from "@t3tools/contracts";
-import { useEnvironments, usePrimaryEnvironment } from "../state/environments";
+import {
+  useEnvironmentProviders,
+  useEnvironments,
+  usePrimaryEnvironment,
+} from "../state/environments";
 import {
   resolveThreadDetailRef,
   useEnvironmentSupportsServerBrowser,
@@ -875,6 +880,7 @@ export default function ChatView(props: ChatViewProps) {
   const closePreview = useAtomCommand(previewEnvironment.close, "preview close");
   const { environments } = useEnvironments();
   const primaryEnvironment = usePrimaryEnvironment();
+  const providersByEnvironment = useEnvironmentProviders();
   const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, { reportFailure: false });
   const setEnvironmentEnabled = useAtomCommand(environmentCatalog.setEnabled, {
     reportFailure: false,
@@ -2253,7 +2259,10 @@ export default function ChatView(props: ChatViewProps) {
   const serverConfig = activeThread
     ? (activeEnvironment?.serverConfig ?? null)
     : (primaryEnvironment?.serverConfig ?? null);
-  const providerStatuses = serverConfig?.providers ?? EMPTY_PROVIDERS;
+  const providerStatuses =
+    providersByEnvironment.get(
+      (activeThread ? activeEnvironment : primaryEnvironment)?.environmentId as EnvironmentId,
+    ) ?? EMPTY_PROVIDERS;
   const selectedProviderByThreadId = composerActiveProvider ?? null;
   const threadProvider =
     activeThread?.modelSelection.instanceId ??
@@ -2515,7 +2524,11 @@ export default function ChatView(props: ChatViewProps) {
   const providerInstanceEntries = useMemo(
     () =>
       sortProviderInstanceEntries(
-        applyProviderInstanceSettings(deriveProviderInstanceEntries(providerStatuses), settings),
+        applyProviderInstanceSettings(
+          deriveProviderInstanceEntries(providerStatuses),
+          settings,
+          null,
+        ),
       ),
     [providerStatuses, settings],
   );
@@ -3586,11 +3599,38 @@ export default function ChatView(props: ChatViewProps) {
   const showProviderSubagentBar = isProviderSubagent;
   const composerMounted = !showProviderSubagentBar;
   const providerSubagentModels = selectedProviderEntry?.models ?? EMPTY_PROVIDER_MODELS;
+  // A draft has no model of its own: the details panel shows the one the composer will send with.
+  const draftModelState = useEffectiveComposerModelState({
+    threadRef: composerDraftTarget,
+    providers: providerStatuses,
+    selectedProvider,
+    selectedInstanceId: activeProviderInstanceId,
+    threadModelSelection: activeThread?.modelSelection,
+    projectModelSelection: activeProjectDefaultModelSelection,
+    settings,
+  });
+  const detailsModelSelection = useMemo(
+    () =>
+      isServerThread || activeProviderInstanceId === null
+        ? activeThread?.modelSelection
+        : createModelSelection(
+            activeProviderInstanceId,
+            draftModelState.selectedModel,
+            draftModelState.modelOptions?.[activeProviderInstanceId],
+          ),
+    [
+      activeProviderInstanceId,
+      activeThread?.modelSelection,
+      draftModelState.modelOptions,
+      draftModelState.selectedModel,
+      isServerThread,
+    ],
+  );
   // Providers can report a dated id or alias (claude-haiku-4-5-20251001).
   const providerSubagentModelSlug = selectedProviderEntry
     ? resolveSelectableModel(
         selectedProviderEntry.driverKind,
-        activeThread?.modelSelection.model,
+        detailsModelSelection?.model,
         providerSubagentModels,
       )
     : null;
@@ -3602,18 +3642,18 @@ export default function ChatView(props: ChatViewProps) {
     () =>
       withKnownContextWindow(
         activeContextWindow,
-        contextWindowTokensForModel(providerSubagentCatalogModel, activeThread?.modelSelection),
+        contextWindowTokensForModel(providerSubagentCatalogModel, detailsModelSelection),
       ),
-    [activeContextWindow, activeThread?.modelSelection, providerSubagentCatalogModel],
+    [activeContextWindow, detailsModelSelection, providerSubagentCatalogModel],
   );
   const providerSubagentModelLabel = providerSubagentCatalogModel
     ? getTriggerDisplayModelName(providerSubagentCatalogModel)
-    : formatModelSlugName(activeThread?.modelSelection.model ?? "");
+    : formatModelSlugName(detailsModelSelection?.model ?? "");
   const providerSubagentEffortLabel =
-    activeThread === undefined
+    detailsModelSelection === undefined
       ? null
       : formatModelSelectionEffort(
-          activeThread.modelSelection,
+          detailsModelSelection,
           providerSubagentModels,
           reportedModelSelection,
         );
@@ -3684,17 +3724,19 @@ export default function ChatView(props: ChatViewProps) {
               return (
                 environment?.connection.phase === "connected" &&
                 (loadBalancingSettings.loadBalancingWeights[candidate.environmentId] ?? 50) > 0 &&
-                environment.serverConfig?.providers.some(
-                  (provider) =>
-                    (activeProviderInstanceId === null ||
-                      provider.instanceId === activeProviderInstanceId) &&
-                    provider.driver === selectedProvider &&
-                    provider.enabled &&
-                    provider.installed &&
-                    provider.status !== "error" &&
-                    provider.auth.status !== "unauthenticated" &&
-                    provider.availability !== "unavailable",
-                )
+                providersByEnvironment
+                  .get(candidate.environmentId)
+                  ?.some(
+                    (provider) =>
+                      (activeProviderInstanceId === null ||
+                        provider.instanceId === activeProviderInstanceId) &&
+                      provider.driver === selectedProvider &&
+                      provider.enabled &&
+                      provider.installed &&
+                      provider.status !== "error" &&
+                      provider.auth.status !== "unauthenticated" &&
+                      provider.availability !== "unavailable",
+                  )
               );
             })
             .map((candidate) => candidate.environmentId)
@@ -3703,6 +3745,7 @@ export default function ChatView(props: ChatViewProps) {
       needsLoadBalancing,
       logicalProjectEnvironments,
       environmentById,
+      providersByEnvironment,
       loadBalancingSettings.loadBalancingWeights,
       activeProviderInstanceId,
       selectedProvider,
@@ -5213,7 +5256,13 @@ export default function ChatView(props: ChatViewProps) {
         diffAction === "defer" || shouldDeferLink ? previousRunningTurnId : activeRunningTurnId,
     };
     if (diffAction !== "open" || newlyCompletedTurnId === null) return;
-    if (!panels.openProactive(activeThreadRef, { id: "diff", kind: "diff" }, userActionRevision)) {
+    if (
+      !panels.openProactive(
+        activeThreadRef,
+        { kind: "diff", turnId: newlyCompletedTurnId },
+        userActionRevision,
+      )
+    ) {
       return;
     }
     useDiffPanelStore.getState().selectGitScope(activeThreadRef, "branch");
@@ -11525,9 +11574,9 @@ export default function ChatView(props: ChatViewProps) {
                   listRef={legendListRef}
                   timelineEntries={displayedTimeline.entries}
                   providerStatuses={
-                    environmentById.get(
+                    providersByEnvironment.get(
                       displayedThreadRef?.environmentId ?? activeThread.environmentId,
-                    )?.serverConfig?.providers ?? EMPTY_PROVIDERS
+                    ) ?? EMPTY_PROVIDERS
                   }
                   runs={paintOnlyDisplayedTimeline ? [] : (serverProjection?.runs ?? [])}
                   latestRun={paintOnlyDisplayedTimeline ? null : activeActivityRun}
@@ -11642,7 +11691,7 @@ export default function ChatView(props: ChatViewProps) {
                   {isDraftHeroState ? (
                     <div className="absolute inset-x-0 bottom-full">
                       <div
-                        className="pb-4 group-has-data-[composer-shoulder-tab]/composer-stack:pb-0"
+                        className="pb-6"
                         style={
                           forceExpandedMobileComposer
                             ? { viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME }
