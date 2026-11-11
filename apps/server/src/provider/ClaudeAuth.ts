@@ -14,15 +14,24 @@ import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as Option from "effect/Option";
 import type * as Path from "effect/Path";
+import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import { spawnAndCollect } from "@t3tools/provider-core/server/snapshotProbe";
 import type { ProviderAuthController } from "./ProviderAuthService.ts";
 import { makeClaudeEnvironment } from "./Drivers/ClaudeHome.ts";
+import {
+  findCallbackPort,
+  parseLsofListeners,
+  parseNetstatListeners,
+  parseProcessRows,
+  withAutomaticCallback,
+} from "./ClaudeCallbackPort.ts";
 
 const isSetupError = Schema.is(ProviderSetupError);
 
@@ -80,6 +89,8 @@ export interface ClaudeLoginProcess {
   /** Text from stdout and stderr, in the order Claude wrote it. */
   readonly output: Stream.Stream<string>;
   readonly exitCode: Effect.Effect<number>;
+  /** The local port Claude waits on for the browser to return, or null if unknown. */
+  readonly callbackPort?: Effect.Effect<number | null>;
 }
 
 export interface ClaudeAuthOptions {
@@ -199,7 +210,11 @@ export const makeClaudeAuth = Effect.fn("makeClaudeAuth")(function* (
             const url = parseClaudeAuthorizationUrl(buffer);
             if (url === null) return Effect.void;
             urlShown = true;
-            return publish(flow, { ...flow.state, authorizationUrl: url });
+            // Claude prints the code page. Its own listener returns the browser with no code.
+            return (login.callbackPort ?? Effect.succeed(null)).pipe(
+              Effect.map((port) => (port === null ? url : withAutomaticCallback(url, port))),
+              Effect.flatMap((shown) => publish(flow, { ...flow.state, authorizationUrl: shown })),
+            );
           }),
         ),
         Effect.ignore,
@@ -412,7 +427,46 @@ export const makeClaudeAuthCommands = Effect.fn("makeClaudeAuthCommands")(functi
         Stream.decodeText(),
         Stream.catch(() => Stream.empty),
       );
+    const windows = (yield* HostProcess.Platform) === "win32";
+    const listOutput = (file: string, args: ReadonlyArray<string>) =>
+      spawnAndCollect(file, ChildProcess.make(file, args, { windowsHide: true })).pipe(
+        Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
+        Effect.timeout("5 seconds"),
+        Effect.map((result) => result.stdout),
+        Effect.orElseSucceed(() => ""),
+      );
+    const findPort = Effect.gen(function* () {
+      const [processes, sockets] = yield* Effect.all(
+        windows
+          ? [
+              listOutput("powershell", [
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }',
+              ]),
+              listOutput("netstat", ["-ano", "-p", "tcp"]),
+            ]
+          : [
+              listOutput("ps", ["-A", "-o", "pid=,ppid="]),
+              listOutput("lsof", ["-nP", "-iTCP", "-sTCP:LISTEN", "-Fpn"]),
+            ],
+        { concurrency: "unbounded" },
+      );
+      return findCallbackPort(
+        parseProcessRows(processes),
+        windows ? parseNetstatListeners(sockets) : parseLsofListeners(sockets),
+        Number(child.pid),
+      );
+    });
     return {
+      callbackPort: findPort.pipe(
+        Effect.repeat({
+          schedule: Schedule.spaced("200 millis"),
+          times: 5,
+          while: (port) => port === null,
+        }),
+      ),
       output: Stream.merge(decoder(child.stdout), decoder(child.stderr)),
       exitCode: child.exitCode.pipe(
         Effect.map(Number),
