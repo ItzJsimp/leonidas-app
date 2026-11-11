@@ -2,6 +2,7 @@ import { ProviderDriverKind, ProviderInstanceId, type ServerProvider } from "@t3
 import { describe, expect, it } from "vite-plus/test";
 import { deriveProviderInstanceEntries } from "../../providerInstances";
 import {
+  contextSeverity,
   formatContextWindowCompactionMessage,
   hasAvailableCompactionProvider,
   hasDismissedResumeCompaction,
@@ -255,5 +256,16 @@ describe("formatContextWindowCost", () => {
   it("keeps ordinary and sub-cent ACP costs readable", () => {
     expect(formatContextWindowCost({ amount: 0.42, currency: "USD" })).toBe("USD 0.42");
     expect(formatContextWindowCost({ amount: 0.0042, currency: "USD" })).toBe("USD 0.0042");
+  });
+});
+
+describe("contextSeverity", () => {
+  it("is blue under 40%, yellow from 40% to 69%, red from 70%", () => {
+    expect(contextSeverity(0)).toBe("normal");
+    expect(contextSeverity(39.9)).toBe("normal");
+    expect(contextSeverity(40)).toBe("warning");
+    expect(contextSeverity(69.9)).toBe("warning");
+    expect(contextSeverity(70)).toBe("critical");
+    expect(contextSeverity(100)).toBe("critical");
   });
 });

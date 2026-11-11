@@ -24,6 +24,7 @@ import {
 } from "./providerIconUtils";
 import { shouldShowInstanceBadge, type ProviderInstanceEntry } from "../../providerInstances";
 import { ComposerControl, type ComposerControlSize } from "./ComposerControl";
+import { TraitsSpeedIcon } from "./TraitsSpeed";
 import { useComposerMenuProps } from "./composerEventScope";
 import { shortcutLabelForCommand } from "../../keybindings";
 import { showFirstOpenTip } from "../onboarding/firstOpenTip";
@@ -52,6 +53,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   reasoningColumn?: ReactNode;
   /** Aggregate settings can show a neutral value without claiming one provider is selected. */
   triggerLabel?: string;
+  /** Shown after the model name while fast mode is on. */
+  speedIcon?: "fast" | "ultrafast" | undefined;
   triggerAriaLabel?: string;
   onOpenChange?: (open: boolean) => void;
   onOpenProviderSetup?: (instanceId: ProviderInstanceId) => void;
@@ -305,6 +308,13 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
             </TooltipTrigger>
             <TooltipPopup side="top">{triggerTooltipContent}</TooltipPopup>
           </Tooltip>
+          {props.speedIcon && activeEntry && props.triggerLabel === undefined ? (
+            <TraitsSpeedIcon
+              provider={activeEntry.driverKind}
+              speedIcon={props.speedIcon}
+              size="xs"
+            />
+          ) : null}
           {selectedModel?.isUnavailable && !selectedEntries && props.triggerLabel === undefined ? (
             <Badge variant="outline" size="sm">
               Unavailable

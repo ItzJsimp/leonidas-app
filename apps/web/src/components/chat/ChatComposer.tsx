@@ -4707,6 +4707,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             ? (activeThreadModelSelection?.model ?? selectedModelForPickerWithCustomFallback)
             : selectedModelForPickerWithCustomFallback
         }
+        speedIcon={composerProviderState.speedIcon}
         lockedProvider={lockedProvider}
         lockedContinuationGroupKey={lockedContinuationGroupKey}
         instanceEntries={providerInstanceEntries}
