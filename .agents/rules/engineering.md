@@ -4,6 +4,7 @@ Read before changing code. Leonidas Code is a Node WebSocket server that wraps p
 
 ## Principles
 
+- **Elevate UX, DX, and AX.** Make the best decision that will elevate all three: the user experience (UX), developer experience (DX), and agent experience (AX) always, without breaking anything.
 - **Performance without compromise.** Watch websocket payload size, GPU-heavy CSS animation, and long-list rendering. No continuously repainting animations. Every change passes `performance-gate`.
 - **Smallest correct model.** Understand the real constraint first. Do not keep complexity because it exists, and do not add machinery because it looks impressive. Measure twice, cut once; YAGNI.
 - **Prompts the app writes for agents go through `prompt-composer`.** Load that skill before changing any generated agent prompt (System Care lives in `apps/server/src/hardwareWatch/SystemCare.ts`). The checkable rubric is `promptAudit.ts`; its test must stay at 100 for every prompt variant.

@@ -72,24 +72,58 @@ function Invoke-Gate([string]$base) {
         try { $out = node scripts/smoke.mjs 2>&1 | Out-String; $ok = $LASTEXITCODE -eq 0 } finally { Pop-Location }
         if (-not $ok) { return [pscustomobject]@{ Status = 'red'; FailKeys = @('smoke'); Notes = @($out.Trim().Split("`n") | Select-Object -Last 5) } }
     }
+    # A push ships a release: a user-visible commit with no plain Release-Note must not land.
+    Push-Location $LandWorktree
+    try { $notesOut = node scripts/check-release-notes.ts "$base..HEAD" auto 2>&1 | Out-String; $notesOk = $LASTEXITCODE -eq 0 } finally { Pop-Location }
+    if (-not $notesOk) { return [pscustomobject]@{ Status = 'red'; FailKeys = @('release-notes'); Notes = @($notesOut.Trim().Split("`n") | Select-Object -First 8) } }
     $gate
 }
 
-function Remove-BranchWorktree([string]$branch) {
-    $wt = git worktree list --porcelain | Out-String
-    $m = [regex]::Match($wt, "worktree (?<p>[^\r\n]+)\r?\nHEAD [0-9a-f]+\r?\nbranch refs/heads/$([regex]::Escape($branch))")
-    if ($m.Success) {
-        $p = $m.Groups['p'].Value
-        if (git -C $p status --porcelain) { return "worktree $p kept (uncommitted changes)" }
-        # git worktree remove deletes through junctions: cut links first, then delete (long paths need .NET).
-        Get-ChildItem -LiteralPath $p -Force -Recurse -Attributes ReparsePoint -ErrorAction SilentlyContinue |
-            Sort-Object { $_.FullName.Length } -Descending |
-            ForEach-Object { if ($_.PSIsContainer) { [System.IO.Directory]::Delete($_.FullName, $false) } else { [System.IO.File]::Delete($_.FullName) } }
-        [System.IO.Directory]::Delete((Resolve-Path -LiteralPath $p).ProviderPath, $true)
-        git worktree prune
+# The worktree of a branch: found by branch name, or by HEAD when something detached it (Test-DevTip.ps1
+# does). Never the main checkout (first entry) or the landing worktree.
+function Find-BranchWorktree([string]$branch) {
+    $tip = (git rev-parse --verify -q "refs/heads/$branch" | Out-String).Trim()
+    $norm = { param($x) ([string]$x).Replace('\', '/').TrimEnd('/').ToLowerInvariant() }
+    $skip = & $norm $LandWorktree
+    $blocks = @((git worktree list --porcelain | Out-String) -split '(?:\r?\n){2,}' | Where-Object { $_.Trim() })
+    foreach ($block in $blocks | Select-Object -Skip 1) {
+        $path = [regex]::Match($block, '(?m)^worktree (.+?)\r?$').Groups[1].Value
+        if (-not $path -or $skip -eq (& $norm $path)) { continue }
+        $onBranch = $block -match "(?m)^branch refs/heads/$([regex]::Escape($branch))\r?$"
+        $detachedAtTip = $tip -and $block -match '(?m)^detached\r?$' -and $block -match "(?m)^HEAD $tip\r?$"
+        if ($onBranch -or $detachedAtTip) { return $path }
     }
+}
+
+# Cut every link (junction or symlink) in a tree, without ever entering one, so a later delete cannot reach a
+# link target. Throws when a link cannot be cut: the caller must then not delete.
+function Remove-TreeLinks([string]$dir) {
+    foreach ($entry in [System.IO.Directory]::EnumerateFileSystemEntries($dir)) {
+        $attr = [System.IO.File]::GetAttributes($entry)
+        if ($attr -band [System.IO.FileAttributes]::ReparsePoint) {
+            if ($attr -band [System.IO.FileAttributes]::Directory) { [System.IO.Directory]::Delete($entry, $false) } else { [System.IO.File]::Delete($entry) }
+        } elseif ($attr -band [System.IO.FileAttributes]::Directory) { Remove-TreeLinks $entry }
+    }
+}
+
+function Remove-BranchWorktree([string]$branch) {
+    $p = Find-BranchWorktree $branch
+    if (-not $p) { git branch -q -d $branch 2>$null; return "no worktree found for $branch" }
+    if (git -C $p status --porcelain) { return "worktree $p kept (uncommitted changes)" }
+    # Rename first: Windows refuses it while any process has a file or its current folder open in
+    # the worktree. A busy worktree (an agent still in it) is never touched (2026-11-06: deleting a
+    # busy one destroyed its ignored files).
+    $gone = "$p.landed-$PID"
+    try { Rename-Item -LiteralPath $p -NewName (Split-Path $gone -Leaf) } catch { return "worktree $p kept (in use; its agent removes it)" }
+    # git worktree remove deletes through junctions (2026-11-07: 49 AIOS skill files): cut all links first.
+    try { Remove-TreeLinks $gone } catch {
+        Rename-Item -LiteralPath $gone -NewName (Split-Path $p -Leaf)
+        return "worktree $p kept (could not cut a link: $($_.Exception.Message))"
+    }
+    try { [System.IO.Directory]::Delete((Resolve-Path -LiteralPath $gone).ProviderPath, $true) } catch { return "worktree $p partly removed, rest at $gone ($($_.Exception.Message))" }
+    git worktree prune
     git branch -q -d $branch 2>$null
-    if ($m.Success) { "worktree $($m.Groups['p'].Value) removed" } else { '' }
+    "worktree $p removed"
 }
 
 function Invoke-Land($file) {
@@ -114,9 +148,12 @@ function Invoke-Land($file) {
             git -C $LandWorktree push -q origin HEAD:main 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 git fetch -q origin main
+                # The push is done: a cleanup problem is a note, never a failed landing.
                 $notes = @()
-                if ($entry.task) { $notes += (& (Join-Path $PSScriptRoot 'Start-AgentTask.ps1') -Task $entry.task -Release) }
-                $notes += Remove-BranchWorktree $entry.branch
+                try {
+                    if ($entry.task) { $notes += (& (Join-Path $PSScriptRoot 'Start-AgentTask.ps1') -Task $entry.task -Release) }
+                    $notes += Remove-BranchWorktree $entry.branch
+                } catch { $notes += "cleanup skipped: $_" }
                 return Write-Result $entryId $entry 'landed' $sha ($notes | Where-Object { $_ })
             }
             # origin/main moved while the gate ran: merge again onto the new tip and re-check.

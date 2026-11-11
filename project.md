@@ -1,7 +1,7 @@
 ---
 type: project
 id: project-leonidas-code
-name: "Leonidas Code"
+name: "Leonidas App"
 status: "Active"
 owner: leonidas
 scope: structural

@@ -54,8 +54,11 @@ export const makeInMemoryStdio = Effect.fn("makeInMemoryStdio")(function* () {
 
 const STDERR_TAIL_MAX_CHARS = 8_192;
 const STDERR_EXCERPT_MAX_CHARS = 512;
-// `Error: …`, `TypeError: …`, `Error [ERR_MODULE_NOT_FOUND]: …`, `error: …`, `ERROR: …`, `fatal: …`
-const ERROR_LINE_PATTERN = /^(?:[a-z]*error|fatal)(?: ?\[[^\]]+\])?:\s*\S/i;
+// `Error: …`, `TypeError: …`, `Error [ERR_MODULE_NOT_FOUND]: …`, `error: …`, `ERROR: …`, `fatal: …`, or tracing `ERROR …:`
+const ERROR_LINE_PATTERN =
+  /(?:^(?:[a-z]*error|fatal)(?: ?\[[^\]]+\])?:|\b(?:ERROR|FATAL)\b.*?:)\s*\S/i;
+const RUST_PANIC_PATTERN = /^thread\s+.+?\s+panicked\s+at/i;
+const HINT_LINE_PATTERN = /^note:\s*run with\s+`?RUST_BACKTRACE=/i;
 
 export const appendStderrTail = (current: string, chunk: string): string => {
   const next = `${current}${chunk}`;
@@ -68,7 +71,30 @@ export const stderrExcerpt = (tail: string): string | undefined => {
     .split(/\r?\n/)
     .map((line) => line.trim().replace(/\s+/g, " "))
     .filter((line) => line.length > 0);
-  const line = lines.findLast((candidate) => ERROR_LINE_PATTERN.test(candidate)) ?? lines.at(-1);
+
+  // Check for Rust panic: "thread '...' panicked at ...:\n<message>"
+  const panicIndex = lines.findLastIndex((candidate) => RUST_PANIC_PATTERN.test(candidate));
+  if (panicIndex !== -1) {
+    const panicLine = lines[panicIndex]!;
+    const nextLine = lines
+      .slice(panicIndex + 1)
+      .find(
+        (candidate) =>
+          !HINT_LINE_PATTERN.test(candidate) &&
+          !candidate.startsWith("stack backtrace:") &&
+          !candidate.startsWith("at "),
+      );
+    const combined =
+      nextLine && !panicLine.includes(nextLine) ? `${panicLine} ${nextLine}` : panicLine;
+    return combined.length <= STDERR_EXCERPT_MAX_CHARS
+      ? combined
+      : `${combined.slice(0, STDERR_EXCERPT_MAX_CHARS - 1)}…`;
+  }
+
+  const meaningfulLines = lines.filter((candidate) => !HINT_LINE_PATTERN.test(candidate));
+  const line =
+    meaningfulLines.findLast((candidate) => ERROR_LINE_PATTERN.test(candidate)) ??
+    meaningfulLines.at(-1);
   if (line === undefined) {
     return undefined;
   }

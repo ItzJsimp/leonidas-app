@@ -25,6 +25,8 @@ This project lives inside its builder's AI operating system at `../../`. If `../
 11. **ASD-STE100 language:** write all prose in ASD-STE100 Simplified Technical English: short active sentences (20 words or fewer in instructions), one meaning per word, no idioms. Code, paths and identifiers stay as written. Short form lives in [outputStandard.ts](./packages/provider-core/src/server/outputStandard.ts).
 12. **Constraints:** read [CONSTRAINTS.md](./CONSTRAINTS.md) before you edit. Never weaken it to make a change pass.
 13. **Code search:** use `codebase-memory-mcp` (`search_graph`) to find where a symbol is defined. Use `rg` to find who uses it: the graph returns no callers for Effect services. Run `rg` before you trust an empty graph result.
+14. **UX, DX and AX triad:** make the best decision that will elevate all three: the user experience (UX), developer experience (DX), and agent experience (AX) always, without breaking anything.
+15. **Layout over crutches:** cut taglines, helper text and secondary labels. If a screen needs them to make sense, fix the layout.
 
 ## 3. Read when the task calls for it
 

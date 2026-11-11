@@ -15,6 +15,7 @@ Every UI change in this app follows this file. Values live in one token file; th
 3. **Dense and calm.** Dense lists, short rows, small type. Hierarchy comes from weight and gray steps, not from boxes and shadows.
 4. **Tokens only.** No hex, font name, radius or duration typed in a component. If a value is missing, add a token first.
 5. **Designed in Doop first.** Jake picks from rendered frames of the real screen. The agent builds only the approved frame.
+6. **Layout over crutches.** Cut taglines, helper text and secondary labels. If a screen needs them to make sense, fix the layout.
 
 ## Tokens
 

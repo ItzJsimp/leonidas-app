@@ -167,6 +167,29 @@ describe("Codex App Server stderr excerpt", () => {
       excerpt: "Missing OpenAI API key.",
     },
     {
+      name: "Rust panic with backtrace note",
+      stderr: [
+        "thread 'main' (48612) panicked at library\\std\\src\\io\\stdio.rs:1168:9:",
+        "failed printing to stdout: The pipe is being closed. (os error 232)",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+      ].join("\n"),
+      excerpt:
+        "thread 'main' (48612) panicked at library\\std\\src\\io\\stdio.rs:1168:9: failed printing to stdout: The pipe is being closed. (os error 232)",
+    },
+    {
+      name: "Rust panic single line with note",
+      stderr:
+        "thread 'main' panicked at 'explicit panic', src/main.rs:4:5\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+      excerpt: "thread 'main' panicked at 'explicit panic', src/main.rs:4:5",
+    },
+    {
+      name: "Rust tracing error line",
+      stderr:
+        "2026-11-11T03:27:15.038587Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed\n",
+      excerpt:
+        "2026-11-11T03:27:15.038587Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed",
+    },
+    {
       name: "ANSI color, carriage returns and repeated whitespace",
       stderr: "\u001b[31m  Error:\t  config.toml   is invalid \u001b[0m\r\n",
       excerpt: "Error: config.toml is invalid",

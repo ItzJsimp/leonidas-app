@@ -10,12 +10,13 @@ export function releaseArticleUrl(value: string): string {
   }
 }
 
-/** Keep the publisher's article intact, while hiding build metadata and old tour markers. */
+/** Keep the publisher's article intact, while hiding build metadata, old tour markers, and interim installer signing notices. */
 export function parseReleaseArticle(body: string, version: string) {
   const markdown = body
     .slice(0, MAX_ARTICLE_LENGTH)
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/\s*\{tour:[^}]+\}/g, "")
+    .replace(/\n*## If Windows shows a blue warning[\s\S]*?(?=\n## |$)/g, "")
     .trim();
   const heading = /^#\s+(.+)$/m.exec(markdown);
   const title =

@@ -258,6 +258,15 @@ export interface ProviderSessionManagerV2LayerOptions {
   readonly configureMcp?: boolean;
 }
 
+function isProviderProcessExitedCause(cause: Cause.Cause<unknown>): boolean {
+  const pretty = Cause.pretty(cause);
+  return (
+    pretty.includes("ProcessExited") ||
+    pretty.includes("SpawnError") ||
+    pretty.includes("process exited")
+  );
+}
+
 function releaseStatusFor(
   reason: ProviderSessionReleaseReason,
 ): OrchestrationV2ProviderSession["status"] {
@@ -1721,6 +1730,15 @@ export const layerWithOptions = (
                   }),
                 }),
               ),
+              Effect.tapErrorCause((cause) =>
+                isProviderProcessExitedCause(cause)
+                  ? releaseEntry({
+                      providerSessionId,
+                      reason: "runtime_error",
+                      detail: Cause.pretty(cause),
+                    }).pipe(logReleaseFailure(providerSessionId))
+                  : Effect.void,
+              ),
             ),
           resumeThread: (input) => {
             const threadId = input.threadId ?? input.providerThread.appThreadId;
@@ -1769,6 +1787,15 @@ export const layerWithOptions = (
                       : { runtimePolicy: input.runtimePolicy }),
                   }),
                 }),
+              ),
+              Effect.tapErrorCause((cause) =>
+                isProviderProcessExitedCause(cause)
+                  ? releaseEntry({
+                      providerSessionId,
+                      reason: "runtime_error",
+                      detail: Cause.pretty(cause),
+                    }).pipe(logReleaseFailure(providerSessionId))
+                  : Effect.void,
               ),
             );
           },

@@ -236,6 +236,7 @@ import {
   togglePendingUserInputOptionSelection,
   type PendingUserInputDraftAnswer,
 } from "../pendingUserInput";
+import { usePendingUserInputDraftStore } from "../pendingUserInputDraftStore";
 import {
   declinePendingApprovals,
   seedUserInputDraftAnswers,
@@ -1989,11 +1990,20 @@ export default function ChatView(props: ChatViewProps) {
   const [respondingUserInputRequestIds, setRespondingUserInputRequestIds] = useState<
     RuntimeRequestId[]
   >([]);
-  const [pendingUserInputAnswersByRequestId, setPendingUserInputAnswersByRequestId] = useState<
-    Record<string, Record<string, PendingUserInputDraftAnswer>>
-  >({});
-  const [pendingUserInputQuestionIndexByRequestId, setPendingUserInputQuestionIndexByRequestId] =
-    useState<Record<string, number>>({});
+  // Kept in a module store, not useState: ChatView remounts when you open a new
+  // chat or draft and come back, and that used to wipe the question progress.
+  const pendingUserInputAnswersByRequestId = usePendingUserInputDraftStore(
+    (state) => state.answersByRequestKey,
+  );
+  const setPendingUserInputAnswersByRequestId = usePendingUserInputDraftStore(
+    (state) => state.setAnswers,
+  );
+  const pendingUserInputQuestionIndexByRequestId = usePendingUserInputDraftStore(
+    (state) => state.questionIndexByRequestKey,
+  );
+  const setPendingUserInputQuestionIndexByRequestId = usePendingUserInputDraftStore(
+    (state) => state.setQuestionIndexes,
+  );
   const shouldUsePlanSidebarSheet = useMediaQuery(RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY);
   const isMobileViewport = useMediaQuery("max-sm");
   const [workspaceLayoutElement, setWorkspaceLayoutElement] = useState<HTMLDivElement | null>(null);
@@ -3427,19 +3437,32 @@ export default function ChatView(props: ChatViewProps) {
     activeThreadId,
     activePendingUserInput?.requestId,
   ]);
-  const activePendingAnswerDrafts =
+  const storedPendingAnswerDrafts =
     pendingUserInputAnswersByRequestId[activePendingRequestKey] ?? EMPTY_PENDING_USER_INPUT_ANSWERS;
-  if (
-    activePendingUserInput &&
-    seedUserInputDraftAnswers(activePendingUserInput.questions, activePendingAnswerDrafts) !==
-      activePendingAnswerDrafts
-  ) {
+  // Read the seeded drafts during render, and write them to the store before paint.
+  const activePendingAnswerDrafts = useMemo(
+    () =>
+      activePendingUserInput
+        ? seedUserInputDraftAnswers(activePendingUserInput.questions, storedPendingAnswerDrafts)
+        : storedPendingAnswerDrafts,
+    [activePendingUserInput, storedPendingAnswerDrafts],
+  );
+  useLayoutEffect(() => {
+    if (!activePendingUserInput || activePendingAnswerDrafts === storedPendingAnswerDrafts) {
+      return;
+    }
     setPendingUserInputAnswersByRequestId((existing) => {
       const drafts = existing[activePendingRequestKey] ?? EMPTY_PENDING_USER_INPUT_ANSWERS;
       const seeded = seedUserInputDraftAnswers(activePendingUserInput.questions, drafts);
       return seeded === drafts ? existing : { ...existing, [activePendingRequestKey]: seeded };
     });
-  }
+  }, [
+    activePendingAnswerDrafts,
+    activePendingRequestKey,
+    activePendingUserInput,
+    setPendingUserInputAnswersByRequestId,
+    storedPendingAnswerDrafts,
+  ]);
   const pendingQuestionDraftKeys = useMemo(
     () =>
       activeThreadId

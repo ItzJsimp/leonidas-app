@@ -1314,6 +1314,7 @@ export interface CodexAppServerClientFactoryShape {
     readonly runtimePolicy: ProviderAdapter.ProviderAdapterV2RuntimePolicy;
     readonly settings: CodexSettings;
     readonly environment: NodeJS.ProcessEnv;
+    readonly onTermination?: (error: CodexErrors.CodexAppServerError) => Effect.Effect<void, never>;
   }) => Effect.Effect<
     CodexClient.CodexAppServerClient["Service"],
     ProviderAdapter.ProviderAdapterOpenSessionError,
@@ -1403,14 +1404,15 @@ export const makeCodexAppServerSpawnCommand = Effect.fn(
     threadId: input.threadId,
     env: input.env,
   });
+  const extendEnv = input.extendEnv ?? true;
   const spawnCommand = yield* resolveSpawnCommand(launch.command, launch.args, {
     ...(input.env === undefined ? {} : { env: input.env }),
-    ...(input.extendEnv === undefined ? {} : { extendEnv: input.extendEnv }),
+    extendEnv,
   });
   return ChildProcess.make(spawnCommand.command, spawnCommand.args, {
     ...(input.cwd === undefined ? {} : { cwd: input.cwd }),
     ...(input.env === undefined ? {} : { env: input.env }),
-    ...(input.extendEnv === undefined ? {} : { extendEnv: input.extendEnv }),
+    extendEnv,
     shell: spawnCommand.shell,
   });
 });
@@ -1507,13 +1509,16 @@ export const layerAppServerClientFactory: Layer.Layer<
           const environment = {
             ...input.environment,
             ...(input.settings.homePath ? { CODEX_HOME: input.settings.homePath } : {}),
+            RUST_BACKTRACE: "1",
           };
           const command = yield* makeCodexAppServerSpawnCommand({
             command: input.settings.binaryPath || "codex",
             args: codexAppServerArgs(
               resolveCodexLaunchArgs(input.settings.launchArgs, input.environment),
             ),
+            cwd: input.runtimePolicy.cwd,
             env: environment,
+            extendEnv: true,
             threadId: input.threadId,
           }).pipe(Effect.provideService(AgentScope, agentScope));
           const handle = yield* spawner.spawn(command).pipe(
@@ -1532,14 +1537,16 @@ export const layerAppServerClientFactory: Layer.Layer<
             threadId: input.threadId,
             providerSessionId: input.providerSessionId,
           });
-          const clientOptions: CodexClient.CodexAppServerClientOptions =
-            protocolLogger === undefined
+          const clientOptions: CodexClient.CodexAppServerClientOptions = {
+            ...(protocolLogger === undefined
               ? {}
               : {
                   logIncoming: true,
                   logOutgoing: true,
                   logger: protocolLogger,
-                };
+                }),
+            ...(input.onTermination === undefined ? {} : { onTermination: input.onTermination }),
+          };
           const context = yield* Layer.build(CodexClient.layerChildProcess(handle, clientOptions));
           return yield* Effect.service(CodexClient.CodexAppServerClient).pipe(
             Effect.provide(context),
@@ -1704,6 +1711,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                     }),
                 ),
               );
+        const events = yield* Queue.unbounded<ProviderAdapter.ProviderAdapterV2Event>();
         const client = yield* clientFactory.open({
           instanceId: adapterOptions.instanceId,
           threadId: input.threadId,
@@ -1711,6 +1719,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           runtimePolicy: input.runtimePolicy,
           settings: resolvedRuntime?.config ?? adapterOptions.settings,
           environment: resolvedRuntime?.environment ?? adapterOptions.environment,
+          onTermination: () => Queue.shutdown(events),
         });
         const additionalContextByThread = yield* Ref.make(
           new Map<
@@ -1797,7 +1806,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           model: input.modelSelection.model,
           now,
         });
-        const events = yield* Queue.unbounded<ProviderAdapter.ProviderAdapterV2Event>();
         const rateLimitSnapshot = yield* Ref.make<CodexRateLimitSnapshot | undefined>(undefined);
         const limitedTurnItems = yield* Ref.make(
           new Map<ProviderThreadId, Extract<OrchestrationV2TurnItem, { type: "error" }>>(),

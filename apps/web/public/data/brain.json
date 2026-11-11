@@ -1,2950 +1,3160 @@
 ﻿{
-  "generated_at": "2026-10-17T14:28:00.7241340-07:00",
+  "generated_at": "2026-11-06T01:45:57.2368613-07:00",
   "version": "1.0.0",
   "summary": {
-    "total_nodes": 210,
-    "total_links": 209,
+    "total_nodes": 225,
+    "total_links": 224,
     "layers": ["core", "memory", "skills", "routines", "apps"],
     "areas": ["core", "business", "system", "dev", "personal"]
   },
   "nodes": [
     {
-      "path": "AGENTS.md",
+      "id": "root",
       "layer": "core",
-      "changed": "2026-10-17",
-      "note": "Leonidas AI router: identity, rules and routing for every engine. 2-hop navigation anchor.",
+      "path": "AGENTS.md",
+      "kind": "root",
+      "changed": "2026-11-06",
       "area": "core",
       "label": "AGENTS.md",
-      "id": "root",
-      "kind": "root"
+      "note": "Leonidas AI router: identity, rules and routing for every engine. 2-hop navigation anchor."
     },
     {
-      "path": "CLAUDE.md",
+      "id": "core-claude",
       "layer": "core",
+      "path": "CLAUDE.md",
+      "kind": "memory",
       "changed": "2026-10-16",
-      "note": "Claude adapter: loads AGENTS.md, identity and the mode router",
       "area": "core",
       "label": "CLAUDE.md",
-      "id": "core-claude",
-      "kind": "memory"
+      "note": "Claude adapter: loads AGENTS.md, identity and the mode router"
     },
     {
-      "path": "MASTER-INSTRUCTIONS.md",
+      "id": "core-master",
       "layer": "core",
-      "changed": "2026-10-16",
-      "note": "Master operational instructions",
+      "path": "MASTER-INSTRUCTIONS.md",
+      "kind": "memory",
+      "changed": "2026-11-04",
       "area": "core",
       "label": "MASTER-INSTRUCTIONS.md",
-      "id": "core-master",
-      "kind": "memory"
+      "note": "Master operational instructions"
     },
     {
-      "path": "memory/user.md",
+      "id": "core-user",
       "layer": "core",
-      "changed": "2026-10-14",
-      "note": "Jake operator profile, bio, voice and preferences",
+      "path": "memory/user.md",
+      "kind": "memory",
+      "changed": "2026-11-06",
       "area": "core",
       "label": "user.md",
-      "id": "core-user",
-      "kind": "memory"
+      "note": "Jake operator profile, bio, voice and preferences"
     },
     {
-      "path": "memory/soul.md",
+      "id": "core-soul",
       "layer": "core",
-      "changed": "2026-10-14",
-      "note": "Leonidas ethos, boundary guards and agent soul",
+      "path": "memory/soul.md",
+      "kind": "memory",
+      "changed": "2026-10-21",
       "area": "core",
       "label": "soul.md",
-      "id": "core-soul",
-      "kind": "memory"
+      "note": "Leonidas ethos, boundary guards and agent soul"
     },
     {
-      "path": "areas/business.md",
+      "id": "area-biz",
       "layer": "core",
+      "path": "areas/business.md",
+      "kind": "area",
       "changed": "2026-10-17",
-      "note": "Commercial agency, client pipelines & SimplyGersi",
       "area": "business",
       "label": "Business",
-      "id": "area-biz",
-      "kind": "area"
+      "note": "Commercial agency, client pipelines & SimplyGersi"
     },
     {
-      "path": "areas/system.md",
+      "id": "area-sys",
       "layer": "core",
+      "path": "areas/system.md",
+      "kind": "area",
       "changed": "2026-10-17",
-      "note": "AIOS substrate, governance, and host runtime",
       "area": "system",
       "label": "System",
-      "id": "area-sys",
-      "kind": "area"
+      "note": "AIOS substrate, governance, and host runtime"
     },
     {
-      "path": "areas/dev.md",
+      "id": "area-dev",
       "layer": "core",
+      "path": "areas/dev.md",
+      "kind": "area",
       "changed": "2026-10-17",
-      "note": "Leonidas Code, apps, worktrees and engineering",
       "area": "dev",
       "label": "Coding",
-      "id": "area-dev",
-      "kind": "area"
+      "note": "Leonidas, apps, worktrees and engineering"
     },
     {
-      "path": "areas/intelligence.md",
+      "id": "area-content",
       "layer": "core",
+      "path": "areas/intelligence.md",
+      "kind": "area",
       "changed": "2026-10-17",
-      "note": "YouTube intelligence, prompts & research",
       "area": "business",
       "label": "Intelligence",
-      "id": "area-content",
-      "kind": "area"
+      "note": "YouTube intelligence, prompts & research"
     },
     {
-      "path": "areas/personal.md",
+      "id": "area-personal",
       "layer": "core",
+      "path": "areas/personal.md",
+      "kind": "area",
       "changed": "2026-10-17",
-      "note": "Personal finance, health and daily habits",
       "area": "personal",
       "label": "Personal",
-      "id": "area-personal",
-      "kind": "area"
+      "note": "Personal finance, health and daily habits"
     },
     {
-      "path": ".agents/skills/accessibility",
+      "id": "skill-accessibility",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Audit and fix web accessibility: WCAG 2.2 AA, keyboard use, screen readers, c...",
+      "path": ".agents/skills/accessibility",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "accessibility",
-      "id": "skill-accessibility",
-      "kind": "skill"
+      "note": "Audit and fix web accessibility: WCAG 2.2 AA, keyboard use, screen readers, c..."
     },
     {
-      "path": ".agents/skills/ad-creative",
+      "id": "skill-ad-creative",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Generate, test, and iterate paid ad creative variations, visual hooks, copy a...",
+      "path": ".agents/skills/ad-creative",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "ad-creative",
-      "id": "skill-ad-creative",
-      "kind": "skill"
+      "note": "Generate, test, and iterate paid ad creative variations, visual hooks, copy a..."
     },
     {
-      "path": ".agents/skills/ads",
+      "id": "skill-ads",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Plan, optimize, and audit paid advertising campaigns across Google Ads, Meta,...",
+      "path": ".agents/skills/ads",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "ads",
-      "id": "skill-ads",
-      "kind": "skill"
+      "note": "Plan, optimize, and audit paid advertising campaigns across Google Ads, Meta,..."
     },
     {
-      "path": ".agents/skills/agy-customizations",
+      "id": "skill-agy-customizations",
       "layer": "skills",
+      "path": ".agents/skills/agy-customizations",
+      "kind": "skill",
       "changed": "2026-09-28",
-      "note": "Comprehensive guide and reference for the Antigravity Customization System: l...",
       "area": "dev",
       "label": "agy-customizations",
-      "id": "skill-agy-customizations",
-      "kind": "skill"
+      "note": "Guide to the Antigravity Customization System: loading priority, discovery, s..."
     },
     {
-      "path": ".agents/skills/ai-chats-triage",
+      "id": "skill-ai-chats-triage",
       "layer": "skills",
+      "path": ".agents/skills/ai-chats-triage",
+      "kind": "skill",
       "changed": "2026-09-13",
-      "note": "Audit open and stale chats across Antigravity and Claude Code, validate namin...",
       "area": "dev",
       "label": "ai-chats-triage",
-      "id": "skill-ai-chats-triage",
-      "kind": "skill"
+      "note": "Audit open and stale chats across Antigravity and Claude Code, validate namin..."
     },
     {
-      "path": ".agents/skills/aios-explorer",
+      "id": "skill-aios-explorer",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Search the AIOS deeply across files, the store cascade and Git history. Use w...",
+      "path": ".agents/skills/aios-explorer",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "aios-explorer",
-      "id": "skill-aios-explorer",
-      "kind": "skill"
+      "note": "Search the AIOS deeply across files, the store cascade and Git history. Use w..."
     },
     {
-      "path": ".agents/skills/antigravity_guide",
+      "id": "skill-antigravity_guide",
       "layer": "skills",
+      "path": ".agents/skills/antigravity_guide",
+      "kind": "skill",
       "changed": "2026-09-28",
-      "note": "Comprehensive guide and sitemap for Google Antigravity (AGY), Antigravity IDE...",
       "area": "dev",
       "label": "antigravity_guide",
-      "id": "skill-antigravity_guide",
-      "kind": "skill"
+      "note": "Guide and sitemap for Google Antigravity (AGY): IDE, CLI, Python SDK, slash c..."
     },
     {
-      "path": ".agents/skills/antigravity-harness-reference",
+      "id": "skill-antigravity-harness-reference",
       "layer": "skills",
+      "path": ".agents/skills/antigravity-harness-reference",
+      "kind": "skill",
       "changed": "2026-10-16",
-      "note": "Reference for Antigravity settings schema, permissions syntax, storage paths,...",
       "area": "dev",
       "label": "antigravity-harness-reference",
-      "id": "skill-antigravity-harness-reference",
-      "kind": "skill"
+      "note": "Reference for Antigravity settings schema, permissions syntax, storage paths,..."
     },
     {
-      "path": ".agents/skills/antigravity-session-audit",
+      "id": "skill-antigravity-session-audit",
       "layer": "skills",
+      "path": ".agents/skills/antigravity-session-audit",
+      "kind": "skill",
       "changed": "2026-10-16",
-      "note": "Audit Antigravity transcripts for token burn, runaway turn depth, tool call l...",
       "area": "system",
       "label": "antigravity-session-audit",
-      "id": "skill-antigravity-session-audit",
-      "kind": "skill"
+      "note": "Audit Antigravity transcripts for token burn, runaway turn depth, tool call l..."
     },
     {
-      "path": ".agents/skills/archify",
+      "id": "skill-archify",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Generate explorable HTML/SVG architecture, sequence and workflow diagrams fro...",
+      "path": ".agents/skills/archify",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "archify",
-      "id": "skill-archify",
-      "kind": "skill"
+      "note": "Generate explorable HTML/SVG architecture, sequence and workflow diagrams fro..."
     },
     {
-      "path": ".agents/skills/ask-leonidas",
+      "id": "skill-asd-ste100",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Route user tasks to optimal AIOS skills, resolve workflow boundaries, and pla...",
+      "path": ".agents/skills/asd-ste100",
+      "kind": "skill",
+      "changed": "2026-10-26",
+      "area": "dev",
+      "label": "asd-ste100",
+      "note": "Write or rewrite text in ASD-STE100 Simplified Technical English so no reader..."
+    },
+    {
+      "id": "skill-ask-leonidas",
+      "layer": "skills",
+      "path": ".agents/skills/ask-leonidas",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "ask-leonidas",
-      "id": "skill-ask-leonidas",
-      "kind": "skill"
+      "note": "Route user tasks to optimal AIOS skills, resolve workflow boundaries, and pla..."
     },
     {
-      "path": ".agents/skills/automation-architect",
+      "id": "skill-automation-architect",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Audit AIOS automation gaps, deconstruct workflows into deterministic state ma...",
+      "path": ".agents/skills/automation-architect",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "automation-architect",
-      "id": "skill-automation-architect",
-      "kind": "skill"
+      "note": "Audit AIOS automation gaps, deconstruct workflows into deterministic state ma..."
     },
     {
-      "path": ".agents/skills/brand-icons",
+      "id": "skill-autonomous-prompts",
       "layer": "skills",
+      "path": ".agents/skills/autonomous-prompts",
+      "kind": "skill",
+      "changed": "2026-11-05",
+      "area": "dev",
+      "label": "autonomous-prompts",
+      "note": "Generate ten paste-ready prompts for independent work across projects, compos..."
+    },
+    {
+      "id": "skill-brand-icons",
+      "layer": "skills",
+      "path": ".agents/skills/brand-icons",
+      "kind": "skill",
       "changed": "2026-09-28",
-      "note": "Build or refresh Leonidas AIOS app icons (Windows .ico, tray, favicon, PWA) f...",
       "area": "dev",
       "label": "brand-icons",
-      "id": "skill-brand-icons",
-      "kind": "skill"
+      "note": "Build or refresh Leonidas AIOS app icons (Windows .ico, tray, favicon, PWA) f..."
     },
     {
-      "path": ".agents/skills/brandkit",
+      "id": "skill-brandkit",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Generate high-end brand guideline boards, logo systems, identity decks, and a...",
+      "path": ".agents/skills/brandkit",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "brandkit",
-      "id": "skill-brandkit",
-      "kind": "skill"
+      "note": "Generate high-end brand guideline boards, logo systems, identity decks, and a..."
     },
     {
-      "path": ".agents/skills/build",
+      "id": "skill-break-ui",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Step 4 of Idea to Ship: implement planned slices test-first, one commit per s...",
+      "path": ".agents/skills/break-ui",
+      "kind": "skill",
+      "changed": "2026-10-19",
+      "area": "dev",
+      "label": "break-ui",
+      "note": "Stress-test UI with worst-case data: long names, empty lists, huge counts, em..."
+    },
+    {
+      "id": "skill-build",
+      "layer": "skills",
+      "path": ".agents/skills/build",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "build",
-      "id": "skill-build",
-      "kind": "skill"
+      "note": "Step 4 of Idea to Ship: implement planned slices test-first, one commit per s..."
     },
     {
-      "path": ".agents/skills/caveman",
+      "id": "skill-caveman",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Terse output mode: answer first, eliminate ceremony, preserve all code, comma...",
+      "path": ".agents/skills/caveman",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "caveman",
-      "id": "skill-caveman",
-      "kind": "skill"
+      "note": "Terse output mode: answer first, eliminate ceremony, preserve all code, comma..."
     },
     {
-      "path": ".agents/skills/ceo",
+      "id": "skill-ceo",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Run complex, parallel work with one orchestrator and cheaper bounded workers,...",
+      "path": ".agents/skills/ceo",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "ceo",
-      "id": "skill-ceo",
-      "kind": "skill"
+      "note": "Run complex, parallel work with one orchestrator and cheaper bounded workers,..."
     },
     {
-      "path": ".agents/skills/chat-closeout",
+      "id": "skill-chat-closeout",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Pre-archival session gate: extract memories/tasks, write continuation capsule...",
+      "path": ".agents/skills/chat-closeout",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "chat-closeout",
-      "id": "skill-chat-closeout",
-      "kind": "skill"
+      "note": "Pre-archival session gate: extract memories/tasks, write continuation capsule..."
     },
     {
-      "path": ".agents/skills/chat-sync",
+      "id": "skill-chat-sync",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Sync in-session decisions, durable memories, tasks, and glossary terms into l...",
+      "path": ".agents/skills/chat-sync",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "system",
       "label": "chat-sync",
-      "id": "skill-chat-sync",
-      "kind": "skill"
+      "note": "Sync in-session decisions, durable memories, tasks, and glossary terms into l..."
     },
     {
-      "path": ".agents/skills/claude-automation-recommender",
+      "id": "skill-claude-automation-recommender",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Analyze a codebase and recommend hooks, sub-agents, skills and MCP servers to...",
+      "path": ".agents/skills/claude-automation-recommender",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "claude-automation-recommender",
-      "id": "skill-claude-automation-recommender",
-      "kind": "skill"
+      "note": "Analyze a codebase and recommend hooks, sub-agents, skills and MCP servers to..."
     },
     {
-      "path": ".agents/skills/claude-harness-reference",
+      "id": "skill-claude-harness-reference",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Reference for Claude Code CLI, Desktop, subagents, prompt caching tiers, hook...",
+      "path": ".agents/skills/claude-harness-reference",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "claude-harness-reference",
-      "id": "skill-claude-harness-reference",
-      "kind": "skill"
+      "note": "Reference for Claude Code CLI, Desktop, subagents, prompt caching tiers, hook..."
     },
     {
-      "path": ".agents/skills/claude-mods",
+      "id": "skill-claude-mods",
       "layer": "skills",
+      "path": ".agents/skills/claude-mods",
+      "kind": "skill",
       "changed": "2026-10-02",
-      "note": "Single interface for Claude Code mods (function-hook plugins): research, adop...",
       "area": "dev",
       "label": "claude-mods",
-      "id": "skill-claude-mods",
-      "kind": "skill"
+      "note": "Single interface for Claude Code mods (function-hook plugins): research, adop..."
     },
     {
-      "path": ".agents/skills/code-simplification",
+      "id": "skill-code-simplification",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Simplify code for clarity without changing behavior. Use when code works but ...",
+      "path": ".agents/skills/code-simplification",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "code-simplification",
-      "id": "skill-code-simplification",
-      "kind": "skill"
+      "note": "Simplify code for clarity without changing behavior. Use when code works but ..."
     },
     {
-      "path": ".agents/skills/code-simplify",
+      "id": "skill-code-simplify",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Simplify recently changed code without changing behavior, with a test run aft...",
+      "path": ".agents/skills/code-simplify",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "code-simplify",
-      "id": "skill-code-simplify",
-      "kind": "skill"
+      "note": "Simplify recently changed code without changing behavior, with a test run aft..."
     },
     {
-      "path": ".agents/skills/code-skimmer",
+      "id": "skill-code-skimmer",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Read a large code file as a symbol outline, then open only the needed line ra...",
+      "path": ".agents/skills/code-skimmer",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "code-skimmer",
-      "id": "skill-code-skimmer",
-      "kind": "skill"
+      "note": "Read a large code file as a symbol outline, then open only the needed line ra..."
     },
     {
-      "path": ".agents/skills/codebase-design",
+      "id": "skill-codebase-design",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Design deep modules: interfaces, seams, testability, AI-navigable structure. ...",
+      "path": ".agents/skills/codebase-design",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "codebase-design",
-      "id": "skill-codebase-design",
-      "kind": "skill"
+      "note": "Design deep modules: interfaces, seams, testability, AI-navigable structure. ..."
     },
     {
-      "path": ".agents/skills/cold-email",
+      "id": "skill-cold-email",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Write high-converting B2B cold email sequences, subject lines, personalized o...",
+      "path": ".agents/skills/cold-email",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "cold-email",
-      "id": "skill-cold-email",
-      "kind": "skill"
+      "note": "Write high-converting B2B cold email sequences, subject lines, personalized o..."
     },
     {
-      "path": ".agents/skills/compare-repos",
+      "id": "skill-compare-repos",
       "layer": "skills",
+      "path": ".agents/skills/compare-repos",
+      "kind": "skill",
       "changed": "2026-09-16",
-      "note": "Compare skills, templates, and standards between Leonidas and SimplyGersi to ...",
       "area": "dev",
       "label": "compare-repos",
-      "id": "skill-compare-repos",
-      "kind": "skill"
+      "note": "Compare skills, templates, and standards between Leonidas and SimplyGersi to ..."
     },
     {
-      "path": ".agents/skills/competitor-profiling",
+      "id": "skill-competitor-profiling",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Research and analyze competitors from their URLs into structured dossiers cov...",
+      "path": ".agents/skills/competitor-profiling",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "competitor-profiling",
-      "id": "skill-competitor-profiling",
-      "kind": "skill"
+      "note": "Research and analyze competitors from their URLs into structured dossiers cov..."
     },
     {
-      "path": ".agents/skills/component-audit",
+      "id": "skill-component-audit",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Audit, optimize, and improve any AIOS file, folder, skill, prompt, template, ...",
+      "path": ".agents/skills/component-audit",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "system",
       "label": "component-audit",
-      "id": "skill-component-audit",
-      "kind": "skill"
+      "note": "Audit, optimize, and improve any AIOS file, folder, skill, prompt, template, ..."
     },
     {
-      "path": ".agents/skills/constraints",
+      "id": "skill-constraints",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Define and enforce a repo's quality bar once: detect tools, ask up to 4 quest...",
+      "path": ".agents/skills/constraints",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "constraints",
-      "id": "skill-constraints",
-      "kind": "skill"
+      "note": "Define and enforce a repo's quality bar once: detect tools, ask up to 4 quest..."
     },
     {
-      "path": ".agents/skills/context-budget",
+      "id": "skill-context-budget",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Audit context window token consumption across preloaded files, modes, skills,...",
+      "path": ".agents/skills/context-budget",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "context-budget",
-      "id": "skill-context-budget",
-      "kind": "skill"
+      "note": "Audit context window token consumption across preloaded files, modes, skills,..."
     },
     {
-      "path": ".agents/skills/context-engineering",
+      "id": "skill-context-engineering",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Structure context hierarchies, rules files, and knowledge stores for minimal ...",
+      "path": ".agents/skills/context-engineering",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "context-engineering",
-      "id": "skill-context-engineering",
-      "kind": "skill"
+      "note": "Structure context hierarchies, rules files, and knowledge stores for minimal ..."
     },
     {
-      "path": ".agents/skills/contract-review",
+      "id": "skill-contract-review",
       "layer": "skills",
+      "path": ".agents/skills/contract-review",
+      "kind": "skill",
       "changed": "2026-09-12",
-      "note": "Review brand agreements, SOWs, and MSAs against SimplyGersi rate cards, usage...",
       "area": "dev",
       "label": "contract-review",
-      "id": "skill-contract-review",
-      "kind": "skill"
+      "note": "Review brand agreements, SOWs, and MSAs against SimplyGersi rate cards, usage..."
     },
     {
-      "path": ".agents/skills/copywriting",
+      "id": "skill-coordinator",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Write and rewrite marketing copy for landing pages, headlines, value proposit...",
+      "path": ".agents/skills/coordinator",
+      "kind": "skill",
+      "changed": "2026-10-23",
+      "area": "dev",
+      "label": "coordinator",
+      "note": "Coordinate complex engineering goals across parallel Git worktrees and multi-..."
+    },
+    {
+      "id": "skill-copywriting",
+      "layer": "skills",
+      "path": ".agents/skills/copywriting",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "copywriting",
-      "id": "skill-copywriting",
-      "kind": "skill"
+      "note": "Write and rewrite marketing copy for landing pages, headlines, value proposit..."
     },
     {
-      "path": ".agents/skills/cro",
+      "id": "skill-cro",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Optimize marketing pages and forms for conversion: diagnose drop-offs, teardo...",
+      "path": ".agents/skills/cro",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "cro",
-      "id": "skill-cro",
-      "kind": "skill"
+      "note": "Optimize marketing pages and forms for conversion: diagnose drop-offs, teardo..."
     },
     {
-      "path": ".agents/skills/cross-linker",
+      "id": "skill-cross-linker",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Scan the Obsidian wiki to discover and insert missing cross-references and co...",
+      "path": ".agents/skills/cross-linker",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "cross-linker",
-      "id": "skill-cross-linker",
-      "kind": "skill"
+      "note": "Scan the Obsidian wiki to discover and insert missing cross-references and co..."
     },
     {
-      "path": ".agents/skills/customer-research",
+      "id": "skill-customer-research",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Synthesize customer interviews, analyze review mining data, extract Jobs-to-b...",
+      "path": ".agents/skills/customer-research",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "customer-research",
-      "id": "skill-customer-research",
-      "kind": "skill"
+      "note": "Synthesize customer interviews, analyze review mining data, extract Jobs-to-b..."
     },
     {
-      "path": ".agents/skills/daily-briefing",
+      "id": "skill-daily-briefing",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Interactive morning briefing combining 24h git logs, substrate health, tasks,...",
+      "path": ".agents/skills/daily-briefing",
+      "kind": "skill",
+      "changed": "2026-10-20",
       "area": "dev",
       "label": "daily-briefing",
-      "id": "skill-daily-briefing",
-      "kind": "skill"
+      "note": "Interactive morning briefing combining 24h git logs, substrate health, tasks,..."
     },
     {
-      "path": ".agents/skills/daily-closeout",
+      "id": "skill-daily-closeout",
       "layer": "skills",
+      "path": ".agents/skills/daily-closeout",
+      "kind": "skill",
       "changed": "2026-10-17",
-      "note": "Interactive evening closeout: workspace hygiene gate, accomplishments audit, ...",
       "area": "dev",
       "label": "daily-closeout",
-      "id": "skill-daily-closeout",
-      "kind": "skill"
+      "note": "Interactive evening closeout: workspace hygiene gate, accomplishments audit, ..."
     },
     {
-      "path": ".agents/skills/de-emdash",
+      "id": "skill-de-emdash",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Scan documents and rewrite U+2014 em dashes into clean, fluent punctuation pe...",
+      "path": ".agents/skills/de-emdash",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "de-emdash",
-      "id": "skill-de-emdash",
-      "kind": "skill"
+      "note": "Scan documents and rewrite U+2014 em dashes into clean, fluent punctuation pe..."
     },
     {
-      "path": ".agents/skills/deep-research",
+      "id": "skill-deep-research",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Run a free, source-ledgered research pass over arXiv, Crossref, Semantic Scho...",
+      "path": ".agents/skills/deep-research",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "deep-research",
-      "id": "skill-deep-research",
-      "kind": "skill"
+      "note": "Run a free, source-ledgered research pass over arXiv, Crossref, Semantic Scho..."
     },
     {
-      "path": ".agents/skills/defuddle",
+      "id": "skill-defuddle",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Fetch a web page as clean Markdown without menus, ads or banners. Use when th...",
+      "path": ".agents/skills/defuddle",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "defuddle",
-      "id": "skill-defuddle",
-      "kind": "skill"
+      "note": "Fetch a web page as clean Markdown without menus, ads or banners. Use when th..."
     },
     {
-      "path": ".agents/skills/design-audit",
+      "id": "skill-design-audit",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Score a built UI, page, screen or document against a pass/fail design rubric ...",
+      "path": ".agents/skills/design-audit",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "system",
       "label": "design-audit",
-      "id": "skill-design-audit",
-      "kind": "skill"
+      "note": "Score a built UI, page, screen or document against a pass/fail design rubric ..."
     },
     {
-      "path": ".agents/skills/design-build",
+      "id": "skill-design-build",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Design and build a new app, screen, page, dashboard, HTML artifact or documen...",
+      "path": ".agents/skills/design-build",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "design-build",
-      "id": "skill-design-build",
-      "kind": "skill"
+      "note": "Design and build a new app, screen, page, dashboard, HTML artifact or documen..."
     },
     {
-      "path": ".agents/skills/design-taste-frontend-v2-experimental",
+      "id": "skill-design-everyday-things",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Use the preserved experimental Taste V2 for landing pages, portfolios, and re...",
+      "path": ".agents/skills/design-everyday-things",
+      "kind": "skill",
+      "changed": "2026-10-19",
+      "area": "dev",
+      "label": "design-everyday-things",
+      "note": "Apply Norman's design principles: affordances, signifiers, feedback, constrai..."
+    },
+    {
+      "id": "skill-design-taste-frontend-v2-experimental",
+      "layer": "skills",
+      "path": ".agents/skills/design-taste-frontend-v2-experimental",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "design-taste-frontend-v2-experimental",
-      "id": "skill-design-taste-frontend-v2-experimental",
-      "kind": "skill"
+      "note": "Build landing pages, portfolios and redesigns with the preserved experimental..."
     },
     {
-      "path": ".agents/skills/diagnosing-bugs",
+      "id": "skill-diagnosing-bugs",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Diagnosis loop for hard bugs and performance regressions: reproduce, isolate,...",
+      "path": ".agents/skills/diagnosing-bugs",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "diagnosing-bugs",
-      "id": "skill-diagnosing-bugs",
-      "kind": "skill"
+      "note": "Diagnosis loop for hard bugs and performance regressions: reproduce, isolate,..."
     },
     {
-      "path": ".agents/skills/domain-modeling",
+      "id": "skill-domain-modeling",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Sharpen the domain model while designing: challenge terms, write CONTEXT.md g...",
+      "path": ".agents/skills/domain-modeling",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "domain-modeling",
-      "id": "skill-domain-modeling",
-      "kind": "skill"
+      "note": "Sharpen the domain model while designing: challenge terms, write CONTEXT.md g..."
     },
     {
-      "path": ".agents/skills/effect-ts",
+      "id": "skill-doop",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Use this skill when setting up a repository that uses the Effect Typescript l...",
+      "path": ".agents/skills/doop",
+      "kind": "skill",
+      "changed": "2026-11-06",
+      "area": "dev",
+      "label": "doop",
+      "note": "Design Leonidas UI in the Doop canvas: import the live app, name every layer,..."
+    },
+    {
+      "id": "skill-effect-ts",
+      "layer": "skills",
+      "path": ".agents/skills/effect-ts",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "effect-ts",
-      "id": "skill-effect-ts",
-      "kind": "skill"
+      "note": "Use this skill when setting up a repository that uses the Effect Typescript l..."
     },
     {
-      "path": ".agents/skills/email-triage",
+      "id": "skill-email-triage",
       "layer": "skills",
+      "path": ".agents/skills/email-triage",
+      "kind": "skill",
       "changed": "2026-09-14",
-      "note": "Triage inbound SimplyGersi emails, enforce commercial rate cards on barter pi...",
       "area": "dev",
       "label": "email-triage",
-      "id": "skill-email-triage",
-      "kind": "skill"
+      "note": "Triage inbound SimplyGersi emails, enforce commercial rate cards on barter pi..."
     },
     {
-      "path": ".agents/skills/explain-simply",
+      "id": "skill-explain-simply",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Re-pitch previous explanations in plain, jargon-free English with missing men...",
+      "path": ".agents/skills/explain-simply",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "explain-simply",
-      "id": "skill-explain-simply",
-      "kind": "skill"
+      "note": "Re-pitch previous explanations in plain, jargon-free English with missing men..."
     },
     {
-      "path": ".agents/skills/fable-mode",
+      "id": "skill-fable-mode",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Execute multi-gate disciplined tasks with slow-down verification, edge-case p...",
+      "path": ".agents/skills/fable-mode",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "fable-mode",
-      "id": "skill-fable-mode",
-      "kind": "skill"
+      "note": "Execute multi-gate disciplined tasks with slow-down verification, edge-case p..."
     },
     {
-      "path": ".agents/skills/feedback-triage",
+      "id": "skill-feedback-triage",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Triage new Leonidas Code feedback and bug reports from the private feedback r...",
+      "path": ".agents/skills/feedback-triage",
+      "kind": "skill",
+      "changed": "2026-11-04",
       "area": "dev",
       "label": "feedback-triage",
-      "id": "skill-feedback-triage",
-      "kind": "skill"
+      "note": "Triage new Leonidas Code feedback and bug reports from the private feedback r..."
     },
     {
-      "path": ".agents/skills/financial-audit",
+      "id": "skill-financial-audit",
       "layer": "skills",
+      "path": ".agents/skills/financial-audit",
+      "kind": "skill",
       "changed": "2026-10-16",
-      "note": "Forensic audit of personal financials, adaptive expense grilling, and accreti...",
       "area": "system",
       "label": "financial-audit",
-      "id": "skill-financial-audit",
-      "kind": "skill"
+      "note": "Forensic audit of personal financials, adaptive expense grilling, and accreti..."
     },
     {
-      "path": ".agents/skills/find-skills",
+      "id": "skill-find-skills",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Discover, evaluate, score, and install external agent skills from skills.sh o...",
+      "path": ".agents/skills/find-skills",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "find-skills",
-      "id": "skill-find-skills",
-      "kind": "skill"
+      "note": "Discover, evaluate, score, and install external agent skills from skills.sh o..."
     },
     {
-      "path": ".agents/skills/game-optimization",
+      "id": "skill-game-optimization",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Research and tune game engine settings, launch options, shader caches, and gr...",
+      "path": ".agents/skills/game-optimization",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "game-optimization",
-      "id": "skill-game-optimization",
-      "kind": "skill"
+      "note": "Research and tune game engine settings, launch options, shader caches, and gr..."
     },
     {
-      "path": ".agents/skills/git-advanced-workflows",
+      "id": "skill-gh-cli",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Advanced Git: interactive rebase, cherry-pick, bisect, worktrees and reflog r...",
+      "path": ".agents/skills/gh-cli",
+      "kind": "skill",
+      "changed": "2026-10-20",
+      "area": "dev",
+      "label": "gh-cli",
+      "note": "Enforces authenticated gh CLI workflows over unauthenticated curl, WebFetch, ..."
+    },
+    {
+      "id": "skill-git-advanced-workflows",
+      "layer": "skills",
+      "path": ".agents/skills/git-advanced-workflows",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "git-advanced-workflows",
-      "id": "skill-git-advanced-workflows",
-      "kind": "skill"
+      "note": "Advanced Git: interactive rebase, cherry-pick, bisect, worktrees and reflog r..."
     },
     {
-      "path": ".agents/skills/git-guardrails-claude-code",
+      "id": "skill-git-guardrails-claude-code",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Set up Claude Code hooks to block dangerous git commands (push, reset --hard,...",
+      "path": ".agents/skills/git-guardrails-claude-code",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "git-guardrails-claude-code",
-      "id": "skill-git-guardrails-claude-code",
-      "kind": "skill"
+      "note": "Set up Claude Code hooks to block dangerous git commands (push, reset --hard,..."
     },
     {
-      "path": ".agents/skills/github-issues",
+      "id": "skill-git-workflow",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Create, update and manage GitHub issues: bugs, features, labels, assignees, m...",
+      "path": ".agents/skills/git-workflow",
+      "kind": "skill",
+      "changed": "2026-10-21",
+      "area": "dev",
+      "label": "git-workflow",
+      "note": "Fixed Git routine for agents: work on main by default; use a worktree for ris..."
+    },
+    {
+      "id": "skill-github-issues",
+      "layer": "skills",
+      "path": ".agents/skills/github-issues",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "github-issues",
-      "id": "skill-github-issues",
-      "kind": "skill"
+      "note": "Create, update and manage GitHub issues: bugs, features, labels, assignees, m..."
     },
     {
-      "path": ".agents/skills/graphify",
+      "id": "skill-graphify",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Convert codebases into queryable AST graphs with dependency mapping, god-node...",
+      "path": ".agents/skills/graphify",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "graphify",
-      "id": "skill-graphify",
-      "kind": "skill"
+      "note": "Convert codebases into queryable AST graphs with dependency mapping, god-node..."
     },
     {
-      "path": ".agents/skills/grill-me",
+      "id": "skill-grill-me",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "A relentless interview to sharpen a plan or design.",
+      "path": ".agents/skills/grill-me",
+      "kind": "skill",
+      "changed": "2026-11-03",
       "area": "dev",
       "label": "grill-me",
-      "id": "skill-grill-me",
-      "kind": "skill"
+      "note": "Interview the user relentlessly to sharpen a plan or design. Use when the use..."
     },
     {
-      "path": ".agents/skills/grill-with-docs",
+      "id": "skill-grill-with-docs",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "A relentless interview to sharpen a plan or design, which also creates docs (...",
+      "path": ".agents/skills/grill-with-docs",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "grill-with-docs",
-      "id": "skill-grill-with-docs",
-      "kind": "skill"
+      "note": "A relentless interview to sharpen a plan or design, which also creates docs (..."
     },
     {
-      "path": ".agents/skills/grilling",
+      "id": "skill-grilling",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Grill the user relentlessly about a plan, decision, or idea. Use when the use...",
+      "path": ".agents/skills/grilling",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "grilling",
-      "id": "skill-grilling",
-      "kind": "skill"
+      "note": "Grill the user relentlessly about a plan, decision, or idea. Use when the use..."
     },
     {
-      "path": ".agents/skills/humanizer",
+      "id": "skill-humanizer",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Rewrite AI-sounding text to read with authentic human voice and cadence based...",
+      "path": ".agents/skills/humanizer",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "humanizer",
-      "id": "skill-humanizer",
-      "kind": "skill"
+      "note": "Rewrite AI-sounding text to read with authentic human voice and cadence based..."
     },
     {
-      "path": ".agents/skills/i-have-adhd",
+      "id": "skill-i-have-adhd",
       "layer": "skills",
+      "path": ".agents/skills/i-have-adhd",
+      "kind": "skill",
       "changed": "2026-09-10",
-      "note": "Enforce ADHD response format: action-first, strict 3-step limits, zero tangen...",
       "area": "dev",
       "label": "i-have-adhd",
-      "id": "skill-i-have-adhd",
-      "kind": "skill"
+      "note": "Enforce ADHD response format: action-first, strict 3-step limits, zero tangen..."
     },
     {
-      "path": ".agents/skills/idea-to-ship",
+      "id": "skill-idea-to-ship",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Run a build task from idea to ship: define, spec, plan, build, test, review, ...",
+      "path": ".agents/skills/idea-to-ship",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "business",
       "label": "idea-to-ship",
-      "id": "skill-idea-to-ship",
-      "kind": "skill"
+      "note": "Run a build task from idea to ship: define, spec, plan, build, test, review, ..."
     },
     {
-      "path": ".agents/skills/impeccable",
+      "id": "skill-image-prompt-craft",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Design, critique, audit and polish frontend UI: layouts, typography, color, s...",
+      "path": ".agents/skills/image-prompt-craft",
+      "kind": "skill",
+      "changed": "2026-10-21",
+      "area": "dev",
+      "label": "image-prompt-craft",
+      "note": "Write, test and grade image prompts for local ComfyUI models, and set up 4-va..."
+    },
+    {
+      "id": "skill-impeccable",
+      "layer": "skills",
+      "path": ".agents/skills/impeccable",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "impeccable",
-      "id": "skill-impeccable",
-      "kind": "skill"
+      "note": "Design, critique, audit and polish frontend UI: layouts, typography, color, s..."
     },
     {
-      "path": ".agents/skills/implement",
+      "id": "skill-implement",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Execute plans and specifications through disciplined test-first slices with m...",
+      "path": ".agents/skills/implement",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "implement",
-      "id": "skill-implement",
-      "kind": "skill"
+      "note": "Execute plans and specifications through disciplined test-first slices with m..."
     },
     {
-      "path": ".agents/skills/improve-codebase-architecture",
+      "id": "skill-improve-codebase-architecture",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Analyze module boundaries, coupling and circular imports, then propose a refa...",
+      "path": ".agents/skills/improve-codebase-architecture",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "improve-codebase-architecture",
-      "id": "skill-improve-codebase-architecture",
-      "kind": "skill"
+      "note": "Analyze module boundaries, coupling and circular imports, then propose a refa..."
     },
     {
-      "path": ".agents/skills/invoice-chase",
+      "id": "skill-invoice-chase",
       "layer": "skills",
+      "path": ".agents/skills/invoice-chase",
+      "kind": "skill",
       "changed": "2026-09-12",
-      "note": "Monitor unpaid SimplyGersi invoices, audit accounts receivable aging, and sta...",
       "area": "system",
       "label": "invoice-chase",
-      "id": "skill-invoice-chase",
-      "kind": "skill"
+      "note": "Monitor unpaid SimplyGersi invoices, audit accounts receivable aging, and sta..."
     },
     {
-      "path": ".agents/skills/invoice-generator",
+      "id": "skill-invoice-generator",
       "layer": "skills",
+      "path": ".agents/skills/invoice-generator",
+      "kind": "skill",
       "changed": "2026-09-12",
-      "note": "Generate on-brand SimplyGersi client invoices, compile print-ready PDFs via h...",
       "area": "system",
       "label": "invoice-generator",
-      "id": "skill-invoice-generator",
-      "kind": "skill"
+      "note": "Generate on-brand SimplyGersi client invoices, compile print-ready PDFs via h..."
     },
     {
-      "path": ".agents/skills/knowledge-graph-3d",
+      "id": "skill-knowledge-graph-3d",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Generate 3D interactive force-directed knowledge graphs visualizing repositor...",
+      "path": ".agents/skills/knowledge-graph-3d",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "knowledge-graph-3d",
-      "id": "skill-knowledge-graph-3d",
-      "kind": "skill"
+      "note": "Generate 3D interactive force-directed knowledge graphs visualizing repositor..."
     },
     {
-      "path": ".agents/skills/leonidas-canvas",
+      "id": "skill-leonidas-canvas",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Publish an interactive HTML canvas (tabs, KPI cards, flowcharts, tables) in t...",
+      "path": ".agents/skills/leonidas-canvas",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "leonidas-canvas",
-      "id": "skill-leonidas-canvas",
-      "kind": "skill"
+      "note": "Build and publish offline interactive canvases in Leonidas. Use when a reply ..."
     },
     {
-      "path": ".agents/skills/leonidas-os-audit",
+      "id": "skill-leonidas-os-audit",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Comprehensive AIOS audit: Substrate Health Gate, Four Cs Index, subagent topo...",
+      "path": ".agents/skills/leonidas-os-audit",
+      "kind": "skill",
+      "changed": "2026-10-29",
       "area": "system",
       "label": "leonidas-os-audit",
-      "id": "skill-leonidas-os-audit",
-      "kind": "skill"
+      "note": "Comprehensive AIOS audit: Substrate Health Gate, Four Cs Index, subagent topo..."
     },
     {
-      "path": ".agents/skills/leonidas-release",
+      "id": "skill-leonidas-release",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Write plain-language patch notes, illustrated update stories, and release tra...",
+      "path": ".agents/skills/leonidas-release",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "leonidas-release",
-      "id": "skill-leonidas-release",
-      "kind": "skill"
+      "note": "Write plain-language patch notes, illustrated update stories, and release tra..."
     },
     {
-      "path": ".agents/skills/litellm-bridge-ops",
+      "id": "skill-litellm-bridge-ops",
       "layer": "skills",
+      "path": ".agents/skills/litellm-bridge-ops",
+      "kind": "skill",
       "changed": "2026-09-23",
-      "note": "Operate LiteLLM Claude Code bridge: health checks, watchdog restarts, alias r...",
       "area": "dev",
       "label": "litellm-bridge-ops",
-      "id": "skill-litellm-bridge-ops",
-      "kind": "skill"
+      "note": "Operate LiteLLM Claude Code bridge: health checks, watchdog restarts, alias r..."
     },
     {
-      "path": ".agents/skills/llm-wiki-research",
+      "id": "skill-llm-wiki-research",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Run a multi-lens research investigation (balanced, academic, current reality)...",
+      "path": ".agents/skills/llm-wiki-research",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "llm-wiki-research",
-      "id": "skill-llm-wiki-research",
-      "kind": "skill"
+      "note": "Run a multi-lens research investigation (balanced, academic, current reality)..."
     },
     {
-      "path": ".agents/skills/manual-setup-walkthrough",
+      "id": "skill-manual-setup-walkthrough",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Generate interactive CLI walkthroughs and verification scripts for complex ma...",
+      "path": ".agents/skills/manual-setup-walkthrough",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "manual-setup-walkthrough",
-      "id": "skill-manual-setup-walkthrough",
-      "kind": "skill"
+      "note": "Generate interactive CLI walkthroughs and verification scripts for complex ma..."
     },
     {
-      "path": ".agents/skills/marketing-council",
+      "id": "skill-marketing-council",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Simulate a marketing advisory board (Godin, Ogilvy, Schwartz, Hormozi, Dunfor...",
+      "path": ".agents/skills/marketing-council",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "business",
       "label": "marketing-council",
-      "id": "skill-marketing-council",
-      "kind": "skill"
+      "note": "Simulate a marketing advisory board (Godin, Ogilvy, Schwartz, Hormozi, Dunfor..."
     },
     {
-      "path": ".agents/skills/marketing-plan",
+      "id": "skill-marketing-plan",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Build full go-to-market strategies, AARRR acquisition funnels, budget allocat...",
+      "path": ".agents/skills/marketing-plan",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "business",
       "label": "marketing-plan",
-      "id": "skill-marketing-plan",
-      "kind": "skill"
+      "note": "Build full go-to-market strategies, AARRR acquisition funnels, budget allocat..."
     },
     {
-      "path": ".agents/skills/marketing-psychology",
+      "id": "skill-marketing-psychology",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Apply behavioral economics and mental models (anchoring, loss aversion, socia...",
+      "path": ".agents/skills/marketing-psychology",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "business",
       "label": "marketing-psychology",
-      "id": "skill-marketing-psychology",
-      "kind": "skill"
+      "note": "Apply behavioral economics and mental models (anchoring, loss aversion, socia..."
     },
     {
-      "path": ".agents/skills/memory-leak-debugging",
+      "id": "skill-memory-leak-debugging",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Find and fix memory leaks in JavaScript and Node.js with heap snapshots. Use ...",
+      "path": ".agents/skills/memory-leak-debugging",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "memory-leak-debugging",
-      "id": "skill-memory-leak-debugging",
-      "kind": "skill"
+      "note": "Find and fix memory leaks in JavaScript and Node.js with heap snapshots. Use ..."
     },
     {
-      "path": ".agents/skills/mode-persona-builder",
+      "id": "skill-mode-persona-builder",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Author, promote, or refine AIOS Modes and personas adhering to canonical 5-se...",
+      "path": ".agents/skills/mode-persona-builder",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "mode-persona-builder",
-      "id": "skill-mode-persona-builder",
-      "kind": "skill"
+      "note": "Author, promote, or refine AIOS Modes and personas adhering to canonical 5-se..."
     },
     {
-      "path": ".agents/skills/money-move",
+      "id": "skill-money-move",
       "layer": "skills",
+      "path": ".agents/skills/money-move",
+      "kind": "skill",
       "changed": "2026-10-09",
-      "note": "Pick the single closest-to-cash SimplyGersi action for today (collect, close,...",
       "area": "dev",
       "label": "money-move",
-      "id": "skill-money-move",
-      "kind": "skill"
+      "note": "Pick the single closest-to-cash SimplyGersi action for today (collect, close,..."
     },
     {
-      "path": ".agents/skills/n8n-workflow-patterns",
+      "id": "skill-n8n-workflow-patterns",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Architectural patterns for n8n workflows: webhooks, APIs, AI agents, batch lo...",
+      "path": ".agents/skills/n8n-workflow-patterns",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "n8n-workflow-patterns",
-      "id": "skill-n8n-workflow-patterns",
-      "kind": "skill"
+      "note": "Architectural patterns for n8n workflows: webhooks, APIs, AI agents, batch lo..."
     },
     {
-      "path": ".agents/skills/next-action",
+      "id": "skill-next-action",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Pick the best next tasks from the task folder for the current operator, proje...",
+      "path": ".agents/skills/next-action",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "next-action",
-      "id": "skill-next-action",
-      "kind": "skill"
+      "note": "Grill the user on time, energy and goal, rank the top 5 tasks from the projec..."
     },
     {
-      "path": ".agents/skills/node",
+      "id": "skill-node",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Domain-specific best practices for Node.js development with TypeScript, cover...",
+      "path": ".agents/skills/node",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "node",
-      "id": "skill-node",
-      "kind": "skill"
+      "note": "Domain-specific best practices for Node.js development with TypeScript, cover..."
     },
     {
-      "path": ".agents/skills/obsidian-markdown",
+      "id": "skill-obsidian-markdown",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Write Obsidian-flavored Markdown: wikilinks, embeds, callouts, properties and...",
+      "path": ".agents/skills/obsidian-markdown",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "obsidian-markdown",
-      "id": "skill-obsidian-markdown",
-      "kind": "skill"
+      "note": "Write Obsidian-flavored Markdown: wikilinks, embeds, callouts, properties and..."
     },
     {
-      "path": ".agents/skills/openrouter-model-audit",
+      "id": "skill-openrouter-model-audit",
       "layer": "skills",
-      "changed": "2026-09-16",
-      "note": "Pick or audit OpenRouter models against benchmarks cache for efficiency, accu...",
+      "path": ".agents/skills/openrouter-model-audit",
+      "kind": "skill",
+      "changed": "2026-10-21",
       "area": "system",
       "label": "openrouter-model-audit",
-      "id": "skill-openrouter-model-audit",
-      "kind": "skill"
+      "note": "Pick or audit OpenRouter models against benchmarks cache for efficiency, accu..."
     },
     {
-      "path": ".agents/skills/operator-scorecard",
+      "id": "skill-operator-scorecard",
       "layer": "skills",
+      "path": ".agents/skills/operator-scorecard",
+      "kind": "skill",
       "changed": "2026-10-09",
-      "note": "Read the weekly AI-native operator scorecard and frontier watch, explain the ...",
       "area": "dev",
       "label": "operator-scorecard",
-      "id": "skill-operator-scorecard",
-      "kind": "skill"
+      "note": "Read the weekly AI-native operator scorecard and frontier watch, explain the ..."
     },
     {
-      "path": ".agents/skills/output-style-builder",
+      "id": "skill-output-style-builder",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Author, audit, and calibrate Claude Code output styles for tone, density, and...",
+      "path": ".agents/skills/output-style-builder",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "output-style-builder",
-      "id": "skill-output-style-builder",
-      "kind": "skill"
+      "note": "Author, audit, and calibrate Claude Code output styles for tone, density, and..."
     },
     {
-      "path": ".agents/skills/pc-incident-forensics",
+      "id": "skill-pc-incident-forensics",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Investigate PC crashes, BSODs, freezes, and app faults via Event Viewer, mini...",
+      "path": ".agents/skills/pc-incident-forensics",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "pc-incident-forensics",
-      "id": "skill-pc-incident-forensics",
-      "kind": "skill"
+      "note": "Investigate PC crashes, BSODs, freezes, and app faults via Event Viewer, mini..."
     },
     {
-      "path": ".agents/skills/pc-systems-engineer",
+      "id": "skill-pc-systems-engineer",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Diagnose and fix Windows system performance, drivers, networking, services, a...",
+      "path": ".agents/skills/pc-systems-engineer",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "system",
       "label": "pc-systems-engineer",
-      "id": "skill-pc-systems-engineer",
-      "kind": "skill"
+      "note": "Diagnose and fix Windows system performance, drivers, networking, services, a..."
     },
     {
-      "path": ".agents/skills/performance-gate",
+      "id": "skill-performance-gate",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Mandatory pre-ship gate for every code change: audit memory, speed, component...",
+      "path": ".agents/skills/performance-gate",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "performance-gate",
-      "id": "skill-performance-gate",
-      "kind": "skill"
+      "note": "Mandatory pre-ship gate for every code change: audit memory, speed, component..."
     },
     {
-      "path": ".agents/skills/performance-optimization",
+      "id": "skill-performance-optimization",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Optimize speed across frontend, backend and queries with profiling first. Use...",
+      "path": ".agents/skills/performance-optimization",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "performance-optimization",
-      "id": "skill-performance-optimization",
-      "kind": "skill"
+      "note": "Optimize speed across frontend, backend and queries with profiling first. Use..."
     },
     {
-      "path": ".agents/skills/peripherals-display-tuner",
+      "id": "skill-peripherals-display-tuner",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Tune keyboard actuation, Wooting rapid trigger, mouse polling, monitor refres...",
+      "path": ".agents/skills/peripherals-display-tuner",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "peripherals-display-tuner",
-      "id": "skill-peripherals-display-tuner",
-      "kind": "skill"
+      "note": "Tune keyboard actuation, Wooting rapid trigger, mouse polling, monitor refres..."
     },
     {
-      "path": ".agents/skills/plan",
+      "id": "skill-plan",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Step 3 of Idea to Ship: break an approved spec into small, ordered vertical s...",
+      "path": ".agents/skills/plan",
+      "kind": "skill",
+      "changed": "2026-11-04",
       "area": "dev",
       "label": "plan",
-      "id": "skill-plan",
-      "kind": "skill"
+      "note": "Step 3 of Idea to Ship: break an approved spec into small, ordered vertical s..."
     },
     {
-      "path": ".agents/skills/powershell-master",
+      "id": "skill-plan-slices",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Expert PowerShell 7+ automation: robust cmdlets, pipeline tuning, -LiteralPat...",
+      "path": ".agents/skills/plan-slices",
+      "kind": "skill",
+      "changed": "2026-10-30",
+      "area": "dev",
+      "label": "plan-slices",
+      "note": "Step 3 of Idea to Ship: break an approved spec into small, ordered vertical s..."
+    },
+    {
+      "id": "skill-powershell-master",
+      "layer": "skills",
+      "path": ".agents/skills/powershell-master",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "powershell-master",
-      "id": "skill-powershell-master",
-      "kind": "skill"
+      "note": "Expert PowerShell 7+ automation: robust cmdlets, pipeline tuning, -LiteralPat..."
     },
     {
-      "path": ".agents/skills/pr",
+      "id": "skill-pr",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Write a pull request body: summary, why, test evidence, risks. Use when openi...",
+      "path": ".agents/skills/pr",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "pr",
-      "id": "skill-pr",
-      "kind": "skill"
+      "note": "Write a pull request body: summary, why, test evidence, risks. Use when openi..."
     },
     {
-      "path": ".agents/skills/pricing",
+      "id": "skill-pricing",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Structure pricing tiers, packaging, value metrics, freemium boundaries, and p...",
+      "path": ".agents/skills/pricing",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "pricing",
-      "id": "skill-pricing",
-      "kind": "skill"
+      "note": "Structure pricing tiers, packaging, value metrics, freemium boundaries, and p..."
     },
     {
-      "path": ".agents/skills/primary-research",
+      "id": "skill-primary-research",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Investigate a question against primary sources (docs, specs, APIs, papers) an...",
+      "path": ".agents/skills/primary-research",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "primary-research",
-      "id": "skill-primary-research",
-      "kind": "skill"
+      "note": "Investigate a question against primary sources (docs, specs, APIs, papers) an..."
     },
     {
-      "path": ".agents/skills/product-marketing",
+      "id": "skill-product-marketing",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Define Ideal Customer Profiles (ICP), product positioning frameworks, messagi...",
+      "path": ".agents/skills/product-marketing",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "business",
       "label": "product-marketing",
-      "id": "skill-product-marketing",
-      "kind": "skill"
+      "note": "Define Ideal Customer Profiles (ICP), product positioning frameworks, messagi..."
     },
     {
-      "path": ".agents/skills/prompt-composer",
+      "id": "skill-prompt-composer",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Write, audit and grade prompts and agent instructions with model-calibrated s...",
+      "path": ".agents/skills/prompt-composer",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "prompt-composer",
-      "id": "skill-prompt-composer",
-      "kind": "skill"
+      "note": "Write, audit and grade prompts and agent instructions with model-calibrated s..."
     },
     {
-      "path": ".agents/skills/prompt-improver",
+      "id": "skill-prompt-improver",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Enrich underspecified prompts with targeted research, grounded constraints, a...",
+      "path": ".agents/skills/prompt-improver",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "prompt-improver",
-      "id": "skill-prompt-improver",
-      "kind": "skill"
+      "note": "Enrich underspecified prompts with targeted research, grounded constraints, a..."
     },
     {
-      "path": ".agents/skills/prototype",
+      "id": "skill-prototype",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Build a throwaway prototype to answer a design question. Use to try a state m...",
+      "path": ".agents/skills/prototype",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "prototype",
-      "id": "skill-prototype",
-      "kind": "skill"
+      "note": "Build a throwaway prototype to answer a design question. Use to try a state m..."
     },
     {
-      "path": ".agents/skills/quick-question",
+      "id": "skill-quick-question",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Answer a quick factual or lookup question fast from local memory or one web s...",
+      "path": ".agents/skills/quick-question",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "quick-question",
-      "id": "skill-quick-question",
-      "kind": "skill"
+      "note": "Answer a quick factual or lookup question fast from local memory or one web s..."
     },
     {
-      "path": ".agents/skills/react-native-best-practices",
+      "id": "skill-react-native-best-practices",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "React Native performance guidelines for FPS, TTI, bundle size, memory leaks, ...",
+      "path": ".agents/skills/react-native-best-practices",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "react-native-best-practices",
-      "id": "skill-react-native-best-practices",
-      "kind": "skill"
+      "note": "React Native performance guidelines for FPS, TTI, bundle size, memory leaks, ..."
     },
     {
-      "path": ".agents/skills/recap",
+      "id": "skill-recap",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Instant scannable summary of session changes, diff stats, commands executed, ...",
+      "path": ".agents/skills/recap",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "recap",
-      "id": "skill-recap",
-      "kind": "skill"
+      "note": "Instant scannable summary of session changes, diff stats, commands executed, ..."
     },
     {
-      "path": ".agents/skills/remote-streaming-sync",
+      "id": "skill-remote-streaming-sync",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Diagnose Sunshine/Moonlight streaming latency, Tailscale mesh connections, an...",
+      "path": ".agents/skills/remote-streaming-sync",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "system",
       "label": "remote-streaming-sync",
-      "id": "skill-remote-streaming-sync",
-      "kind": "skill"
+      "note": "Diagnose Sunshine/Moonlight streaming latency, Tailscale mesh connections, an..."
     },
     {
-      "path": ".agents/skills/research",
+      "id": "skill-research",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Investigate an external topic, library or claim with web evidence through sub...",
+      "path": ".agents/skills/research",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "research",
-      "id": "skill-research",
-      "kind": "skill"
+      "note": "Investigate an external topic, library or claim with web evidence through sub..."
     },
     {
-      "path": ".agents/skills/resolving-merge-conflicts",
+      "id": "skill-resolving-merge-conflicts",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Use when you need to resolve an in-progress git merge/rebase conflict.",
+      "path": ".agents/skills/resolving-merge-conflicts",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "resolving-merge-conflicts",
-      "id": "skill-resolving-merge-conflicts",
-      "kind": "skill"
+      "note": "Use when you need to resolve an in-progress git merge/rebase conflict."
     },
     {
-      "path": ".agents/skills/retro",
+      "id": "skill-retro",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Run a retrospective on a work session: what worked, what failed, what to chan...",
+      "path": ".agents/skills/retro",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "retro",
-      "id": "skill-retro",
-      "kind": "skill"
+      "note": "Run a retrospective on a work session: what worked, what failed, what to chan..."
     },
     {
-      "path": ".agents/skills/review",
+      "id": "skill-review",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Step 6 of Idea to Ship: review the diff against the spec and on five quality ...",
+      "path": ".agents/skills/review",
+      "kind": "skill",
+      "changed": "2026-11-04",
       "area": "dev",
       "label": "review",
-      "id": "skill-review",
-      "kind": "skill"
+      "note": "Step 6 of Idea to Ship: review the diff against the spec and on five quality ..."
     },
     {
-      "path": ".agents/skills/review-two-axis",
+      "id": "skill-review-diff",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Review a diff on two axes with parallel sub-agents: standards and spec match....",
+      "path": ".agents/skills/review-diff",
+      "kind": "skill",
+      "changed": "2026-10-30",
+      "area": "dev",
+      "label": "review-diff",
+      "note": "Step 6 of Idea to Ship: review the diff against the spec and on five quality ..."
+    },
+    {
+      "id": "skill-review-two-axis",
+      "layer": "skills",
+      "path": ".agents/skills/review-two-axis",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "review-two-axis",
-      "id": "skill-review-two-axis",
-      "kind": "skill"
+      "note": "Review a diff on two axes with parallel sub-agents: standards and spec match...."
     },
     {
-      "path": ".agents/skills/roast",
+      "id": "skill-roast",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Convene a 3-persona subagent council to stress-test ideas and plans with isol...",
+      "path": ".agents/skills/roast",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "roast",
-      "id": "skill-roast",
-      "kind": "skill"
+      "note": "Convene a 3-persona subagent council to stress-test ideas and plans with isol..."
     },
     {
-      "path": ".agents/skills/safe-parallel-commit",
+      "id": "skill-safe-parallel-commit",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Commit safely during concurrent sessions: explicit path staging only, pre-com...",
+      "path": ".agents/skills/safe-parallel-commit",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "safe-parallel-commit",
-      "id": "skill-safe-parallel-commit",
-      "kind": "skill"
+      "note": "Commit safely during concurrent sessions: explicit path staging only, pre-com..."
     },
     {
-      "path": ".agents/skills/seo-audit",
+      "id": "skill-seo-audit",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Audit technical search visibility, diagnose ranking drops, inspect crawl erro...",
+      "path": ".agents/skills/seo-audit",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "system",
       "label": "seo-audit",
-      "id": "skill-seo-audit",
-      "kind": "skill"
+      "note": "Audit technical search visibility, diagnose ranking drops, inspect crawl erro..."
     },
     {
-      "path": ".agents/skills/session-handoff",
+      "id": "skill-session-handoff",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Compact conversation and working tree state into handoff-docs/ with a fresh-s...",
+      "path": ".agents/skills/session-handoff",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "session-handoff",
-      "id": "skill-session-handoff",
-      "kind": "skill"
+      "note": "Compact conversation and working tree state into handoff-docs/ with a fresh-s..."
     },
     {
-      "path": ".agents/skills/ship",
+      "id": "skill-ship",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Step 7 of Idea to Ship: run a final security and test check, write a GO or NO...",
+      "path": ".agents/skills/ship",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "business",
       "label": "ship",
-      "id": "skill-ship",
-      "kind": "skill"
+      "note": "Step 7 of Idea to Ship: run a final security and test check, write a GO or NO..."
     },
     {
-      "path": ".agents/skills/skill-creator",
+      "id": "skill-skill-creator",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Create, scaffold or refactor a skill to AIOS standards with a sharp trigger d...",
+      "path": ".agents/skills/skill-creator",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "skill-creator",
-      "id": "skill-skill-creator",
-      "kind": "skill"
+      "note": "Create, scaffold or refactor a skill to AIOS standards with a sharp trigger d..."
     },
     {
-      "path": ".agents/skills/skill-learn",
+      "id": "skill-skill-learn",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Turn a doc, past chat or notes into a proposed skill, or use /skill-learn tun...",
+      "path": ".agents/skills/skill-learn",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "skill-learn",
-      "id": "skill-skill-learn",
-      "kind": "skill"
+      "note": "Turn a doc, past chat or notes into a proposed skill, or use /skill-learn tun..."
     },
     {
-      "path": ".agents/skills/spec",
+      "id": "skill-spec",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Step 2 of Idea to Ship: turn settled decisions into a testable spec and get i...",
+      "path": ".agents/skills/spec",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "spec",
-      "id": "skill-spec",
-      "kind": "skill"
+      "note": "Step 2 of Idea to Ship: turn settled decisions into a testable spec and get i..."
     },
     {
-      "path": ".agents/skills/subagent-builder",
+      "id": "skill-subagent-builder",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Write, edit or audit an AIOS or project subagent spec in .agents/subagents/ t...",
+      "path": ".agents/skills/subagent-builder",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "subagent-builder",
-      "id": "skill-subagent-builder",
-      "kind": "skill"
+      "note": "Write, edit or audit an AIOS or project subagent spec in .agents/subagents/ t..."
     },
     {
-      "path": ".agents/skills/system-prompt-authoring",
+      "id": "skill-system-prompt-authoring",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Guide for authoring agent-facing root instructions, modes, standards, and cor...",
+      "path": ".agents/skills/system-prompt-authoring",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "system",
       "label": "system-prompt-authoring",
-      "id": "skill-system-prompt-authoring",
-      "kind": "skill"
+      "note": "Guide for authoring agent-facing root instructions, modes, standards, and cor..."
     },
     {
-      "path": ".agents/skills/task-management",
+      "id": "skill-task-management",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Capture work as a gated task card in tasks/ and query, audit, archive or rebu...",
+      "path": ".agents/skills/task-management",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "task-management",
-      "id": "skill-task-management",
-      "kind": "skill"
+      "note": "Capture work as a gated task card in tasks/ and query, audit, archive or rebu..."
     },
     {
-      "path": ".agents/skills/task-scoping",
+      "id": "skill-task-scoping",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Break a spec, brief or multi-part goal into gated vertical-slice task cards. ...",
+      "path": ".agents/skills/task-scoping",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "task-scoping",
-      "id": "skill-task-scoping",
-      "kind": "skill"
+      "note": "Break a spec, brief or multi-part goal into gated vertical-slice task cards. ..."
     },
     {
-      "path": ".agents/skills/tdd",
+      "id": "skill-tdd",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Test-driven development: red, green, refactor. Use when building a feature or...",
+      "path": ".agents/skills/tdd",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "tdd",
-      "id": "skill-tdd",
-      "kind": "skill"
+      "note": "Test-driven development: red, green, refactor. Use when building a feature or..."
     },
     {
-      "path": ".agents/skills/teach",
+      "id": "skill-teach",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Teach a new concept, tool or skill step by step with Socratic questions. Use ...",
+      "path": ".agents/skills/teach",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "teach",
-      "id": "skill-teach",
-      "kind": "skill"
+      "note": "Teach a new concept, tool or skill step by step with Socratic questions. Use ..."
     },
     {
-      "path": ".agents/skills/technical-writing",
+      "id": "skill-technical-writing",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Draft and revise clear docs, procedures and UI text for the reader. Use when ...",
+      "path": ".agents/skills/technical-writing",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "technical-writing",
-      "id": "skill-technical-writing",
-      "kind": "skill"
+      "note": "Draft and revise clear docs, procedures and UI text for the reader. Use when ..."
     },
     {
-      "path": ".agents/skills/telemetry-analyst",
+      "id": "skill-telemetry-analyst",
       "layer": "skills",
+      "path": ".agents/skills/telemetry-analyst",
+      "kind": "skill",
       "changed": "2026-10-17",
-      "note": "Synthesize cross-engine telemetry across skills, task velocity, and ActivityW...",
       "area": "system",
       "label": "telemetry-analyst",
-      "id": "skill-telemetry-analyst",
-      "kind": "skill"
+      "note": "Synthesize cross-engine telemetry across skills, task velocity, and ActivityW..."
     },
     {
-      "path": ".agents/skills/test",
+      "id": "skill-test",
       "layer": "skills",
-      "changed": "2026-10-16",
-      "note": "Step 5 of Idea to Ship: verify the built work against every success criterion...",
+      "path": ".agents/skills/test",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "test",
-      "id": "skill-test",
-      "kind": "skill"
+      "note": "Step 5 of Idea to Ship: verify the built work against every success criterion..."
     },
     {
-      "path": ".agents/skills/test-t3-app",
+      "id": "skill-test-t3-app",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Test T3 Code's web and desktop UI through its built-in Browser panel against ...",
+      "path": ".agents/skills/test-t3-app",
+      "kind": "skill",
+      "changed": "2026-11-04",
       "area": "dev",
       "label": "test-t3-app",
-      "id": "skill-test-t3-app",
-      "kind": "skill"
+      "note": "Test T3 Code's web and desktop UI through its built-in Browser panel against ..."
     },
     {
-      "path": ".agents/skills/test-t3-mobile",
+      "id": "skill-test-t3-mobile",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Test T3 Code's native iOS and Android app through its Device panel and return...",
+      "path": ".agents/skills/test-t3-mobile",
+      "kind": "skill",
+      "changed": "2026-11-04",
       "area": "dev",
       "label": "test-t3-mobile",
-      "id": "skill-test-t3-mobile",
-      "kind": "skill"
+      "note": "Test T3 Code's native iOS and Android app through its Device panel and return..."
     },
     {
-      "path": ".agents/skills/to-questionnaire",
+      "id": "skill-to-questionnaire",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Convert open decisions into asynchronous, standalone Markdown questionnaires ...",
+      "path": ".agents/skills/to-questionnaire",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "to-questionnaire",
-      "id": "skill-to-questionnaire",
-      "kind": "skill"
+      "note": "Convert open decisions into asynchronous, standalone Markdown questionnaires ..."
     },
     {
-      "path": ".agents/skills/to-spec",
+      "id": "skill-to-spec",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Turn the current conversation into a spec and publish it to the tracker (a ta...",
+      "path": ".agents/skills/to-spec",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "to-spec",
-      "id": "skill-to-spec",
-      "kind": "skill"
+      "note": "Turn the current conversation into a spec and publish it to the tracker (a ta..."
     },
     {
-      "path": ".agents/skills/to-tickets",
+      "id": "skill-to-tickets",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Break a plan, spec, or the current conversation into a set of tracer-bullet t...",
+      "path": ".agents/skills/to-tickets",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "to-tickets",
-      "id": "skill-to-tickets",
-      "kind": "skill"
+      "note": "Break a plan, spec or conversation into tracer-bullet tickets with declared b..."
     },
     {
-      "path": ".agents/skills/token-optimizer",
+      "id": "skill-token-optimizer",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Audit dual-harness token spend, identify context leaks, and optimize project ...",
+      "path": ".agents/skills/token-optimizer",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "token-optimizer",
-      "id": "skill-token-optimizer",
-      "kind": "skill"
+      "note": "Audit dual-harness token spend, identify context leaks, and optimize project ..."
     },
     {
-      "path": ".agents/skills/ui-taste",
+      "id": "skill-ui-taste",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Build, redesign or critique web and iOS interfaces with anti-slop playbooks a...",
+      "path": ".agents/skills/ui-taste",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "ui-taste",
-      "id": "skill-ui-taste",
-      "kind": "skill"
+      "note": "Build, redesign or critique web and iOS interfaces with anti-slop playbooks a..."
     },
     {
-      "path": ".agents/skills/using-git-worktrees",
+      "id": "skill-upstream-review",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Use when starting feature work that needs isolation from current workspace or...",
+      "path": ".agents/skills/upstream-review",
+      "kind": "skill",
+      "changed": "2026-10-31",
+      "area": "dev",
+      "label": "upstream-review",
+      "note": "Review new upstream T3 Code commits and releases, then recommend what to port..."
+    },
+    {
+      "id": "skill-using-git-worktrees",
+      "layer": "skills",
+      "path": ".agents/skills/using-git-worktrees",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "using-git-worktrees",
-      "id": "skill-using-git-worktrees",
-      "kind": "skill"
+      "note": "Use when starting feature work that needs isolation from current workspace or..."
     },
     {
-      "path": ".agents/skills/vercel-react-best-practices",
+      "id": "skill-ux-copy",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "React and Next.js performance optimization guidelines from Vercel Engineering...",
+      "path": ".agents/skills/ux-copy",
+      "kind": "skill",
+      "changed": "2026-10-19",
+      "area": "dev",
+      "label": "ux-copy",
+      "note": "Write or review UX copy: microcopy, error messages, empty states, CTAs. Use w..."
+    },
+    {
+      "id": "skill-ux-heuristics",
+      "layer": "skills",
+      "path": ".agents/skills/ux-heuristics",
+      "kind": "skill",
+      "changed": "2026-10-19",
+      "area": "dev",
+      "label": "ux-heuristics",
+      "note": "Evaluate interface usability with Nielsen's 10 heuristics, Krug's laws and se..."
+    },
+    {
+      "id": "skill-vercel-react-best-practices",
+      "layer": "skills",
+      "path": ".agents/skills/vercel-react-best-practices",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "vercel-react-best-practices",
-      "id": "skill-vercel-react-best-practices",
-      "kind": "skill"
+      "note": "React and Next.js performance optimization guidelines from Vercel Engineering..."
     },
     {
-      "path": ".agents/skills/vercel-react-native-skills",
+      "id": "skill-vercel-react-native-skills",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "React Native and Expo best practices for building performant mobile apps, ani...",
+      "path": ".agents/skills/vercel-react-native-skills",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "vercel-react-native-skills",
-      "id": "skill-vercel-react-native-skills",
-      "kind": "skill"
+      "note": "React Native and Expo best practices for building performant mobile apps, ani..."
     },
     {
-      "path": ".agents/skills/wait-what",
+      "id": "skill-wait-what",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Stop. That last message did not land: re-pitch it.",
+      "path": ".agents/skills/wait-what",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "wait-what",
-      "id": "skill-wait-what",
-      "kind": "skill"
+      "note": "Stop. That last message did not land: re-pitch it. Use when the user says wai..."
     },
     {
-      "path": ".agents/skills/wayfinder",
+      "id": "skill-wayfinder",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Plan a huge chunk of work (more than one agent session can hold) as a shared ...",
+      "path": ".agents/skills/wayfinder",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "wayfinder",
-      "id": "skill-wayfinder",
-      "kind": "skill"
+      "note": "Plan work too big for one agent session as a map of decision tickets (tasks/ ..."
     },
     {
-      "path": ".agents/skills/wiki-context-pack",
+      "id": "skill-web-design-guidelines",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Produce token-bounded, citation-ready markdown context slices from the Obsidi...",
+      "path": ".agents/skills/web-design-guidelines",
+      "kind": "skill",
+      "changed": "2026-10-19",
+      "area": "dev",
+      "label": "web-design-guidelines",
+      "note": "Review UI code for Web Interface Guidelines compliance. Use when asked to rev..."
+    },
+    {
+      "id": "skill-wiki-context-pack",
+      "layer": "skills",
+      "path": ".agents/skills/wiki-context-pack",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "wiki-context-pack",
-      "id": "skill-wiki-context-pack",
-      "kind": "skill"
+      "note": "Produce token-bounded, citation-ready markdown context slices from the Obsidi..."
     },
     {
-      "path": ".agents/skills/wiki-dedup",
+      "id": "skill-wiki-dedup",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Scan Obsidian wiki for concept identity collisions and merge duplicate pages ...",
+      "path": ".agents/skills/wiki-dedup",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "wiki-dedup",
-      "id": "skill-wiki-dedup",
-      "kind": "skill"
+      "note": "Scan Obsidian wiki for concept identity collisions and merge duplicate pages ..."
     },
     {
-      "path": ".agents/skills/windows-debloat",
+      "id": "skill-windows-debloat",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Inventory, audit, and clean Windows packages, background services, startup bl...",
+      "path": ".agents/skills/windows-debloat",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "windows-debloat",
-      "id": "skill-windows-debloat",
-      "kind": "skill"
+      "note": "Inventory, audit, and clean Windows packages, background services, startup bl..."
     },
     {
-      "path": ".agents/skills/windows-toast",
+      "id": "skill-windows-toast",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Send native, interactive Windows Action Center toast notifications with audio...",
+      "path": ".agents/skills/windows-toast",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "windows-toast",
-      "id": "skill-windows-toast",
-      "kind": "skill"
+      "note": "Send native, interactive Windows Action Center toast notifications with audio..."
     },
     {
-      "path": ".agents/skills/wizard",
+      "id": "skill-wizard",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Generate an interactive script that walks the user through steps only they ca...",
+      "path": ".agents/skills/wizard",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "wizard",
-      "id": "skill-wizard",
-      "kind": "skill"
+      "note": "Generate an interactive script that walks the user through steps only they ca..."
     },
     {
-      "path": ".agents/skills/workflow-spec-builder",
+      "id": "skill-workflow-spec-builder",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Interactive workflow spec builder authoring and refining lifecycle loops in w...",
+      "path": ".agents/skills/workflow-spec-builder",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "workflow-spec-builder",
-      "id": "skill-workflow-spec-builder",
-      "kind": "skill"
+      "note": "Interactive workflow spec builder authoring and refining lifecycle loops in w..."
     },
     {
-      "path": ".agents/skills/writing-for-agents",
+      "id": "skill-writing-for-agents",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Write documents that agents read: skills, AGENTS.md, CLAUDE.md and instructio...",
+      "path": ".agents/skills/writing-for-agents",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "writing-for-agents",
-      "id": "skill-writing-for-agents",
-      "kind": "skill"
+      "note": "Write documents that agents read: skills, AGENTS.md, CLAUDE.md and instructio..."
     },
     {
-      "path": ".agents/skills/youtube-analyzer",
+      "id": "skill-youtube-analyzer",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Analyze a YouTube video or channel: transcript, creator formula and timestamp...",
+      "path": ".agents/skills/youtube-analyzer",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "business",
       "label": "youtube-analyzer",
-      "id": "skill-youtube-analyzer",
-      "kind": "skill"
+      "note": "Analyze a YouTube video or channel: transcript, creator formula and timestamp..."
     },
     {
-      "path": ".agents/skills/youtube-search",
+      "id": "skill-youtube-search",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Find, score and curate good YouTube tutorials and creators for a topic. Use w...",
+      "path": ".agents/skills/youtube-search",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "business",
       "label": "youtube-search",
-      "id": "skill-youtube-search",
-      "kind": "skill"
+      "note": "Find, score and curate good YouTube tutorials and creators for a topic. Use w..."
     },
     {
-      "path": ".agents/skills/zotero-research",
+      "id": "skill-zotero-research",
       "layer": "skills",
-      "changed": "2026-10-15",
-      "note": "Inspect local Zotero reference libraries read-only via local HTTP connector (...",
+      "path": ".agents/skills/zotero-research",
+      "kind": "skill",
+      "changed": "2026-10-26",
       "area": "dev",
       "label": "zotero-research",
-      "id": "skill-zotero-research",
-      "kind": "skill"
+      "note": "Inspect local Zotero reference libraries read-only via local HTTP connector (..."
     },
     {
-      "path": "scripts/AIOS-CommandCenter.ps1",
+      "id": "routine-aios-commandcenter",
       "layer": "routines",
+      "path": "scripts/AIOS-CommandCenter.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "AIOS-CommandCenter.ps1",
-      "id": "routine-aios-commandcenter",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/AIOS-VoiceDaemon.ps1",
+      "id": "routine-aios-voicedaemon",
       "layer": "routines",
+      "path": "scripts/AIOS-VoiceDaemon.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "AIOS-VoiceDaemon.ps1",
-      "id": "routine-aios-voicedaemon",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Archive-CompletedTasks.ps1",
+      "id": "routine-archive-completedtasks",
       "layer": "routines",
+      "path": "scripts/Archive-CompletedTasks.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Archive-CompletedTasks.ps1",
-      "id": "routine-archive-completedtasks",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-AiEfficiency.ps1",
+      "id": "routine-audit-aiefficiency",
       "layer": "routines",
-      "changed": "2026-10-04",
-      "note": "Deterministic background automation",
+      "path": "scripts/Audit-AiEfficiency.ps1",
+      "kind": "routine",
+      "changed": "2026-10-20",
       "area": "system",
       "label": "Audit-AiEfficiency.ps1",
-      "id": "routine-audit-aiefficiency",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-AntigravitySession.ps1",
+      "id": "routine-audit-antigravitysession",
       "layer": "routines",
+      "path": "scripts/Audit-AntigravitySession.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Audit-AntigravitySession.ps1",
-      "id": "routine-audit-antigravitysession",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-BraveBookmarks.ps1",
+      "id": "routine-audit-bravebookmarks",
       "layer": "routines",
-      "changed": "2026-09-10",
-      "note": "Deterministic background automation",
+      "path": "scripts/Audit-BraveBookmarks.ps1",
+      "kind": "routine",
+      "changed": "2026-10-29",
       "area": "system",
       "label": "Audit-BraveBookmarks.ps1",
-      "id": "routine-audit-bravebookmarks",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-ChannelPopularity.ps1",
+      "id": "routine-audit-channelpopularity",
       "layer": "routines",
+      "path": "scripts/Audit-ChannelPopularity.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Audit-ChannelPopularity.ps1",
-      "id": "routine-audit-channelpopularity",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-ColdReality.ps1",
+      "id": "routine-audit-coldreality",
       "layer": "routines",
-      "changed": "2026-10-04",
-      "note": "Deterministic background automation",
+      "path": "scripts/Audit-ColdReality.ps1",
+      "kind": "routine",
+      "changed": "2026-10-29",
       "area": "system",
       "label": "Audit-ColdReality.ps1",
-      "id": "routine-audit-coldreality",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-Finances.ps1",
+      "id": "routine-audit-finances",
       "layer": "routines",
+      "path": "scripts/Audit-Finances.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Audit-Finances.ps1",
-      "id": "routine-audit-finances",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-GoalCoverage.ps1",
+      "id": "routine-audit-goalcoverage",
       "layer": "routines",
+      "path": "scripts/Audit-GoalCoverage.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Audit-GoalCoverage.ps1",
-      "id": "routine-audit-goalcoverage",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-HarnessChats.ps1",
+      "id": "routine-audit-harnesschats",
       "layer": "routines",
-      "changed": "2026-10-04",
-      "note": "Deterministic background automation",
+      "path": "scripts/Audit-HarnessChats.ps1",
+      "kind": "routine",
+      "changed": "2026-10-20",
       "area": "system",
       "label": "Audit-HarnessChats.ps1",
-      "id": "routine-audit-harnesschats",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-Projects.ps1",
+      "id": "routine-audit-projects",
       "layer": "routines",
-      "changed": "2026-10-15",
-      "note": "Deterministic background automation",
+      "path": "scripts/Audit-Projects.ps1",
+      "kind": "routine",
+      "changed": "2026-10-31",
       "area": "system",
       "label": "Audit-Projects.ps1",
-      "id": "routine-audit-projects",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-PromptCache.ps1",
+      "id": "routine-audit-promptcache",
       "layer": "routines",
+      "path": "scripts/Audit-PromptCache.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Audit-PromptCache.ps1",
-      "id": "routine-audit-promptcache",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-PromptEvals.ps1",
+      "id": "routine-audit-promptevals",
       "layer": "routines",
-      "changed": "2026-10-04",
-      "note": "Deterministic background automation",
+      "path": "scripts/Audit-PromptEvals.ps1",
+      "kind": "routine",
+      "changed": "2026-10-29",
       "area": "system",
       "label": "Audit-PromptEvals.ps1",
-      "id": "routine-audit-promptevals",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-SelfEfficiency.ps1",
+      "id": "routine-audit-selfefficiency",
       "layer": "routines",
-      "changed": "2026-10-04",
-      "note": "Deterministic background automation",
+      "path": "scripts/Audit-SelfEfficiency.ps1",
+      "kind": "routine",
+      "changed": "2026-10-20",
       "area": "system",
       "label": "Audit-SelfEfficiency.ps1",
-      "id": "routine-audit-selfefficiency",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-Substrate.ps1",
+      "id": "routine-audit-substrate",
       "layer": "routines",
-      "changed": "2026-10-16",
-      "note": "Deterministic background automation",
+      "path": "scripts/Audit-Substrate.ps1",
+      "kind": "routine",
+      "changed": "2026-11-04",
       "area": "system",
       "label": "Audit-Substrate.ps1",
-      "id": "routine-audit-substrate",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-Tasks.ps1",
+      "id": "routine-audit-tasks",
       "layer": "routines",
+      "path": "scripts/Audit-Tasks.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Audit-Tasks.ps1",
-      "id": "routine-audit-tasks",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Audit-YouTubeCreators.ps1",
+      "id": "routine-audit-youtubecreators",
       "layer": "routines",
-      "changed": "2026-10-04",
-      "note": "Deterministic background automation",
+      "path": "scripts/Audit-YouTubeCreators.ps1",
+      "kind": "routine",
+      "changed": "2026-10-20",
       "area": "system",
       "label": "Audit-YouTubeCreators.ps1",
-      "id": "routine-audit-youtubecreators",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Benchmark-HermesModels.ps1",
+      "id": "routine-build-brainjson",
       "layer": "routines",
-      "changed": "2026-10-04",
-      "note": "Deterministic background automation",
-      "area": "system",
-      "label": "Benchmark-HermesModels.ps1",
-      "id": "routine-benchmark-hermesmodels",
-      "kind": "routine"
-    },
-    {
       "path": "scripts/Build-BrainJson.ps1",
-      "layer": "routines",
-      "changed": "2026-10-17",
-      "note": "Deterministic background automation",
+      "kind": "routine",
+      "changed": "2026-11-06",
       "area": "system",
       "label": "Build-BrainJson.ps1",
-      "id": "routine-build-brainjson",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Build-GeminiAutoload.ps1",
+      "id": "routine-build-geminiautoload",
       "layer": "routines",
+      "path": "scripts/Build-GeminiAutoload.ps1",
+      "kind": "routine",
       "changed": "2026-10-10",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Build-GeminiAutoload.ps1",
-      "id": "routine-build-geminiautoload",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Build-Index.ps1",
+      "id": "routine-build-index",
       "layer": "routines",
-      "changed": "2026-10-17",
-      "note": "Deterministic background automation",
+      "path": "scripts/Build-Index.ps1",
+      "kind": "routine",
+      "changed": "2026-11-05",
       "area": "system",
       "label": "Build-Index.ps1",
-      "id": "routine-build-index",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Build-TasksIndex.ps1",
+      "id": "routine-build-tasksindex",
       "layer": "routines",
+      "path": "scripts/Build-TasksIndex.ps1",
+      "kind": "routine",
       "changed": "2026-10-10",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Build-TasksIndex.ps1",
-      "id": "routine-build-tasksindex",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Capture-Thought.ps1",
+      "id": "routine-capture-thought",
       "layer": "routines",
+      "path": "scripts/Capture-Thought.ps1",
+      "kind": "routine",
       "changed": "2026-10-04",
-      "note": "Deterministic background automation",
       "area": "system",
       "label": "Capture-Thought.ps1",
-      "id": "routine-capture-thought",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "scripts/Check-GitBranch.ps1",
+      "id": "routine-check-gitbranch",
       "layer": "routines",
-      "changed": "2026-10-04",
-      "note": "Deterministic background automation",
+      "path": "scripts/Check-GitBranch.ps1",
+      "kind": "routine",
+      "changed": "2026-10-20",
       "area": "system",
       "label": "Check-GitBranch.ps1",
-      "id": "routine-check-gitbranch",
-      "kind": "routine"
+      "note": "Deterministic background automation"
     },
     {
-      "path": "apps/desktop",
-      "layer": "apps",
-      "changed": "2026-10-17",
-      "note": "Collaborative agentic workspace & browser harness",
-      "area": "dev",
-      "label": "Leonidas Code",
+      "id": "routine-check-openhandoffs",
+      "layer": "routines",
+      "path": "scripts/Check-OpenHandoffs.ps1",
+      "kind": "routine",
+      "changed": "2026-10-14",
+      "area": "system",
+      "label": "Check-OpenHandoffs.ps1",
+      "note": "Deterministic background automation"
+    },
+    {
       "id": "app-leonidas-code",
-      "kind": "app"
+      "layer": "apps",
+      "path": "apps/desktop",
+      "kind": "app",
+      "changed": "2026-10-17",
+      "area": "dev",
+      "label": "Leonidas",
+      "note": "Collaborative agentic workspace & browser harness"
     },
     {
-      "path": "tools/voice",
+      "id": "app-voice-daemon",
       "layer": "apps",
+      "path": "tools/voice",
+      "kind": "app",
       "changed": "2026-10-17",
-      "note": "Background push-to-talk & desktop toast voice engine",
       "area": "system",
       "label": "Voice Daemon",
-      "id": "app-voice-daemon",
-      "kind": "app"
+      "note": "Background push-to-talk & desktop toast voice engine"
     },
     {
-      "path": "projects/scribe",
+      "id": "app-scribe",
       "layer": "apps",
+      "path": "projects/scribe",
+      "kind": "app",
       "changed": "2026-10-17",
-      "note": "Desktop voice dictation & text transformation tool",
       "area": "dev",
       "label": "Leonidas Scribe",
-      "id": "app-scribe",
-      "kind": "app"
+      "note": "Desktop voice dictation & text transformation tool"
     },
     {
-      "path": "tools/calendar-mcp",
+      "id": "app-calendar-mcp",
       "layer": "apps",
+      "path": "tools/calendar-mcp",
+      "kind": "app",
       "changed": "2026-10-17",
-      "note": "Model Context Protocol calendar bridge",
       "area": "system",
       "label": "Google Calendar MCP",
-      "id": "app-calendar-mcp",
-      "kind": "app"
+      "note": "Model Context Protocol calendar bridge"
     },
     {
-      "path": "tools/gmail-mcp",
+      "id": "app-gmail-mcp",
       "layer": "apps",
+      "path": "tools/gmail-mcp",
+      "kind": "app",
       "changed": "2026-10-17",
-      "note": "Draft-first email governance bridge",
       "area": "business",
       "label": "Gmail MCP",
-      "id": "app-gmail-mcp",
-      "kind": "app"
+      "note": "Draft-first email governance bridge"
     },
     {
-      "path": "standards/ai-build-protocol.md",
+      "id": "std-ai-build-protocol",
       "layer": "memory",
-      "changed": "2026-10-17",
-      "note": "Authoritative architectural standard",
+      "path": "standards/ai-build-protocol.md",
+      "kind": "memory",
+      "changed": "2026-11-06",
       "area": "system",
       "label": "ai-build-protocol.md",
-      "id": "std-ai-build-protocol",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/app-building-standard.md",
+      "id": "std-app-building-standard",
       "layer": "memory",
+      "path": "standards/app-building-standard.md",
+      "kind": "memory",
       "changed": "2026-10-17",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "app-building-standard.md",
-      "id": "std-app-building-standard",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/asd-ste100.md",
+      "id": "std-asd-ste100",
       "layer": "memory",
-      "changed": "2026-10-14",
-      "note": "Authoritative architectural standard",
+      "path": "standards/asd-ste100.md",
+      "kind": "memory",
+      "changed": "2026-11-06",
       "area": "system",
       "label": "asd-ste100.md",
-      "id": "std-asd-ste100",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/canon-map.md",
+      "id": "std-canon-map",
       "layer": "memory",
+      "path": "standards/canon-map.md",
+      "kind": "memory",
       "changed": "2026-10-14",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "canon-map.md",
-      "id": "std-canon-map",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/chat-naming-standard.md",
+      "id": "std-chat-naming-standard",
       "layer": "memory",
+      "path": "standards/chat-naming-standard.md",
+      "kind": "memory",
       "changed": "2026-09-25",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "chat-naming-standard.md",
-      "id": "std-chat-naming-standard",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/deletion-ladder.md",
+      "id": "std-delegation-routing",
       "layer": "memory",
+      "path": "standards/delegation-routing.md",
+      "kind": "memory",
+      "changed": "2026-10-23",
+      "area": "system",
+      "label": "delegation-routing.md",
+      "note": "Authoritative architectural standard"
+    },
+    {
+      "id": "std-deletion-ladder",
+      "layer": "memory",
+      "path": "standards/deletion-ladder.md",
+      "kind": "memory",
       "changed": "2026-10-02",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "deletion-ladder.md",
-      "id": "std-deletion-ladder",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/design-preferences.md",
+      "id": "std-design-preferences",
       "layer": "memory",
+      "path": "standards/design-preferences.md",
+      "kind": "memory",
       "changed": "2026-10-04",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "design-preferences.md",
-      "id": "std-design-preferences",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/design-system.md",
+      "id": "std-design-system",
       "layer": "memory",
+      "path": "standards/design-system.md",
+      "kind": "memory",
       "changed": "2026-10-04",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "design-system.md",
-      "id": "std-design-system",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/domain-docs-standard.md",
+      "id": "std-domain-docs-standard",
       "layer": "memory",
+      "path": "standards/domain-docs-standard.md",
+      "kind": "memory",
       "changed": "2026-08-31",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "domain-docs-standard.md",
-      "id": "std-domain-docs-standard",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/drive-taxonomy.md",
+      "id": "std-drive-taxonomy",
       "layer": "memory",
-      "changed": "2026-10-03",
-      "note": "Authoritative architectural standard",
+      "path": "standards/drive-taxonomy.md",
+      "kind": "memory",
+      "changed": "2026-10-29",
       "area": "system",
       "label": "drive-taxonomy.md",
-      "id": "std-drive-taxonomy",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/efficiency-standard.md",
+      "id": "std-efficiency-standard",
       "layer": "memory",
+      "path": "standards/efficiency-standard.md",
+      "kind": "memory",
       "changed": "2026-10-04",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "efficiency-standard.md",
-      "id": "std-efficiency-standard",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/emoji-standard.md",
+      "id": "std-emoji-standard",
       "layer": "memory",
+      "path": "standards/emoji-standard.md",
+      "kind": "memory",
       "changed": "2026-10-04",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "emoji-standard.md",
-      "id": "std-emoji-standard",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/execution-standard.md",
+      "id": "std-execution-standard",
       "layer": "memory",
+      "path": "standards/execution-standard.md",
+      "kind": "memory",
       "changed": "2026-10-16",
-      "note": "Authoritative architectural standard",
       "area": "system",
       "label": "execution-standard.md",
-      "id": "std-execution-standard",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/frontmatter-standard.md",
+      "id": "std-frontmatter-standard",
       "layer": "memory",
-      "changed": "2026-10-16",
-      "note": "Authoritative architectural standard",
+      "path": "standards/frontmatter-standard.md",
+      "kind": "memory",
+      "changed": "2026-10-29",
       "area": "system",
       "label": "frontmatter-standard.md",
-      "id": "std-frontmatter-standard",
-      "kind": "memory"
+      "note": "Authoritative architectural standard"
     },
     {
-      "path": "standards/harness-matrix.md",
+      "id": "proj-project-health",
       "layer": "memory",
-      "changed": "2026-10-04",
-      "note": "Authoritative architectural standard",
-      "area": "system",
-      "label": "harness-matrix.md",
-      "id": "std-harness-matrix",
-      "kind": "memory"
-    },
-    {
       "path": "projects/project-health.md",
-      "layer": "memory",
-      "changed": "2026-10-15",
-      "note": "Active operational project",
+      "kind": "project",
+      "changed": "2026-11-04",
       "area": "business",
       "label": "project-health.md",
-      "id": "proj-project-health",
-      "kind": "project"
+      "note": "Active operational project"
     },
     {
-      "path": "projects/projects-index.md",
+      "id": "proj-projects-index",
       "layer": "memory",
-      "changed": "2026-10-17",
-      "note": "Active operational project",
+      "path": "projects/projects-index.md",
+      "kind": "project",
+      "changed": "2026-11-06",
       "area": "business",
       "label": "projects-index.md",
-      "id": "proj-projects-index",
-      "kind": "project"
+      "note": "Active operational project"
     }
   ],
   "links": [
     {
-      "s": "root",
-      "t": "core-claude"
+      "t": "core-claude",
+      "s": "root"
     },
     {
-      "s": "root",
-      "t": "core-master"
+      "t": "core-master",
+      "s": "root"
     },
     {
-      "s": "root",
-      "t": "core-user"
+      "t": "core-user",
+      "s": "root"
     },
     {
-      "s": "root",
-      "t": "core-soul"
+      "t": "core-soul",
+      "s": "root"
     },
     {
-      "s": "root",
-      "t": "area-biz"
+      "t": "area-biz",
+      "s": "root"
     },
     {
-      "s": "root",
-      "t": "area-sys"
+      "t": "area-sys",
+      "s": "root"
     },
     {
-      "s": "root",
-      "t": "area-dev"
+      "t": "area-dev",
+      "s": "root"
     },
     {
-      "s": "root",
-      "t": "area-content"
+      "t": "area-content",
+      "s": "root"
     },
     {
-      "s": "root",
-      "t": "area-personal"
+      "t": "area-personal",
+      "s": "root"
     },
     {
-      "s": "area-dev",
-      "t": "skill-accessibility"
+      "t": "skill-accessibility",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-ad-creative"
+      "t": "skill-ad-creative",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-ads"
+      "t": "skill-ads",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-agy-customizations"
+      "t": "skill-agy-customizations",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-ai-chats-triage"
+      "t": "skill-ai-chats-triage",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-aios-explorer"
+      "t": "skill-aios-explorer",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-antigravity_guide"
+      "t": "skill-antigravity_guide",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-antigravity-harness-reference"
+      "t": "skill-antigravity-harness-reference",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-antigravity-session-audit"
+      "t": "skill-antigravity-session-audit",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-archify"
+      "t": "skill-archify",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-ask-leonidas"
+      "t": "skill-asd-ste100",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-automation-architect"
+      "t": "skill-ask-leonidas",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-brand-icons"
+      "t": "skill-automation-architect",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-brandkit"
+      "t": "skill-autonomous-prompts",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-build"
+      "t": "skill-brand-icons",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-caveman"
+      "t": "skill-brandkit",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-ceo"
+      "t": "skill-break-ui",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-chat-closeout"
+      "t": "skill-build",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-chat-sync"
+      "t": "skill-caveman",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-claude-automation-recommender"
+      "t": "skill-ceo",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-claude-harness-reference"
+      "t": "skill-chat-closeout",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-claude-mods"
+      "t": "skill-chat-sync",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-code-simplification"
+      "t": "skill-claude-automation-recommender",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-code-simplify"
+      "t": "skill-claude-harness-reference",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-code-skimmer"
+      "t": "skill-claude-mods",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-codebase-design"
+      "t": "skill-code-simplification",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-cold-email"
+      "t": "skill-code-simplify",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-compare-repos"
+      "t": "skill-code-skimmer",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-competitor-profiling"
+      "t": "skill-codebase-design",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-component-audit"
+      "t": "skill-cold-email",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-constraints"
+      "t": "skill-compare-repos",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-context-budget"
+      "t": "skill-competitor-profiling",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-context-engineering"
+      "t": "skill-component-audit",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-contract-review"
+      "t": "skill-constraints",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-copywriting"
+      "t": "skill-context-budget",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-cro"
+      "t": "skill-context-engineering",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-cross-linker"
+      "t": "skill-contract-review",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-customer-research"
+      "t": "skill-coordinator",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-daily-briefing"
+      "t": "skill-copywriting",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-daily-closeout"
+      "t": "skill-cro",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-de-emdash"
+      "t": "skill-cross-linker",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-deep-research"
+      "t": "skill-customer-research",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-defuddle"
+      "t": "skill-daily-briefing",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-design-audit"
+      "t": "skill-daily-closeout",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-design-build"
+      "t": "skill-de-emdash",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-design-taste-frontend-v2-experimental"
+      "t": "skill-deep-research",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-diagnosing-bugs"
+      "t": "skill-defuddle",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-domain-modeling"
+      "t": "skill-design-audit",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-effect-ts"
+      "t": "skill-design-build",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-email-triage"
+      "t": "skill-design-everyday-things",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-explain-simply"
+      "t": "skill-design-taste-frontend-v2-experimental",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-fable-mode"
+      "t": "skill-diagnosing-bugs",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-feedback-triage"
+      "t": "skill-domain-modeling",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-financial-audit"
+      "t": "skill-doop",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-find-skills"
+      "t": "skill-effect-ts",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-game-optimization"
+      "t": "skill-email-triage",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-git-advanced-workflows"
+      "t": "skill-explain-simply",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-git-guardrails-claude-code"
+      "t": "skill-fable-mode",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-github-issues"
+      "t": "skill-feedback-triage",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-graphify"
+      "t": "skill-financial-audit",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-grill-me"
+      "t": "skill-find-skills",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-grill-with-docs"
+      "t": "skill-game-optimization",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-grilling"
+      "t": "skill-gh-cli",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-humanizer"
+      "t": "skill-git-advanced-workflows",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-i-have-adhd"
+      "t": "skill-git-guardrails-claude-code",
+      "s": "area-dev"
     },
     {
-      "s": "area-biz",
-      "t": "skill-idea-to-ship"
+      "t": "skill-git-workflow",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-impeccable"
+      "t": "skill-github-issues",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-implement"
+      "t": "skill-graphify",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-improve-codebase-architecture"
+      "t": "skill-grill-me",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-invoice-chase"
+      "t": "skill-grill-with-docs",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-invoice-generator"
+      "t": "skill-grilling",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-knowledge-graph-3d"
+      "t": "skill-humanizer",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-leonidas-canvas"
+      "t": "skill-i-have-adhd",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-leonidas-os-audit"
+      "t": "skill-idea-to-ship",
+      "s": "area-biz"
     },
     {
-      "s": "area-dev",
-      "t": "skill-leonidas-release"
+      "t": "skill-image-prompt-craft",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-litellm-bridge-ops"
+      "t": "skill-impeccable",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-llm-wiki-research"
+      "t": "skill-implement",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-manual-setup-walkthrough"
+      "t": "skill-improve-codebase-architecture",
+      "s": "area-dev"
     },
     {
-      "s": "area-biz",
-      "t": "skill-marketing-council"
+      "t": "skill-invoice-chase",
+      "s": "area-sys"
     },
     {
-      "s": "area-biz",
-      "t": "skill-marketing-plan"
+      "t": "skill-invoice-generator",
+      "s": "area-sys"
     },
     {
-      "s": "area-biz",
-      "t": "skill-marketing-psychology"
+      "t": "skill-knowledge-graph-3d",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-memory-leak-debugging"
+      "t": "skill-leonidas-canvas",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-mode-persona-builder"
+      "t": "skill-leonidas-os-audit",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-money-move"
+      "t": "skill-leonidas-release",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-n8n-workflow-patterns"
+      "t": "skill-litellm-bridge-ops",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-next-action"
+      "t": "skill-llm-wiki-research",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-node"
+      "t": "skill-manual-setup-walkthrough",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-obsidian-markdown"
+      "t": "skill-marketing-council",
+      "s": "area-biz"
     },
     {
-      "s": "area-sys",
-      "t": "skill-openrouter-model-audit"
+      "t": "skill-marketing-plan",
+      "s": "area-biz"
     },
     {
-      "s": "area-dev",
-      "t": "skill-operator-scorecard"
+      "t": "skill-marketing-psychology",
+      "s": "area-biz"
     },
     {
-      "s": "area-dev",
-      "t": "skill-output-style-builder"
+      "t": "skill-memory-leak-debugging",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-pc-incident-forensics"
+      "t": "skill-mode-persona-builder",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-pc-systems-engineer"
+      "t": "skill-money-move",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-performance-gate"
+      "t": "skill-n8n-workflow-patterns",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-performance-optimization"
+      "t": "skill-next-action",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-peripherals-display-tuner"
+      "t": "skill-node",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-plan"
+      "t": "skill-obsidian-markdown",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-powershell-master"
+      "t": "skill-openrouter-model-audit",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-pr"
+      "t": "skill-operator-scorecard",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-pricing"
+      "t": "skill-output-style-builder",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-primary-research"
+      "t": "skill-pc-incident-forensics",
+      "s": "area-dev"
     },
     {
-      "s": "area-biz",
-      "t": "skill-product-marketing"
+      "t": "skill-pc-systems-engineer",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-prompt-composer"
+      "t": "skill-performance-gate",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-prompt-improver"
+      "t": "skill-performance-optimization",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-prototype"
+      "t": "skill-peripherals-display-tuner",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-quick-question"
+      "t": "skill-plan",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-react-native-best-practices"
+      "t": "skill-plan-slices",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-recap"
+      "t": "skill-powershell-master",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-remote-streaming-sync"
+      "t": "skill-pr",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-research"
+      "t": "skill-pricing",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-resolving-merge-conflicts"
+      "t": "skill-primary-research",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-retro"
+      "t": "skill-product-marketing",
+      "s": "area-biz"
     },
     {
-      "s": "area-dev",
-      "t": "skill-review"
+      "t": "skill-prompt-composer",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-review-two-axis"
+      "t": "skill-prompt-improver",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-roast"
+      "t": "skill-prototype",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-safe-parallel-commit"
+      "t": "skill-quick-question",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-seo-audit"
+      "t": "skill-react-native-best-practices",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-session-handoff"
+      "t": "skill-recap",
+      "s": "area-dev"
     },
     {
-      "s": "area-biz",
-      "t": "skill-ship"
+      "t": "skill-remote-streaming-sync",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-skill-creator"
+      "t": "skill-research",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-skill-learn"
+      "t": "skill-resolving-merge-conflicts",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-spec"
+      "t": "skill-retro",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-subagent-builder"
+      "t": "skill-review",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-system-prompt-authoring"
+      "t": "skill-review-diff",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-task-management"
+      "t": "skill-review-two-axis",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-task-scoping"
+      "t": "skill-roast",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-tdd"
+      "t": "skill-safe-parallel-commit",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-teach"
+      "t": "skill-seo-audit",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-technical-writing"
+      "t": "skill-session-handoff",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "skill-telemetry-analyst"
+      "t": "skill-ship",
+      "s": "area-biz"
     },
     {
-      "s": "area-dev",
-      "t": "skill-test"
+      "t": "skill-skill-creator",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-test-t3-app"
+      "t": "skill-skill-learn",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-test-t3-mobile"
+      "t": "skill-spec",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-to-questionnaire"
+      "t": "skill-subagent-builder",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-to-spec"
+      "t": "skill-system-prompt-authoring",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-to-tickets"
+      "t": "skill-task-management",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-token-optimizer"
+      "t": "skill-task-scoping",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-ui-taste"
+      "t": "skill-tdd",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-using-git-worktrees"
+      "t": "skill-teach",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-vercel-react-best-practices"
+      "t": "skill-technical-writing",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-vercel-react-native-skills"
+      "t": "skill-telemetry-analyst",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "skill-wait-what"
+      "t": "skill-test",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-wayfinder"
+      "t": "skill-test-t3-app",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-wiki-context-pack"
+      "t": "skill-test-t3-mobile",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-wiki-dedup"
+      "t": "skill-to-questionnaire",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-windows-debloat"
+      "t": "skill-to-spec",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-windows-toast"
+      "t": "skill-to-tickets",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-wizard"
+      "t": "skill-token-optimizer",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-workflow-spec-builder"
+      "t": "skill-ui-taste",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-writing-for-agents"
+      "t": "skill-upstream-review",
+      "s": "area-dev"
     },
     {
-      "s": "area-biz",
-      "t": "skill-youtube-analyzer"
+      "t": "skill-using-git-worktrees",
+      "s": "area-dev"
     },
     {
-      "s": "area-biz",
-      "t": "skill-youtube-search"
+      "t": "skill-ux-copy",
+      "s": "area-dev"
     },
     {
-      "s": "area-dev",
-      "t": "skill-zotero-research"
+      "t": "skill-ux-heuristics",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-aios-commandcenter"
+      "t": "skill-vercel-react-best-practices",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-aios-voicedaemon"
+      "t": "skill-vercel-react-native-skills",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-archive-completedtasks"
+      "t": "skill-wait-what",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-aiefficiency"
+      "t": "skill-wayfinder",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-antigravitysession"
+      "t": "skill-web-design-guidelines",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-bravebookmarks"
+      "t": "skill-wiki-context-pack",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-channelpopularity"
+      "t": "skill-wiki-dedup",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-coldreality"
+      "t": "skill-windows-debloat",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-finances"
+      "t": "skill-windows-toast",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-goalcoverage"
+      "t": "skill-wizard",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-harnesschats"
+      "t": "skill-workflow-spec-builder",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-projects"
+      "t": "skill-writing-for-agents",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-promptcache"
+      "t": "skill-youtube-analyzer",
+      "s": "area-biz"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-promptevals"
+      "t": "skill-youtube-search",
+      "s": "area-biz"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-selfefficiency"
+      "t": "skill-zotero-research",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-substrate"
+      "t": "routine-aios-commandcenter",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-tasks"
+      "t": "routine-aios-voicedaemon",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "routine-audit-youtubecreators"
+      "t": "routine-archive-completedtasks",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "routine-benchmark-hermesmodels"
+      "t": "routine-audit-aiefficiency",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "routine-build-brainjson"
+      "t": "routine-audit-antigravitysession",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "routine-build-geminiautoload"
+      "t": "routine-audit-bravebookmarks",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "routine-build-index"
+      "t": "routine-audit-channelpopularity",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "routine-build-tasksindex"
+      "t": "routine-audit-coldreality",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "routine-capture-thought"
+      "t": "routine-audit-finances",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "routine-check-gitbranch"
+      "t": "routine-audit-goalcoverage",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "app-leonidas-code"
+      "t": "routine-audit-harnesschats",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "app-voice-daemon"
+      "t": "routine-audit-projects",
+      "s": "area-sys"
     },
     {
-      "s": "area-dev",
-      "t": "app-scribe"
+      "t": "routine-audit-promptcache",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "app-calendar-mcp"
+      "t": "routine-audit-promptevals",
+      "s": "area-sys"
     },
     {
-      "s": "area-biz",
-      "t": "app-gmail-mcp"
+      "t": "routine-audit-selfefficiency",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-ai-build-protocol"
+      "t": "routine-audit-substrate",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-app-building-standard"
+      "t": "routine-audit-tasks",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-asd-ste100"
+      "t": "routine-audit-youtubecreators",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-canon-map"
+      "t": "routine-build-brainjson",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-chat-naming-standard"
+      "t": "routine-build-geminiautoload",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-deletion-ladder"
+      "t": "routine-build-index",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-design-preferences"
+      "t": "routine-build-tasksindex",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-design-system"
+      "t": "routine-capture-thought",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-domain-docs-standard"
+      "t": "routine-check-gitbranch",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-drive-taxonomy"
+      "t": "routine-check-openhandoffs",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-efficiency-standard"
+      "t": "app-leonidas-code",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "std-emoji-standard"
+      "t": "app-voice-daemon",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-execution-standard"
+      "t": "app-scribe",
+      "s": "area-dev"
     },
     {
-      "s": "area-sys",
-      "t": "std-frontmatter-standard"
+      "t": "app-calendar-mcp",
+      "s": "area-sys"
     },
     {
-      "s": "area-sys",
-      "t": "std-harness-matrix"
+      "t": "app-gmail-mcp",
+      "s": "area-biz"
     },
     {
-      "s": "area-biz",
-      "t": "proj-project-health"
+      "t": "std-ai-build-protocol",
+      "s": "area-sys"
     },
     {
-      "s": "area-biz",
-      "t": "proj-projects-index"
+      "t": "std-app-building-standard",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-asd-ste100",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-canon-map",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-chat-naming-standard",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-delegation-routing",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-deletion-ladder",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-design-preferences",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-design-system",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-domain-docs-standard",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-drive-taxonomy",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-efficiency-standard",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-emoji-standard",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-execution-standard",
+      "s": "area-sys"
+    },
+    {
+      "t": "std-frontmatter-standard",
+      "s": "area-sys"
+    },
+    {
+      "t": "proj-project-health",
+      "s": "area-biz"
+    },
+    {
+      "t": "proj-projects-index",
+      "s": "area-biz"
     }
   ]
 }
