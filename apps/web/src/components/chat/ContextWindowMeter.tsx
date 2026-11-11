@@ -2,10 +2,11 @@ import { cacheStatusLabel, useCacheAwareness, useCacheActionWarning } from "./Ca
 import { Button } from "../ui/button";
 import { type ContextWindowSnapshot, formatContextWindowTokens } from "~/lib/contextWindow";
 import { PreviewCard, PreviewCardPopup, PreviewCardTrigger } from "../ui/preview-card";
-import { usageSeverity } from "../../lib/usageLimitsPopover";
+import { usedPercentLabel } from "../../lib/usageLimitsPopover";
 import {
   formatContextWindowCompactionMessage,
   formatContextWindowCost,
+  contextSeverity,
 } from "./ContextWindowMeter.logic";
 import { Minimize2Icon } from "lucide-react";
 import { cn } from "~/lib/utils";
@@ -33,15 +34,18 @@ function formatPercentage(value: number | null): string | null {
 const RING_RADIUS = 9.75;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-/** The context ring: blue while normal, amber near the limit, red at it. */
+/** The context ring: blue under 40%, yellow to 69%, red from 70%. A label shows inside it. */
 export function ContextRing({
   usedPercentage,
   className,
+  label,
 }: {
   usedPercentage: number | null;
   className?: string;
+  label?: string;
 }) {
   const percent = Math.max(0, Math.min(100, usedPercentage ?? 0));
+  const strokeWidth = label === undefined ? "3" : "2.5";
   return (
     <span className={cn("relative flex size-4 shrink-0 items-center justify-center", className)}>
       <svg
@@ -55,21 +59,29 @@ export function ContextRing({
           r={RING_RADIUS}
           fill="none"
           className="stroke-muted-foreground/24"
-          strokeWidth="3"
+          strokeWidth={strokeWidth}
         />
         <circle
           cx="12"
           cy="12"
           r={RING_RADIUS}
           fill="none"
-          stroke={SEVERITY_COLOR[usageSeverity(percent)]}
-          strokeWidth="3"
+          stroke={SEVERITY_COLOR[contextSeverity(percent)]}
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={RING_CIRCUMFERENCE}
           strokeDashoffset={RING_CIRCUMFERENCE * (1 - percent / 100)}
           className="transition-[stroke-dashoffset,stroke] duration-500 ease-out motion-reduce:transition-none"
         />
       </svg>
+      {label === undefined ? null : (
+        <span
+          className="relative text-3xs leading-none font-medium tracking-tight tabular-nums"
+          aria-hidden
+        >
+          {label}
+        </span>
+      )}
     </span>
   );
 }
@@ -109,7 +121,14 @@ export function ContextWindowMeter(props: {
     );
   const usedPercentage = formatPercentage(usage?.usedPercentage ?? null);
   const normalizedPercentage = Math.max(0, Math.min(100, usage?.usedPercentage ?? 0));
-  const usageColor = SEVERITY_COLOR[usageSeverity(normalizedPercentage)];
+  // Percent inside the ring when the window size is known, else the token count, else "--".
+  const ringLabel =
+    usage === null
+      ? "--"
+      : usage.maxTokens !== null
+        ? `${usedPercentLabel(normalizedPercentage)}%`
+        : formatContextWindowTokens(usage.usedTokens);
+  const usageColor = SEVERITY_COLOR[contextSeverity(normalizedPercentage)];
   const totalProcessedTokens = usage?.totalProcessedTokens ?? null;
   const showTotalProcessed = totalProcessedTokens !== null && totalProcessedTokens > 0;
 
@@ -133,10 +152,11 @@ export function ContextWindowMeter(props: {
                     : `Chat memory: ${formatContextWindowTokens(usage.usedTokens)} tokens used`
               }${velocity?.modelStreamTps != null || velocity?.averageTurnTps != null ? `, last reply ${formatTpsLabel(velocity.modelStreamTps ?? velocity.averageTurnTps)}` : ""}. Show usage details`}
             >
-              <ContextRing usedPercentage={usage?.usedPercentage ?? null} />
-              <span className="text-2xs tabular-nums" aria-hidden>
-                {usage === null ? "--" : formatContextWindowTokens(usage.usedTokens)}
-              </span>
+              <ContextRing
+                usedPercentage={usage?.usedPercentage ?? null}
+                className="size-7"
+                label={ringLabel}
+              />
             </Button>
           }
         />
