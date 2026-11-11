@@ -22,5 +22,5 @@ export const DesktopUpdateReleaseNoteSchema = Schema.Struct({
   version: Schema.String,
   items: Schema.Array(Schema.String),
   totalItems: Schema.Number,
-  notable: Schema.optional(Schema.Boolean),
+  notable: Schema.optionalKey(Schema.Boolean),
 });
