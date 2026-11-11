@@ -120,3 +120,12 @@ export function formatContextWindowCost(cost: {
   const fractionDigits = Math.abs(cost.amount) > 0 && Math.abs(cost.amount) < 0.01 ? 4 : 2;
   return `${cost.currency} ${cost.amount.toFixed(fractionDigits)}`;
 }
+
+export type ContextSeverity = "normal" | "warning" | "critical";
+
+/** Ring color by how full the chat memory is: blue under 40%, yellow 40 to 69%, red from 70%. */
+export function contextSeverity(usedPercent: number): ContextSeverity {
+  if (usedPercent >= 70) return "critical";
+  if (usedPercent >= 40) return "warning";
+  return "normal";
+}

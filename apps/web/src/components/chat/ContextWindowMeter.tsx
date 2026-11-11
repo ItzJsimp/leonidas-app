@@ -2,8 +2,9 @@ import { cacheStatusLabel, useCacheAwareness, useCacheActionWarning } from "./Ca
 import { Button } from "../ui/button";
 import { type ContextWindowSnapshot, formatContextWindowTokens } from "~/lib/contextWindow";
 import { PreviewCard, PreviewCardPopup, PreviewCardTrigger } from "../ui/preview-card";
-import { usageSeverity } from "../../lib/usageLimitsPopover";
+import { usedPercentLabel } from "../../lib/usageLimitsPopover";
 import {
+  contextSeverity,
   formatContextWindowCompactionMessage,
   formatContextWindowCost,
 } from "./ContextWindowMeter.logic";
@@ -68,9 +69,16 @@ export function ContextWindowMeter(props: {
   const radius = 9.75;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - normalizedPercentage / 100);
+  // Percent inside the ring when the window size is known, else the token count, else "--".
+  const ringLabel =
+    usage === null
+      ? "--"
+      : usage.maxTokens !== null
+        ? `${usedPercentLabel(normalizedPercentage)}%`
+        : formatContextWindowTokens(usage.usedTokens);
   const totalProcessedTokens = usage?.totalProcessedTokens ?? null;
   const showTotalProcessed = totalProcessedTokens !== null && totalProcessedTokens > 0;
-  const usageColor = SEVERITY_COLOR[usageSeverity(normalizedPercentage)];
+  const usageColor = SEVERITY_COLOR[contextSeverity(normalizedPercentage)];
 
   return (
     <>
@@ -92,7 +100,7 @@ export function ContextWindowMeter(props: {
                     : `Chat memory: ${formatContextWindowTokens(usage.usedTokens)} tokens used`
               }${velocity?.modelStreamTps != null || velocity?.averageTurnTps != null ? `, last reply ${formatTpsLabel(velocity.modelStreamTps ?? velocity.averageTurnTps)}` : ""}. Show usage details`}
             >
-              <span className="relative flex size-4 items-center justify-center">
+              <span className="relative flex size-7 items-center justify-center">
                 <svg
                   viewBox="0 0 24 24"
                   className="-rotate-90 absolute inset-0 size-full transform-gpu mx-0!"
@@ -104,7 +112,7 @@ export function ContextWindowMeter(props: {
                     r={radius}
                     fill="none"
                     className="stroke-muted-foreground/24"
-                    strokeWidth="3"
+                    strokeWidth="2.5"
                   />
                   <circle
                     cx="12"
@@ -112,16 +120,19 @@ export function ContextWindowMeter(props: {
                     r={radius}
                     fill="none"
                     stroke={usageColor}
-                    strokeWidth="3"
+                    strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeDasharray={circumference}
                     strokeDashoffset={dashOffset}
                     className="transition-[stroke-dashoffset,stroke] duration-500 ease-out motion-reduce:transition-none"
                   />
                 </svg>
-              </span>
-              <span className="text-2xs tabular-nums" aria-hidden>
-                {usage === null ? "--" : formatContextWindowTokens(usage.usedTokens)}
+                <span
+                  className="relative text-3xs leading-none font-medium tracking-tight tabular-nums"
+                  aria-hidden
+                >
+                  {ringLabel}
+                </span>
               </span>
             </Button>
           }
