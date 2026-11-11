@@ -13,7 +13,7 @@ vi.mock("@t3tools/client-runtime/state/runtime", () => ({
   createEnvironmentRpcQueryAtomFamily: () => () => null,
 }));
 
-import { ComposerAutoPickSkillsButton } from "./ComposerAutoPickSkillsButton";
+import { useAutoPickSkills } from "./useAutoPickSkills";
 
 const skill = (name: string, description: string): ServerProviderSkill => ({
   name,
@@ -39,6 +39,26 @@ const setPrompt = vi.fn((next: string) => {
   draft = next;
 });
 
+let picker: ReturnType<typeof useAutoPickSkills>;
+function Harness(props: { prompt: string; cwd: string | null; engine: AutoPickEngine }) {
+  picker = useAutoPickSkills({
+    environmentId: "env" as EnvironmentId,
+    cwd: props.cwd,
+    prompt: props.prompt,
+    projectText: "",
+    skills,
+    cap: 3,
+    engine: props.engine,
+    openRouterModel: "openrouter/free",
+    groqModel: "qwen/qwen3.8-27b",
+    localModel: "",
+    getPrompt: () => draft,
+    setPrompt,
+  });
+  return null;
+}
+
+/** Mounts the hook with `prompt` as the draft and returns a function that runs one pick. */
 async function mount(
   prompt: string,
   cwd: string | null = "/project",
@@ -46,26 +66,10 @@ async function mount(
 ) {
   draft = prompt;
   await act(async () => {
-    root.render(
-      <ComposerAutoPickSkillsButton
-        environmentId={"env" as EnvironmentId}
-        cwd={cwd}
-        prompt={prompt}
-        projectText=""
-        skills={skills}
-        cap={3}
-        engine={engine}
-        openRouterModel="openrouter/free"
-        groqModel="qwen/qwen3.8-27b"
-        localModel=""
-        getPrompt={() => draft}
-        setPrompt={setPrompt}
-      />,
-    );
+    root.render(<Harness prompt={prompt} cwd={cwd} engine={engine} />);
   });
-  return host.querySelector("button") as HTMLButtonElement;
+  return () => act(async () => void (await picker.pick()));
 }
-const click = (button: HTMLButtonElement) => act(async () => button.click());
 const lastToast = () => toasts.add.mock.calls.at(-1)![0];
 
 beforeEach(() => {
@@ -83,23 +87,19 @@ afterEach(async () => {
   host.remove();
 });
 
-describe("ComposerAutoPickSkillsButton", () => {
-  it("is named for what it does", async () => {
-    const button = await mount("");
-    expect(button.textContent).toContain("Auto-pick skills");
-  });
-
+describe("useAutoPickSkills", () => {
   it("explains itself instead of doing nothing when the draft is empty", async () => {
-    const button = await mount("   ");
-    expect(button.getAttribute("aria-disabled")).toBe("true");
-    await click(button);
+    const run = await mount("   ");
+    await run();
     expect(rpc.run).not.toHaveBeenCalled();
     expect(lastToast().title).toBe("Write your message first");
   });
 
   it("leads the draft with the model's pick and offers Undo", async () => {
     rpc.run.mockResolvedValue(answer("windows-toast"));
-    await click(await mount(TOAST_PROMPT));
+    await (
+      await mount(TOAST_PROMPT)
+    )();
     expect(draft).toBe(`$windows-toast ${TOAST_PROMPT}`);
     expect(lastToast().title).toBe("Added 1 skill");
     expect(lastToast().description).toBe("$windows-toast (fits)");
@@ -109,7 +109,9 @@ describe("ComposerAutoPickSkillsButton", () => {
 
   it("Undo keeps text typed after the click", async () => {
     rpc.run.mockResolvedValue(answer("windows-toast"));
-    await click(await mount(TOAST_PROMPT));
+    await (
+      await mount(TOAST_PROMPT)
+    )();
     draft = `${draft} and tell me the time`;
     await act(async () => lastToast().actionProps.onClick());
     expect(draft).toBe(`${TOAST_PROMPT} and tell me the time`);
@@ -117,10 +119,10 @@ describe("ComposerAutoPickSkillsButton", () => {
 
   it("clicking again on the same text asks nothing new and adds nothing", async () => {
     rpc.run.mockResolvedValue(answer("windows-toast"));
-    const button = await mount(TOAST_PROMPT);
-    await click(button);
+    const run = await mount(TOAST_PROMPT);
+    await run();
     const after = draft;
-    await click(button);
+    await run();
     expect(rpc.run).toHaveBeenCalledTimes(1);
     expect(draft).toBe(after);
     expect(lastToast().title).toBe("Already the best fit");
@@ -128,35 +130,43 @@ describe("ComposerAutoPickSkillsButton", () => {
 
   it("clicking again after an edit replaces its own earlier skills", async () => {
     rpc.run.mockResolvedValueOnce(answer("windows-toast"));
-    const button = await mount(TOAST_PROMPT);
-    await click(button);
+    const run = await mount(TOAST_PROMPT);
+    await run();
     draft = "$windows-toast Grill me on my idea for a habit tracker app";
     rpc.run.mockResolvedValueOnce(answer("grilling"));
-    await click(button);
+    await run();
     expect(draft).toBe("$grilling Grill me on my idea for a habit tracker app");
   });
 
   it("keeps skills the user typed", async () => {
     rpc.run.mockResolvedValue(answer("windows-toast"));
-    await click(await mount(`$archify ${TOAST_PROMPT}`));
+    await (
+      await mount(`$archify ${TOAST_PROMPT}`)
+    )();
     expect(draft).toBe(`$windows-toast $archify ${TOAST_PROMPT}`);
   });
 
   it("falls back to keywords, and says so, when the model cannot answer", async () => {
     rpc.run.mockResolvedValue({ _tag: "Success", value: { picks: [], modelUsed: false } });
-    await click(await mount(TOAST_PROMPT));
+    await (
+      await mount(TOAST_PROMPT)
+    )();
     expect(draft).toBe(`$windows-toast ${TOAST_PROMPT}`);
     expect(lastToast().description).toContain("keywords");
   });
 
   it("uses keywords without calling the model when there is no project folder", async () => {
-    await click(await mount(TOAST_PROMPT, null));
+    await (
+      await mount(TOAST_PROMPT, null)
+    )();
     expect(rpc.run).not.toHaveBeenCalled();
     expect(draft).toBe(`$windows-toast ${TOAST_PROMPT}`);
   });
 
   it("leaves the draft alone when no skill fits", async () => {
-    await click(await mount("thanks, looks good"));
+    await (
+      await mount("thanks, looks good")
+    )();
     expect(setPrompt).not.toHaveBeenCalled();
     expect(lastToast().title).toBe("No skills added");
     expect(lastToast().description).toContain("Use Skills to add one yourself");
@@ -165,10 +175,14 @@ describe("ComposerAutoPickSkillsButton", () => {
   it("does not overwrite text typed while the model was thinking", async () => {
     let finish!: (value: unknown) => void;
     rpc.run.mockReturnValue(new Promise((resolve) => (finish = resolve)));
-    const button = await mount(TOAST_PROMPT);
-    await click(button);
+    await mount(TOAST_PROMPT);
+    let first!: Promise<void>;
+    await act(async () => void (first = picker.pick()));
     draft = `${TOAST_PROMPT} please`;
-    await act(async () => finish(answer("windows-toast")));
+    await act(async () => {
+      finish(answer("windows-toast"));
+      await first;
+    });
     expect(setPrompt).not.toHaveBeenCalled();
     expect(lastToast().title).toBe("Your message changed");
   });
@@ -185,13 +199,17 @@ describe("which model picked, and no-skill pop-up", () => {
         model: "openrouter/free",
       },
     });
-    await click(await mount(TOAST_PROMPT));
+    await (
+      await mount(TOAST_PROMPT)
+    )();
     expect(lastToast().description).toBe("$windows-toast (fits). Picked by OpenRouter free model.");
   });
 
   it("says the check ran, and how many skills it looked at, when the model picks none", async () => {
     rpc.run.mockResolvedValue({ _tag: "Success", value: { picks: [], modelUsed: true } });
-    await click(await mount(TOAST_PROMPT));
+    await (
+      await mount(TOAST_PROMPT)
+    )();
     expect(setPrompt).not.toHaveBeenCalled();
     expect(lastToast().title).toBe("No skills added");
     expect(lastToast().description).toMatch(/^Checked \d+ skills?\. None fits this message well\./);
@@ -199,7 +217,9 @@ describe("which model picked, and no-skill pop-up", () => {
 
   it("sends the engine and model ids with the request", async () => {
     rpc.run.mockResolvedValue(answer("windows-toast"));
-    await click(await mount(TOAST_PROMPT, "/project", "groq"));
+    await (
+      await mount(TOAST_PROMPT, "/project", "groq")
+    )();
     expect(rpc.run.mock.calls[0]![0].input).toMatchObject({
       engine: "groq",
       openRouterModel: "openrouter/free",
@@ -209,7 +229,9 @@ describe("which model picked, and no-skill pop-up", () => {
   });
 
   it("keywords only calls no model and does not blame a missing model", async () => {
-    await click(await mount(TOAST_PROMPT, "/project", "keyword"));
+    await (
+      await mount(TOAST_PROMPT, "/project", "keyword")
+    )();
     expect(rpc.run).not.toHaveBeenCalled();
     expect(draft).toBe(`$windows-toast ${TOAST_PROMPT}`);
     expect(lastToast().description).toBe("$windows-toast");
@@ -217,37 +239,42 @@ describe("which model picked, and no-skill pop-up", () => {
 
   it("points to Settings when no model answered in automatic mode", async () => {
     rpc.run.mockResolvedValue({ _tag: "Success", value: { picks: [], modelUsed: false } });
-    await click(await mount(TOAST_PROMPT));
+    await (
+      await mount(TOAST_PROMPT)
+    )();
     expect(lastToast().description).toContain("Set up a free model in Settings");
   });
 });
 
-describe("double click", () => {
-  it("asks the model once and shows the busy label meanwhile", async () => {
+describe("double run", () => {
+  it("asks the model once and reports busy meanwhile", async () => {
     let finish!: (value: unknown) => void;
     rpc.run.mockReturnValue(new Promise((resolve) => (finish = resolve)));
-    const button = await mount(TOAST_PROMPT);
-    await click(button);
-    await click(button);
+    await mount(TOAST_PROMPT);
+    let first!: Promise<void>;
+    await act(async () => void (first = picker.pick()));
+    await act(async () => picker.pick());
     expect(rpc.run).toHaveBeenCalledTimes(1);
-    expect(button.textContent).toContain("Picking");
-    await act(async () => finish(answer("windows-toast")));
-    expect(button.textContent).toContain("Auto-pick skills");
+    expect(picker.busy).toBe(true);
+    await act(async () => {
+      finish(answer("windows-toast"));
+      await first;
+    });
+    expect(picker.busy).toBe(false);
   });
 });
 
 describe("typing nudge", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
-  const nudged = () => host.querySelector("[data-nudge]") !== null;
 
   it("appears after a pause on a draft a skill fits, and goes when the text changes", async () => {
     await mount(TOAST_PROMPT);
-    expect(nudged()).toBe(false);
+    expect(picker.nudge).toBe(false);
     await act(async () => void vi.advanceTimersByTime(1_600));
-    expect(nudged()).toBe(true);
+    expect(picker.nudge).toBe(true);
     await mount("Something else entirely that no skill here covers at all");
-    expect(nudged()).toBe(false);
+    expect(picker.nudge).toBe(false);
   });
 
   it("stays away from a short draft, a draft that has skills, and a draft nothing fits", async () => {
@@ -258,24 +285,7 @@ describe("typing nudge", () => {
     ]) {
       await mount(prompt);
       await act(async () => void vi.advanceTimersByTime(3_000));
-      expect(nudged(), prompt).toBe(false);
+      expect(picker.nudge, prompt).toBe(false);
     }
-  });
-});
-
-describe("first-use note", () => {
-  it("shows once for a real draft, then stays gone after the first click", async () => {
-    rpc.run.mockResolvedValue(answer("windows-toast"));
-    const button = await mount(TOAST_PROMPT);
-    expect(document.body.textContent).toContain("New: Auto-pick skills");
-    await click(button);
-    expect(document.body.textContent).not.toContain("New: Auto-pick skills");
-    await mount(TOAST_PROMPT);
-    expect(document.body.textContent).not.toContain("New: Auto-pick skills");
-  });
-
-  it("stays quiet for a short draft", async () => {
-    await mount("hi there");
-    expect(document.body.textContent).not.toContain("New: Auto-pick skills");
   });
 });

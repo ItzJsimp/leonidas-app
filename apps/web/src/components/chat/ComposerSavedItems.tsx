@@ -92,6 +92,8 @@ type Props = {
   canSave: boolean;
   /** The open started thread, where a saved prompt can be lined up behind its running work. */
   threadId: ThreadId | null;
+  /** Another control opens the sheet, so the bar with Save and Saved messages stays hidden. */
+  sheet?: { open: boolean; onOpenChange: (open: boolean) => void };
 };
 
 function unwrap<A, E>(result: AtomCommandResult<A, E>): A {
@@ -107,7 +109,9 @@ export function ComposerSavedItems(props: Props) {
   const workspace = useProjectAiosWorkspace(
     props.projectId ? { environmentId: props.environmentId, projectId: props.projectId } : null,
   );
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = props.sheet?.open ?? localOpen;
+  const setOpen = props.sheet?.onOpenChange ?? setLocalOpen;
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -178,65 +182,67 @@ export function ComposerSavedItems(props: Props) {
   };
   return (
     <>
-      <ComposerBanner.Root density="comfortable" width="content" data-tour="saved-items">
-        <div className="flex items-center gap-1">
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={() => setOpen(true)}
-            aria-label="Open saved messages"
-          >
-            <BookmarkPlusIcon />
-            <span data-composer-toolbar-label>Saved messages</span>
-          </Button>
-          {draft?.prompt.trim() ? (
-            <div className="flex items-center">
-              <Button
-                size="xs"
-                variant="ghost"
-                disabled={disabled}
-                onClick={() => void save("prompt")}
-              >
-                {busy ? "Saving…" : "Save"}
-              </Button>
-              <Menu>
-                <MenuTrigger
-                  render={
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      disabled={disabled}
-                      aria-label="Choose what to save it as"
-                    />
-                  }
+      {props.sheet ? null : (
+        <ComposerBanner.Root density="comfortable" width="content" data-tour="saved-items">
+          <div className="flex items-center gap-1">
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => setOpen(true)}
+              aria-label="Open saved messages"
+            >
+              <BookmarkPlusIcon />
+              <span data-composer-toolbar-label>Saved messages</span>
+            </Button>
+            {draft?.prompt.trim() ? (
+              <div className="flex items-center">
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  disabled={disabled}
+                  onClick={() => void save("prompt")}
                 >
-                  <ChevronDownIcon />
-                </MenuTrigger>
-                <MenuPopup>
-                  <MenuItem onClick={() => void save("prompt")}>Save as message</MenuItem>
-                  <MenuItem onClick={() => void save("task")}>Save as task</MenuItem>
-                  <MenuItem onClick={() => void save("note")}>Save as note</MenuItem>
-                </MenuPopup>
-              </Menu>
-            </div>
+                  {busy ? "Saving…" : "Save"}
+                </Button>
+                <Menu>
+                  <MenuTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        disabled={disabled}
+                        aria-label="Choose what to save it as"
+                      />
+                    }
+                  >
+                    <ChevronDownIcon />
+                  </MenuTrigger>
+                  <MenuPopup>
+                    <MenuItem onClick={() => void save("prompt")}>Save as message</MenuItem>
+                    <MenuItem onClick={() => void save("task")}>Save as task</MenuItem>
+                    <MenuItem onClick={() => void save("note")}>Save as note</MenuItem>
+                  </MenuPopup>
+                </Menu>
+              </div>
+            ) : null}
+          </div>
+          {error ? (
+            <p role="alert" className="max-w-64 text-xs text-destructive">
+              {error}
+            </p>
           ) : null}
-        </div>
-        {error ? (
-          <p role="alert" className="max-w-64 text-xs text-destructive">
-            {error}
-          </p>
-        ) : null}
-        {notice ? (
-          <p role="status" className="text-xs text-muted-foreground">
-            {notice}
-          </p>
-        ) : null}
-        {hasContext && draft?.prompt.trim() ? (
-          <p className="max-w-64 text-xs text-muted-foreground">
-            To save the text only, remove the files and attached items. Or save a draft instead.
-          </p>
-        ) : null}
-      </ComposerBanner.Root>
+          {notice ? (
+            <p role="status" className="text-xs text-muted-foreground">
+              {notice}
+            </p>
+          ) : null}
+          {hasContext && draft?.prompt.trim() ? (
+            <p className="max-w-64 text-xs text-muted-foreground">
+              To save the text only, remove the files and attached items. Or save a draft instead.
+            </p>
+          ) : null}
+        </ComposerBanner.Root>
+      )}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetPopup>
           <SheetHeader>
