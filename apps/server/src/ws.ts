@@ -3086,7 +3086,7 @@ const layerWsRpc = (
         [WS_METHODS.localModelsDelete]: (input) => localModels.remove(input),
         [WS_METHODS.filesList]: (input) => attachmentArchive.list(input),
         [WS_METHODS.filesDelete]: (input) => attachmentArchive.remove(input),
-        [WS_METHODS.subagentRunsList]: (input) => subagentRuns.list(input),
+        [WS_METHODS.subagentRunsList]: (input) => subagentRuns.list(input, usage.rateFor),
         [WS_METHODS.taskBoardWorkspace]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.workspace(projects, input.workspaceId)),

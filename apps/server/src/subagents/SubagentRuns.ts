@@ -23,10 +23,12 @@ import {
   durationMs,
   encodeRunCursor,
   rawStatusesFor,
+  runCostUsd,
   runKind,
   runStatus,
   summaryLine,
 } from "./subagentRuns.logic.ts";
+import type { TokenRates } from "../usage/usagePricing.ts";
 
 const DEFAULT_LIMIT = 100;
 const TASK_CAP = 2_000;
@@ -55,16 +57,33 @@ interface RunRow {
   readonly child_persona: string | null;
 }
 
+interface UsageRow {
+  readonly thread_id: string;
+  readonly input_tokens: number | null;
+  readonly cached_tokens: number | null;
+  readonly cache_creation_tokens: number | null;
+  readonly output_tokens: number | null;
+}
+
+/** Looks up the price of one model. Null means the price table does not know it. */
+export type RateFor = (model: string) => Effect.Effect<TokenRates | null>;
+
 export class SubagentRuns extends Context.Service<
   SubagentRuns,
   {
+    /** `rateFor` prices each run's chat. Without it every cost is null. */
     readonly list: (
       input: SubagentRunsInput,
+      rateFor?: RateFor,
     ) => Effect.Effect<SubagentRunsResult, SubagentRunsError>;
   }
 >()("t3/subagents/SubagentRuns") {}
 
-const toSubagentRun = (row: RunRow): SubagentRun => {
+const toSubagentRun = (
+  row: RunRow,
+  parentRunId: string | null,
+  costUsd: number | null,
+): SubagentRun => {
   const status: SubagentRunStatus = runStatus(row.status);
   const kind: SubagentRunKind = runKind({
     origin: row.origin,
@@ -86,7 +105,10 @@ const toSubagentRun = (row: RunRow): SubagentRun => {
     },
     childThreadId: row.child_thread_id === null ? null : ThreadId.make(row.child_thread_id),
     provider: row.driver ?? row.provider_instance_id ?? "unknown",
+    account: row.provider_instance_id,
     model: row.model,
+    parentRunId,
+    costUsd,
     status,
     rawStatus: row.status,
     startedAt: row.started_at,
@@ -108,7 +130,7 @@ const toSubagentRun = (row: RunRow): SubagentRun => {
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const list = (input: SubagentRunsInput) =>
+  const list = (input: SubagentRunsInput, rateFor?: RateFor) =>
     Effect.gen(function* () {
       const limit = input.limit ?? DEFAULT_LIMIT;
       const active = input.scope === "running";
@@ -175,8 +197,63 @@ const make = Effect.gen(function* () {
           ON parent.thread_id = s.thread_id AND parent.deleted_at IS NULL
         WHERE s.status IN ${sql.in(ACTIVE_RAW_STATUSES)}
       `;
+      // Cost and parent links come from two small reads of this page only, never a table scan.
+      const childIds = page.flatMap((row) =>
+        row.child_thread_id === null ? [] : [row.child_thread_id],
+      );
+      const usageRows =
+        childIds.length === 0
+          ? []
+          : yield* sql<UsageRow>`
+              SELECT thread_id,
+                SUM(json_extract(payload_json, '$.turnTokenUsage.inputTokens')) AS input_tokens,
+                SUM(json_extract(payload_json, '$.turnTokenUsage.cachedInputTokens')) AS cached_tokens,
+                SUM(json_extract(payload_json, '$.turnTokenUsage.cacheCreationTokens')) AS cache_creation_tokens,
+                SUM(json_extract(payload_json, '$.turnTokenUsage.outputTokens')) AS output_tokens
+              FROM orchestration_v2_projection_provider_turns
+              WHERE thread_id IN ${sql.in(childIds)}
+              GROUP BY thread_id
+            `;
+      const parentThreadIds = [...new Set(page.map((row) => row.thread_id))];
+      const parentRows =
+        parentThreadIds.length === 0
+          ? []
+          : yield* sql<{ readonly child_thread_id: string; readonly subagent_id: string }>`
+              SELECT child_thread_id, MIN(subagent_id) AS subagent_id
+              FROM orchestration_v2_projection_subagents
+              WHERE child_thread_id IN ${sql.in(parentThreadIds)}
+              GROUP BY child_thread_id
+            `;
+      const usageByThread = new Map(usageRows.map((row) => [row.thread_id, row]));
+      const parentRunByThread = new Map(
+        parentRows.map((row) => [row.child_thread_id, row.subagent_id]),
+      );
+      const models = [...new Set(page.flatMap((row) => (row.model === null ? [] : [row.model])))];
+      const rates = new Map<string, TokenRates | null>(
+        rateFor === undefined
+          ? []
+          : yield* Effect.forEach(models, (model) =>
+              rateFor(model).pipe(Effect.map((rate) => [model, rate] as const)),
+            ),
+      );
+      const costOf = (row: RunRow): number | null => {
+        const usage =
+          row.child_thread_id === null ? undefined : usageByThread.get(row.child_thread_id);
+        if (usage === undefined) return null;
+        return runCostUsd(
+          {
+            input: usage.input_tokens,
+            cachedInput: usage.cached_tokens,
+            cacheCreation: usage.cache_creation_tokens,
+            output: usage.output_tokens,
+          },
+          row.model === null ? null : (rates.get(row.model) ?? null),
+        );
+      };
       return {
-        runs: page.map(toSubagentRun),
+        runs: page.map((row) =>
+          toSubagentRun(row, parentRunByThread.get(row.thread_id) ?? null, costOf(row)),
+        ),
         nextCursor:
           rows.length > limit && last !== undefined
             ? encodeRunCursor(last.sort_key, last.subagent_id)

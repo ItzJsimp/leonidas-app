@@ -96,7 +96,13 @@ export const SubagentRun = Schema.Struct({
   /** The subagent's own chat, when it has one. */
   childThreadId: Schema.NullOr(ThreadId),
   provider: Schema.String,
+  /** The provider account the run used, or null when the app did not store one. */
+  account: Schema.NullOr(Schema.String),
   model: Schema.NullOr(Schema.String),
+  /** The run that started this run's parent chat, so a child links to its parent run. */
+  parentRunId: Schema.NullOr(Schema.String),
+  /** Rough dollar cost of the run's chat from its reported tokens. Null when unknown. */
+  costUsd: Schema.NullOr(Schema.Number),
   status: SubagentRunStatus,
   /** The status the app stored, for example `interrupted`. */
   rawStatus: Schema.String,
