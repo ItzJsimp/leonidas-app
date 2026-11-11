@@ -5,16 +5,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { toastManager } from "../ui/toast";
+import { DiscordNamesCard } from "./DiscordNamesCard";
+import { MeetingAudioPanel } from "./MeetingAudioPanel";
 import {
   elapsedLabel,
   liveTail,
+  loadChoice,
+  NO_SOURCES,
   parseDetect,
-  parseDiscord,
   parseLive,
-  type DiscordStatus,
+  parseSources,
+  saveChoice,
+  startBody,
+  type AudioChoice,
+  type AudioSources,
   type MeetingLive,
 } from "./meetings.logic";
-import { useMeetingsCall, type Call } from "./useMeetingsCall";
+import type { Call } from "./useMeetingsCall";
 
 const LIVE_POLL_MS = 1500;
 const IDLE_POLL_MS = 6000;
@@ -31,13 +38,26 @@ export function MeetingsLive(props: {
   const [live, setLive] = useState<MeetingLive>(IDLE);
   const [detected, setDetected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sources, setSources] = useState<AudioSources>(NO_SOURCES);
+  const [choice, setChoice] = useState<AudioChoice>(loadChoice);
   const toasted = useRef<string | null>(null);
   const wasRecording = useRef(false);
+  // The toast and the button read the newest choice without restarting the poll.
+  const latest = useRef({ choice, sources });
+  useEffect(() => {
+    latest.current = { choice, sources };
+  }, [choice, sources]);
+
+  const update = (next: AudioChoice) => {
+    setChoice(next);
+    saveChoice(next);
+  };
 
   const start = useCallback(
     async (app: string | null) => {
       setBusy(true);
-      const result = await call("POST", "start", app === null ? {} : { app });
+      const now = latest.current;
+      const result = await call("POST", "start", startBody(now.choice, app, now.sources));
       setBusy(false);
       if (!result.ok && result.message !== null) {
         toastManager.add({ type: "error", title: "Could not start", description: result.message });
@@ -60,6 +80,8 @@ export function MeetingsLive(props: {
       wasRecording.current = next.recording;
       if (next.recording) return setDetected(null);
       const found = await call("GET", "detect");
+      const listed = await call("GET", "sources");
+      if (!cancelled && listed.ok) setSources(parseSources(listed.value));
       if (cancelled || !found.ok) return;
       const app = parseDetect(found.value);
       setDetected(app);
@@ -110,15 +132,16 @@ export function MeetingsLive(props: {
         <div className="flex flex-wrap items-center gap-3">
           <Button size="sm" disabled={busy} onClick={() => void start(detected)}>
             <CircleIcon aria-hidden className="fill-current text-destructive-foreground" />
-            {detected === null ? "Record meeting" : `Record ${detected} call`}
+            Record meeting
           </Button>
-          <span className="text-xs text-muted-foreground">
-            {detected === null
-              ? "Records your mic and the call audio on this computer."
-              : `${detected} is using your mic.`}
-          </span>
+          <MeetingAudioPanel
+            sources={sources}
+            choice={choice}
+            detected={detected}
+            onChange={update}
+          />
         </div>
-        <DiscordSetup environmentId={props.environmentId} call={call} />
+        <DiscordNamesCard environmentId={props.environmentId} call={call} />
       </div>
     );
   }
@@ -254,116 +277,5 @@ export function MeetingAsk(props: {
         </p>
       ) : null}
     </div>
-  );
-}
-
-/** Discord names speakers on a Discord call. Optional: without it the voices are split by sound. */
-function DiscordSetup(props: { readonly environmentId: EnvironmentId; readonly call: Call }) {
-  const write = useMeetingsCall(props.environmentId, "discord");
-  const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<DiscordStatus | null>(null);
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
-  const [working, setWorking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    const result = await props.call("GET", "discord");
-    if (result.ok) setStatus(parseDiscord(result.value));
-  }, [props.call]);
-
-  // Read the saved state on load so a finished setup shows as done before it is opened.
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const run = async (method: "PUT" | "POST" | "DELETE", path: string, body?: unknown) => {
-    setWorking(true);
-    setError(null);
-    const result = await write(method, path, body);
-    setWorking(false);
-    if (!result.ok && result.message !== null) setError(result.message);
-    await refresh();
-  };
-
-  const saved = status?.configured === true;
-  return (
-    <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="cursor-pointer text-xs text-muted-foreground">
-        {status?.connected === true
-          ? `Discord names are on${status.user ? ` (connected as ${status.user})` : ""}`
-          : saved
-            ? "Discord keys are saved. Press Connect to finish."
-            : "Show real names from Discord calls"}
-      </summary>
-      <div className="mt-2 flex max-w-xl flex-col gap-2 text-sm">
-        {saved ? null : (
-          <>
-            <ol className="list-decimal pl-5 text-muted-foreground">
-              <li>Open the Discord developer portal and make a new application.</li>
-              <li>
-                Under OAuth2, add the redirect http://127.0.0.1 and copy the Client ID and secret.
-              </li>
-              <li>
-                Paste them here, press Save, then press Connect and click Authorize in Discord.
-              </li>
-            </ol>
-            <Input
-              aria-label="Discord client ID"
-              placeholder="Client ID"
-              value={clientId}
-              onChange={(event) => setClientId(event.target.value)}
-            />
-            <Input
-              aria-label="Discord client secret"
-              type="password"
-              placeholder="Client secret"
-              autoComplete="off"
-              value={clientSecret}
-              onChange={(event) => setClientSecret(event.target.value)}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              className="self-start"
-              disabled={working || clientId.trim() === ""}
-              onClick={() =>
-                void run("PUT", "discord", {
-                  clientId: clientId.trim(),
-                  ...(clientSecret === "" ? {} : { clientSecret }),
-                }).then(() => setClientSecret(""))
-              }
-            >
-              Save
-            </Button>
-          </>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {status?.connected === true ? null : (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={working || !saved}
-              onClick={() => void run("POST", "discord/connect")}
-            >
-              {working ? "Waiting for Discord…" : "Connect"}
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={working || status?.configured !== true}
-            onClick={() => void run("DELETE", "discord")}
-          >
-            Remove
-          </Button>
-        </div>
-        {error !== null ? (
-          <p role="alert" className="text-destructive-foreground">
-            {error}
-          </p>
-        ) : null}
-      </div>
-    </details>
   );
 }
