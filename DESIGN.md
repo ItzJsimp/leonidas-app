@@ -147,7 +147,7 @@ One card holds **Run**, **Context** and **Limits**, in that order. `Ctrl+Shift+B
 - **Limits ledger:** columns are Account, 5-hour and Weekly. Extra windows are sub-rows under their account. Each row keeps a 24 px slot for the reset chip on the name line, so chips line up in one column. A blue dot marks the account this chat uses, with the text "Active" for screen readers.
 - **Context:** the card shows the model, its effort, a ring and a segmented bar. On a new chat it shows the model the composer will send with, not the project default.
 - **Targets and tokens:** icon buttons are at least 24 by 24 px. Status chips use a solid fill. No colored `border-left` thicker than 1 px. No hex in components.
-- **New chat hero:** the red helmet at 60 percent, a time-of-day greeting with the project picker, and slow red dots. Jake's pick (Doop `MJ2ukUgbs-`) is dots only, with no haze. The question line sits 24 px above the composer.
+- **New chat hero:** the red helmet at 60 percent, a time-of-day greeting with the project picker, and slow red dots. Jake's pick (Doop `MJ2ukUgbs-`) is dots only, with no haze. The dots have soft edges, show behind every chat (half strength behind an active chat) and always drift: Jake chose that they ignore `prefers-reduced-motion`, the one exception to the motion rule above. The helmet glow is 406 px wide and fades out from the helmet. The question line sits 24 px above the composer.
 
 ## Doop workflow
 

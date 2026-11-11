@@ -11533,7 +11533,8 @@ export default function ChatView(props: ChatViewProps) {
               />
             </div>
             {/* Messages Wrapper */}
-            <div className="relative flex min-h-0 flex-1 flex-col bg-background">
+            <div className="relative isolate flex min-h-0 flex-1 flex-col bg-background">
+              <DraftHeroDots dim={!isDraftHeroState} />
               <FocusWidgetHost
                 environmentId={environmentId}
                 projectId={activeProject?.id ?? null}
@@ -11681,7 +11682,6 @@ export default function ChatView(props: ChatViewProps) {
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
-              {isDraftHeroState ? <DraftHeroDots /> : null}
               <div
                 ref={draftHeroTransition.transitionGroupRef}
                 className="chat-composer-lane w-full"

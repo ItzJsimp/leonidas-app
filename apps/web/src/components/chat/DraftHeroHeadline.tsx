@@ -58,7 +58,7 @@ const HELMET_STYLE: CSSProperties = {
 };
 const HELMET_GLOW: CSSProperties = {
   background:
-    "radial-gradient(closest-side,color-mix(in oklab,var(--primary) 32%,transparent),color-mix(in oklab,var(--primary) 10%,transparent) 55%,transparent)",
+    "radial-gradient(closest-side,color-mix(in oklab,var(--primary) 30%,transparent),color-mix(in oklab,var(--primary) 14%,transparent) 35%,color-mix(in oklab,var(--primary) 4%,transparent) 68%,transparent)",
 };
 
 interface PickerItem {
@@ -364,7 +364,7 @@ export function DraftHeroHeadline({
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
       <span aria-hidden className="relative mb-2 size-[150px]">
-        <span className="absolute -inset-8 rounded-full" style={HELMET_GLOW} />
+        <span className="pointer-events-none absolute -inset-32 rounded-full" style={HELMET_GLOW} />
         <img
           src="/brand/helmet-cutout-red-320.png"
           alt=""
