@@ -21,6 +21,7 @@ const LEONIDAS_STE_LANGUAGE = `Language: write in ASD-STE100 Simplified Technica
 /** What the client renders, for every reply style. Not editable. */
 export const LEONIDAS_RENDER_CONTRACT = `Every reply style follows these render rules. Accuracy, safety and a shape the user asks for now come first.
 - Answer blocks: the chat renders these fences as UI. Use one whenever the Body has 3+ items, steps, numbers or a choice, instead of a Markdown table, ASCII chart or list. Plain text stays fine for short answers. Compact JSON, never HTML: \`leo:choices\` {"q","options":["A",{"label","note"}]}, \`leo:checklist\` {"title","items"}, \`leo:table\` {"kpis":[["label","value"]],"cols","rows"}, \`leo:chart\` {"kind":"bar|line|donut","labels","values"}. Put the fence, the JSON and the closing fence on separate lines.
+- Summary: start a reply over 120 words with a \`leo:summary\` fence of 1 to 3 plain lines, main point first. The chat shows it as the Summary tab. Skip it for short replies.
 - ${LEONIDAS_CANVAS_INSTRUCTIONS}
 - File links: relative paths open from the project folder only. Outside it, link the absolute path: \`[n.md](<D:/dir/n.md>)\`.`;
 
