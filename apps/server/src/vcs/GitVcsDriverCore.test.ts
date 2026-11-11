@@ -48,6 +48,8 @@ import { makeProcessProbe, processProbeSource } from "../testUtils/processProbe.
 const encodeGitCommandError = Schema.encodeEffect(Schema.fromJsonString(GitCommandError));
 const decodeVcsRef = Schema.decodeUnknownSync(VcsRef);
 const decodeVcsListRefsResult = Schema.decodeUnknownSync(VcsListRefsResult);
+// CI runs on Linux. A test that needs a POSIX-only file name, directory name or shell file skips here.
+const windowsHost = HostProcess.Platform.defaultValue() === "win32";
 
 const layerServerConfig = ServerConfig.layerTest(process.cwd(), {
   prefix: "t3-git-vcs-driver-test-",
@@ -1858,70 +1860,74 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
       }),
     );
 
-    it.effect.each([
-      {
-        label: "a refused key",
-        sshMessage: "git@example.invalid: Permission denied (publickey).",
-        expectedReason: "authentication_failed" as const,
-        expectedText: "(authentication_failed)",
-      },
-      {
-        label: "a refused key among several methods",
-        sshMessage: "git@example.invalid: Permission denied (publickey,password).",
-        expectedReason: "authentication_failed" as const,
-        expectedText: "(authentication_failed)",
-      },
-      {
-        label: "a refused keyboard-interactive attempt",
-        sshMessage: "git@example.invalid: Permission denied (keyboard-interactive).",
-        expectedReason: "authentication_failed" as const,
-        expectedText: "(authentication_failed)",
-      },
-      {
-        label: "a rejected password",
-        sshMessage: "Permission denied, please try again.",
-        expectedReason: "authentication_failed" as const,
-        expectedText: "(authentication_failed)",
-      },
-      {
-        label: "an untrusted host key",
-        sshMessage: "Host key verification failed.",
-        expectedReason: "host_key_unverified" as const,
-        expectedText: "(host_key_unverified)",
-      },
-    ])(
-      "names $label rather than an unreachable remote",
-      ({ sshMessage, expectedReason, expectedText }) =>
-        Effect.gen(function* () {
-          const parent = yield* makeTmpDir();
-          const pathService = yield* Path.Path;
-          const cwd = pathService.join(parent, "repo");
-          const fileSystem = yield* FileSystem.FileSystem;
-          const driver = yield* GitVcsDriver.GitVcsDriver;
-          yield* fileSystem.makeDirectory(cwd);
-          yield* initRepoWithCommit(cwd);
-          yield* git(cwd, ["remote", "add", "origin", "git@example.invalid:owner/repo.git"]);
-          const fakeSsh = pathService.join(parent, "fake-ssh");
-          yield* writeTextFile(
-            parent,
-            "fake-ssh",
-            `#!/bin/sh\necho "${sshMessage}" >&2\nexit 255\n`,
-          );
-          yield* fileSystem.chmod(fakeSsh, 0o755);
+    // Skipped on Windows: the fake ssh is a "#!/bin/sh" file. Git for Windows strips the backslashes from its
+    // path in GIT_SSH_COMMAND, so git never runs it and reports remote_unreachable.
+    describe.skipIf(windowsHost)("refused ssh logins", () => {
+      it.effect.each([
+        {
+          label: "a refused key",
+          sshMessage: "git@example.invalid: Permission denied (publickey).",
+          expectedReason: "authentication_failed" as const,
+          expectedText: "(authentication_failed)",
+        },
+        {
+          label: "a refused key among several methods",
+          sshMessage: "git@example.invalid: Permission denied (publickey,password).",
+          expectedReason: "authentication_failed" as const,
+          expectedText: "(authentication_failed)",
+        },
+        {
+          label: "a refused keyboard-interactive attempt",
+          sshMessage: "git@example.invalid: Permission denied (keyboard-interactive).",
+          expectedReason: "authentication_failed" as const,
+          expectedText: "(authentication_failed)",
+        },
+        {
+          label: "a rejected password",
+          sshMessage: "Permission denied, please try again.",
+          expectedReason: "authentication_failed" as const,
+          expectedText: "(authentication_failed)",
+        },
+        {
+          label: "an untrusted host key",
+          sshMessage: "Host key verification failed.",
+          expectedReason: "host_key_unverified" as const,
+          expectedText: "(host_key_unverified)",
+        },
+      ])(
+        "names $label rather than an unreachable remote",
+        ({ sshMessage, expectedReason, expectedText }) =>
+          Effect.gen(function* () {
+            const parent = yield* makeTmpDir();
+            const pathService = yield* Path.Path;
+            const cwd = pathService.join(parent, "repo");
+            const fileSystem = yield* FileSystem.FileSystem;
+            const driver = yield* GitVcsDriver.GitVcsDriver;
+            yield* fileSystem.makeDirectory(cwd);
+            yield* initRepoWithCommit(cwd);
+            yield* git(cwd, ["remote", "add", "origin", "git@example.invalid:owner/repo.git"]);
+            const fakeSsh = pathService.join(parent, "fake-ssh");
+            yield* writeTextFile(
+              parent,
+              "fake-ssh",
+              `#!/bin/sh\necho "${sshMessage}" >&2\nexit 255\n`,
+            );
+            yield* fileSystem.chmod(fakeSsh, 0o755);
 
-          const error = yield* driver
-            .execute({
-              operation: "GitVcsDriver.test.sshRefusal",
-              cwd,
-              args: ["fetch", "origin"],
-              env: { LC_ALL: "C", GIT_SSH_COMMAND: fakeSsh },
-            })
-            .pipe(Effect.flip);
+            const error = yield* driver
+              .execute({
+                operation: "GitVcsDriver.test.sshRefusal",
+                cwd,
+                args: ["fetch", "origin"],
+                env: { LC_ALL: "C", GIT_SSH_COMMAND: fakeSsh },
+              })
+              .pipe(Effect.flip);
 
-          assert.deepInclude(error, { reason: expectedReason });
-          assert.include(error.message, expectedText);
-        }),
-    );
+            assert.deepInclude(error, { reason: expectedReason });
+            assert.include(error.message, expectedText);
+          }),
+      );
+    });
 
     it.effect("does not read a filesystem permission error as an ssh refusal", () =>
       Effect.gen(function* () {
@@ -2322,36 +2328,39 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
       }),
     );
 
-    it.effect("keeps untracked filenames with pathspec magic in the review", () =>
-      Effect.gen(function* () {
-        const cwd = yield* makeTmpDir();
-        yield* initRepoWithCommit(cwd);
-        const driver = yield* GitVcsDriver.GitVcsDriver;
-        yield* writeTextFile(cwd, ":(exclude)after.ts", "literal pathspec contents\n");
-        yield* writeTextFile(cwd, "ordinary.ts", "ordinary contents\n");
-        const indexBefore = yield* git(cwd, ["ls-files", "--stage"]);
+    // Skipped on Windows: the test needs a file named ":(exclude)after.ts", which Windows forbids.
+    it.effect.skipIf(windowsHost)(
+      "keeps untracked filenames with pathspec magic in the review",
+      () =>
+        Effect.gen(function* () {
+          const cwd = yield* makeTmpDir();
+          yield* initRepoWithCommit(cwd);
+          const driver = yield* GitVcsDriver.GitVcsDriver;
+          yield* writeTextFile(cwd, ":(exclude)after.ts", "literal pathspec contents\n");
+          yield* writeTextFile(cwd, "ordinary.ts", "ordinary contents\n");
+          const indexBefore = yield* git(cwd, ["ls-files", "--stage"]);
 
-        const preview = yield* driver.getReviewDiffPreview({ cwd, ignoreWhitespace: false });
-        const diff = preview.sources.find((source) => source.kind === "working-tree")?.diff ?? "";
+          const preview = yield* driver.getReviewDiffPreview({ cwd, ignoreWhitespace: false });
+          const diff = preview.sources.find((source) => source.kind === "working-tree")?.diff ?? "";
 
-        assert.include(diff, "+literal pathspec contents");
-        assert.include(diff, "+ordinary contents");
-        const scoped = yield* driver.getReviewDiffPreview({
-          cwd,
-          file: {
-            path: ":(exclude)after.ts",
-            previousPath: null,
-            sourceKind: "working-tree",
-          },
-        });
-        const scopedSource = scoped.sources.find((source) => source.kind === "working-tree")!;
-        assert.deepStrictEqual(scopedSource.files, [
-          { path: ":(exclude)after.ts", previousPath: null, additions: 1, deletions: 0 },
-        ]);
-        assert.include(scopedSource.diff, "+literal pathspec contents");
-        assert.notInclude(scopedSource.diff, "ordinary.ts");
-        assert.strictEqual(yield* git(cwd, ["ls-files", "--stage"]), indexBefore);
-      }),
+          assert.include(diff, "+literal pathspec contents");
+          assert.include(diff, "+ordinary contents");
+          const scoped = yield* driver.getReviewDiffPreview({
+            cwd,
+            file: {
+              path: ":(exclude)after.ts",
+              previousPath: null,
+              sourceKind: "working-tree",
+            },
+          });
+          const scopedSource = scoped.sources.find((source) => source.kind === "working-tree")!;
+          assert.deepStrictEqual(scopedSource.files, [
+            { path: ":(exclude)after.ts", previousPath: null, additions: 1, deletions: 0 },
+          ]);
+          assert.include(scopedSource.diff, "+literal pathspec contents");
+          assert.notInclude(scopedSource.diff, "ordinary.ts");
+          assert.strictEqual(yield* git(cwd, ["ls-files", "--stage"]), indexBefore);
+        }),
     );
 
     it.effect("detects an unstaged rename with edits without mutating a split index", () =>
@@ -3359,7 +3368,8 @@ it.layer(layerTest)("GitVcsDriver core integration", (it) => {
       }),
     );
 
-    it.effect("commits selected files from a nested project directory", () =>
+    // Skipped on Windows: the test makes a directory named "repo " with a trailing space, and Windows cannot start a process there.
+    it.effect.skipIf(windowsHost)("commits selected files from a nested project directory", () =>
       Effect.gen(function* () {
         const path = yield* Path.Path;
         // A root basename ending in whitespace catches a root lookup that trims Git's output.
