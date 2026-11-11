@@ -39,6 +39,7 @@ type TextGenerationOp =
   | "assessThread"
   | "generatePromptSuggestion"
   | "pickSkills"
+  | "draftAgent"
   | "generateVoiceLogDraft";
 
 const resolveInstance = (
@@ -99,6 +100,19 @@ export const make = Effect.gen(function* () {
                 new TextGenerationError({
                   operation: "pickSkills",
                   detail: "This provider cannot pick skills.",
+                }),
+              ),
+        ),
+      ),
+    draftAgent: (input) =>
+      resolveInstance(registry, "draftAgent", input.modelSelection.instanceId).pipe(
+        Effect.flatMap((generation) =>
+          generation.draftAgent
+            ? generation.draftAgent(input)
+            : Effect.fail(
+                new TextGenerationError({
+                  operation: "draftAgent",
+                  detail: "This provider cannot draft an agent.",
                 }),
               ),
         ),

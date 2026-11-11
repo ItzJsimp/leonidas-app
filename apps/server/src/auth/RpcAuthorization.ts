@@ -176,6 +176,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.subagentsCreate]: AuthOrchestrationOperateScope,
   [WS_METHODS.subagentsDelete]: AuthOrchestrationOperateScope,
   [WS_METHODS.subagentsDuplicate]: AuthOrchestrationOperateScope,
+  [WS_METHODS.subagentsDraft]: AuthOrchestrationOperateScope,
   [WS_METHODS.focusSubscribe]: AuthOrchestrationReadScope,
   [WS_METHODS.eventsSubscribe]: AuthOrchestrationReadScope,
   [WS_METHODS.eventsAppend]: AuthOrchestrationOperateScope,

@@ -207,3 +207,37 @@ export type SubagentDeleteResult = typeof SubagentDeleteResult.Type;
 /** Copies a listed agent into the AIOS folder as the first free `<name>-N.md`. */
 export const SubagentDuplicateInput = SubagentDeleteInput;
 export type SubagentDuplicateInput = typeof SubagentDuplicateInput.Type;
+
+/**
+ * One creator-chat turn (S7). `request` is the user's sentence, or on a revision what to change;
+ * `currentDraft` is the file text so far. Nothing is written: the editor saves the draft.
+ */
+export const SubagentDraftInput = Schema.Struct({
+  name: TrimmedNonEmptyString.check(Schema.isMaxLength(64)),
+  avatar: Schema.optional(TrimmedNonEmptyString.check(Schema.isMaxLength(80))),
+  /** The creator model. A confirm-tier model needs `confirmed: true` (ADR-0082). */
+  model: TrimmedNonEmptyString,
+  request: TrimmedNonEmptyString.check(Schema.isMaxLength(2_000)),
+  currentDraft: Schema.optional(Schema.String.check(Schema.isMaxLength(60_000))),
+  confirmed: Schema.optional(Schema.Boolean),
+});
+export type SubagentDraftInput = typeof SubagentDraftInput.Type;
+
+export const SubagentDraftResult = Schema.Union([
+  /** The agent file text, ready for the editor. */
+  Schema.Struct({
+    kind: Schema.Literal("draft"),
+    contents: Schema.String,
+    model: Schema.String,
+    roughCost: Schema.String,
+    capWarning: Schema.Boolean,
+  }),
+  /** The model is confirm-tier: show the cost, then ask again with `confirmed: true`. */
+  Schema.Struct({
+    kind: Schema.Literal("needs_confirm"),
+    model: Schema.String,
+    roughCost: Schema.String,
+    capWarning: Schema.Boolean,
+  }),
+]);
+export type SubagentDraftResult = typeof SubagentDraftResult.Type;

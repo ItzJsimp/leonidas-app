@@ -7,9 +7,11 @@ import type {
 } from "@t3tools/contracts";
 import type * as Effect from "effect/Effect";
 
+import type { AgentDraftInput, AgentDraftResult } from "./agentDraft.ts";
 import type { SkillPickInput, SkillPickResult } from "./skillPick.ts";
 import type { TextGenerationPolicy } from "./textGenerationPolicy.ts";
 
+export type { AgentDraftInput, AgentDraftParts, AgentDraftResult } from "./agentDraft.ts";
 export type { SkillPickCandidate, SkillPickInput, SkillPickResult } from "./skillPick.ts";
 
 export interface CommitMessageGenerationInput {
@@ -135,6 +137,11 @@ export interface ProviderTextGeneration {
   readonly pickSkills?: (
     input: SkillPickInput,
   ) => Effect.Effect<SkillPickResult, TextGenerationError>;
+
+  /** Write the description, instructions and tools of an agent from one sentence. */
+  readonly draftAgent?: (
+    input: AgentDraftInput,
+  ) => Effect.Effect<AgentDraftResult, TextGenerationError>;
 
   /** Judge whether a chat is finished, or write the prompt that continues it. */
   readonly assessThread?: (

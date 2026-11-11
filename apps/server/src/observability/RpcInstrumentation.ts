@@ -189,6 +189,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.subagentsCreate]: "workspace",
   [WS_METHODS.subagentsDelete]: "workspace",
   [WS_METHODS.subagentsDuplicate]: "workspace",
+  [WS_METHODS.subagentsDraft]: "workspace",
   [WS_METHODS.focusSubscribe]: "workspace",
   [WS_METHODS.eventsSubscribe]: "workspace",
   [WS_METHODS.eventsAppend]: "workspace",

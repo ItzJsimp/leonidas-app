@@ -10,11 +10,13 @@ import * as ImageService from "./images/ImageService.ts";
 import * as LocalModelsService from "./localModels/LocalModelsService.ts";
 import * as AttachmentArchive from "./files/AttachmentArchive.ts";
 import * as SubagentRuns from "./subagents/SubagentRuns.ts";
+import * as SubagentDraftLive from "./subagents/subagentDraftLive.ts";
 import { isPathInRoot } from "./taskBoard/aiosWorkspaces.ts";
 import * as WorkspacePictures from "./taskBoard/workspacePictures.ts";
 import * as TaskBoardService from "./taskBoard/TaskBoardService.ts";
 import * as AreaSyncService from "./areaSync/AreaSyncService.ts";
 import { SpawnApprovals } from "./subagents/SpawnApprovals.ts";
+import { readAiosModelTiersNear } from "./subagents/spawnTiers.ts";
 import { listSubagents, subagentSources } from "./subagents/subagentCatalog.ts";
 import { subagentWorkspaceProjects } from "./subagents/workspaceProjects.ts";
 import {
@@ -1498,6 +1500,16 @@ const layerWsRpc = (
       const localModels = yield* LocalModelsService.LocalModelsService;
       const attachmentArchive = yield* AttachmentArchive.AttachmentArchive;
       const subagentRuns = yield* SubagentRuns.SubagentRuns;
+      // The creator draft reads the AIOS model map, so a model it marks free needs no confirm.
+      const subagentDraft = yield* SubagentDraftLive.make({
+        cwd: config.cwd,
+        aiosTiers: studioWriteScope(undefined).pipe(
+          Effect.map(({ aiosRoot }) =>
+            aiosRoot === null ? null : readAiosModelTiersNear(`${aiosRoot}/.agents/subagents/x.md`),
+          ),
+          Effect.orElseSucceed(() => null),
+        ),
+      });
       const withImagesProject = <A, E, R>(
         projectId: ProjectId,
         use: (project: Project) => Effect.Effect<A, E, R>,
@@ -3003,6 +3015,7 @@ const layerWsRpc = (
                 }),
             });
           }),
+        [WS_METHODS.subagentsDraft]: (input) => subagentDraft(input),
         [WS_METHODS.subagentsDuplicate]: (input) =>
           Effect.gen(function* () {
             const scope = yield* studioWriteScope(input.workspaceId);

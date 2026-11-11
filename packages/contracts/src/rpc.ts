@@ -573,6 +573,8 @@ import {
   SubagentCreateInput,
   SubagentDeleteInput,
   SubagentDeleteResult,
+  SubagentDraftInput,
+  SubagentDraftResult,
   SubagentDuplicateInput,
   SubagentEditError,
   SubagentSpawnApprovalError,
@@ -702,6 +704,7 @@ export const WS_METHODS = {
   subagentsCreate: "subagents.create",
   subagentsDelete: "subagents.delete",
   subagentsDuplicate: "subagents.duplicate",
+  subagentsDraft: "subagents.draft",
   taskBoardUpdate: "taskBoard.update",
   taskBoardWorkspace: "taskBoard.workspace",
   taskBoardCardUpdate: "taskBoard.cardUpdate",
@@ -1781,6 +1784,12 @@ const WsSubagentsDeleteRpc = Rpc.make(WS_METHODS.subagentsDelete, {
 const WsSubagentsDuplicateRpc = Rpc.make(WS_METHODS.subagentsDuplicate, {
   payload: SubagentDuplicateInput,
   success: SubagentCatalogEntry,
+  error: Schema.Union([SubagentEditError, EnvironmentAuthorizationError]),
+});
+
+const WsSubagentsDraftRpc = Rpc.make(WS_METHODS.subagentsDraft, {
+  payload: SubagentDraftInput,
+  success: SubagentDraftResult,
   error: Schema.Union([SubagentEditError, EnvironmentAuthorizationError]),
 });
 
@@ -3570,6 +3579,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsSubagentsCreateRpc,
   WsSubagentsDeleteRpc,
   WsSubagentsDuplicateRpc,
+  WsSubagentsDraftRpc,
   WsFocusSubscribeRpc,
   WsEventsSubscribeRpc,
   WsEventsAppendRpc,

@@ -254,6 +254,7 @@ export const makeCodexTextGeneration = Effect.fn("makeCodexTextGeneration")(func
       const workingDirectory =
         operation === "generatePromptSuggestion" ||
         operation === "pickSkills" ||
+        operation === "draftAgent" ||
         operation === "generateVoiceLogDraft"
           ? yield* fileSystem
               .makeTempDirectoryScoped({ prefix: "t3code-codex-prediction-" })
