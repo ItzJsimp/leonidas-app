@@ -6,9 +6,11 @@ import { buildRailEntries } from "~/components/taskBoard/tasksPage.logic";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useEnvironmentQuery } from "~/state/query";
-import { taskBoardWorkspaceQuery } from "~/state/taskBoard";
+import { aiosLimitsQuery, taskBoardWorkspaceQuery, voiceLimitQuery } from "~/state/taskBoard";
 
 import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsLayout";
+import { AiosLimitEditor } from "./AiosLimitEditor";
+import { VoiceLimitEditor } from "./VoiceLimitEditor";
 
 /** Every limit the app enforces, each with its current value and an editor. */
 export function LimitsSettings() {
@@ -18,6 +20,12 @@ export function LimitsSettings() {
     environmentId && scopeReady ? taskBoardWorkspaceQuery({ environmentId, input: scope }) : null,
   );
   const { data, refresh } = workspace;
+  const limits = useEnvironmentQuery(
+    environmentId && scopeReady ? aiosLimitsQuery({ environmentId, input: scope }) : null,
+  );
+  const voiceLimit = useEnvironmentQuery(
+    environmentId ? voiceLimitQuery({ environmentId, input: {} }) : null,
+  );
   const entries = useMemo(
     () =>
       buildRailEntries(mergeTasks(data?.tasks ?? [], []), data?.projects ?? []).filter(
@@ -58,6 +66,44 @@ export function LimitsSettings() {
         </p>
         {data !== null && entries.length === 0 ? (
           <SettingsRow title="No projects yet" description="Projects with tasks show up here." />
+        ) : null}
+      </SettingsSection>
+      <SettingsSection title="AIOS rules">
+        {limits.isPending && limits.data === null ? (
+          <SettingsRow title="Loading AIOS rules" />
+        ) : null}
+        {limits.error ? (
+          <SettingsRow title="Could not load AIOS rules" description={limits.error} />
+        ) : null}
+        {limits.data?.length === 0 ? <SettingsRow title="No AIOS rules" /> : null}
+        {limits.data?.map((limit) => (
+          <SettingsRow
+            key={limit.id}
+            title={limit.label}
+            description={limit.unit}
+            control={
+              <AiosLimitEditor
+                environmentId={environmentId}
+                limit={limit}
+                onSaved={limits.refresh}
+              />
+            }
+          />
+        ))}
+        {voiceLimit.data !== null ? (
+          <SettingsRow
+            title="Voice throttle per source"
+            description="Seconds. Zero turns the throttle off."
+            control={
+              <VoiceLimitEditor
+                environmentId={environmentId}
+                seconds={voiceLimit.data}
+                onSaved={voiceLimit.refresh}
+              />
+            }
+          />
+        ) : voiceLimit.error ? (
+          <SettingsRow title="Voice throttle per source" description="Voice is unavailable." />
         ) : null}
       </SettingsSection>
     </SettingsPageContainer>

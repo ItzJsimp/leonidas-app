@@ -91,7 +91,13 @@ export type RightPanelSurface =
   | { id: "pull-requests"; kind: "pull-requests" };
 
 const RIGHT_PANEL_STORAGE_KEY = "t3code:right-panel-state:v2";
-const RIGHT_PANEL_STORAGE_VERSION = 15;
+// v9 removed the "plan" surface kind (plans render inline in the transcript).
+// v10 keys pull-request surfaces by reference instead of a singleton tab.
+// v11 stops persisting the pull-request list's shared panel, so a restart opens the page fresh.
+// v12 adds the device surface.
+// v14 removes the agents surface; lineage lives in the thread title bar.
+// v16 opens chat details by default again. v15 kept only open threads, so every chat opens.
+const RIGHT_PANEL_STORAGE_VERSION = 16;
 
 export const PULL_REQUESTS_PANEL_REF = scopeThreadRef(
   EnvironmentId.make("pull-requests-panel"),
@@ -221,7 +227,7 @@ const EMPTY_THREAD_STATE: ThreadRightPanelState = {
 };
 
 const DEFAULT_THREAD_PANEL_VISIBILITY: ThreadPanelVisibility = {
-  inlineOpen: false,
+  inlineOpen: true,
   popoverOpen: false,
 };
 
@@ -359,7 +365,7 @@ const updateThreadPanelVisibilityMap = (
 ): Record<string, ThreadPanelVisibility> => {
   const current = byThreadKey[threadKey] ?? DEFAULT_THREAD_PANEL_VISIBILITY;
   const next = updater(current);
-  if (!next.inlineOpen && !next.popoverOpen) {
+  if (next.inlineOpen && !next.popoverOpen) {
     if (!(threadKey in byThreadKey)) return byThreadKey;
     const { [threadKey]: _removed, ...rest } = byThreadKey;
     return rest;
@@ -603,8 +609,8 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
             persistedState.threadPanelVisibilityByThreadKey as Record<string, unknown>,
           ).flatMap(([threadKey, value]) => {
             if (!value || typeof value !== "object" || !("inlineOpen" in value)) return [];
-            return value.inlineOpen === true
-              ? [[threadKey, { inlineOpen: true, popoverOpen: false }]]
+            return value.inlineOpen === false
+              ? [[threadKey, { inlineOpen: false, popoverOpen: false }]]
               : [];
           }),
         )
@@ -1144,7 +1150,7 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
         threadPanelVisibilityByThreadKey: Object.fromEntries(
           Object.entries(state.threadPanelVisibilityByThreadKey).flatMap(
             ([threadKey, visibility]) =>
-              visibility.inlineOpen ? [[threadKey, { inlineOpen: true, popoverOpen: false }]] : [],
+              visibility.inlineOpen ? [] : [[threadKey, { inlineOpen: false, popoverOpen: false }]],
           ),
         ),
       }),

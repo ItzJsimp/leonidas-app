@@ -16,6 +16,8 @@ import { WS_METHODS } from "./rpc.ts";
 
 /** Incremental client enforcement; the server still authorizes every request. */
 export const CLIENT_GUARDED_RPC_SCOPES = {
+  [WS_METHODS.aiosLimitSet]: AuthOrchestrationOperateScope,
+  [WS_METHODS.voiceLimitSet]: AuthOrchestrationOperateScope,
   [WS_METHODS.voiceLogMemoryApprove]: AuthFilesystemWriteScope,
   [WS_METHODS.marketingDecide]: AuthFilesystemWriteScope,
   [WS_METHODS.contentMove]: AuthFilesystemWriteScope,

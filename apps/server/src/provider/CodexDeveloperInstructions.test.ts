@@ -62,6 +62,16 @@ describe("buildCodexAdditionalContext", () => {
 });
 
 describe("buildCodexDeveloperInstructions", () => {
+  it("keeps the selected reply style in a separate context entry", () => {
+    const context = buildCodexAdditionalContext({
+      model: "gpt-5.3-codex",
+      reasoningEffort: "high",
+      replyStyle: "Use the custom style marker.",
+    });
+    NodeAssert.match(context.t3_code_output!.value, /Use the custom style marker/);
+    NodeAssert.match(context.t3_code_output!.value, /leo:table/);
+    NodeAssert.doesNotMatch(context.t3_code_runtime!.value, /Use the custom style marker/);
+  });
   it("appends runtime info after the mode instructions", () => {
     const instructions = runtimeInstructions({
       model: "gpt-5.3-codex",

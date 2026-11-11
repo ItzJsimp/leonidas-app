@@ -182,9 +182,9 @@ import {
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { buildThreadRouteParams, resolveThreadRouteTarget } from "../threadRoutes";
 import { useAvailableSettingsSearchItems } from "./settings/useAvailableSettingsSearchItems";
-import { NewBusinessDialog } from "./workspace/NewBusinessDialog";
+import { NewWorkspaceDialog } from "./workspace/NewWorkspaceDialog";
 import { useRemoveProject } from "./workspace/useRemoveProject";
-import { openNewBusiness } from "./workspace/newBusinessStore";
+import { openNewWorkspace } from "./workspace/newWorkspaceStore";
 import {
   applyWslEnvironmentConfiguration,
   parseWslUncPath,
@@ -588,7 +588,7 @@ export function CommandPalette({ children }: { children: ReactNode }) {
           clearOpenIntent={clearOpenIntent}
         />
       </CommandDialog>
-      <NewBusinessDialog />
+      <NewWorkspaceDialog />
     </ComposerHandleContext>
   );
 }
@@ -1625,13 +1625,13 @@ function OpenCommandPaletteDialog(props: {
       if (newProjectsRootFor(environmentId) !== null) {
         sourceItems.unshift({
           kind: "action",
-          value: `action:add-project:${environmentId}:new-business`,
-          searchTerms: ["new business", "company", "team", "organization", "workspace"],
-          title: "New business",
-          description: "Start a business workspace with a team, from a name",
+          value: `action:add-project:${environmentId}:new-workspace`,
+          searchTerms: ["new workspace", "business", "trading", "personal", "company", "team"],
+          title: "New workspace",
+          description: "Personal, business or trading",
           icon: <BriefcaseIcon className={ITEM_ICON_CLASS} />,
           run: async () => {
-            openNewBusiness();
+            openNewWorkspace();
           },
         });
         sourceItems.unshift({

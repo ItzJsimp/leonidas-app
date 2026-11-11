@@ -3,13 +3,11 @@ import { composerDraftHasUserContent, useComposerDraftStore } from "~/composerDr
 import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
-import { FolderPlusIcon } from "lucide-react";
-import { useAtomValue } from "@effect/atom-react";
-import { useEffect, useRef, useState } from "react";
+import { FolderPlusIcon, MessageSquareIcon } from "lucide-react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { heroGreeting } from "./heroGreeting";
 
 import { openCommandPalette } from "~/commandPaletteBus";
-import { shortcutLabelForCommand } from "~/keybindings";
-import { primaryServerKeybindingsAtom } from "~/state/server";
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { useScratchProject } from "~/hooks/useScratchProject";
 import { useClientSettings } from "~/hooks/useSettings";
@@ -46,6 +44,22 @@ import { DraftHeroProjectHeading } from "./DraftHeroProjectHeading";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 
 const ADD_PROJECT_VALUE = "add-project";
+// Picker value for the "No project" row: starts the chat in the scratch home.
+const SCRATCH_VALUE = "no-project";
+
+// Clear at the chin, solid from the eyes up; the radial part softens the sides.
+const HELMET_MASK =
+  "linear-gradient(to top,transparent 0%,rgb(0 0 0/.35) 18%,rgb(0 0 0/.8) 40%,#000 58%),radial-gradient(ellipse 62% 70% at 50% 42%,#000 45%,rgb(0 0 0/.55) 72%,transparent 100%)";
+const HELMET_STYLE: CSSProperties = {
+  maskImage: HELMET_MASK,
+  WebkitMaskImage: HELMET_MASK,
+  maskComposite: "intersect",
+  WebkitMaskComposite: "source-in",
+};
+const HELMET_GLOW: CSSProperties = {
+  background:
+    "radial-gradient(closest-side,color-mix(in oklab,var(--primary) 32%,transparent),color-mix(in oklab,var(--primary) 10%,transparent) 55%,transparent)",
+};
 
 interface PickerItem {
   readonly value: string;
@@ -70,6 +84,7 @@ export function DraftHeroHeadline({
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
   const projectSortOrder = useClientSettings((settings) => settings.sidebarProjectSortOrder);
+  const greetingName = useClientSettings((settings) => settings.greetingName);
   const setLogicalProjectDraftThreadId = useComposerDraftStore(
     (store) => store.setLogicalProjectDraftThreadId,
   );
@@ -79,10 +94,6 @@ export function DraftHeroHeadline({
   const openAddProject = () => openCommandPalette({ open: "add-project" });
   const { scratchEnvironmentId, scratchWorkspaceRootFor, openScratchProject } = useScratchProject();
   const openProjectDraft = useNewThreadHandler();
-  const keybindings = useAtomValue(primaryServerKeybindingsAtom);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerQuery, setPickerQuery] = useState("");
-  const pickerFilter = useComboboxFilter();
 
   const environmentLabelById = new Map(
     environments.map((environment) => [environment.environmentId, environment.label] as const),
@@ -146,19 +157,32 @@ export function DraftHeroHeadline({
   const isScratchDraft =
     activeProject !== null && isScratchProject(activeProject, scratchWorkspaceRoot);
 
-  const pickerItems: readonly PickerItem[] = [
-    ...menuEntries.map(({ group }) => ({ value: group.projectKey, label: group.displayName })),
-    { value: ADD_PROJECT_VALUE, label: "Add project" },
-  ];
-  const pickerSearch = pickerQuery.trim();
-  const filteredPickerItems =
-    pickerSearch.length === 0
-      ? pickerItems
-      : pickerItems.filter(
-          (item) =>
-            item.value !== ADD_PROJECT_VALUE &&
-            pickerFilter.contains(item, pickerSearch, (candidate) => candidate.label),
-        );
+  // {value, label} items let Base UI drive the combobox selection while the
+  // popup search filters the same collection. "Add project" is an action, not
+  // a project, so it only trails the unfiltered list.
+  const pickerItems = useMemo<readonly PickerItem[]>(
+    () => [
+      ...menuEntries.map(({ group }) => ({ value: group.projectKey, label: group.displayName })),
+      ...(scratchWorkspaceRoot !== null && !isScratchDraft
+        ? [{ value: SCRATCH_VALUE, label: "No project" }]
+        : []),
+      { value: ADD_PROJECT_VALUE, label: "Add project" },
+    ],
+    [menuEntries, scratchWorkspaceRoot, isScratchDraft],
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const pickerFilter = useComboboxFilter();
+  const filteredPickerItems = useMemo(() => {
+    const query = pickerQuery.trim();
+    if (query.length === 0) return pickerItems;
+    return pickerItems.filter(
+      (item) =>
+        item.value !== ADD_PROJECT_VALUE &&
+        item.value !== SCRATCH_VALUE &&
+        pickerFilter.contains(item, query, (candidate) => candidate.label),
+    );
+  }, [pickerFilter, pickerItems, pickerQuery]);
   const selectedPickerItem = pickerItems.find((item) => item.value === activeProjectKey) ?? null;
 
   // The picker can change the draft's target while the no-project home is
@@ -244,6 +268,10 @@ export function DraftHeroHeadline({
           openAddProject();
           return;
         }
+        if (item.value === SCRATCH_VALUE) {
+          void startScratch();
+          return;
+        }
         const entry = projectEntryByKey.get(item.value);
         if (!entry || item.value === activeProjectKey) {
           return;
@@ -288,6 +316,8 @@ export function DraftHeroHeadline({
               <ComboboxItem key={item.value} hideIndicator value={item}>
                 {item.value === ADD_PROJECT_VALUE ? (
                   <FolderPlusIcon className="size-4 shrink-0" />
+                ) : item.value === SCRATCH_VALUE ? (
+                  <MessageSquareIcon className="size-4 shrink-0" />
                 ) : entry ? (
                   <ProjectFavicon project={entry.group} className="size-4 shrink-0" />
                 ) : null}
@@ -320,53 +350,53 @@ export function DraftHeroHeadline({
     </button>
   );
 
-  const noProjectShortcut = shortcutLabelForCommand(keybindings, "chat.newWithoutProject");
-  const orStartWithoutProject =
-    scratchWorkspaceRoot !== null && !isScratchDraft && (hasResolvedProject || canChooseProject) ? (
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <InlineButton
-              tone="muted"
-              className="pointer-events-auto"
-              onClick={() =>
-                void startScratch().then((started) => {
-                  if (started) {
-                    document.querySelector<HTMLElement>("[data-draft-project-trigger]")?.focus();
-                  }
-                })
-              }
-            />
-          }
-        >
-          or start without a project
-        </TooltipTrigger>
-        {noProjectShortcut ? <TooltipPopup side="bottom">{noProjectShortcut}</TooltipPopup> : null}
-      </Tooltip>
-    ) : null;
+  // The question line holds the project picker, so its accessible name is set
+  // as a whole sentence; the picker's widget state must not bleed into it.
+  const greeting = heroGreeting(new Date(), greetingName);
+  const questionLabel = isScratchDraft
+    ? "What should we work on?"
+    : hasResolvedProject
+      ? `${greeting.lead} ${activeProjectDisplayName}?`
+      : canChooseProject
+        ? `${activeProjectDisplayName ?? "Choose a project"} to start`
+        : "Add a project to start";
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
-      {hasResolvedProject && !isScratchDraft ? (
-        <DraftHeroProjectHeading projectName={activeProjectDisplayName ?? "Choose a project"}>
-          {projectSelector}
-        </DraftHeroProjectHeading>
-      ) : (
-        <h1 className="w-full text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
-          {isScratchDraft ? (
-            <>What should we work on?</>
-          ) : canChooseProject ? (
-            <>{projectSelector} to start</>
-          ) : (
-            <>Add a project to start</>
-          )}
-        </h1>
-      )}
-      {scratchWorkspaceRoot === null ? null : (
-        <p className="mt-2 flex h-6 w-full items-center justify-center text-sm">
-          {isScratchDraft ? projectSelector : orStartWithoutProject}
-        </p>
-      )}
+      <span aria-hidden className="relative mb-2 size-[150px]">
+        <span className="absolute -inset-8 rounded-full" style={HELMET_GLOW} />
+        <img
+          src="/brand/helmet-cutout-red-320.png"
+          alt=""
+          width={150}
+          height={150}
+          className="relative size-[150px] opacity-60 mix-blend-screen"
+          style={HELMET_STYLE}
+        />
+      </span>
+      <h1 className="w-full text-center font-normal text-3xl text-foreground tracking-tight sm:text-4xl">
+        {greeting.title}
+      </h1>
+      <h2
+        aria-label={questionLabel}
+        className="mt-2 w-full text-center font-normal text-lg text-muted-foreground tracking-tight"
+      >
+        {isScratchDraft ? (
+          <>What should we work on?</>
+        ) : hasResolvedProject ? (
+          <>
+            {greeting.lead} {projectSelector}?
+          </>
+        ) : canChooseProject ? (
+          <>{projectSelector} to start</>
+        ) : (
+          <>Add a project to start</>
+        )}
+      </h2>
+      {/* Without a project, the picker moves here to choose one. */}
+      {isScratchDraft ? (
+        <p className="mt-2 flex h-6 items-center text-sm">{projectSelector}</p>
+      ) : null}
     </div>
   );
 }

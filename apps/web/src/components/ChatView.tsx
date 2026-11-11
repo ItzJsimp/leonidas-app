@@ -360,7 +360,6 @@ import {
   useClientSettings,
   useClientSettingsHydrated,
   useEnvironmentSettings,
-  useUpdateClientSettings,
 } from "../hooks/useSettings";
 import { useNowMinute } from "../hooks/useNowMinute";
 import { usePanelAnimationSettings, usePanelPresence } from "../panelAnimations";
@@ -400,6 +399,7 @@ import {
   type ComposerImageAttachment,
   type DraftThreadEnvMode,
   useComposerDraftStore,
+  useEffectiveComposerModelState,
   DraftId,
 } from "../composerDraftStore";
 import {
@@ -462,7 +462,6 @@ import {
   waitForThreadShell,
 } from "../state/entities";
 import { environmentShell } from "../state/shell";
-import { UsageOverlayCard } from "./chat/UsageOverlayCard";
 import { draftReplyStyleField } from "./chat/useThreadReplyStyle";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
 import { FocusWidgetHost } from "./focus/FocusWidgetHost";
@@ -471,6 +470,7 @@ import type { ComposerAttachmentSlice } from "./chat/composerAttachments";
 import type { ComposerLayoutSlice } from "./chat/composerLayout";
 import { createPageScrollController, type PageScrollKey } from "./chat/pageScrollController";
 import { isTimelineScrollTarget } from "./chat/timelineScrollTarget";
+import { DraftHeroDots } from "./chat/DraftHeroDots";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
 import { ExpandedImageDialog } from "./chat/ExpandedImageDialog";
 import { PullRequestThreadDialog } from "./PullRequestThreadDialog";
@@ -3600,11 +3600,38 @@ export default function ChatView(props: ChatViewProps) {
   const showProviderSubagentBar = isProviderSubagent;
   const composerMounted = !showProviderSubagentBar;
   const providerSubagentModels = selectedProviderEntry?.models ?? EMPTY_PROVIDER_MODELS;
+  // A draft has no model of its own: the details panel shows the one the composer will send with.
+  const draftModelState = useEffectiveComposerModelState({
+    threadRef: composerDraftTarget,
+    providers: providerStatuses,
+    selectedProvider,
+    selectedInstanceId: activeProviderInstanceId,
+    threadModelSelection: activeThread?.modelSelection,
+    projectModelSelection: activeProjectDefaultModelSelection,
+    settings,
+  });
+  const detailsModelSelection = useMemo(
+    () =>
+      isServerThread || activeProviderInstanceId === null
+        ? activeThread?.modelSelection
+        : createModelSelection(
+            activeProviderInstanceId,
+            draftModelState.selectedModel,
+            draftModelState.modelOptions?.[activeProviderInstanceId],
+          ),
+    [
+      activeProviderInstanceId,
+      activeThread?.modelSelection,
+      draftModelState.modelOptions,
+      draftModelState.selectedModel,
+      isServerThread,
+    ],
+  );
   // Providers can report a dated id or alias (claude-haiku-4-5-20251001).
   const providerSubagentModelSlug = selectedProviderEntry
     ? resolveSelectableModel(
         selectedProviderEntry.driverKind,
-        activeThread?.modelSelection.model,
+        detailsModelSelection?.model,
         providerSubagentModels,
       )
     : null;
@@ -3616,18 +3643,18 @@ export default function ChatView(props: ChatViewProps) {
     () =>
       withKnownContextWindow(
         activeContextWindow,
-        contextWindowTokensForModel(providerSubagentCatalogModel, activeThread?.modelSelection),
+        contextWindowTokensForModel(providerSubagentCatalogModel, detailsModelSelection),
       ),
-    [activeContextWindow, activeThread?.modelSelection, providerSubagentCatalogModel],
+    [activeContextWindow, detailsModelSelection, providerSubagentCatalogModel],
   );
   const providerSubagentModelLabel = providerSubagentCatalogModel
     ? getTriggerDisplayModelName(providerSubagentCatalogModel)
-    : formatModelSlugName(activeThread?.modelSelection.model ?? "");
+    : formatModelSlugName(detailsModelSelection?.model ?? "");
   const providerSubagentEffortLabel =
-    activeThread === undefined
+    detailsModelSelection === undefined
       ? null
       : formatModelSelectionEffort(
-          activeThread.modelSelection,
+          detailsModelSelection,
           providerSubagentModels,
           reportedModelSelection,
         );
@@ -5453,12 +5480,6 @@ export default function ChatView(props: ChatViewProps) {
       }
     },
     [activeThreadRef, diffOpen, onDiffPanelOpen],
-  );
-  const usageOverlayEnabled = useClientSettings((settings) => settings.usageOverlayEnabled);
-  const updateClientSettings = useUpdateClientSettings();
-  const toggleUsageOverlay = useCallback(
-    () => void updateClientSettings({ usageOverlayEnabled: !usageOverlayEnabled }),
-    [updateClientSettings, usageOverlayEnabled],
   );
   const toggleRightPanel = useCallback(() => {
     if (!activeThreadRef) return;
@@ -11277,6 +11298,17 @@ export default function ChatView(props: ChatViewProps) {
     onAddProjectScript: saveProjectScript,
     onUpdateProjectScript: updateProjectScript,
     onDeleteProjectScript: deleteProjectScript,
+    usage: {
+      environmentId: activeThread.environmentId,
+      threadId: isServerThread ? activeThread.id : null,
+      instanceId: activeProviderInstanceId,
+      modelLabel: providerSubagentModelLabel,
+      effortLabel: providerSubagentEffortLabel,
+      contextWindow: headerContextWindow,
+      providerEntries: providerInstanceEntries,
+      onStartChat: activeProjectRef === null ? null : handleNewThreadWithModel,
+      onStartArena: activeProject ? handleStartArena : null,
+    },
   };
   const panelToggleControlProps = {
     terminalAvailable: activeProject !== null,
@@ -11289,8 +11321,6 @@ export default function ChatView(props: ChatViewProps) {
     rightPanelAvailable: activeProject !== null,
     rightPanelOpen,
     rightPanelShortcutLabel: shortcutLabelForCommand(keybindings, "rightPanel.toggle"),
-    usageOverlayOpen: usageOverlayEnabled,
-    ...(isMobileViewport ? {} : { onToggleUsageOverlay: toggleUsageOverlay }),
     onToggleTerminal: toggleTerminalVisibility,
     onToggleThreadPanel: toggleThreadPanel,
     onToggleRightPanel: toggleRightPanel,
@@ -11406,12 +11436,7 @@ export default function ChatView(props: ChatViewProps) {
           className={cn(
             "relative bg-background [[data-panel-animations=true]_&]:motion-safe:transition-[padding-left] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
             isElectron
-              ? cn(
-                  "drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center px-3 sm:px-5",
-                  reserveTitleBarControlInset &&
-                    !inlineRightPanelOwnsTitleBar &&
-                    "wco:pr-(--workspace-native-controls-inset)",
-                )
+              ? "drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center px-3 sm:px-5"
               : "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center pl-(--workspace-gutter-start) pr-(--workspace-gutter-end)",
             COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
           )}
@@ -11450,6 +11475,11 @@ export default function ChatView(props: ChatViewProps) {
             parentThreadLink={parentThreadLink}
             onOpenThread={onOpenRelatedThread}
             rightPanelOpen={inlineRightPanelOwnsTitleBar}
+            centerBesidePanel={threadPanelOpen && threadPanelPresentation === "inline"}
+            // The native window buttons share this title bar; the header leaves room for them.
+            nativeControlsInset={
+              isElectron && reserveTitleBarControlInset && !inlineRightPanelOwnsTitleBar
+            }
             onNewThreadInProject={handleNewThreadInActiveProject}
             {...(activeDraftLogicalProjectKey
               ? { onOpenProjectSettings: handleOpenDraftProjectSettings }
@@ -11471,22 +11501,7 @@ export default function ChatView(props: ChatViewProps) {
             }
           />
         ) : null}
-        {/* The usage card is a flow item here: a rail beside the chat when wide, a row above it when narrow. */}
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col @7xl:flex-row">
-          {usageOverlayEnabled ? (
-            <UsageOverlayCard
-              key={routeThreadKey}
-              environmentId={activeThread.environmentId}
-              threadId={isServerThread ? activeThread.id : null}
-              instanceId={activeProviderInstanceId}
-              modelLabel={providerSubagentModelLabel}
-              effortLabel={providerSubagentEffortLabel}
-              contextWindow={headerContextWindow}
-              providerEntries={providerInstanceEntries}
-              onStartChat={activeProjectRef === null ? null : handleNewThreadWithModel}
-              onStartArena={activeProject ? handleStartArena : null}
-            />
-          ) : null}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Chat column */}
           <ThreadFindCanvas
             findOptions={{
@@ -11692,6 +11707,7 @@ export default function ChatView(props: ChatViewProps) {
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
+              {isDraftHeroState ? <DraftHeroDots /> : null}
               <div
                 ref={draftHeroTransition.transitionGroupRef}
                 className="chat-composer-lane w-full"
@@ -11703,7 +11719,7 @@ export default function ChatView(props: ChatViewProps) {
                   {isDraftHeroState ? (
                     <div className="absolute inset-x-0 bottom-full">
                       <div
-                        className="pb-4 group-has-data-[composer-shoulder-tab]/composer-stack:pb-0"
+                        className="pb-6"
                         style={
                           forceExpandedMobileComposer
                             ? { viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME }

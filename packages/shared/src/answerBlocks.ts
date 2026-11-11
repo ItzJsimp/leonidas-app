@@ -17,7 +17,25 @@ export type AnswerBlock =
       title?: string;
       labels: string[];
       values: number[];
-    };
+    }
+  | { type: "lesson"; title: string; meta?: string; tabs: LessonTab[] };
+
+/** A lesson card. `kind` turns it into a callout: key idea, worked example or warning. */
+export interface LessonCard {
+  title: string;
+  body?: string;
+  meta?: string;
+  kind?: LessonCardKind;
+  /** Set on cards the learner can finish; the block shows progress over them. */
+  done?: boolean;
+  /** Button labels. Each one fills the composer about this card. */
+  actions?: string[];
+}
+export type LessonCardKind = "key" | "example" | "warn";
+export interface LessonTab {
+  label: string;
+  cards: LessonCard[];
+}
 
 export type AnswerBlockType = AnswerBlock["type"];
 
@@ -26,8 +44,24 @@ export type AnswerBlockParse =
   | { status: "pending" }
   | { status: "fallback" };
 
-const BLOCK_TYPES: ReadonlySet<string> = new Set(["table", "choices", "checklist", "chart"]);
+const BLOCK_TYPES: ReadonlySet<string> = new Set([
+  "table",
+  "choices",
+  "checklist",
+  "chart",
+  "lesson",
+]);
 const CHART_KINDS: ReadonlySet<string> = new Set(["bar", "line", "donut"]);
+/** Kind words models guess, mapped to the three callouts. */
+const LESSON_KINDS: Readonly<Record<string, LessonCardKind>> = {
+  key: "key",
+  idea: "key",
+  tip: "key",
+  example: "example",
+  warn: "warn",
+  warning: "warn",
+  caution: "warn",
+};
 const FENCE_PREFIX = "leo:";
 
 export function answerBlockType(language: string | null | undefined): AnswerBlockType | null {
@@ -125,7 +159,66 @@ function normalize(type: AnswerBlockType, data: Record<string, unknown>): Record
         values: records.map((record) => (yKey ? record?.[yKey] : undefined)),
       };
     }
+    case "lesson": {
+      const card = (value: unknown) => {
+        const record = asRecord(value);
+        if (!record) return value;
+        const kind = pick(record, "kind", "type", "tone");
+        return {
+          title: pick(record, "title", "name", "label"),
+          body: pick(record, "body", "text", "description"),
+          meta: pick(record, "meta", "time", "duration"),
+          // An unknown kind word makes a plain card, not a broken lesson.
+          kind: isString(kind)
+            ? Object.hasOwn(LESSON_KINDS, kind.toLowerCase())
+              ? LESSON_KINDS[kind.toLowerCase()]
+              : undefined
+            : kind,
+          done: record.done,
+          actions: record.actions,
+        };
+      };
+      const cardsOf = (value: unknown) => (Array.isArray(value) ? value.map(card) : value);
+      const tabs = pick(data, "tabs", "sections", "pages");
+      const flat = pick(data, "cards", "modules", "items");
+      return {
+        title: data.title,
+        meta: data.meta,
+        tabs: Array.isArray(tabs)
+          ? tabs.map((tab) => {
+              const record = asRecord(tab);
+              return record
+                ? {
+                    label: pick(record, "label", "title", "name"),
+                    cards: cardsOf(pick(record, "cards", "modules", "items")),
+                  }
+                : tab;
+            })
+          : flat === undefined
+            ? tabs
+            : [{ label: "Lesson", cards: cardsOf(flat) }],
+      };
+    }
   }
+}
+
+function toLessonCard(value: unknown): LessonCard | null {
+  const record = asRecord(value);
+  if (!record || !isString(record.title)) return null;
+  const { title, body, meta, kind, done, actions } = record;
+  if (!optionalString(body) || !optionalString(meta)) return null;
+  if (kind !== undefined && kind !== "key" && kind !== "example" && kind !== "warn") return null;
+  if (done !== undefined && typeof done !== "boolean") return null;
+  if (actions !== undefined && !isStringArray(actions)) return null;
+  const unique = [...new Set(actions?.map((action) => action.trim()).filter(Boolean))];
+  return {
+    title,
+    ...(body ? { body } : {}),
+    ...(meta ? { meta } : {}),
+    ...(kind ? { kind } : {}),
+    ...(done === undefined ? {} : { done }),
+    ...(unique.length ? { actions: unique } : {}),
+  };
 }
 
 function toBlock(type: AnswerBlockType, data: Record<string, unknown>): AnswerBlock | null {
@@ -182,6 +275,21 @@ function toBlock(type: AnswerBlockType, data: Record<string, unknown>): AnswerBl
         values: values as number[],
       };
       return title ? { ...base, title } : base;
+    }
+    case "lesson": {
+      const { title, meta, tabs } = data;
+      if (!isString(title) || !optionalString(meta) || !Array.isArray(tabs)) return null;
+      const parsed: LessonTab[] = [];
+      for (const tab of tabs) {
+        const record = asRecord(tab);
+        if (!record || !isString(record.label) || !Array.isArray(record.cards)) return null;
+        const cards = record.cards.map(toLessonCard);
+        if (cards.some((c) => c === null)) return null;
+        // A tab with no cards is dropped; the lesson falls back only when no tab is left.
+        if (cards.length > 0) parsed.push({ label: record.label, cards: cards as LessonCard[] });
+      }
+      if (parsed.length === 0) return null;
+      return meta ? { type, title, meta, tabs: parsed } : { type, title, tabs: parsed };
     }
   }
 }

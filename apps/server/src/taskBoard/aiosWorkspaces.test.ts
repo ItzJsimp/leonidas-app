@@ -163,6 +163,27 @@ describe("workspace root rules (L3 follow-ups)", () => {
     expect(listAiosWorkspaces([aios, loose]).map((workspace) => workspace.root)).toEqual([aios]);
     expect(listAiosWorkspaces([loose])).toEqual([]);
   });
+
+  it("lists a folder with a valid workspace.json and no tasks/, also inside another AIOS", () => {
+    const aios = makeAios("aios", { id: "main", name: "Main", type: "personal", schemaVersion: 1 });
+    const trading = NodePath.join(temp, "workspaces", "trading");
+    const nested = NodePath.join(aios, "projects", "desk");
+    for (const [root, id] of [
+      [trading, "trading"],
+      [nested, "desk"],
+    ] as const) {
+      NodeFS.mkdirSync(root, { recursive: true });
+      writeWorkspaceFile(root, { id, name: id, type: "trading" });
+    }
+    const listed = listAiosWorkspaces([aios, trading, nested]);
+    expect(listed.map((workspace) => workspace.root)).toEqual([aios, trading, nested]);
+    expect(workspaceForPath(listed, nested)?.root).toBe(nested);
+    // A broken file is no workspace marker: the folder stays unlisted.
+    const broken = NodePath.join(temp, "broken");
+    NodeFS.mkdirSync(broken);
+    NodeFS.writeFileSync(NodePath.join(broken, "workspace.json"), "{");
+    expect(listAiosWorkspaces([broken])).toEqual([]);
+  });
 });
 
 describe("listAiosWorkspaces cache", () => {
@@ -240,5 +261,34 @@ describe("isInsideRoot", () => {
     expect(isInsideRoot(real, NodePath.join(real, "tasks", "x.md"))).toBe(true);
     expect(isInsideRoot(real, `${real}-other`)).toBe(false);
     expect(isInsideRoot(real, NodePath.dirname(real))).toBe(false);
+  });
+});
+
+describe("trading workspace type", () => {
+  it("accepts trading with an optional crew pack path", () => {
+    const root = makeAios("trade", {
+      id: "trading",
+      name: "Trading",
+      type: "trading",
+      schemaVersion: 1,
+      crewPack: " packs/crew ",
+    });
+    expect(readWorkspaceFile(root)).toMatchObject({
+      status: "ready",
+      file: { type: "trading", crewPack: "packs/crew" },
+    });
+  });
+
+  it("rejects an unknown type and an empty crew pack path", () => {
+    const unknown = makeAios("odd", { id: "x", name: "X", type: "trader", schemaVersion: 1 });
+    expect(readWorkspaceFile(unknown).status).toBe("invalid");
+    const empty = makeAios("empty", {
+      id: "y",
+      name: "Y",
+      type: "trading",
+      schemaVersion: 1,
+      crewPack: " ",
+    });
+    expect(readWorkspaceFile(empty).status).toBe("invalid");
   });
 });

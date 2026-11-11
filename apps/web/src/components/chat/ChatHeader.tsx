@@ -15,6 +15,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
@@ -48,6 +49,10 @@ interface ChatHeaderProps {
   parentThreadLink: { threadId: ThreadId; title: string } | null;
   onOpenThread: (threadId: ThreadId) => void;
   rightPanelOpen: boolean;
+  /** The chat details panel is open beside the chat: center the title in the space left of it. */
+  centerBesidePanel?: boolean;
+  /** The header shares the title bar with the native window buttons. */
+  nativeControlsInset?: boolean;
   onNewThreadInProject: () => void;
   onOpenProjectSettings?: (() => void) | undefined;
 }
@@ -76,6 +81,8 @@ export const ChatHeader = memo(function ChatHeader({
   parentThreadLink,
   onOpenThread,
   rightPanelOpen,
+  centerBesidePanel = false,
+  nativeControlsInset = false,
   onNewThreadInProject,
   onOpenProjectSettings,
   goalControls,
@@ -246,94 +253,115 @@ export const ChatHeader = memo(function ChatHeader({
   };
   return (
     <div
+      // Three columns: leading controls, the title, and room for the fixed layout cluster.
+      // The equal side columns center the title on the chat axis; a long title moves aside.
       className={cn(
-        "flex min-w-0 flex-1 items-center gap-1",
-        // Clears the fixed layout cluster: five buttons, or seven with the bell and split toggle.
+        "grid min-w-0 flex-1 grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(var(--chat-header-end-guard),1fr)] items-center gap-1",
+        // The fixed layout cluster: five buttons, or seven with the bell and split toggle.
         // Phones drop the pane-layout, terminal and memory buttons: details, side panel and bell remain.
-        rightPanelOpen ? "pr-10" : hostsShellCorner ? "pr-56 max-sm:pr-30" : "pr-44 max-sm:pr-22",
+        rightPanelOpen
+          ? "[--chat-header-cluster:2.5rem]"
+          : hostsShellCorner
+            ? "[--chat-header-cluster:14rem] max-sm:[--chat-header-cluster:7.5rem]"
+            : "[--chat-header-cluster:11rem] max-sm:[--chat-header-cluster:5.5rem]",
       )}
+      style={
+        {
+          "--chat-header-reserve": centerBesidePanel
+            ? "calc(var(--thread-details-panel-width) + 0.75rem)"
+            : "0px",
+          "--chat-header-end-guard": `max(0px, calc(var(--chat-header-cluster) + ${
+            nativeControlsInset ? "var(--workspace-native-controls-inset)" : "0px"
+          } - var(--chat-header-reserve)))`,
+          marginInlineEnd: "var(--chat-header-reserve)",
+        } as CSSProperties
+      }
       onContextMenu={handleHeaderContextMenu}
     >
-      {leading}
-      {/* Sized to the text, so the empty header around it still drags the window. */}
-      <div className="flex min-w-0 items-center text-sm font-medium text-foreground">
-        {renamingTitle !== null ? (
-          <input
-            autoFocus
-            aria-label="Chat name"
-            className="w-80 max-w-full min-w-0 rounded-sm bg-transparent px-1 text-sm font-medium text-foreground outline-none ring-1 ring-inset ring-ring/50 focus:ring-ring"
-            defaultValue={renamingTitle}
-            onBlur={(event) => {
-              if (renameCommittedRef.current) return;
-              // Focus landing on a navigation button means the rename was
-              // abandoned, so discard it rather than persisting a half-draft.
-              if (
-                event.relatedTarget instanceof HTMLElement &&
-                event.relatedTarget.closest("button")
-              ) {
-                setRenaming(null);
-                return;
-              }
-              commitRename(event.currentTarget.value);
-            }}
-            onFocus={(event) => event.currentTarget.select()}
-            onKeyDown={handleRenameKeyDown}
-          />
-        ) : isServerThread ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  ref={titleButtonRef}
-                  type="button"
-                  aria-label={`Open chat actions for ${activeThreadTitle}`}
-                  aria-haspopup="menu"
-                  onClick={openMenuFromTitle}
-                  onDoubleClick={canOperateThread ? handleTitleDoubleClick : undefined}
-                  onBlur={cancelPendingTitleMenu}
-                  className="group/thread-title relative touch-hit inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-sm px-1 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      <div className="flex min-w-0 items-center gap-1 justify-self-start">{leading}</div>
+      <div className="flex min-w-0 items-center gap-1">
+        {/* Sized to the text, so the empty header around it still drags the window. */}
+        <div className="flex min-w-0 items-center text-sm font-medium text-foreground">
+          {renamingTitle !== null ? (
+            <input
+              autoFocus
+              aria-label="Chat name"
+              className="w-80 max-w-full min-w-0 rounded-sm bg-transparent px-1 text-sm font-medium text-foreground outline-none ring-1 ring-inset ring-ring/50 focus:ring-ring"
+              defaultValue={renamingTitle}
+              onBlur={(event) => {
+                if (renameCommittedRef.current) return;
+                // Focus landing on a navigation button means the rename was
+                // abandoned, so discard it rather than persisting a half-draft.
+                if (
+                  event.relatedTarget instanceof HTMLElement &&
+                  event.relatedTarget.closest("button")
+                ) {
+                  setRenaming(null);
+                  return;
+                }
+                commitRename(event.currentTarget.value);
+              }}
+              onFocus={(event) => event.currentTarget.select()}
+              onKeyDown={handleRenameKeyDown}
+            />
+          ) : isServerThread ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    ref={titleButtonRef}
+                    type="button"
+                    aria-label={`Open chat actions for ${activeThreadTitle}`}
+                    aria-haspopup="menu"
+                    onClick={openMenuFromTitle}
+                    onDoubleClick={canOperateThread ? handleTitleDoubleClick : undefined}
+                    onBlur={cancelPendingTitleMenu}
+                    // The start inset matches the hover chevron, so the visible title sits on the chat axis.
+                    className="group/thread-title relative touch-hit inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-sm ps-5.5 pe-1 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  />
+                }
+              >
+                <h2 className="min-w-0 font-display">
+                  <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
+                </h2>
+                <ChevronDownIcon
+                  aria-hidden
+                  data-thread-title-chevron
+                  className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/thread-title:opacity-100 group-focus-visible/thread-title:opacity-100"
                 />
-              }
-            >
-              <h2 className="min-w-0 font-display">
+              </TooltipTrigger>
+              <TooltipPopup side="bottom">
+                {activeProjectName
+                  ? `${activeThreadTitle} in ${activeProjectName}`
+                  : activeThreadTitle}
+              </TooltipPopup>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger
+                render={<h2 aria-label={activeThreadTitle} className="min-w-0 px-1 font-display" />}
+              >
                 <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
-              </h2>
-              <ChevronDownIcon
-                aria-hidden
-                data-thread-title-chevron
-                className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/thread-title:opacity-100 group-focus-visible/thread-title:opacity-100"
-              />
-            </TooltipTrigger>
-            <TooltipPopup side="bottom">
-              {activeProjectName
-                ? `${activeThreadTitle} in ${activeProjectName}`
-                : activeThreadTitle}
-            </TooltipPopup>
-          </Tooltip>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger
-              render={<h2 aria-label={activeThreadTitle} className="min-w-0 px-1 font-display" />}
-            >
-              <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
-            </TooltipTrigger>
-            <TooltipPopup side="bottom">
-              {activeProjectName
-                ? `${activeThreadTitle} in ${activeProjectName}`
-                : activeThreadTitle}
-            </TooltipPopup>
-          </Tooltip>
-        )}
+              </TooltipTrigger>
+              <TooltipPopup side="bottom">
+                {activeProjectName
+                  ? `${activeThreadTitle} in ${activeProjectName}`
+                  : activeThreadTitle}
+              </TooltipPopup>
+            </Tooltip>
+          )}
+        </div>
+        {goalControls}
+        {isServerThread && aiDesktopOpen ? (
+          <LocalVmPanel
+            key={`${activeThreadEnvironmentId}:${activeThreadId}`}
+            environmentId={activeThreadEnvironmentId}
+            threadId={activeThreadId}
+            onClose={() => setAiDesktopOpen(false)}
+          />
+        ) : null}
       </div>
-      {goalControls}
-      {isServerThread && aiDesktopOpen ? (
-        <LocalVmPanel
-          key={`${activeThreadEnvironmentId}:${activeThreadId}`}
-          environmentId={activeThreadEnvironmentId}
-          threadId={activeThreadId}
-          onClose={() => setAiDesktopOpen(false)}
-        />
-      ) : null}
+      <span aria-hidden />
     </div>
   );
 });

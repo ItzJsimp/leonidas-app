@@ -43,6 +43,14 @@ import {
 } from "./provider/PonytailEnsure.ts";
 import { readReleaseStatus } from "./releaseStatus/releaseStatus.ts";
 import { homeNews, homeWeather } from "./taskBoard/homeFeeds.ts";
+import { appendTradingEvents } from "./trading/appendTradingEvents.ts";
+import { readTradingState, requireTradingRoot } from "./trading/readTradingState.ts";
+import { savePackConsent } from "./trading/tradingPack.ts";
+import {
+  importTradingExport,
+  listTradingImports,
+  makeTradingImportWatch,
+} from "./trading/tradingImports.ts";
 import * as PromptSuggestion from "./workspace/PromptSuggestion.ts";
 import * as SkillPick from "./workspace/SkillPick.ts";
 import * as TextGeneration from "./textGeneration/TextGeneration.ts";
@@ -1515,6 +1523,8 @@ export const layerWsRpc = (
       });
       const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
       const backgroundPolicy = yield* BackgroundPolicy.BackgroundPolicy;
+      const tradingImports = makeTradingImportWatch();
+      yield* Effect.addFinalizer(() => Effect.sync(tradingImports.close));
       const rpcClientIds = yield* Ref.make(new Set<RpcClientId>());
       yield* Effect.addFinalizer(() =>
         Ref.get(rpcClientIds).pipe(
@@ -3099,6 +3109,16 @@ export const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.capSet(projects, input)),
           ),
+        [WS_METHODS.aiosLimits]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosLimits(projects, input.workspaceId)),
+          ),
+        [WS_METHODS.aiosLimitSet]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosLimitSet(projects, input)),
+          ),
+        [WS_METHODS.voiceLimitGet]: () => taskBoard.voiceLimitGet(),
+        [WS_METHODS.voiceLimitSet]: (input) => taskBoard.voiceLimitSet(input.seconds),
         [WS_METHODS.taskBoardCardCreate]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.cardCreate(input, projects)),
@@ -3114,6 +3134,39 @@ export const layerWsRpc = (
         [WS_METHODS.taskBoardHomeWeather]: (input) =>
           Effect.promise(() => homeWeather(input.place)),
         [WS_METHODS.taskBoardHomeNews]: () => Effect.promise(() => homeNews()),
+        [WS_METHODS.tradingImports]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => listTradingImports(root, tradingImports)),
+          ),
+        [WS_METHODS.tradingImport]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => importTradingExport(root, input, tradingImports)),
+          ),
+        [WS_METHODS.tradingPackConsent]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(requireTradingRoot),
+            Effect.flatMap((root) =>
+              savePackConsent(root, { allow: input.allow, sha256: input.sha256 }),
+            ),
+          ),
+        [WS_METHODS.tradingState]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(readTradingState),
+          ),
+        [WS_METHODS.tradingAppend]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => appendTradingEvents(root, input.events)),
+          ),
         [WS_METHODS.releaseStatusRuns]: () => Effect.promise(() => readReleaseStatus()),
         [WS_METHODS.layaUsage]: () => Effect.promise(() => readLayaUsage()),
         [WS_METHODS.calendarEvents]: (input) => calendar.events(input),

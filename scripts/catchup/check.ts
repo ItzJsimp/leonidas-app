@@ -49,7 +49,11 @@ function locate(segments: string[][], resolved: string[]): Array<[number, number
   return go(0, first.length);
 }
 
-export function checkResolution(conflicted: string, resolved: string): Violation[] {
+export function checkResolution(conflictedRaw: string, resolvedRaw: string): Violation[] {
+  // Editors on Windows may rewrite line endings; the check compares text, not line endings.
+  const toLf = (s: string) => s.replaceAll(String.fromCharCode(13, 10), String.fromCharCode(10));
+  const conflicted = toLf(conflictedRaw);
+  const resolved = toLf(resolvedRaw);
   const { segments, hunks } = parseConflicts(conflicted);
   if (hunks.length === 0) return [];
   if (/^(<<<<<<< |>>>>>>> |=======$)/m.test(resolved)) {

@@ -42,6 +42,7 @@ import { gitCommandDuration, gitCommandsTotal, withMetrics } from "../observabil
 import * as GitVcsDriver from "./GitVcsDriver.ts";
 import { removeEmptyDirectory } from "./removeEmptyDirectory.ts";
 import { explicitBareRepositoryEnv, gitConfigEnv } from "./VcsProcess.ts";
+import { cutWorktreeLinks } from "./worktreeLinks.ts";
 import { resolveWorktreesDirectory } from "../worktreesDirectory.ts";
 import {
   parseRemoteNames,
@@ -4183,6 +4184,16 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       args.push("--force");
     }
     args.push("--", target);
+    // Git deletes through a link into its target, so cut every link first (AIOS skill folders).
+    yield* Effect.tryPromise({
+      try: () => cutWorktreeLinks(target),
+      catch: (cause) =>
+        new GitCommandError({
+          ...gitCommandContext({ operation: "GitVcsDriver.removeWorktree", cwd: input.cwd, args }),
+          detail: "could not cut a link in the worktree, nothing was removed",
+          cause,
+        }),
+    });
     const result = yield* executeGitWithStableDiagnostics(
       "GitVcsDriver.removeWorktree",
       input.cwd,

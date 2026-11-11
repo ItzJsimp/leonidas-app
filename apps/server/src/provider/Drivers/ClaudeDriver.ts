@@ -12,7 +12,11 @@
  *
  * @module provider/Drivers/ClaudeDriver
  */
-import { ClaudeSettings, ProviderDriverKind } from "@t3tools/contracts";
+import {
+  ClaudeSettings,
+  ProviderDriverKind,
+  type ServerProviderResetCredits,
+} from "@t3tools/contracts";
 import * as Cache from "effect/Cache";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
@@ -79,6 +83,7 @@ import { scheduleClaudePonytail } from "../PonytailEnsure.ts";
 const decodeClaudeSettings = Schema.decodeSync(ClaudeSettings);
 
 const DRIVER_KIND = ProviderDriverKind.make("claudeAgent");
+const RESET_CREDITS_GRACE_MS = 30 * 60_000;
 const CAPABILITIES_PROBE_TTL = Duration.minutes(5);
 // Limit bars refresh on their own faster cadence: one cheap HTTP read per account,
 // never the CLI spawn the full health check costs.
@@ -172,6 +177,7 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
         processEnv,
       );
       const configDir = yield* resolveClaudeHomePath(effectiveConfig, processEnv);
+      let lastResetCredits: { value: ServerProviderResetCredits; at: number } | undefined;
       if (enabled) {
         scheduleClaudePonytail({
           binaryPath: effectiveConfig.binaryPath,
@@ -260,6 +266,25 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
                     Effect.provideService(HttpClient.HttpClient, httpClient),
                     Effect.provideService(FileSystem.FileSystem, fileSystem),
                     Effect.provideService(Path.Path, path),
+                    // A rate-limited read must not make banked resets vanish and reappear.
+                    Effect.flatMap((fresh) =>
+                      DateTime.now.pipe(
+                        Effect.map((time) => {
+                          const now = DateTime.toEpochMillis(time);
+                          if (fresh) {
+                            lastResetCredits = { value: fresh, at: now };
+                            return fresh;
+                          }
+                          const last = lastResetCredits;
+                          const live =
+                            last &&
+                            now - last.at < RESET_CREDITS_GRACE_MS &&
+                            (!last.value.nextExpiresAt ||
+                              Date.parse(last.value.nextExpiresAt) > now);
+                          return live ? last.value : undefined;
+                        }),
+                      ),
+                    ),
                   ),
                 (version) =>
                   ClaudeResetCredits.readClaudeOauthUsage(configDir, version).pipe(

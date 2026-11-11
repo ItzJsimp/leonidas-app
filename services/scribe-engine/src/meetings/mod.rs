@@ -5,12 +5,14 @@
 pub mod capture;
 pub mod detect;
 pub mod discord;
+pub mod loopback;
 pub mod notes;
 pub mod retranscribe;
 pub mod session;
 pub mod speakers;
 pub mod store;
 
+use capture::Sources;
 use serde_json::{json, Value};
 use session::{Phase, Segmenter, Session, TrackOpener};
 use std::path::{Path, PathBuf};
@@ -72,9 +74,45 @@ impl Segmenter for NoSpeech {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct StartBody {
     title: Option<String>,
-    /// The call app, for example `Discord`, when the app detected one.
+    /// One call app, for example `Discord`. The same as `apps: ["Discord"]`.
     app: Option<String>,
     template: Option<String>,
+    /// A mic id from `GET sources`. Empty means the system default.
+    mic: Option<String>,
+    /// A speaker id from `GET sources`, used when no app is chosen (all computer audio).
+    output: Option<String>,
+    /// Apps to record by name. Empty records all computer audio.
+    #[serde(default)]
+    apps: Vec<String>,
+}
+
+impl StartBody {
+    /// The audio to record, trimmed. `app` counts as one chosen app. Names are not repeated.
+    fn sources(&self) -> Sources {
+        let clean = |s: &Option<String>| {
+            s.as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned)
+        };
+        let mut apps: Vec<String> = Vec::new();
+        for app in self.apps.iter().chain(self.app.iter()) {
+            let app = app.trim();
+            if !app.is_empty() && !apps.iter().any(|a| a.eq_ignore_ascii_case(app)) {
+                apps.push(app.to_owned());
+            }
+        }
+        Sources {
+            mic: clean(&self.mic),
+            output: clean(&self.output),
+            apps,
+        }
+    }
+}
+
+/// Discord names need Discord's own speaking events, which exist when Discord is a chosen app.
+fn wants_discord(apps: &[String]) -> bool {
+    apps.iter().any(|a| a.eq_ignore_ascii_case("Discord"))
 }
 
 impl Meetings {
@@ -220,6 +258,7 @@ impl Meetings {
             },
             ("POST", ["stop"]) => self.stop(),
             ("GET", ["live"]) => self.live(),
+            ("GET", ["sources"]) => (200, capture::sources_json()),
             ("GET", ["detect"]) => {
                 let apps = detect::active_calls();
                 (200, json!({ "app": apps.first(), "apps": apps }))
@@ -294,14 +333,18 @@ impl Meetings {
         }
         let started = crate::now_iso();
         let id = self.new_id(&started);
-        let app = start.app.filter(|a| !a.trim().is_empty());
+        let sources = start.sources();
         let manifest = json!({
             "id": id,
             "title": start.title.filter(|t| !t.trim().is_empty()).unwrap_or_else(|| "Meeting".into()),
             "started": started,
             "ended": null,
             "state": "recording",
-            "source": { "kind": if app.is_some() { "app" } else { "device" }, "app": app },
+            "source": {
+                "kind": if sources.apps.is_empty() { "device" } else { "app" },
+                "app": sources.apps.first(),
+                "apps": sources.apps,
+            },
             "participants": [{ "key": session::ME, "name": session::ME }],
             "template_id": start.template.unwrap_or_else(|| "default".into()),
             "pinned": false,
@@ -314,6 +357,7 @@ impl Meetings {
             id.clone(),
             dir.clone(),
             &self.opener,
+            &sources,
             self.speech.clone(),
             {
                 let chat = self.chat.clone();
@@ -324,7 +368,7 @@ impl Meetings {
             },
         ) {
             Ok(session) => {
-                if app.as_deref() == Some("Discord") {
+                if wants_discord(&sources.apps) {
                     self.start_discord(&dir);
                 }
                 *active = Some(session);
@@ -727,6 +771,87 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
         panic!("the meeting did not finish");
+    }
+
+    fn test_meetings(name: &str, opener: TrackOpener) -> Meetings {
+        Meetings::new(temp_root(name))
+            .with_opener(opener)
+            .with_speech(Arc::new(session::tests::FakeSegmenter {
+                calls: AtomicUsize::new(0),
+                fail_first: 0,
+            }))
+    }
+
+    #[test]
+    fn start_passes_the_chosen_sources_to_the_opener() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let m = test_meetings("sources-start", session::tests::spy_opener(seen.clone()));
+        let (status, started) = m.handle(
+            "POST",
+            "/v1/meetings/start",
+            json!({"mic": " mic-1 ", "output": "", "apps": ["Discord", "discord", "Zoom"], "app": "Spotify"}),
+        );
+        assert_eq!(status, 200, "{started}");
+        let id = started["id"].as_str().unwrap().to_owned();
+        {
+            let seen = seen.lock().unwrap();
+            assert_eq!(seen.len(), 2, "mic and call audio are opened once each");
+            let sources = &seen[0].1;
+            assert_eq!(sources.mic.as_deref(), Some("mic-1"));
+            assert_eq!(sources.output, None, "an empty id means the default");
+            assert_eq!(sources.apps, ["Discord", "Zoom", "Spotify"], "no repeats");
+        }
+        assert_eq!(m.handle("POST", "/v1/meetings/stop", Value::Null).0, 200);
+        wait_done(&m);
+        let meeting = m
+            .handle("GET", &format!("/v1/meetings/{id}"), Value::Null)
+            .1;
+        assert_eq!(meeting["app"], "Discord");
+    }
+
+    #[test]
+    fn start_without_sources_uses_the_defaults() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let m = test_meetings("sources-default", session::tests::spy_opener(seen.clone()));
+        let (status, _) = m.handle("POST", "/v1/meetings/start", Value::Null);
+        assert_eq!(status, 200);
+        assert_eq!(seen.lock().unwrap()[0].1, Sources::default());
+        m.handle("POST", "/v1/meetings/stop", Value::Null);
+        wait_done(&m);
+    }
+
+    #[test]
+    fn start_rejects_a_bad_apps_list() {
+        let m = test_meetings("sources-bad", session::tests::fake_opener(1.0, Some(1.0)));
+        for body in [
+            json!({"apps": "Discord"}),
+            json!({"apps": [1]}),
+            json!({"devices": []}),
+        ] {
+            assert_eq!(m.handle("POST", "/v1/meetings/start", body).0, 400);
+        }
+        assert!(!m.recording());
+    }
+
+    #[test]
+    fn the_sources_route_lists_mics_speakers_and_apps() {
+        let m = Meetings::new(temp_root("sources-route"));
+        let (status, body) = m.handle("GET", "/v1/meetings/sources", Value::Null);
+        assert_eq!(status, 200);
+        for key in ["mics", "outputs", "apps"] {
+            assert!(body[key].is_array(), "{key}");
+        }
+        assert!(body["perApp"].is_boolean());
+        assert_eq!(m.handle("POST", "/v1/meetings/sources", Value::Null).0, 405);
+    }
+
+    #[test]
+    fn only_a_chosen_discord_gets_speaker_names() {
+        let names =
+            |apps: &[&str]| wants_discord(&apps.iter().map(|a| a.to_string()).collect::<Vec<_>>());
+        assert!(names(&["Zoom", "discord"]));
+        assert!(!names(&["Zoom", "Spotify"]));
+        assert!(!names(&[]), "all computer audio has no Discord choice");
     }
 
     #[test]

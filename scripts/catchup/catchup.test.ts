@@ -99,6 +99,12 @@ describe("no invented lines", () => {
     expect(checkResolution(plain, resolve(["    const a = 1;    "]))).toEqual([]);
   });
 
+  it("ignores a change of line endings", () => {
+    const crlf = (s: string) => s.replaceAll(String.fromCharCode(10), String.fromCharCode(13, 10));
+    expect(checkResolution(plain, crlf(resolve(["const a = 1;"])))).toEqual([]);
+    expect(checkResolution(crlf(plain), resolve(["const a = 2;"]))).toEqual([]);
+  });
+
   it("fails an invented line", () => {
     const v = checkResolution(plain, resolve(["const a = 1;", "dangerouslyRun(a);"]));
     expect(v).toEqual([{ hunk: 0, kind: "invented", line: "dangerouslyRun(a);" }]);

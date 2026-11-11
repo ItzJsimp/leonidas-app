@@ -1,6 +1,7 @@
 import type { ProviderInteractionMode } from "@t3tools/contracts";
 import type { V2TurnStartParams__AdditionalContextEntry } from "effect-codex-app-server/schema";
 import { buildRuntimeInstructions } from "@t3tools/provider-core/server/runtimeInstructions";
+import { leonidasOutputStandard } from "@t3tools/provider-core/server/outputStandard";
 
 import {
   T3_CODE_BROWSER_TOOL_INSTRUCTIONS,
@@ -231,6 +232,7 @@ export function buildCodexAdditionalContext(
   toolsAvailable: boolean | T3CodeToolAvailability = true,
 ): Record<string, V2TurnStartParams__AdditionalContextEntry> {
   const tools = toolInstructions(toolsAvailable);
+  const outputStandard = leonidasOutputStandard(runtime.replyStyle);
   // Separate keys keep each value under Codex's per-entry cap. Codex emits
   // entries in key order, so the numbering preserves the authored order.
   return {
@@ -241,12 +243,18 @@ export function buildCodexAdditionalContext(
       ]),
     ),
     ...Object.fromEntries(
-      splitForCodexEntry(buildRuntimeInstructions({ harness: "Codex", ...runtime })).map(
-        (value, index) => [
-          index === 0 ? "t3_code_runtime" : `t3_code_runtime_${String(index + 1).padStart(2, "0")}`,
-          { kind: "application" as const, value },
-        ],
-      ),
+      splitForCodexEntry(
+        buildRuntimeInstructions({ harness: "Codex", ...runtime }).replace(outputStandard, ""),
+      ).map((value, index) => [
+        index === 0 ? "t3_code_runtime" : `t3_code_runtime_${String(index + 1).padStart(2, "0")}`,
+        { kind: "application" as const, value },
+      ]),
+    ),
+    ...Object.fromEntries(
+      splitForCodexEntry(outputStandard).map((value, index) => [
+        index === 0 ? "t3_code_output" : `t3_code_output_${String(index + 1).padStart(2, "0")}`,
+        { kind: "application" as const, value },
+      ]),
     ),
     ...(tools ? { t3_code_tools: { kind: "application", value: tools } } : {}),
   };

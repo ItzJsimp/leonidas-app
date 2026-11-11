@@ -12,7 +12,7 @@ const WORKSPACE_FILE = "workspace.json";
 const SCHEMA_VERSION = 1;
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
-export type AiosWorkspaceType = "personal" | "business";
+export type AiosWorkspaceType = "personal" | "business" | "trading";
 
 export interface AiosWorkspaceFile {
   readonly id: string;
@@ -21,6 +21,8 @@ export interface AiosWorkspaceFile {
   readonly schemaVersion: number;
   /** Projects the Tasks rail folds into "More". Present only when the list is not empty. */
   readonly hiddenProjects?: ReadonlyArray<string>;
+  /** Folder of a private crew pack the workspace loads. Present only when set. */
+  readonly crewPack?: string;
 }
 
 const MAX_HIDDEN_PROJECTS = 200;
@@ -42,13 +44,21 @@ export type AiosWorkspaceState =
 
 function parseWorkspaceFile(value: unknown): AiosWorkspaceFile | string {
   if (typeof value !== "object" || value === null) return "The file is not a JSON object.";
-  const { id, name, type, schemaVersion, hiddenProjects } = value as Record<string, unknown>;
+  const { id, name, type, schemaVersion, hiddenProjects, crewPack } = value as Record<
+    string,
+    unknown
+  >;
   if (schemaVersion !== SCHEMA_VERSION) return `schemaVersion must be ${SCHEMA_VERSION}.`;
   if (typeof id !== "string" || !ID_PATTERN.test(id)) {
     return "id must be lowercase letters, digits and hyphens.";
   }
   if (typeof name !== "string" || !name.trim()) return "name must not be empty.";
-  if (type !== "personal" && type !== "business") return 'type must be "personal" or "business".';
+  if (type !== "personal" && type !== "business" && type !== "trading") {
+    return 'type must be "personal", "business" or "trading".';
+  }
+  if (crewPack !== undefined && (typeof crewPack !== "string" || !crewPack.trim())) {
+    return "crewPack must be a path.";
+  }
   const hidden = parseHiddenProjects(hiddenProjects);
   return {
     id,
@@ -56,6 +66,7 @@ function parseWorkspaceFile(value: unknown): AiosWorkspaceFile | string {
     type,
     schemaVersion,
     ...(hidden.length > 0 ? { hiddenProjects: hidden } : {}),
+    ...(typeof crewPack === "string" ? { crewPack: crewPack.trim() } : {}),
   };
 }
 
@@ -96,6 +107,19 @@ export function writeWorkspaceFile(
   NodeFS.writeFileSync(target, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
   listCache.clear();
   return readWorkspaceFile(root);
+}
+
+/** Adds the empty Trading logs that the `trading` RPC reads. Existing files stay as they are. */
+export function writeTradingStarter(root: string): void {
+  const dir = NodePath.join(root, "trading");
+  NodeFS.mkdirSync(dir, { recursive: true });
+  for (const name of ["ledger.jsonl", "trades.jsonl"]) {
+    try {
+      NodeFS.writeFileSync(NodePath.join(dir, name), "", { flag: "wx" });
+    } catch (cause) {
+      if ((cause as NodeJS.ErrnoException).code !== "EEXIST") throw cause;
+    }
+  }
 }
 
 /**
@@ -146,8 +170,8 @@ const keyFor = (path: string) => {
 
 /**
  * Finds each AIOS root once, in hint order (confirmed folder, env, then project folders).
- * A folder with no workspace.json and no projects/ is a bare tasks/ folder, not
- * an AIOS. A root that reuses a ready id is refused, so one id never names two folders.
+ * A hint with its own valid workspace.json is a root. A folder with no workspace.json and no
+ * projects/ is a bare tasks/ folder, not an AIOS. A root that reuses a ready id is refused, so one id never names two folders.
  */
 export function listAiosWorkspaces(
   hints: ReadonlyArray<string | undefined>,
@@ -175,12 +199,14 @@ function scanAiosWorkspaces(
   const ids = new Set<string>();
   const workspaces: AiosWorkspaceState[] = [];
   for (const hint of hints) {
-    const root = findAiosRoot([hint]);
+    // A folder with its own valid workspace.json is a root, also with no tasks/ (a Trading folder).
+    const own = hint?.trim() ? ownWorkspace(NodePath.resolve(hint.trim())) : null;
+    const root = own?.root ?? findAiosRoot([hint]);
     if (root === null) continue;
     const key = keyFor(root);
     if (seen.has(key)) continue;
     seen.add(key);
-    const state = readWorkspaceFile(root);
+    const state = own ?? readWorkspaceFile(root);
     if (state.status === "missing" && !hasProjects(root)) continue;
     if (state.status === "ready") {
       if (ids.has(state.file.id)) {
@@ -193,6 +219,13 @@ function scanAiosWorkspaces(
   }
   return workspaces;
 }
+
+/** The ready state of a folder's own workspace.json, else null. existsSync skips a thrown read. */
+const ownWorkspace = (folder: string): AiosWorkspaceState | null => {
+  if (!NodeFS.existsSync(NodePath.join(folder, WORKSPACE_FILE))) return null;
+  const state = readWorkspaceFile(folder);
+  return state.status === "ready" ? state : null;
+};
 
 const hasProjects = (root: string): boolean => {
   try {
