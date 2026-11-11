@@ -1361,6 +1361,56 @@ describe("deriveMessagesTimelineRows", () => {
     expect(files("assistant-3")).toEqual(["c.ts:1"]);
   });
 
+  it("hides mid-run progress lines unless step updates are on", () => {
+    const at = (second: number) => `2026-01-01T00:00:${String(second).padStart(2, "0")}Z`;
+    const message = (
+      id: string,
+      role: "user" | "assistant",
+      second: number,
+      streaming = false,
+    ) => ({
+      id: `${id}-entry`,
+      kind: "message" as const,
+      createdAt: at(second),
+      message: {
+        id: id as never,
+        role,
+        text: id === "step-1" ? "Reading the code first.\nMore detail." : id,
+        runId: "turn-1" as never,
+        ...(role === "user" ? { inputIntent: "turn_start" as const } : {}),
+        createdAt: at(second),
+        updatedAt: at(second),
+        streaming,
+      },
+    });
+    const input = {
+      timelineEntries: [
+        message("user-1", "user", 0),
+        message("step-1", "assistant", 2),
+        message("answer", "assistant", 6, true),
+      ],
+      latestRun: {
+        runId: "turn-1" as never,
+        status: "running" as const,
+        startedAt: at(0),
+        completedAt: null,
+      },
+      isWorking: true,
+      activeTurnStartedAt: at(0),
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    };
+
+    const quiet = deriveMessagesTimelineRows(input);
+    expect(quiet.some((row) => row.id === "step-1-entry")).toBe(false);
+    expect(quiet.some((row) => row.id === "answer-entry")).toBe(true);
+    const live = quiet.find((row) => row.kind === "working" || row.kind === "thinking");
+    expect(live && "stepNote" in live ? live.stepNote : undefined).toBe("Reading the code first.");
+
+    const loud = deriveMessagesTimelineRows({ ...input, showStepUpdates: true });
+    expect(loud.some((row) => row.id === "step-1-entry")).toBe(true);
+  });
+
   it("folds the first assistant message and settled work before the terminal response", () => {
     const timelineEntries = [
       {

@@ -784,6 +784,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.confirmThreadUnpin !== DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin
         ? ["Unpin confirmation"]
         : []),
+      ...(settings.showStepUpdates !== DEFAULT_UNIFIED_SETTINGS.showStepUpdates
+        ? ["Step updates"]
+        : []),
       ...(settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive
         ? ["Archive confirmation"]
         : []),
@@ -818,6 +821,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.chatWidth,
       settings.enableAgentBrowserAccess,
       settings.confirmQuit,
+      settings.showStepUpdates,
       settings.confirmThreadArchive,
       settings.confirmThreadDelete,
       settings.confirmThreadUnpin,
@@ -987,6 +991,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       defaultThreadEnvMode: DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode,
       newWorktreesStartFromOrigin: DEFAULT_UNIFIED_SETTINGS.newWorktreesStartFromOrigin,
       addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
+      showStepUpdates: DEFAULT_UNIFIED_SETTINGS.showStepUpdates,
       confirmThreadArchive: DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive,
       confirmThreadDelete: DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete,
       confirmThreadUnpin: DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin,
@@ -2665,6 +2670,30 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
                     updateSettings({ confirmThreadUnpin: Boolean(checked) })
                   }
                   aria-label="Confirm chat unpinning"
+                />
+              }
+            />
+
+            <SettingsRow
+              {...searchableSetting("show-step-updates")}
+              description="Show the agent's progress notes in the chat while it works. Off shows one live status line."
+              resetAction={
+                settings.showStepUpdates !== DEFAULT_UNIFIED_SETTINGS.showStepUpdates ? (
+                  <SettingResetButton
+                    label="step updates"
+                    onClick={() =>
+                      updateSettings({ showStepUpdates: DEFAULT_UNIFIED_SETTINGS.showStepUpdates })
+                    }
+                  />
+                ) : null
+              }
+              control={
+                <Switch
+                  checked={settings.showStepUpdates}
+                  onCheckedChange={(checked) =>
+                    updateSettings({ showStepUpdates: Boolean(checked) })
+                  }
+                  aria-label="Show step updates"
                 />
               }
             />
