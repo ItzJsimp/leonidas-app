@@ -1,3 +1,4 @@
+import { useEnvironmentProviders } from "../../state/environments";
 import { CacheSettings } from "./CacheSettings";
 import { OWN_YOUR_BRAIN_LINE } from "../../onboarding/ownYourBrain";
 import { ApiKeysSettings } from "./ApiKeysSettings";
@@ -2428,7 +2429,10 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
   const lastEnabledProjectGroupingMode = useRef<SidebarProjectGroupingMode>(
     readLastEnabledProjectGroupingMode(),
   );
-  const serverProviders = environment?.serverConfig?.providers ?? EMPTY_SERVER_PROVIDERS;
+  const providersByEnvironment = useEnvironmentProviders();
+  const serverProviders =
+    (environment ? providersByEnvironment.get(environment.environmentId) : undefined) ??
+    EMPTY_SERVER_PROVIDERS;
   const supportsAutoSettlement =
     connectedEnvironments.length > 0 &&
     connectedEnvironments.every(
@@ -2451,7 +2455,11 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
   const textGenModel = textGenerationModelSelection.model;
   const textGenModelOptions = textGenerationModelSelection.options;
   const textGenerationModelInstanceEntries = sortProviderInstanceEntries(
-    applyProviderInstanceSettings(deriveProviderInstanceEntries(textGenerationProviders), settings),
+    applyProviderInstanceSettings(
+      deriveProviderInstanceEntries(textGenerationProviders),
+      settings,
+      null,
+    ),
   );
   const hasTextGenerationProvider = textGenerationModelInstanceEntries.some(
     (entry) => entry.enabled && entry.isAvailable,

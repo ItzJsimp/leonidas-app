@@ -279,11 +279,13 @@ export const makeClaudeAuth = Effect.fn("makeClaudeAuth")(function* (
           if (activeFlow || signingOut) {
             return yield* setupError("start", "Claude sign-in is already in progress.");
           }
-          const flowId = yield* crypto.randomUUIDv4.pipe(
-            Effect.mapError(() =>
-              setupError("start", "Could not start Claude sign-in. Try again."),
-            ),
-          );
+          const flowId = yield* crypto
+            .randomUUIDv4()
+            .pipe(
+              Effect.mapError(() =>
+                setupError("start", "Could not start Claude sign-in. Try again."),
+              ),
+            );
           const now = yield* Clock.currentTimeMillis;
           const expiresAtMillis = now + timeoutMs;
           const flow: AuthFlow = {

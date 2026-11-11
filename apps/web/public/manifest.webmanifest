@@ -1,5 +1,7 @@
 {
   "id": "/",
+  "name": "Leonidas Code",
+  "short_name": "Leonidas Code",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

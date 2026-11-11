@@ -118,6 +118,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
               pressed={rightPanelOpen}
               onPressedChange={onToggleRightPanel}
               aria-label="Show or hide the side panel"
+              data-right-panel-toggle
               variant="ghost"
               size="sm"
               disabled={!rightPanelAvailable}

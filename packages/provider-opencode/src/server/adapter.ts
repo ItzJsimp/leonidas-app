@@ -227,7 +227,6 @@ interface OpenCodeTurnTokenUsageAccumulator {
   readonly partIds: Set<string>;
   readonly promptMessageIds: Set<string>;
   readonly assistantOwnershipByMessageId: Map<string, "owned" | "other" | "unknown">;
-  // Native removal does not undo usage. Keep unresolved counts until this turn settles.
   readonly unresolvedStepsByMessageId: Map<string, Map<string, OpenCodeStepUsage>>;
   inputTokens: number;
   cachedInputTokens: number;
@@ -277,7 +276,6 @@ interface ActiveOpenCodeTurn {
   readonly modelSelection: ModelSelection;
   readonly runtimePolicy: ProviderAdapter.ProviderAdapterV2RuntimePolicy;
   readonly providerTurnId: OrchestrationV2ProviderTurn["id"];
-  /** The provider thread the turn started on, which its terminal names. */
   readonly providerThreadId: OrchestrationV2ProviderTurn["providerThreadId"];
   readonly providerTurnOrdinal: number;
   readonly runOrdinal: number;
@@ -400,14 +398,9 @@ interface OpenCodeThreadState {
 interface OpenCodeRequestOwner {
   readonly state: OpenCodeThreadState;
   readonly turn: ActiveOpenCodeTurn;
-  /** The subagent on the owner's thread that leads to the asking session. */
   readonly subagent: OpenCodeSubagentContext | null;
 }
 
-/**
- * The top-level thread and active turn that own a session's requests, walking
- * up through (possibly nested) subagents.
- */
 function topLevelRequestOwner(state: OpenCodeThreadState): OpenCodeRequestOwner | undefined {
   let owner = state;
   let subagent: OpenCodeSubagentContext | null = null;
@@ -421,7 +414,6 @@ function topLevelRequestOwner(state: OpenCodeThreadState): OpenCodeRequestOwner 
 interface PendingOpenCodeRequest {
   readonly requestId: RuntimeRequestId;
   readonly nativeRequestId: string;
-  /** The session that asked, which may be a subagent's. */
   readonly nativeSessionId: string;
   readonly turn: ActiveOpenCodeTurn;
   readonly state: OpenCodeThreadState;
@@ -614,10 +606,7 @@ const OPENCODE_RESTRICTED_PERMISSIONS = [
 
 /**
  * OpenCode does not provide an OS sandbox, so permission rules are also the
- * enforcement boundary for non-interactive policies. Read/planning tools are
- * safe by default; edits are auto-approved only for workspace-write modes,
- * while shell/network/external access remains gated unless policy explicitly
- * allows it.
+ * enforcement boundary for non-interactive policies.
  */
 export function openCodePermissionRules(
   runtimePolicy: ProviderAdapter.ProviderAdapterV2RuntimePolicy,
@@ -1024,10 +1013,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
         const pendingRequestsByNativeId = new Map<string, PendingOpenCodeRequest>();
         const subagentsByNativeItemId = new Map<string, OpenCodeSubagentContext>();
         const subagentsByChildSessionId = new Map<string, OpenCodeSubagentContext>();
-        // Permission and question requests can originate from child sessions
-        // (task subagents and their descendants). Related sessions map back
-        // to the root thread state whose active turn owns the request; asks
-        // arriving before the relation is known resolve it via session.get.
         const relatedSessionOwners = new Map<string, OpenCodeThreadState>();
         // Sessions of this runtime that OpenCode reports busy. A background
         // task child keeps running after its parent turn settles, so idle
@@ -1079,56 +1064,55 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
             ),
           );
 
-        const abortDescendants = (rootId: string) =>
-          Effect.gen(function* () {
-            const visited = new Set([rootId]);
-            const semaphore = Semaphore.makeUnsafe(8);
-            const visit = (
-              sessionId: string,
-              abort: boolean,
-            ): Effect.Effect<OpenCodeRuntime.OpenCodeRuntimeError | undefined> =>
-              Effect.gen(function* () {
-                const abortResult = abort
-                  ? yield* sdkCall("session.abort", { sessionID: sessionId }, (signal) =>
-                      client.session.abort({ sessionID: sessionId }, { signal }),
-                    ).pipe(
-                      semaphore.withPermit,
-                      Effect.catchIf(isOpenCodeNotFound, () => Effect.void),
-                      Effect.result,
-                    )
-                  : undefined;
-                const childrenResult = yield* sdkCall(
-                  "session.children",
-                  { sessionID: sessionId },
-                  (signal) => client.session.children({ sessionID: sessionId }, { signal }),
+        const abortDescendants = Effect.fn("OpencodeAdapter.abortDescendants")(function* (
+          rootId: string,
+        ) {
+          const visited = new Set([rootId]);
+          const semaphore = Semaphore.makeUnsafe(8);
+          const visit = Effect.fn("OpencodeAdapter.visit")(function* (
+            sessionId: string,
+            abort: boolean,
+          ): Effect.fn.Return<OpenCodeRuntime.OpenCodeRuntimeError | undefined> {
+            const abortResult = abort
+              ? yield* sdkCall("session.abort", { sessionID: sessionId }, (signal) =>
+                  client.session.abort({ sessionID: sessionId }, { signal }),
                 ).pipe(
                   semaphore.withPermit,
                   Effect.catchIf(isOpenCodeNotFound, () => Effect.void),
                   Effect.result,
-                );
-                const firstFailure =
-                  abortResult?._tag === "Failure" ? abortResult.failure : undefined;
-                if (childrenResult._tag === "Failure")
-                  return firstFailure ?? childrenResult.failure;
-                const fresh = (childrenResult.success?.data ?? []).filter((child) => {
-                  if (visited.has(child.id)) return false;
-                  visited.add(child.id);
-                  return true;
-                });
-                const failures = yield* Effect.forEach(fresh, (child) => visit(child.id, true), {
-                  concurrency: 8,
-                });
-                return firstFailure ?? failures.find((failure) => failure !== undefined);
-              });
-            const failure = yield* visit(rootId, false);
-            if (failure) return yield* Effect.fail(failure);
-          }).pipe(Effect.timeout("15 seconds"));
+                )
+              : undefined;
+            const childrenResult = yield* sdkCall(
+              "session.children",
+              { sessionID: sessionId },
+              (signal) => client.session.children({ sessionID: sessionId }, { signal }),
+            ).pipe(
+              semaphore.withPermit,
+              Effect.catchIf(isOpenCodeNotFound, () => Effect.void),
+              Effect.result,
+            );
+            const firstFailure = abortResult?._tag === "Failure" ? abortResult.failure : undefined;
+            if (childrenResult._tag === "Failure") return firstFailure ?? childrenResult.failure;
+            const fresh = (childrenResult.success?.data ?? []).filter((child) => {
+              if (visited.has(child.id)) return false;
+              visited.add(child.id);
+              return true;
+            });
+            const failures = yield* Effect.forEach(fresh, (child) => visit(child.id, true), {
+              concurrency: 8,
+            });
+            return firstFailure ?? failures.find((failure) => failure !== undefined);
+          });
+          const failure = yield* visit(rootId, false);
+          if (failure) return yield* Effect.fail(failure);
+        }, Effect.timeout("15 seconds"));
 
-        const updateProviderSession = (
-          status: OrchestrationV2ProviderSession["status"],
-          lastError: string | null = sessionEntity.lastError,
-        ) =>
-          Effect.gen(function* () {
+        const updateProviderSession =
+          /* Provider events include streaming deltas; avoid a span for each update. */
+          Effect.fnUntraced(function* (
+            status: OrchestrationV2ProviderSession["status"],
+            lastError: string | null = sessionEntity.lastError,
+          ) {
             const updatedAt = yield* DateTime.now;
             sessionEntity = { ...sessionEntity, status, lastError, updatedAt };
             yield* emitProviderEvent({
@@ -1138,11 +1122,12 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
             });
           });
 
-        const updateProviderThread = (
-          state: OpenCodeThreadState,
-          patch: Partial<OrchestrationV2ProviderThread>,
-        ) =>
-          Effect.gen(function* () {
+        const updateProviderThread =
+          /* Provider events include streaming deltas; avoid a span for each update. */
+          Effect.fnUntraced(function* (
+            state: OpenCodeThreadState,
+            patch: Partial<OrchestrationV2ProviderThread>,
+          ) {
             const updatedAt = yield* DateTime.now;
             state.providerThread = { ...state.providerThread, ...patch, updatedAt };
             yield* emitProviderEvent({
@@ -1562,8 +1547,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
             yield* emitSubagent(state, turn, part);
             return;
           }
-          // question.asked carries the respondable semantic item. Projecting
-          // the implementation tool as well would duplicate it in the UI.
           if (normalizedTool === "question") return;
           const now = yield* DateTime.now;
           const status = toolStatus(part);
@@ -1850,7 +1833,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
           });
           const nodeId = idAllocator.derive.approvalNode({ requestId });
           const turnItemId = idAllocator.derive.approvalTurnItem({ requestId });
-          // The tool call belongs to the asking session's turn, not the owner's.
           const permissionToolName =
             request.type === "permission" && request.value.tool !== undefined
               ? threads
@@ -1991,10 +1973,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
           if (!hasOtherPending) yield* updateProviderSession("running", null);
         });
 
-        /** Resolve the thread state a session belongs to: its own, or for a
-         *  child not registered yet, the nearest known ancestor found by walking
-         *  the native parent chain. Registers every hop so later requests from
-         *  the same child resolve without another lookup. */
         const resolveSessionOwner = Effect.fnUntraced(function* (sessionId: string) {
           const known = threads.get(sessionId) ?? relatedSessionOwners.get(sessionId);
           if (known !== undefined) return known;
@@ -2018,14 +1996,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
           return undefined;
         });
 
-        /** Every request is asked on the top-level thread and its active turn,
-         *  under the subagent that leads to the asking session, because native
-         *  subagent threads are hidden from the sidebar. A child's request can
-         *  arrive before the task part or session.created event that reveals
-         *  its relation to a thread. The first resolution attempt runs inline
-         *  (the replayable path); if the relation or the owning turn is not
-         *  established yet, a short forked backoff keeps trying instead of
-         *  dropping the request. */
         const routeRuntimeRequest = Effect.fnUntraced(function* (
           nativeRequestId: string,
           sessionId: string,
@@ -2504,7 +2474,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
             return;
           }
           if (part.type === "tool") {
-            // Approval routing needs the tool name, without retaining its input and output.
             turn.toolNamesByCallId.set(part.callID, part.tool);
           } else {
             turn.parts.set(part.id, part);
@@ -2753,7 +2722,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
           Effect.exit,
           Effect.flatMap((exit) =>
             Effect.gen(function* () {
-              // No further status can clear a busy session once the stream ends.
               busySessionIds.clear();
               if (closing || abortController.signal.aborted) return;
               const detail = Exit.isSuccess(exit)
@@ -3084,10 +3052,8 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
           providerSession: sessionEntity,
           events: Stream.fromEffectRepeat(Queue.take(events)),
           hasPendingBackgroundWork: Effect.sync(() => busySessionIds.size > 0),
-          ensureThread: (threadInput) =>
-            Effect.gen(function* () {
-              // Only a row that already carries a native session can be
-              // resumed; a placeholder without one still needs session.create.
+          ensureThread: Effect.fn("OpencodeAdapter.ensureThread")(
+            function* (threadInput) {
               if (threadInput.existingProviderThread?.nativeThreadRef != null) {
                 return yield* runtimeSession.resumeThread({
                   providerThread: threadInput.existingProviderThread,
@@ -3110,9 +3076,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                 now: createdAt,
               });
               const existing = threadInput.existingProviderThread;
-              // Bind the new native session to the caller's row when one was
-              // handed over: a second live row per app thread would make
-              // `activeProviderThreadId` flap between the two on every update.
               const providerThread =
                 existing === undefined
                   ? created
@@ -3126,18 +3089,21 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                     };
               registerThread(nativeSession, providerThread, null).permission = permission;
               return providerThread;
-            }).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new ProviderAdapter.ProviderAdapterEnsureThreadError({
-                    driver: OPENCODE_PROVIDER,
-                    threadId: threadInput.threadId,
-                    cause,
-                  }),
+            },
+            (effect, threadInput) =>
+              effect.pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderAdapter.ProviderAdapterEnsureThreadError({
+                      driver: OPENCODE_PROVIDER,
+                      threadId: threadInput.threadId,
+                      cause,
+                    }),
+                ),
               ),
-            ),
-          resumeThread: (threadInput) =>
-            Effect.gen(function* () {
+          ),
+          resumeThread: Effect.fn("OpencodeAdapter.resumeThread")(
+            function* (threadInput) {
               const sessionId = nativeThreadId(threadInput.providerThread);
               const response = yield* sdkCall("session.get", { sessionID: sessionId }, () =>
                 client.session.get({ sessionID: sessionId }),
@@ -3155,24 +3121,27 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                 yield* applyPermissionRules(state, threadInput.runtimePolicy);
               }
               return providerThread;
-            }).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new ProviderAdapter.ProviderAdapterResumeThreadError({
-                    driver: OPENCODE_PROVIDER,
-                    providerSessionId: input.providerSessionId,
-                    providerThreadId: threadInput.providerThread.id,
-                    cause,
-                  }),
+            },
+            (effect, threadInput) =>
+              effect.pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderAdapter.ProviderAdapterResumeThreadError({
+                      driver: OPENCODE_PROVIDER,
+                      providerSessionId: input.providerSessionId,
+                      providerThreadId: threadInput.providerThread.id,
+                      cause,
+                    }),
+                ),
               ),
-            ),
+          ),
           compactThread: (turnInput) =>
             runtimeSession.startTurn({
               ...turnInput,
               message: { ...turnInput.message, text: "/compact" },
             }),
-          startTurn: (turnInput) =>
-            Effect.gen(function* () {
+          startTurn: Effect.fn("OpencodeAdapter.startTurn")(
+            function* (turnInput) {
               if (nativeStreamFailure !== null) {
                 return yield* protocolError(
                   "OpenCode event stream has ended; reconnect the provider session before starting another turn.",
@@ -3184,9 +3153,11 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                 return yield* protocolError(`OpenCode session ${sessionId} is not registered`);
               }
               if (state.activeTurn !== null) {
-                return yield* protocolError(
-                  `OpenCode provider thread ${turnInput.providerThread.id} already has an active turn`,
-                );
+                return yield* new ProviderAdapter.ProviderAdapterProtocolError({
+                  driver: OPENCODE_PROVIDER,
+                  detail: `OpenCode provider thread ${turnInput.providerThread.id} already has an active turn`,
+                  reason: "previous_turn_active",
+                });
               }
               const parsedModel = OpenCodeRuntime.parseOpenCodeModelSlug(
                 turnInput.modelSelection.model,
@@ -3229,9 +3200,11 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                 );
               }
               if (state.activeTurn !== null) {
-                return yield* protocolError(
-                  `OpenCode provider thread ${turnInput.providerThread.id} already has an active turn`,
-                );
+                return yield* new ProviderAdapter.ProviderAdapterProtocolError({
+                  driver: OPENCODE_PROVIDER,
+                  detail: `OpenCode provider thread ${turnInput.providerThread.id} already has an active turn`,
+                  reason: "previous_turn_active",
+                });
               }
               const turn: ActiveOpenCodeTurn = {
                 isRoot: true,
@@ -3367,20 +3340,23 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                   yield* reconcilePromptAdmission(state, turn);
                 }
               }
-            }).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new ProviderAdapter.ProviderAdapterTurnStartError({
-                    driver: OPENCODE_PROVIDER,
-                    threadId: turnInput.threadId,
-                    providerThreadId: turnInput.providerThread.id,
-                    runId: turnInput.runId,
-                    cause,
-                  }),
+            },
+            (effect, turnInput) =>
+              effect.pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderAdapter.ProviderAdapterTurnStartError({
+                      driver: OPENCODE_PROVIDER,
+                      threadId: turnInput.threadId,
+                      providerThreadId: turnInput.providerThread.id,
+                      runId: turnInput.runId,
+                      cause,
+                    }),
+                ),
               ),
-            ),
-          steerTurn: (steerInput) =>
-            Effect.gen(function* () {
+          ),
+          steerTurn: Effect.fn("OpencodeAdapter.steerTurn")(
+            function* (steerInput) {
               const sessionId = nativeThreadId(steerInput.providerThread);
               const state = threads.get(sessionId);
               const turn = state?.activeTurn;
@@ -3457,24 +3433,25 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                   yield* reconcilePromptAdmission(state, turn);
                 }
               }
-            }).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new ProviderAdapter.ProviderAdapterSteerRunError({
-                    driver: OPENCODE_PROVIDER,
-                    providerThreadId: steerInput.providerThread.id,
-                    providerTurnId: steerInput.providerTurnId,
-                    cause,
-                  }),
+            },
+            (effect, steerInput) =>
+              effect.pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderAdapter.ProviderAdapterSteerRunError({
+                      driver: OPENCODE_PROVIDER,
+                      providerThreadId: steerInput.providerThread.id,
+                      providerTurnId: steerInput.providerTurnId,
+                      cause,
+                    }),
+                ),
               ),
-            ),
-          interruptTurn: (interruptInput) =>
-            Effect.gen(function* () {
+          ),
+          interruptTurn: Effect.fn("OpencodeAdapter.interruptTurn")(
+            function* (interruptInput) {
               const sessionId = nativeThreadId(interruptInput.providerThread);
               const state = threads.get(sessionId);
               const turn = state?.activeTurn;
-              // Stop on a settled turn: a background task child can outlive
-              // it (busySessionIds), and aborting the descendants ends it.
               if (
                 (turn === undefined || turn === null) &&
                 interruptInput.requestRuntimeRestart === true
@@ -3499,7 +3476,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
               cancelOpenCodePromptAdmission(turn, state!.nextAdmissionGeneration++);
               turn.admissionAbortController?.abort();
               if (admissionWasPending) {
-                // Settle the cancelled request before sending the session abort.
                 // A timed-out local request must not prevent the definitive
                 // server-side abort below from running.
                 yield* Deferred.await(turn.admissionSettled).pipe(
@@ -3511,10 +3487,6 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                 client.session.abort({ sessionID: sessionId }, { signal }),
               ).pipe(
                 Effect.timeout("10 seconds"),
-                // The turn can settle while the abort is in flight, and
-                // aborting an already-idle session fails. That stop still
-                // succeeded; only surface failures for a turn that is
-                // genuinely still running.
                 Effect.catch((cause) =>
                   turn.finalized
                     ? Effect.void
@@ -3527,19 +3499,22 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
               // Root abort does not stop child sessions. Report incomplete cleanup
               // even if the root has already emitted its terminal event.
               yield* abortDescendants(sessionId);
-            }).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new ProviderAdapter.ProviderAdapterInterruptError({
-                    driver: OPENCODE_PROVIDER,
-                    providerThreadId: interruptInput.providerThread.id,
-                    providerTurnId: interruptInput.providerTurnId,
-                    cause,
-                  }),
+            },
+            (effect, interruptInput) =>
+              effect.pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderAdapter.ProviderAdapterInterruptError({
+                      driver: OPENCODE_PROVIDER,
+                      providerThreadId: interruptInput.providerThread.id,
+                      providerTurnId: interruptInput.providerTurnId,
+                      cause,
+                    }),
+                ),
               ),
-            ),
-          respondToRuntimeRequest: (requestInput) =>
-            Effect.gen(function* () {
+          ),
+          respondToRuntimeRequest: Effect.fn("OpencodeAdapter.respondToRuntimeRequest")(
+            function* (requestInput) {
               const pending = pendingRequests.get(String(requestInput.requestId));
               if (pending === undefined) {
                 return yield* protocolError(
@@ -3588,16 +3563,19 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                     { signal },
                   ),
               ).pipe(Effect.timeout("10 seconds"));
-            }).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new ProviderAdapter.ProviderAdapterRuntimeRequestResponseError({
-                    driver: OPENCODE_PROVIDER,
-                    requestId: requestInput.requestId,
-                    cause,
-                  }),
+            },
+            (effect, requestInput) =>
+              effect.pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderAdapter.ProviderAdapterRuntimeRequestResponseError({
+                      driver: OPENCODE_PROVIDER,
+                      requestId: requestInput.requestId,
+                      cause,
+                    }),
+                ),
               ),
-            ),
+          ),
           readThreadSnapshot: (snapshotInput) =>
             readSnapshot(snapshotInput.providerThread).pipe(
               Effect.mapError(
@@ -3609,8 +3587,8 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                   }),
               ),
             ),
-          rollbackThread: (rollbackInput) =>
-            Effect.gen(function* () {
+          rollbackThread: Effect.fn("OpencodeAdapter.rollbackThread")(
+            function* (rollbackInput) {
               const sessionId = nativeThreadId(rollbackInput.providerThread);
               const state = threads.get(sessionId);
               if (state?.activeTurn !== null && state?.activeTurn !== undefined) {
@@ -3682,19 +3660,22 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                       : null,
                 },
               };
-            }).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new ProviderAdapter.ProviderAdapterRollbackThreadError({
-                    driver: OPENCODE_PROVIDER,
-                    providerThreadId: rollbackInput.providerThread.id,
-                    checkpointId: rollbackInput.target.checkpointId,
-                    cause,
-                  }),
+            },
+            (effect, rollbackInput) =>
+              effect.pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderAdapter.ProviderAdapterRollbackThreadError({
+                      driver: OPENCODE_PROVIDER,
+                      providerThreadId: rollbackInput.providerThread.id,
+                      checkpointId: rollbackInput.target.checkpointId,
+                      cause,
+                    }),
+                ),
               ),
-            ),
-          forkThread: (forkInput) =>
-            Effect.gen(function* () {
+          ),
+          forkThread: Effect.fn("OpencodeAdapter.forkThread")(
+            function* (forkInput) {
               const sourceSessionId = nativeThreadId(forkInput.sourceProviderThread);
               const sourceState = threads.get(sourceSessionId);
               if (sourceState?.activeTurn !== null && sourceState?.activeTurn !== undefined) {
@@ -3746,16 +3727,19 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
               });
               registerThread(nativeSession, providerThread, null);
               return providerThread;
-            }).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new ProviderAdapter.ProviderAdapterForkThreadError({
-                    driver: OPENCODE_PROVIDER,
-                    providerThreadId: forkInput.sourceProviderThread.id,
-                    cause,
-                  }),
+            },
+            (effect, forkInput) =>
+              effect.pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new ProviderAdapter.ProviderAdapterForkThreadError({
+                      driver: OPENCODE_PROVIDER,
+                      providerThreadId: forkInput.sourceProviderThread.id,
+                      cause,
+                    }),
+                ),
               ),
-            ),
+          ),
         };
 
         return runtimeSession;

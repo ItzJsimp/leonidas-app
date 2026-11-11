@@ -1,8 +1,9 @@
 // @effect-diagnostics-next-line nodeBuiltinImport:off - Effect's File.Info has no ctime or sub-millisecond mtime, which the cache tests compare.
 import * as NodeFSP from "node:fs/promises";
+import * as NodeSqlite from "node:sqlite";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { assert, describe, it } from "@effect/vitest";
+import { assert, describe, it, vi } from "@effect/vitest";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -10,6 +11,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as SqlClient from "effect/sql/SqlClient";
+import * as Tracer from "effect/Tracer";
 
 import {
   makeAntigravityUsageCache,
@@ -20,7 +22,6 @@ import {
   analyzeAntigravitySessionTokenRoi,
 } from "./antigravityUsageReader.ts";
 
-/** A writable connection that stays open until the enclosing scope closes. */
 const openDatabase = Effect.fn("openDatabase")(function* (filename: string) {
   const context = yield* Layer.build(NodeSqliteClient.layer({ filename }));
   const sql = Context.get(context, SqlClient.SqlClient);
@@ -30,7 +31,6 @@ const openDatabase = Effect.fn("openDatabase")(function* (filename: string) {
   };
 });
 
-/** Seeds `filename` and closes it, as a provider that has finished writing. */
 const seedDatabase = <E>(
   filename: string,
   seed: (db: Effect.Success<ReturnType<typeof openDatabase>>) => Effect.Effect<void, E>,
@@ -432,8 +432,6 @@ describe("readAntigravityUsage", () => {
       const cache = makeAntigravityUsageCache();
       assert.deepStrictEqual((yield* readAntigravityUsage(dir, 0, cache)).errors, []);
 
-      // An exclusive lock makes a fresh read fail without touching the file, so
-      // only a cache hit can still return the earlier records.
       yield* db.exec("BEGIN EXCLUSIVE");
       assert.strictEqual((yield* readAntigravityUsage(dir, 0)).errors.length, 1);
       const cached = yield* readAntigravityUsage(dir, 0, cache);

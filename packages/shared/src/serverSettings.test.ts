@@ -15,6 +15,7 @@ import {
   applyServerSettingsPatch,
   applyTeamSettingsDefaults,
   TEAM_SERVER_SETTINGS_DEFAULTS,
+  fallbackTextGenerationModelSelection,
   modelPreferencesMigrationPatch,
   resolveModelPreferences,
   isModelSelectionProviderEnabled,
@@ -24,8 +25,33 @@ import {
   resolveProjectAutoPull,
 } from "./serverSettings.ts";
 
-/** Settings after the server has folded legacy per-project fields into `projectSettingsOverrides`. */
 const FOLDED_SERVER_SETTINGS = { ...DEFAULT_SERVER_SETTINGS, projectSettingsFolded: true };
+
+describe("fallbackTextGenerationModelSelection", () => {
+  it("ignores a configured non-default instance at machine scope, matching no fallback", () => {
+    const configured = ProviderInstanceId.make("codex_work");
+    const providerInstances = {
+      [configured]: { driver: ProviderDriverKind.make("codex"), config: {} },
+    };
+    const fallback = fallbackTextGenerationModelSelection(providerInstances, (instanceId) =>
+      instanceId === configured ? true : false,
+    );
+    expect(fallback).toBeNull();
+  });
+
+  it("considers a configured non-default instance only when asked to", () => {
+    const configured = ProviderInstanceId.make("codex_work");
+    const providerInstances = {
+      [configured]: { driver: ProviderDriverKind.make("codex"), config: {} },
+    };
+    const fallback = fallbackTextGenerationModelSelection(
+      providerInstances,
+      (instanceId) => instanceId === configured,
+      { includeConfiguredInstances: true },
+    );
+    expect(fallback?.instanceId).toBe(configured);
+  });
+});
 
 describe("serverSettings helpers", () => {
   it("changes a cleanup rule without replacing the machine's other rules", () => {
@@ -38,6 +64,7 @@ describe("serverSettings helpers", () => {
       }).storageCleanup,
     ).toEqual({
       worktreeAfterDays: null,
+      worktreeSettledAfterDays: null,
       worktreeOnMerge: true,
       worktreeOnDelete: false,
       worktreeUnchanged: false,
@@ -61,13 +88,32 @@ describe("serverSettings helpers", () => {
     });
   });
   it("replaces SSH host lists when saving, editing, and removing hosts", () => {
-    const host = { id: "mini", label: "Mac mini", target: "mini" };
+    const host = { kind: "ssh" as const, id: "mini", label: "Mac mini", target: "mini" };
     const saved = applyServerSettingsPatch(DEFAULT_SERVER_SETTINGS, { deviceHosts: [host] });
     expect(saved.deviceHosts).toEqual([host]);
     const replacement = { ...host, target: "other-mini" };
     const edited = applyServerSettingsPatch(saved, { deviceHosts: [replacement] });
     expect(edited.deviceHosts).toEqual([replacement]);
     expect(applyServerSettingsPatch(edited, { deviceHosts: [] }).deviceHosts).toEqual([]);
+  });
+
+  it("replaces EAS host lists the same way", () => {
+    const host = {
+      kind: "eas" as const,
+      id: "eas",
+      label: "EAS Simulator",
+      accessToken: "",
+      maxSessionMinutes: 30,
+      idleMinutes: 10,
+      maxConcurrentSessions: 2,
+    };
+    const saved = applyServerSettingsPatch(DEFAULT_SERVER_SETTINGS, { easDeviceHosts: [host] });
+    expect(saved.easDeviceHosts).toEqual([host]);
+    const edited = applyServerSettingsPatch(saved, {
+      easDeviceHosts: [{ ...host, maxSessionMinutes: 60 }],
+    });
+    expect(edited.easDeviceHosts).toEqual([{ ...host, maxSessionMinutes: 60 }]);
+    expect(applyServerSettingsPatch(edited, { easDeviceHosts: [] }).easDeviceHosts).toEqual([]);
   });
 
   it("inherits actions, preserves existing actions, and supports empty overrides and reset", () => {
@@ -80,7 +126,6 @@ describe("serverSettings helpers", () => {
       runOnWorktreeCreate: false,
     };
     const existing = { ...project, scripts: [{ ...action, command: "npm run lint" }] };
-    // Before the one-time fold, scripts stored on the project aggregate still apply.
     const unfolded = applyServerSettingsPatch(DEFAULT_SERVER_SETTINGS, {
       defaultProjectScripts: [action],
     });
@@ -444,7 +489,7 @@ describe("serverSettings helpers", () => {
     expect(isModelSelectionProviderEnabled(settings, sourceControlWriterModelSelection)).toBe(
       false,
     );
-    expect(resolveSourceControlWriterModelSelection(settings)).toBe(
+    expect(resolveSourceControlWriterModelSelection(settings, undefined, null)).toBe(
       settings.textGenerationModelSelection,
     );
     expect(settings.sourceControlWriterModelSelection).toBe(sourceControlWriterModelSelection);
@@ -479,7 +524,7 @@ describe("serverSettings helpers", () => {
       skills: [],
     } satisfies ServerProvider;
 
-    expect(resolveSourceControlWriterModelSelection(settings, [unavailableProvider])).toBe(
+    expect(resolveSourceControlWriterModelSelection(settings, [unavailableProvider], null)).toBe(
       settings.textGenerationModelSelection,
     );
     expect(settings.sourceControlWriterModelSelection).toBe(sourceControlWriterModelSelection);
@@ -514,10 +559,84 @@ describe("serverSettings helpers", () => {
       skills: [],
     } satisfies ServerProvider;
 
-    expect(resolveSourceControlWriterModelSelection(settings, [incapableProvider])).toBe(
+    expect(resolveSourceControlWriterModelSelection(settings, [incapableProvider], null)).toBe(
       settings.textGenerationModelSelection,
     );
     expect(settings.sourceControlWriterModelSelection).toBe(sourceControlWriterModelSelection);
+  });
+
+  it("falls back from a writer provider a project turned off, keeping it for other projects", () => {
+    const instanceId = ProviderInstanceId.make("codex_writer");
+    const projectId = ProjectId.make("project-a");
+    const sourceControlWriterModelSelection = createModelSelection(instanceId, "gpt-5.4-mini");
+    const settings = {
+      ...DEFAULT_SERVER_SETTINGS,
+      providerInstances: {
+        [instanceId]: { driver: ProviderDriverKind.make("codex"), enabled: true, config: {} },
+      },
+      projectSettingsOverrides: {
+        [projectId]: { providerInstances: { [instanceId]: { enabled: false } } },
+      },
+      sourceControlWriterModelSelection,
+    };
+    const provider = {
+      instanceId,
+      driver: ProviderDriverKind.make("codex"),
+      enabled: true,
+      installed: true,
+      version: null,
+      status: "ready",
+      auth: { status: "authenticated" },
+      checkedAt: "2026-07-27T00:00:00.000Z",
+      availability: "available",
+      models: [],
+      slashCommands: [],
+      skills: [],
+    } satisfies ServerProvider;
+
+    expect(resolveSourceControlWriterModelSelection(settings, [provider], projectId)).toBe(
+      settings.textGenerationModelSelection,
+    );
+    expect(resolveSourceControlWriterModelSelection(settings, [provider], null)).toBe(
+      sourceControlWriterModelSelection,
+    );
+  });
+
+  it("keeps a writer on an instance the project turned on while the machine has it off", () => {
+    const instanceId = ProviderInstanceId.make("codex_writer");
+    const projectId = ProjectId.make("project-a");
+    const sourceControlWriterModelSelection = createModelSelection(instanceId, "gpt-5.4-mini");
+    const settings = {
+      ...DEFAULT_SERVER_SETTINGS,
+      providerInstances: {
+        [instanceId]: { driver: ProviderDriverKind.make("codex"), enabled: false, config: {} },
+      },
+      projectSettingsOverrides: {
+        [projectId]: { providerInstances: { [instanceId]: { enabled: true } } },
+      },
+      sourceControlWriterModelSelection,
+    };
+    const provider = {
+      instanceId,
+      driver: ProviderDriverKind.make("codex"),
+      enabled: true,
+      installed: true,
+      version: null,
+      status: "ready",
+      auth: { status: "authenticated" },
+      checkedAt: "2026-07-27T00:00:00.000Z",
+      availability: "available",
+      models: [],
+      slashCommands: [],
+      skills: [],
+    } satisfies ServerProvider;
+
+    expect(resolveSourceControlWriterModelSelection(settings, [provider], projectId)).toBe(
+      sourceControlWriterModelSelection,
+    );
+    expect(resolveSourceControlWriterModelSelection(settings, [provider], null)).toBe(
+      settings.textGenerationModelSelection,
+    );
   });
 
   it("replaces providerInstances maps so omitted instance fields are cleared", () => {
@@ -551,6 +670,56 @@ describe("serverSettings helpers", () => {
       displayName: "Codex Work",
       enabled: true,
       config: { homePath: "~/.codex" },
+    });
+  });
+
+  it("keeps a project's providerInstances override when a patch entry omits the key", () => {
+    const instanceId = ProviderInstanceId.make("codex_work");
+    const projectId = ProjectId.make("project-a");
+    const current = {
+      ...DEFAULT_SERVER_SETTINGS,
+      projectSettingsOverrides: {
+        [projectId]: {
+          newWorktreesStartFromOrigin: true,
+          providerInstances: { [instanceId]: { enabled: false } },
+        },
+      },
+    };
+
+    const patched = applyServerSettingsPatch(current, {
+      projectSettingsOverrides: {
+        [projectId]: { newWorktreesStartFromOrigin: false },
+      },
+    });
+
+    expect(patched.projectSettingsOverrides[projectId]).toEqual({
+      newWorktreesStartFromOrigin: false,
+      providerInstances: { [instanceId]: { enabled: false } },
+    });
+  });
+
+  it("clears a project's providerInstances override when a patch entry sends an empty map", () => {
+    const instanceId = ProviderInstanceId.make("codex_work");
+    const projectId = ProjectId.make("project-a");
+    const current = {
+      ...DEFAULT_SERVER_SETTINGS,
+      projectSettingsOverrides: {
+        [projectId]: {
+          newWorktreesStartFromOrigin: true,
+          providerInstances: { [instanceId]: { enabled: false } },
+        },
+      },
+    };
+
+    const patched = applyServerSettingsPatch(current, {
+      projectSettingsOverrides: {
+        [projectId]: { newWorktreesStartFromOrigin: true, providerInstances: {} },
+      },
+    });
+
+    expect(patched.projectSettingsOverrides[projectId]).toEqual({
+      newWorktreesStartFromOrigin: true,
+      providerInstances: {},
     });
   });
 
@@ -839,6 +1008,7 @@ describe("team settings defaults", () => {
       worktreeOnMerge: false,
       worktreeOnDelete: false,
       worktreeUnchanged: false,
+      worktreeSettledAfterDays: null,
       browserArtifactsAfterDays: 14,
       logsAfterDays: 30,
     });
@@ -878,11 +1048,8 @@ describe("team settings defaults", () => {
         JSON.stringify(seeded[key as keyof typeof seeded]) !==
         JSON.stringify(DEFAULT_SERVER_SETTINGS[key as keyof typeof DEFAULT_SERVER_SETTINGS]),
     );
-    expect(changed.sort()).toEqual([
-      "branchNamingMode",
-      "continueThreadsAfterServerUpdate",
-      "storageCleanup",
-    ]);
+    // continueThreadsAfterServerUpdate now defaults to true in the schema, so seeding changes nothing.
+    expect(changed.sort()).toEqual(["branchNamingMode", "storageCleanup"]);
   });
 
   it("tolerates a file whose top level is not an object", () => {

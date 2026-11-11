@@ -31,10 +31,8 @@ const IMAGE_MIME_TYPE_BY_EXTENSION: Readonly<Record<string, string>> = {
 };
 
 /**
- * Some sources (drags from other apps, files piped through a shell) hand over
- * a `File` with an empty or generic MIME type. Maps the extension to a
- * provider-supported image type so a plain `photo.jpg` still lands on the
- * image path; anything unrecognized stays a generic file.
+ * Some sources (drags from other apps, files piped through a shell) hand over a
+ * `File` with an empty or generic MIME type.
  */
 export function inferImageMimeTypeFromName(name: string): string | null {
   const dotIndex = name.lastIndexOf(".");
@@ -52,7 +50,6 @@ function inferImageMimeTypeForUnknownFile(file: Pick<File, "name" | "type">): st
   return inferImageMimeTypeFromName(file.name);
 }
 
-/** Give extension-recognized images a concrete type before compression. */
 export function normalizeComposerImageFileMimeType(file: File): File {
   const inferredMimeType = inferImageMimeTypeForUnknownFile(file);
   if (!inferredMimeType) {
@@ -93,7 +90,6 @@ export function isPreviewableComposerVideo(
   );
 }
 
-/** Non-media files without an inline reference still need the legacy attachment row. */
 export function composerOtherFilesForPresentation(
   files: ReadonlyArray<ComposerFileAttachment>,
   environmentId: EnvironmentId,
@@ -104,7 +100,6 @@ export function composerOtherFilesForPresentation(
   );
 }
 
-/** Byte limit for adding a generic file to the local composer draft. */
 export function fileAttachmentStagingLimit(input: FileAttachmentCapabilityState): number | null {
   if (!input.attachmentUploadsCapabilityKnown) {
     return PROVIDER_SEND_TURN_MAX_FILE_BYTES;
@@ -115,7 +110,6 @@ export function fileAttachmentStagingLimit(input: FileAttachmentCapabilityState)
   return clampFileAttachmentUploadBytes(input.maxFileAttachmentBytes);
 }
 
-/** Why retained generic files cannot send with the current server config. */
 export function fileAttachmentCapabilityBlockReason(
   input: FileAttachmentCapabilityState & {
     readonly files: ReadonlyArray<{ readonly name: string; readonly sizeBytes: number }>;
@@ -143,8 +137,6 @@ export function fileAttachmentCapabilityBlockReason(
  * tear down only uploads that have not been persisted onto a draft file.
  * Once `uploadedAttachmentId` is stamped, the draft references that server
  * copy after reload even if its local `File` is still available in memory.
- * Explicit attachment removal releases persisted uploads through
- * `releaseDraftAttachment`.
  */
 export function attachmentsToReleaseOnUploadCapabilityLoss(
   attachments: ReadonlyArray<ComposerImageAttachment | ComposerFileAttachment>,

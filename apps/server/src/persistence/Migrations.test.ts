@@ -129,6 +129,11 @@ describe("runMigrations", () => {
         [64, "DelegatedTaskLedger"],
         [65, "DelegatedTaskAcceptance"],
         [66, "ActiveTurnItemIndexes"],
+        [67, "DropUnusedV1Projections"],
+        [68, "CanonicalizeThreadPullRequestLinks"],
+        [69, "CodexUsageNativeTurnIndex"],
+        [70, "RepairClientSettlementTimestamps"],
+        [71, "WebhookDedupe"],
       ]);
       assert.deepStrictEqual(yield* history, migrationManifest);
       const created = yield* sql<{ readonly name: string }>`

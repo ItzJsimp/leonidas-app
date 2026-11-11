@@ -1,15 +1,3 @@
-/**
- * Historical name for the shared application event store.
- *
- * Owns durable append/replay access for project events and V2 agent-thread
- * events under one global sequence. It does not reduce events into read models
- * or apply command validation rules.
- *
- * Uses Effect `Context.Service` for dependency injection and exposes typed
- * persistence/decode errors for event append and replay operations.
- *
- * @module OrchestrationEventStore
- */
 import {
   ApplicationEventMetadata,
   ApplicationProjectEvent,
@@ -44,23 +32,19 @@ import {
   type OrchestrationEventStoreError,
 } from "./Errors.ts";
 
-/** A project event before the store assigns its sequence. */
 export type UnsequencedProjectEvent = ApplicationProjectEvent extends infer Event
   ? Event extends ApplicationProjectEvent
     ? Omit<Event, "sequence">
     : never
   : never;
 
-/** OrchestrationEventStore - Service tag for the shared application event log. */
 export class OrchestrationEventStore extends Context.Service<
   OrchestrationEventStore,
   {
-    /** Append one project event to the shared application log. */
     readonly appendProjectEvent: (
       event: UnsequencedProjectEvent,
     ) => Effect.Effect<ApplicationProjectEvent, OrchestrationEventStoreError>;
 
-    /** Append V2 agent events to the same globally ordered application log. */
     readonly appendAgentEvents: (input: {
       readonly commandId?: CommandId;
       readonly events: ReadonlyArray<OrchestrationV2DomainEvent>;
@@ -86,7 +70,6 @@ export class OrchestrationEventStore extends Context.Service<
       readonly skipUnknownEventTypes?: boolean;
     }) => Stream.Stream<OrchestrationV2StoredEvent, OrchestrationEventStoreError>;
 
-    /** Measure one thread's bounded replay without loading or decoding its payloads. */
     readonly getAgentReplayStats: (input: {
       readonly threadId: ThreadId;
       readonly afterSequence: number;
@@ -95,24 +78,18 @@ export class OrchestrationEventStore extends Context.Service<
     }) => Effect.Effect<
       {
         readonly eventCount: number;
-        /** UTF-8 bytes in persisted payload JSON before decoding or wire projection. */
         readonly rawPayloadBytes: number;
         readonly hasCreateEvent: boolean;
       },
       OrchestrationEventStoreError
     >;
 
-    /**
-     * Measure the retained application-event range `(afterSequence, throughSequence]`
-     * without loading or decoding its payloads.
-     */
     readonly getReplayStats: (input: {
       readonly afterSequence: number;
       readonly throughSequence: number;
     }) => Effect.Effect<
       {
         readonly eventCount: number;
-        /** UTF-8 bytes in persisted payload JSON before decoding or wire projection. */
         readonly rawPayloadBytes: number;
       },
       OrchestrationEventStoreError
@@ -142,11 +119,9 @@ export class OrchestrationEventStore extends Context.Service<
       events: ReadonlyArray<ApplicationStoredEvent>,
     ) => Effect.Effect<void>;
 
-    /** Race-free replay-to-live stream for project and V2 thread events. */
     readonly streamApplicationEvents: (input?: {
       readonly afterSequence?: number;
     }) => Stream.Stream<ApplicationStoredEvent, OrchestrationEventStoreError>;
-    /** Project transport events before bounding replay and the live tail. */
     readonly streamProjectedApplicationEvents: <A extends { readonly sequence: number }>(input: {
       readonly afterSequence?: number;
       readonly project: (event: ApplicationStoredEvent) => A;

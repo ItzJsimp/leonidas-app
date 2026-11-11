@@ -9,6 +9,7 @@ import { expect, it } from "@effect/vitest";
 import { NodeHttpServer } from "@effect/platform-node";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
@@ -19,6 +20,7 @@ import * as GitWorkflowService from "#server/git/GitWorkflowService.ts";
 import * as ProviderAdapterRegistry from "#server/orchestration-v2/ProviderAdapterRegistry.ts";
 import * as ThreadManagementService from "#server/orchestration-v2/ThreadManagementService.ts";
 import * as ProjectService from "#server/project/ProjectService.ts";
+import * as PullRequestReviewGuideService from "../../../pullRequest/PullRequestReviewGuideService.ts";
 import * as ProjectSetupScriptRunner from "#server/project/ProjectSetupScriptRunner.ts";
 import * as ProviderRegistry from "#server/provider/ProviderRegistry.ts";
 import * as ScheduledTaskService from "#server/scheduledTasks/ScheduledTaskService.ts";
@@ -72,6 +74,7 @@ const layerStubServices = Layer.mergeAll(
   Layer.mock(LocalModelsService.LocalModelsService)({}),
   Layer.mock(ScribeEngine.ScribeEngine)({}),
   Layer.mock(ReviewService.ReviewService)({}),
+  Layer.mock(PullRequestReviewGuideService.PullRequestReviewGuideService)({}),
   ServerSettings.layerTest({}),
   Layer.mock(GitWorkflowService.GitWorkflowService)({}),
   Layer.mock(ProjectSetupScriptRunner.ProjectSetupScriptRunner)({}),
@@ -83,6 +86,7 @@ const layerStubServices = Layer.mergeAll(
   Layer.mock(SourceControlRepositoryService.SourceControlRepositoryService)({}),
   Layer.mock(ThreadLaunchService.ThreadLaunchService)({}),
   Layer.mock(ThreadSearch.ThreadSearch)({}),
+  McpProviderSessions.layer,
 );
 
 const ToolsListPayload = Schema.fromJsonString(
@@ -187,14 +191,9 @@ it.effect("production mcp layer lists worktree tools over http", () =>
       expect(toolNames).toContain("leo_local_vm_screenshot");
       expect(toolNames).not.toContain("local_vm_connect");
       expect(toolNames).not.toContain("local_vm_pause");
-      // The worktree registration merges alongside the other toolkits rather
-      // than replacing them.
       expect(toolNames).toContain("leo_preview_status");
       expect(toolNames).toContain("leo_delegate_task");
 
-      // The handoff tool mutates thread state, reaches the network (origin
-      // fetch), and runs project setup scripts, so its MCP hints must not
-      // promise a read-only, closed-world, non-destructive tool.
       const handoff = tools.find((tool) => tool.name === "leo_worktree_handoff");
       expect(handoff?.annotations?.readOnlyHint).toBe(false);
       expect(handoff?.annotations?.destructiveHint).toBe(true);

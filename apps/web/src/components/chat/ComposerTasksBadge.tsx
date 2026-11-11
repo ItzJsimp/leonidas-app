@@ -26,6 +26,7 @@ export interface ComposerTasksProgress {
     readonly onTogglePanel: () => void;
     readonly panelOpen: boolean;
   };
+  readonly live?: boolean;
 }
 
 export interface ComposerTaskStep {
