@@ -2353,8 +2353,7 @@ describe("ClaudeAdapterV2 MCP credential channel", () => {
         ProviderEventLoggers.ProviderEventLoggers,
         ProviderEventLoggers.NoOpProviderEventLoggers,
       ),
-      Effect.provide(NodeServices.layer),
-      Effect.provide(PortScanner.layerTest),
+      Effect.provide(Layer.mergeAll(NodeServices.layer, PortScanner.layerTest)),
     );
 
   it.effect("sends MCP servers over stdin, not argv or the environment", () =>
