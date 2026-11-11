@@ -1298,6 +1298,128 @@ describe("deriveMessagesTimelineRows", () => {
     expect(assistantRow?.assistantTurnDiffSummary).toBe(assistantTurnDiffSummary);
   });
 
+  it("keeps one merged changed-files summary on the last reply of a prompt", () => {
+    const message = (id: string, role: "user" | "assistant", second: number, runId: string) => ({
+      id: `${id}-entry`,
+      kind: "message" as const,
+      createdAt: `2026-01-01T00:00:${String(second).padStart(2, "0")}Z`,
+      message: {
+        id: id as never,
+        role,
+        text: id,
+        runId: runId as never,
+        ...(role === "user" ? { inputIntent: "turn_start" as const } : {}),
+        createdAt: `2026-01-01T00:00:${String(second).padStart(2, "0")}Z`,
+        updatedAt: `2026-01-01T00:00:${String(second).padStart(2, "0")}Z`,
+        streaming: false,
+      },
+    });
+    const summary = (assistantMessageId: string, files: Array<[string, number]>) => ({
+      runId: `turn-${assistantMessageId.at(-1)}` as never,
+      completedAt: "2026-01-01T00:00:30Z",
+      assistantMessageId: assistantMessageId as never,
+      checkpointTurnCount: 1,
+      checkpointRef: "checkpoint" as never,
+      status: "ready" as const,
+      files: files.map(([path, additions]) => ({
+        path,
+        kind: "modified" as const,
+        additions,
+        deletions: 0,
+      })),
+    });
+
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        message("user-1", "user", 0, "turn-1"),
+        message("assistant-1", "assistant", 5, "turn-1"),
+        message("assistant-2", "assistant", 10, "turn-2"),
+        message("user-2", "user", 15, "turn-3"),
+        message("assistant-3", "assistant", 20, "turn-3"),
+      ],
+      isWorking: false,
+      activeTurnStartedAt: null,
+      turnDiffSummaries: [
+        summary("assistant-1", [
+          ["a.ts", 1],
+          ["earlier.ts", 3],
+        ]),
+        summary("assistant-2", [
+          ["a.ts", 5],
+          ["b.ts", 2],
+        ]),
+        summary("assistant-3", [["c.ts", 1]]),
+      ],
+      supportsConversationRollback: false,
+    });
+    const files = (id: string) => {
+      const row = rows.find((r) => r.kind === "message" && r.message.id === id);
+      return row?.kind === "message"
+        ? row.assistantTurnDiffSummary?.files.map((file) => `${file.path}:${file.additions}`)
+        : undefined;
+    };
+
+    expect(files("assistant-1")).toBeUndefined();
+    expect(files("assistant-2")).toEqual(["a.ts:5", "earlier.ts:3", "b.ts:2"]);
+    const merged = rows.find((row) => row.kind === "message" && row.message.id === "assistant-2");
+    expect(merged?.kind === "message" && merged.assistantTurnDiffSummary?.fileRunIds).toEqual({
+      "a.ts": "turn-2",
+      "earlier.ts": "turn-1",
+      "b.ts": "turn-2",
+    });
+    expect(files("assistant-3")).toEqual(["c.ts:1"]);
+  });
+
+  it("hides mid-run progress lines unless step updates are on", () => {
+    const at = (second: number) => `2026-01-01T00:00:${String(second).padStart(2, "0")}Z`;
+    const message = (
+      id: string,
+      role: "user" | "assistant",
+      second: number,
+      streaming = false,
+    ) => ({
+      id: `${id}-entry`,
+      kind: "message" as const,
+      createdAt: at(second),
+      message: {
+        id: id as never,
+        role,
+        text: id === "step-1" ? "Reading the code first.\nMore detail." : id,
+        runId: "turn-1" as never,
+        ...(role === "user" ? { inputIntent: "turn_start" as const } : {}),
+        createdAt: at(second),
+        updatedAt: at(second),
+        streaming,
+      },
+    });
+    const input = {
+      timelineEntries: [
+        message("user-1", "user", 0),
+        message("step-1", "assistant", 2),
+        message("answer", "assistant", 6, true),
+      ],
+      latestRun: {
+        runId: "turn-1" as never,
+        status: "running" as const,
+        startedAt: at(0),
+        completedAt: null,
+      },
+      isWorking: true,
+      activeTurnStartedAt: at(0),
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    };
+
+    const quiet = deriveMessagesTimelineRows(input);
+    expect(quiet.some((row) => row.id === "step-1-entry")).toBe(false);
+    expect(quiet.some((row) => row.id === "answer-entry")).toBe(true);
+    const live = quiet.find((row) => row.kind === "working" || row.kind === "thinking");
+    expect(live && "stepNote" in live ? live.stepNote : undefined).toBe("Reading the code first.");
+
+    const loud = deriveMessagesTimelineRows({ ...input, showStepUpdates: true });
+    expect(loud.some((row) => row.id === "step-1-entry")).toBe(true);
+  });
+
   it("folds the first assistant message and settled work before the terminal response", () => {
     const timelineEntries = [
       {
@@ -2359,13 +2481,13 @@ describe("deriveMessagesTimelineRows", () => {
       "work-live",
     ]);
 
-    // A failed run stays open, as on a normal thread.
+    // A failed run folds its tool calls. Only the error row stays visible.
     expect(shape(rows({ resume: "failed", working: false }))).toEqual([
       "user:launch",
       "fold:Worked for 8.0s",
       "assistant:launch-answer",
       "user:resume",
-      "work",
+      "fold:Worked for 8.0s",
       "work",
       "assistant:resume-answer",
     ]);
@@ -5039,7 +5161,7 @@ it("keeps the working header in place across worktree setup handoff", () => {
 
 describe("failed turn transcript", () => {
   it.each(["provider_error", "usage_limit"] as const)(
-    "keeps historical %s failures and preceding work visible without disclosures",
+    "folds preceding work and keeps historical %s failures visible",
     (failureClass) => {
       const runId = RunId.make("failed-run");
       const threadId = ThreadId.make("failed-thread");
@@ -5136,14 +5258,12 @@ describe("failed turn transcript", () => {
         turnDiffSummaries: [],
         supportsConversationRollback: false,
       });
-      expect(
-        rows.some(
-          (row) =>
-            row.kind === "turn-fold" || row.kind === "attempt-fold" || row.kind === "work-toggle",
-        ),
-      ).toBe(false);
+      expect(rows.some((row) => row.kind === "turn-fold")).toBe(true);
+      expect(rows.some((row) => row.kind === "attempt-fold" || row.kind === "work-toggle")).toBe(
+        false,
+      );
       const work = rows.flatMap((row) => (row.kind === "work" ? row.groupedEntries : []));
-      expect(work.map((entry) => entry.id)).toEqual(["command", "failure"]);
+      expect(work.map((entry) => entry.id)).toEqual(["failure"]);
       expect(work.at(-1)?.detail).toBe("The provider stopped this turn.\nRetry later.");
       expect(work.at(-1)?.createdAt).toBe("2026-09-20T12:00:00.000Z");
       const entriesWithoutTools = deriveTimelineEntriesFromVisibleTurnItems({

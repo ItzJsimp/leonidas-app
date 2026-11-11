@@ -1,6 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off - the rule check runs in its own Node process.
 import * as NodeChildProcess from "node:child_process";
-import * as NodeURL from "node:url";
 
 /** One export file for the check module. A name with "funded" marks a Funded account. */
 export interface CheckFile {
@@ -25,13 +24,20 @@ export type CheckOutcome =
 const TIMEOUT_MS = 10_000;
 const MAX_OUTPUT = 1_000_000;
 
-// Runs inside the child. Pack contract: `loadTrades(files)` and `reviewDay(trades, bars)` for one
-// day, plus optional `etParts(t).date` to split days. Prints one JSON line.
-const RUNNER = `
+// Runs inside the child. Pack contract: one self-contained file (it cannot import other files)
+// with `loadTrades(files)` and `reviewDay(trades, bars)` for one day, plus optional
+// `etParts(t).date` to split days. Prints one JSON line.
+/** Exported so a test can start it without the permission model. */
+export const RULE_CHECK_RUNNER = `
+// Fail closed: without the permission model the module would have full file access.
+const permission = process.permission;
+if (!permission || permission.has("fs.write") || permission.has("fs.read") || permission.has("child") || permission.has("worker")) process.exit(3);
 const chunks = [];
 for await (const chunk of process.stdin) chunks.push(chunk);
 const input = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-const pack = await import(process.argv[1]);
+// The module is the exact bytes the trader allowed. A data: module cannot import a file by a
+// relative path, and the child has no file access, so nothing else can change what runs.
+const pack = await import("data:text/javascript;base64," + input.source);
 const trades = pack.loadTrades(input.files);
 const days = new Map();
 for (const trade of trades) {
@@ -101,14 +107,13 @@ function childEnv(): Record<string, string> {
 }
 
 /**
- * Runs the pack's check module in a child Node process with the permission model on: it can read
- * the pack folder only, and it cannot write files, start processes or start workers. The trader
- * allowed this module (by its SHA-256) before the first run. A crash, a timeout or a bad answer
- * gives `failed`, so the import still completes.
+ * Runs the pack's check module in a child Node process with the permission model on: it cannot
+ * read or write any file, start processes or start workers. It can still use the network. `source`
+ * is the exact bytes the trader allowed (by SHA-256), so a file that changes later cannot run. A
+ * crash, a timeout or a bad answer gives `failed`, so the import still completes.
  */
 export function runRuleCheck(input: {
-  readonly folder: string;
-  readonly module: string;
+  readonly source: Uint8Array;
   readonly files: readonly CheckFile[];
   readonly bars: readonly (readonly number[])[];
   readonly timeoutMs?: number;
@@ -124,14 +129,7 @@ export function runRuleCheck(input: {
     try {
       child = NodeChildProcess.spawn(
         process.execPath,
-        [
-          "--permission",
-          `--allow-fs-read=${input.folder}`,
-          "--input-type=module",
-          "-e",
-          RUNNER,
-          NodeURL.pathToFileURL(input.module).href,
-        ],
+        ["--permission", "--input-type=module", "-e", RULE_CHECK_RUNNER],
         // `timeout` makes Node stop only this child, by its own handle.
         {
           env: childEnv(),
@@ -166,6 +164,12 @@ export function runRuleCheck(input: {
       ),
     );
     child.stdin?.on("error", () => undefined);
-    child.stdin?.end(JSON.stringify({ files: input.files, bars: input.bars }));
+    child.stdin?.end(
+      JSON.stringify({
+        files: input.files,
+        bars: input.bars,
+        source: Buffer.from(input.source).toString("base64"),
+      }),
+    );
   });
 }

@@ -24,10 +24,15 @@ export function OutputDock({
 }) {
   const shown = simple ? sections.filter((section) => section.kind !== "actions") : sections;
   return (
-    <div data-output-dock className="mt-4 space-y-4 rounded-xl border border-border bg-card/50 p-4">
+    <div
+      data-output-dock
+      className="mt-3 divide-y divide-border rounded-xl border border-border bg-card/50 px-4"
+    >
       {shown.map((section) => (
-        <section key={section.kind} aria-label={section.heading}>
-          <h3 className="mb-2 text-sm font-semibold text-foreground">{section.heading}</h3>
+        <section key={section.kind} aria-label={section.heading} className="py-3.5">
+          <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {section.heading}
+          </h3>
           <div className="space-y-2">
             {section.items.map((item, index) => {
               const key = `${item.kind}:${index}:${item.kind === "replies" ? item.replies.join("|") : item.text}`;
@@ -50,9 +55,12 @@ export function OutputDock({
                 );
               if (item.kind === "option")
                 return (
-                  <div key={key} className="rounded-lg border border-border p-3">
-                    {renderMarkdown(item.text)}
-                    <div className="mt-2">
+                  <div
+                    key={key}
+                    className="flex items-center gap-3 rounded-lg border border-border p-3"
+                  >
+                    <div className="min-w-0 flex-1">{renderMarkdown(item.text)}</div>
+                    <div className="shrink-0">
                       <Button
                         type="button"
                         variant="outline"
@@ -91,11 +99,6 @@ export function OutputDock({
           Explain simpler
         </Button>
       ) : null}
-      {onReply ? (
-        <p className="text-xs text-muted-foreground">
-          Buttons fill your message box. Check it, then send.
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -107,40 +110,35 @@ const STATUS = {
 } as const;
 const ATTENTION = { none: "No thought needed", glance: "Quick look", think: "Needs thought" };
 
-const PREVIEW_LINES = 3;
-
-const FENCE = /^\s*(```|~~~)/;
+const SUMMARY_FENCE = /^```leo:summary[ \t]*\n([\s\S]*?)\n```[ \t]*(?:\n|$)/m;
 
 /**
- * The first lines of the body with text. A code or answer-block fence that starts inside them
- * stays whole, so the summary never shows a cut-off block.
+ * The agent writes the summary in a `leo:summary` fence. Returns it apart from the rest of the
+ * reply, or null summary when the reply has none (it then shows whole, without tabs).
  */
-export function previewOf(body: string): string {
-  const kept: string[] = [];
-  let count = 0;
-  let inFence = false;
-  for (const line of body.split("\n")) {
-    const fence = FENCE.test(line);
-    if (!inFence && line.trim()) {
-      if (count >= PREVIEW_LINES) break;
-      count += 1;
-    }
-    if (fence) inFence = !inFence;
-    kept.push(line);
-  }
-  return kept.join("\n");
+export function splitSummary(body: string): { summary: string | null; rest: string } {
+  const match = SUMMARY_FENCE.exec(body);
+  const summary = match?.[1]?.trim();
+  if (!match || !summary) return { summary: null, rest: body };
+  return {
+    summary,
+    rest: (body.slice(0, match.index) + body.slice(match.index + match[0].length)).trim(),
+  };
 }
 
-/** A long body: Summary shows its first lines, Full answer shows all of it. */
+/** Summary shows the agent's short version, Full answer shows the whole reply. */
 function ReplyTabs({
+  summary,
   body,
   renderMarkdown,
 }: {
+  summary: string;
   body: string;
   renderMarkdown: (text: string) => React.ReactNode;
 }) {
   const [tab, setTab] = useState(0);
   const words = body.split(/\s+/).filter(Boolean).length;
+  const [lead = "", ...more] = summary.split("\n");
   return (
     <div>
       <UnderlineTabs
@@ -156,13 +154,26 @@ function ReplyTabs({
         onSelect={setTab}
         size="sm"
       >
-        <div className="mt-2">{renderMarkdown(tab === 1 ? body : previewOf(body))}</div>
+        <div className="mt-2">
+          {tab === 1 ? (
+            renderMarkdown(body)
+          ) : (
+            <>
+              <div className="font-medium">{renderMarkdown(lead)}</div>
+              {more.some((line) => line.trim()) ? (
+                <div className="text-muted-foreground">
+                  {renderMarkdown(more.join("\n").trim())}
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
       </UnderlineTabs>
     </div>
   );
 }
 
-/** Status pills above the reply; a body past 3 lines gets Summary and Full answer tabs. */
+/** Status pills above the reply. Tabs show only when the agent wrote a summary. */
 export function ReplyBody({
   status,
   body,
@@ -172,7 +183,7 @@ export function ReplyBody({
   body: string;
   renderMarkdown: (text: string) => React.ReactNode;
 }) {
-  const lines = body.split("\n").filter((line) => line.trim()).length;
+  const { summary, rest } = splitSummary(body);
   return (
     <>
       {status ? (
@@ -184,10 +195,10 @@ export function ReplyBody({
           ) : null}
         </div>
       ) : null}
-      {lines > PREVIEW_LINES ? (
-        <ReplyTabs body={body} renderMarkdown={renderMarkdown} />
-      ) : lines > 0 ? (
-        renderMarkdown(body)
+      {summary ? (
+        <ReplyTabs summary={summary} body={rest} renderMarkdown={renderMarkdown} />
+      ) : rest.trim() ? (
+        renderMarkdown(rest)
       ) : null}
     </>
   );
@@ -205,7 +216,18 @@ export function AssistantOutput({
     () => (props.isStreaming ? null : parseOutputDock(props.text)),
     [props.text, props.isStreaming],
   );
-  if (!dock) return <ChatMarkdown {...props} />;
+  if (!dock) {
+    // A reply with no Dock can still carry a summary, and the raw fence must not show.
+    const { summary } = props.isStreaming ? { summary: null } : splitSummary(props.text);
+    return summary ? (
+      <ReplyBody
+        body={props.text}
+        renderMarkdown={(text) => <ChatMarkdown {...props} text={text} />}
+      />
+    ) : (
+      <ChatMarkdown {...props} />
+    );
+  }
   return (
     <>
       <ReplyBody

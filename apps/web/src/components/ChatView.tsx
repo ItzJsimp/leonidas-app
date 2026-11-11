@@ -8204,9 +8204,8 @@ export default function ChatView(props: ChatViewProps) {
   }, [activeThreadId, composerRef]);
 
   const onRevertToTurnCount = useCallback(
-    // Conversation-only: files stay as the agent left them, so one click is safe.
-    async (turnCount: number, messageId: MessageId) => {
-      const restoreFiles = false;
+    // Files stay as the agent left them unless the user picks "files and chat" in the dialog.
+    async (turnCount: number, messageId: MessageId, restoreFiles = false) => {
       const localApi = readLocalApi();
       if (
         !localApi ||
@@ -10956,9 +10955,12 @@ export default function ChatView(props: ChatViewProps) {
   // reference is fully stable and never busts TimelineRowCtx identity.
   const onRevertToTurnCountRef = useRef(onRevertToTurnCount);
   onRevertToTurnCountRef.current = onRevertToTurnCount;
-  const onRevertTimelineTurn = useCallback((targetTurnCount: number, messageId: MessageId) => {
-    void onRevertToTurnCountRef.current(targetTurnCount, messageId);
-  }, []);
+  const onRevertTimelineTurn = useCallback(
+    (targetTurnCount: number, messageId: MessageId, restoreFiles?: boolean) => {
+      void onRevertToTurnCountRef.current(targetTurnCount, messageId, restoreFiles);
+    },
+    [],
+  );
 
   const pendingSidebarFileDrops = useSidebarPendingFileDropStore((state) => state.pending);
   const consumePendingFileDrop = useSidebarPendingFileDropStore(
@@ -11531,7 +11533,8 @@ export default function ChatView(props: ChatViewProps) {
               />
             </div>
             {/* Messages Wrapper */}
-            <div className="relative flex min-h-0 flex-1 flex-col bg-background">
+            <div className="relative isolate flex min-h-0 flex-1 flex-col bg-background">
+              <DraftHeroDots dim={!isDraftHeroState} />
               <FocusWidgetHost
                 environmentId={environmentId}
                 projectId={activeProject?.id ?? null}
@@ -11679,7 +11682,6 @@ export default function ChatView(props: ChatViewProps) {
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
-              {isDraftHeroState ? <DraftHeroDots /> : null}
               <div
                 ref={draftHeroTransition.transitionGroupRef}
                 className="chat-composer-lane w-full"

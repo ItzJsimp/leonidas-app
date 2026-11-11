@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeFSP from "node:fs/promises";
 import * as NodeZlib from "node:zlib";
 
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -9,8 +9,8 @@ import babel from "@rolldown/plugin-babel";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import compression from "compression";
 import { defineProject, type TestProjectInlineConfiguration } from "vite-plus/test/config";
-import { playwright } from "vite-plus/test/browser-playwright";
 import "vite-plus/test/config";
+import { playwright } from "@vitest/browser-playwright";
 import { defineConfig, type Connect, type Plugin } from "vite-plus";
 import pkg from "./package.json" with { type: "json" };
 
@@ -60,12 +60,16 @@ const configuredVersionLabel = (() => {
   if (explicit) return explicit;
   if (process.argv.includes("build")) return "";
   try {
-    const describe = execFileSync("git", ["describe", "--tags", "--long", "--match", "v0.*"], {
-      cwd: import.meta.dirname,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 5_000,
-    });
+    const describe = NodeChildProcess.execFileSync(
+      "git",
+      ["describe", "--tags", "--long", "--match", "v0.*"],
+      {
+        cwd: import.meta.dirname,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 5_000,
+      },
+    );
     return formatDevVersionLabel(describe) ?? "";
   } catch (error) {
     console.warn("[version-label] git describe failed, showing the package version:", error);
@@ -107,8 +111,7 @@ const unitTestProject = {
   test: {
     name: "unit",
     include: ["src/**/*.test.{ts,tsx}"],
-    // Screen tests need a real browser; the browser project runs them.
-    exclude: ["src/**/*.browser.test.{ts,tsx}", "**/node_modules/**"],
+    exclude: ["src/**/*.browser.test.{ts,tsx}"],
     // The web runtime suite exercises auth bootstrap, saved environments,
     // and websocket subscription lifecycles. Under the full monorepo test
     // run, those async tests can exceed Vitest's default 5s budget.
@@ -122,10 +125,6 @@ const unitTestProject = {
 // screen before it ships. Run `playwright install --only-shell chromium` once on a new machine.
 const browserTestProject = {
   extends: true,
-  server: {
-    // Concurrent runs claim the next free port.
-    strictPort: false,
-  },
   // Prebundle these up front; finding them mid-run makes Vite reload a test.
   optimizeDeps: { include: ["heic-to/next", "tiff"] },
   test: {
@@ -134,14 +133,13 @@ const browserTestProject = {
     exclude: [...KNOWN_FAILING_BROWSER_TESTS, "**/node_modules/**"],
     hookTimeout: 30_000,
     testTimeout: 30_000,
+    fileParallelism: false,
     browser: {
       enabled: true,
-      provider: playwright() as never,
-      instances: [{ browser: "chromium" }],
       headless: true,
-      api: { strictPort: false },
+      provider: playwright(),
+      instances: [{ browser: "chromium" }],
     },
-    fileParallelism: false,
   },
 } satisfies TestProjectInlineConfiguration;
 
@@ -192,7 +190,7 @@ function precompressBrotliPlugin(): Plugin {
       outDir = `${config.root}/${config.build.outDir}/assets`;
     },
     async closeBundle() {
-      const names = (await readdir(outDir)).filter((name) => /\.(js|css)$/.test(name));
+      const names = (await NodeFSP.readdir(outDir)).filter((name) => /\.(js|css)$/.test(name));
       const brotli = NodeZlib.brotliCompress.bind(NodeZlib);
       const encode = (input: Buffer) =>
         new Promise<Buffer>((resolve, reject) =>
@@ -206,9 +204,9 @@ function precompressBrotliPlugin(): Plugin {
       for (let at = 0; at < names.length; at += 4) {
         await Promise.all(
           names.slice(at, at + 4).map(async (name) => {
-            const input = await readFile(`${outDir}/${name}`);
+            const input = await NodeFSP.readFile(`${outDir}/${name}`);
             if (input.length < 1024) return;
-            await writeFile(`${outDir}/${name}.br`, await encode(input));
+            await NodeFSP.writeFile(`${outDir}/${name}.br`, await encode(input));
           }),
         );
       }
@@ -259,7 +257,7 @@ function devIconPlugin(): Plugin {
         if (!file) return next();
         res.setHeader("Content-Type", file.endsWith(".ico") ? "image/x-icon" : "image/png");
         res.setHeader("Cache-Control", "no-cache");
-        res.end(readFileSync(new URL(`../../assets/dev/${file}`, import.meta.url)));
+        res.end(NodeFS.readFileSync(new URL(`../../assets/dev/${file}`, import.meta.url)));
       });
     },
   };

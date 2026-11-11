@@ -744,6 +744,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["ask before thread second click inline action"],
   },
   {
+    id: "show-step-updates",
+    title: "Show step updates",
+    to: "/settings/general",
+    searchTerms: ["agent progress notes live status lines chat reply details"],
+  },
+  {
     id: "delete-confirmation",
     title: "Delete confirmation",
     to: "/settings/general",

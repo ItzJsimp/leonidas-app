@@ -32,6 +32,24 @@ async function scrollTo(element: HTMLElement, top: number) {
 }
 
 describe("ChangedFilesCard", () => {
+  it("starts as a chip and reveals the file list on click", async () => {
+    await using screen = await render(
+      <ChangedFilesCard
+        runId={RunId.make("run-1")}
+        files={[file("README.md", 2, 1)]}
+        allDirectoriesExpanded
+        resolvedTheme="light"
+        onToggleAllDirectories={() => {}}
+        onOpenTurnDiff={() => {}}
+      />,
+    );
+    expect(screen.container.querySelector('[data-changed-files-state="chip"]')).not.toBeNull();
+    expect(text(screen.container)).not.toContain("README.md");
+    await act(async () => buttonWithText(screen.container, "1 changed file").click());
+    expect(screen.container.querySelector('[data-changed-files-state="tree"]')).not.toBeNull();
+    expect(text(screen.container)).toContain("README.md");
+  });
+
   it("summarizes a single file with a singular label", async () => {
     await using screen = await render(
       <ChangedFilesCard
@@ -53,6 +71,7 @@ describe("ChangedFilesCard", () => {
     const onOpenTurnDiff = vi.fn();
     await using screen = await render(
       <ChangedFilesCard
+        defaultOpen
         runId={RunId.make("run-1")}
         files={[
           file("apps/web/src/App.tsx", 120, 20),
@@ -159,6 +178,7 @@ describe("ChangedFilesTree", () => {
       const [expanded, setExpanded] = useState(false);
       return (
         <ChangedFilesCard
+          defaultOpen
           runId={RunId.make("run-1")}
           files={manyFiles}
           allDirectoriesExpanded={expanded}

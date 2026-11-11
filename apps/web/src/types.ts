@@ -106,7 +106,9 @@ export interface ProposedPlan {
   readonly updatedAt: string;
 }
 export type TurnDiffFileChange = ThreadCheckpointSummary["files"][number];
-export type TurnDiffSummary = ThreadCheckpointSummary;
+export type TurnDiffSummary = ThreadCheckpointSummary & {
+  fileRunIds?: Readonly<Record<string, RunId>>;
+};
 
 export type Project = EnvironmentProject;
 export type Thread = EnvironmentThreadShell;

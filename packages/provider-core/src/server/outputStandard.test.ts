@@ -16,6 +16,14 @@ describe("render contract and Leonidas reply style", () => {
     }
   });
 
+  // The chat draws a Summary tab only from this block, so every style must ask for it.
+  it("asks for a summary block, and shipped styles narrate only news", () => {
+    assert.include(LEONIDAS_RENDER_CONTRACT, "leo:summary");
+    for (const style of [LEONIDAS_REPLY_STYLE, AUTOPILOT_REPLY_STYLE]) {
+      assert.include(style, "Notes during a turn only for news");
+    }
+  });
+
   it("names every Dock heading the client parses, in each shipped style", () => {
     // Next Actions stays in the parser for old replies only.
     for (const heading of Object.keys(DOCK_HEADINGS).filter((h) => !h.includes("Next Actions"))) {

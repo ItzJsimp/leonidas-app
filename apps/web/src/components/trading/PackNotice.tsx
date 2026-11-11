@@ -37,8 +37,9 @@ export function PackConsentView({
           Allow the rule check?
         </h2>
         <p className="text-sm text-muted-foreground">
-          Your pack wants to run this file on your PC to grade each imported trade. It can read the
-          pack folder only. Allow it only if you trust the pack.
+          Your pack wants to run this file on your PC to grade each imported trade. It cannot read
+          or write files. It can use the internet, and it sees your trade export. Allow it only if
+          you trust the pack.
         </p>
         <code className="mt-1 block break-all text-xs text-muted-foreground">{module}</code>
       </div>

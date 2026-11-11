@@ -11,7 +11,8 @@ import { useV2ItemSupport } from "../../state/v2ItemSupport";
 import { canForkProjectedAssistantItem } from "@t3tools/client-runtime/state/thread-workflows";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import { Button } from "../ui/button";
-import { GitForkIcon } from "lucide-react";
+import { GitForkIcon, SlidersHorizontalIcon } from "lucide-react";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { cn } from "~/lib/utils";
 import { type ChatMessage, type TurnDiffSummary } from "../../types";
 import { resolveRunIdentity } from "./runIdentity.logic";
@@ -85,6 +86,50 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
         ) : null}
       </div>
     </>
+  );
+}
+
+/** Each choice fills the message box. The user checks it, then sends. */
+export const ADJUST_REPLIES = [
+  { label: "Shorter", reply: "Say your last answer again in fewer words. Keep only what I need." },
+  {
+    label: "Simpler",
+    reply: "Say your last answer again in simpler words. Define each technical term.",
+  },
+  {
+    label: "More detail",
+    reply: "Give more detail on your last answer. Show the steps and the reasons.",
+  },
+] as const;
+
+function AssistantAdjustMenu() {
+  const ctx = use(TimelineRowCtx);
+  const fill = ctx.onDockReply;
+  if (!fill) return null;
+  return (
+    <Menu>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <MenuTrigger
+              render={
+                <Button type="button" size="xs" variant="ghost" aria-label="Adjust this reply" />
+              }
+            />
+          }
+        >
+          <SlidersHorizontalIcon className="size-3" />
+        </TooltipTrigger>
+        <TooltipPopup side="top">Adjust</TooltipPopup>
+      </Tooltip>
+      <MenuPopup side="top" align="start">
+        {ADJUST_REPLIES.map((item) => (
+          <MenuItem key={item.label} onClick={() => fill(item.reply)}>
+            {item.label}
+          </MenuItem>
+        ))}
+      </MenuPopup>
+    </Menu>
   );
 }
 
@@ -201,6 +246,7 @@ function AssistantMessageMeta({
         {projectedItem?.item.type === "assistant_message" ? (
           <AssistantForkButton projectedItem={projectedItem} />
         ) : null}
+        {showCopyButton && !copyStreaming ? <AssistantAdjustMenu /> : null}
         {!message.streaming && (
           <Tooltip>
             <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
@@ -378,7 +424,9 @@ function AssistantChangedFilesSectionInner({
       onToggleAllDirectories={() =>
         setExpanded(routeThreadKey, turnSummary.runId, !allDirectoriesExpanded)
       }
-      onOpenTurnDiff={onOpenTurnDiff}
+      onOpenTurnDiff={(runId, filePath) =>
+        onOpenTurnDiff((filePath && turnSummary.fileRunIds?.[filePath]) || runId, filePath)
+      }
       onFileContextMenu={(filePath, event) =>
         onFileContextMenu(
           {
