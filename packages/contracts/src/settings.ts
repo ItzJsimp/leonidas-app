@@ -621,6 +621,8 @@ export const ClientSettingsSchema = Schema.Struct({
   // Button bar above the prompt: collapsed state plus the user's changes to the
   // team default set (hidden ids, order, custom prompt buttons).
   composerToolbarCollapsed: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  // The name in the new chat greeting ("Good morning, Jake"). Empty leaves the name out.
+  greetingName: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   composerToolbar: ComposerToolbarPrefs.pipe(
     Schema.withDecodingDefault(Effect.succeed({ hidden: [], order: [], custom: [] })),
   ),
@@ -2057,6 +2059,7 @@ export const ClientSettingsPatch = Schema.Struct({
   composerAutoPickLocalModel: Schema.optionalKey(AutoPickModelSlug),
   skillFolders: Schema.optionalKey(SkillFolderPrefs),
   composerToolbarCollapsed: Schema.optionalKey(Schema.Boolean),
+  greetingName: Schema.optionalKey(Schema.String),
   composerToolbar: Schema.optionalKey(ComposerToolbarPrefs),
   sidebarWorkingShelfEnabled: Schema.optionalKey(Schema.Boolean),
   sidebarProjectGroupingMode: Schema.optionalKey(SidebarProjectGroupingMode),

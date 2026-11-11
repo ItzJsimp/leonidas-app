@@ -465,6 +465,7 @@ import type { ComposerAttachmentSlice } from "./chat/composerAttachments";
 import type { ComposerLayoutSlice } from "./chat/composerLayout";
 import { createPageScrollController, type PageScrollKey } from "./chat/pageScrollController";
 import { isTimelineScrollTarget } from "./chat/timelineScrollTarget";
+import { DraftHeroDots } from "./chat/DraftHeroDots";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
 import { ExpandedImageDialog } from "./chat/ExpandedImageDialog";
 import { PullRequestThreadDialog } from "./PullRequestThreadDialog";
@@ -11657,6 +11658,7 @@ export default function ChatView(props: ChatViewProps) {
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
+              {isDraftHeroState ? <DraftHeroDots /> : null}
               <div
                 ref={draftHeroTransition.transitionGroupRef}
                 className="chat-composer-lane w-full"
