@@ -61,6 +61,9 @@ const HELMET_GLOW: CSSProperties = {
     "radial-gradient(closest-side,color-mix(in oklab,var(--primary) 32%,transparent),color-mix(in oklab,var(--primary) 10%,transparent) 55%,transparent)",
 };
 
+/** The greeting floats this far above the low composer; a short window squeezes the gap to 1rem. */
+export const DRAFT_HERO_GREETING_GAP = "max(1rem, min(23dvh, 100dvh - 600px))";
+
 interface PickerItem {
   readonly value: string;
   readonly label: string;
