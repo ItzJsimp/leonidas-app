@@ -1,4 +1,4 @@
-import { ThreadId, type SubagentRun } from "@t3tools/contracts";
+import { DEFAULT_SUBAGENT_DAILY_CAP_USD, ThreadId, type SubagentRun } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -90,6 +90,21 @@ describe("subagents.logic", () => {
     expect(resultPlaceholder(run())).toContain("Still working");
     expect(resultPlaceholder(run({ status: "cancelled", rawStatus: "interrupted" }))).toContain(
       "restart",
+    );
+  });
+});
+
+describe("daily cap (decision 4)", () => {
+  it("decision 4: the default cap is $2 a day and the Runs line shows spend against it", () => {
+    expect(DEFAULT_SUBAGENT_DAILY_CAP_USD).toBe(2);
+    const now = Date.parse("2026-10-23T12:00:00.000Z");
+    const spent = run({
+      status: "done",
+      costUsd: 1.6,
+      startedAt: new Date(now - 60_000).toISOString(),
+    });
+    expect(runsSummaryLabel([spent], now, DEFAULT_SUBAGENT_DAILY_CAP_USD)).toBe(
+      "0 running · $1.60 of $2.00 today",
     );
   });
 });

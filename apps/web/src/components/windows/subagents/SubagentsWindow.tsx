@@ -18,6 +18,7 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { toastManager } from "~/components/ui/toast";
 import { observeResize } from "~/lib/observeResize";
+import { useServerConfigs } from "~/state/entities";
 import { useOrchestrationCommand } from "~/state/use-orchestration-command";
 import { threadEnvironment } from "~/state/threads";
 
@@ -139,6 +140,8 @@ function RunsTab() {
   const filtering = query.trim() !== "" || status !== null || parentId !== null;
   const loadError = running.error ?? history.error;
   const environmentId = running.environmentId;
+  const capUsd =
+    useServerConfigs().get(environmentId as never)?.settings.subagentDailyCapUsd ?? null;
 
   const openThread = (threadId: string) => {
     if (!environmentId) return;
@@ -247,7 +250,7 @@ function RunsTab() {
         </Button>
       </Tip>
       <p aria-live="polite" className="ms-auto text-xs text-muted-foreground tabular-nums">
-        {runsSummaryLabel(shown ?? [], now, null)}
+        {runsSummaryLabel(shown ?? [], now, capUsd)}
       </p>
     </div>
   );
