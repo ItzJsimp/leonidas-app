@@ -36,6 +36,10 @@ export const SubagentSpawnApproval = Schema.Struct({
   filesInScope: Schema.Array(Schema.String),
   toolCount: NonNegativeInt,
   estimatedStartTokens: NonNegativeInt,
+  /** The start cost as the card prints it, for example "about $0.02" (ADR-0098). */
+  roughCost: Schema.optional(Schema.String),
+  /** True when today's subagent spend is at 80 percent of the account's daily cap. */
+  capWarning: Schema.optional(Schema.Boolean),
   /** Where the tier came from: the app's map, the AIOS model-tiers.json, or the spec's own `tier: confirm`. */
   tierSource: Schema.Literals(["app", "aios", "subagent"]),
   goodFor: Schema.String,

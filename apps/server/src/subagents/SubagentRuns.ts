@@ -68,6 +68,24 @@ interface UsageRow {
 /** Looks up the price of one model. Null means the price table does not know it. */
 export type RateFor = (model: string) => Effect.Effect<TokenRates | null>;
 
+export interface SpawnContextInput {
+  /** The chat that asks to spawn. */
+  readonly threadId: string;
+  /** The provider account that would pay for the child. */
+  readonly account: string;
+  /** Start of the local day, as an ISO time: runs from then on count toward today's spend. */
+  readonly sinceIso: string;
+}
+
+export interface SpawnContext {
+  /** Runs between the caller and a top-level chat: 0 for a top-level chat, 1 for a child. */
+  readonly depth: number;
+  /** Runs of this chat that are live now. */
+  readonly runningChildren: number;
+  /** Cost of today's runs on the account, in USD. */
+  readonly spendUsd: number;
+}
+
 export class SubagentRuns extends Context.Service<
   SubagentRuns,
   {
@@ -76,6 +94,11 @@ export class SubagentRuns extends Context.Service<
       input: SubagentRunsInput,
       rateFor?: RateFor,
     ) => Effect.Effect<SubagentRunsResult, SubagentRunsError>;
+    /** What the spawn gate needs about the calling chat and the paying account (ADR-0098). */
+    readonly spawnContext: (
+      input: SpawnContextInput,
+      rateFor?: RateFor,
+    ) => Effect.Effect<SpawnContext, SubagentRunsError>;
   }
 >()("t3/subagents/SubagentRuns") {}
 
@@ -126,6 +149,58 @@ const toSubagentRun = (
       (status === "running" || status === "waiting"),
   };
 };
+
+/**
+ * Prices each run's child chat from the tokens its turns reported. One small read for the given
+ * rows only. A run with no reported tokens, or a model with no price, costs null: never zero.
+ */
+const priceChildren = Effect.fnUntraced(function* (
+  sql: SqlClient.SqlClient,
+  rows: ReadonlyArray<{ readonly child_thread_id: string | null; readonly model: string | null }>,
+  rateFor: RateFor | undefined,
+) {
+  const childIds = rows.flatMap((row) =>
+    row.child_thread_id === null ? [] : [row.child_thread_id],
+  );
+  const usageRows =
+    childIds.length === 0
+      ? []
+      : yield* sql<UsageRow>`
+          SELECT thread_id,
+            SUM(json_extract(payload_json, '$.turnTokenUsage.inputTokens')) AS input_tokens,
+            SUM(json_extract(payload_json, '$.turnTokenUsage.cachedInputTokens')) AS cached_tokens,
+            SUM(json_extract(payload_json, '$.turnTokenUsage.cacheCreationTokens')) AS cache_creation_tokens,
+            SUM(json_extract(payload_json, '$.turnTokenUsage.outputTokens')) AS output_tokens
+          FROM orchestration_v2_projection_provider_turns
+          WHERE thread_id IN ${sql.in(childIds)}
+          GROUP BY thread_id
+        `;
+  const usageByThread = new Map(usageRows.map((row) => [row.thread_id, row]));
+  const models = [...new Set(rows.flatMap((row) => (row.model === null ? [] : [row.model])))];
+  const rates = new Map<string, TokenRates | null>(
+    rateFor === undefined
+      ? []
+      : yield* Effect.forEach(models, (model) =>
+          rateFor(model).pipe(Effect.map((rate) => [model, rate] as const)),
+        ),
+  );
+  return (row: {
+    readonly child_thread_id: string | null;
+    readonly model: string | null;
+  }): number | null => {
+    const usage = row.child_thread_id === null ? undefined : usageByThread.get(row.child_thread_id);
+    if (usage === undefined) return null;
+    return runCostUsd(
+      {
+        input: usage.input_tokens,
+        cachedInput: usage.cached_tokens,
+        cacheCreation: usage.cache_creation_tokens,
+        output: usage.output_tokens,
+      },
+      row.model === null ? null : (rates.get(row.model) ?? null),
+    );
+  };
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
@@ -197,23 +272,8 @@ const make = Effect.gen(function* () {
           ON parent.thread_id = s.thread_id AND parent.deleted_at IS NULL
         WHERE s.status IN ${sql.in(ACTIVE_RAW_STATUSES)}
       `;
-      // Cost and parent links come from two small reads of this page only, never a table scan.
-      const childIds = page.flatMap((row) =>
-        row.child_thread_id === null ? [] : [row.child_thread_id],
-      );
-      const usageRows =
-        childIds.length === 0
-          ? []
-          : yield* sql<UsageRow>`
-              SELECT thread_id,
-                SUM(json_extract(payload_json, '$.turnTokenUsage.inputTokens')) AS input_tokens,
-                SUM(json_extract(payload_json, '$.turnTokenUsage.cachedInputTokens')) AS cached_tokens,
-                SUM(json_extract(payload_json, '$.turnTokenUsage.cacheCreationTokens')) AS cache_creation_tokens,
-                SUM(json_extract(payload_json, '$.turnTokenUsage.outputTokens')) AS output_tokens
-              FROM orchestration_v2_projection_provider_turns
-              WHERE thread_id IN ${sql.in(childIds)}
-              GROUP BY thread_id
-            `;
+      // Cost and parent links come from small reads of this page only, never a table scan.
+      const costOf = yield* priceChildren(sql, page, rateFor);
       const parentThreadIds = [...new Set(page.map((row) => row.thread_id))];
       const parentRows =
         parentThreadIds.length === 0
@@ -224,32 +284,9 @@ const make = Effect.gen(function* () {
               WHERE child_thread_id IN ${sql.in(parentThreadIds)}
               GROUP BY child_thread_id
             `;
-      const usageByThread = new Map(usageRows.map((row) => [row.thread_id, row]));
       const parentRunByThread = new Map(
         parentRows.map((row) => [row.child_thread_id, row.subagent_id]),
       );
-      const models = [...new Set(page.flatMap((row) => (row.model === null ? [] : [row.model])))];
-      const rates = new Map<string, TokenRates | null>(
-        rateFor === undefined
-          ? []
-          : yield* Effect.forEach(models, (model) =>
-              rateFor(model).pipe(Effect.map((rate) => [model, rate] as const)),
-            ),
-      );
-      const costOf = (row: RunRow): number | null => {
-        const usage =
-          row.child_thread_id === null ? undefined : usageByThread.get(row.child_thread_id);
-        if (usage === undefined) return null;
-        return runCostUsd(
-          {
-            input: usage.input_tokens,
-            cachedInput: usage.cached_tokens,
-            cacheCreation: usage.cache_creation_tokens,
-            output: usage.output_tokens,
-          },
-          row.model === null ? null : (rates.get(row.model) ?? null),
-        );
-      };
       return {
         runs: page.map((row) =>
           toSubagentRun(row, parentRunByThread.get(row.thread_id) ?? null, costOf(row)),
@@ -262,7 +299,49 @@ const make = Effect.gen(function* () {
       } satisfies SubagentRunsResult;
     }).pipe(Effect.mapError((cause) => new SubagentRunsError({ cause })));
 
-  return SubagentRuns.of({ list });
+  const spawnContext = (input: SpawnContextInput, rateFor?: RateFor) =>
+    Effect.gen(function* () {
+      // Each hop is a run whose child chat is the current chat: the hops count the caller's depth.
+      const depthRows = yield* sql<{ readonly depth: number }>`
+        WITH RECURSIVE up(thread_id, depth) AS (
+          SELECT ${input.threadId}, 0
+          UNION ALL
+          SELECT s.thread_id, up.depth + 1
+          FROM orchestration_v2_projection_subagents AS s
+          JOIN up ON s.child_thread_id = up.thread_id
+          WHERE up.depth < 3
+        )
+        SELECT MAX(depth) AS depth FROM up
+      `;
+      const runningRows = yield* sql<{ readonly count: number }>`
+        SELECT COUNT(*) AS count
+        FROM orchestration_v2_projection_subagents
+        WHERE thread_id = ${input.threadId} AND status IN ${sql.in(ACTIVE_RAW_STATUSES)}
+      `;
+      const today = yield* sql<{ readonly child_thread_id: string; readonly model: string | null }>`
+        SELECT s.child_thread_id,
+          COALESCE(
+            json_extract(s.payload_json, '$.model'),
+            json_extract(s.payload_json, '$.modelSelection.model'),
+            json_extract(child.payload_json, '$.modelSelection.model')
+          ) AS model
+        FROM orchestration_v2_projection_subagents AS s
+        LEFT JOIN orchestration_v2_projection_threads AS child ON child.thread_id = s.child_thread_id
+        WHERE s.provider_instance_id = ${input.account}
+          AND s.child_thread_id IS NOT NULL
+          AND COALESCE(s.started_at, s.updated_at) >= ${input.sinceIso}
+      `;
+      const costOf = yield* priceChildren(sql, today, rateFor);
+      // shortcut: a run with no reported tokens or no price counts as $0, so the cap can run
+      // loose until usage is reported. Tighten it if the cap proves too loose in use.
+      return {
+        depth: depthRows[0]?.depth ?? 0,
+        runningChildren: runningRows[0]?.count ?? 0,
+        spendUsd: today.reduce((sum, row) => sum + (costOf(row) ?? 0), 0),
+      } satisfies SpawnContext;
+    }).pipe(Effect.mapError((cause) => new SubagentRunsError({ cause })));
+
+  return SubagentRuns.of({ list, spawnContext });
 });
 
 export const layer = Layer.effect(SubagentRuns, make);

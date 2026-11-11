@@ -76,6 +76,7 @@ import * as ProviderRegistryMock from "../provider/testUtils/providerRegistryMoc
 import * as ProjectService from "../project/ProjectService.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import { spawnGateServices } from "./spawnGate.test-fixtures.ts";
 import * as SecretRequests from "../secrets/SecretRequests.ts";
 import * as ModelBenchmarks from "../benchmarks/ModelBenchmarks.ts";
 import * as TaskBoardService from "../taskBoard/TaskBoardService.ts";
@@ -688,6 +689,7 @@ describe("orchestrator MCP toolkit", () => {
             Layer.provide(layerRegistry),
             Layer.provide(layerProviderRegistry),
             Layer.provide(ServerSettings.layerTest()),
+            Layer.provide(spawnGateServices),
             Layer.provide(layerScheduledTaskStub),
             Layer.provide(Layer.mock(ThreadSearch.ThreadSearch)({})),
             Layer.provide(Layer.mock(TaskBoardService.TaskBoardService)({})),
@@ -3913,6 +3915,7 @@ describe("orchestrator MCP toolkit", () => {
           ),
           Layer.provide(layerProviderRegistry),
           Layer.provide(ServerSettings.layerTest()),
+          Layer.provide(spawnGateServices),
           Layer.provide(layerUnusedScheduledTaskStub),
           Layer.provide(Layer.mock(ProjectService.ProjectService)({})),
           Layer.provide(Layer.mock(TaskBoardService.TaskBoardService)({})),

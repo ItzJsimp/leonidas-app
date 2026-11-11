@@ -26,6 +26,7 @@ import * as SecretRequests from "#server/secrets/SecretRequests.ts";
 import * as TaskBoardService from "#server/taskBoard/TaskBoardService.ts";
 import * as ModelBenchmarks from "#server/benchmarks/ModelBenchmarks.ts";
 import * as ServerSettings from "#server/serverSettings.ts";
+import { spawnGateServices } from "#server/mcp/spawnGate.test-fixtures.ts";
 import * as VcsStatusBroadcaster from "#server/vcs/VcsStatusBroadcaster.ts";
 import * as ServerSecretStore from "#server/auth/ServerSecretStore.ts";
 import * as ManagedProjectFolders from "#server/project/ManagedProjectFolders.ts";
@@ -73,6 +74,7 @@ const layerStubServices = Layer.mergeAll(
   Layer.mock(ScribeEngine.ScribeEngine)({}),
   Layer.mock(ReviewService.ReviewService)({}),
   ServerSettings.layerTest({}),
+  spawnGateServices,
   Layer.mock(GitWorkflowService.GitWorkflowService)({}),
   Layer.mock(ProjectSetupScriptRunner.ProjectSetupScriptRunner)({}),
   Layer.mock(VcsStatusBroadcaster.VcsStatusBroadcaster)({}),

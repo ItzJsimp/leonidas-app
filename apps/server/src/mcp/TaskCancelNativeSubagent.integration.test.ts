@@ -35,6 +35,7 @@ import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts
 import * as SecretRequests from "../secrets/SecretRequests.ts";
 import * as TaskBoardService from "../taskBoard/TaskBoardService.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import { spawnGateServices } from "./spawnGate.test-fixtures.ts";
 import type { McpInvocationScope } from "./McpInvocationContext.ts";
 import * as OrchestratorMcpService from "./OrchestratorMcpService.ts";
 
@@ -146,6 +147,7 @@ it.effect("task_cancel ends a delegated child's background native subagent", () 
             Layer.mock(TaskBoardService.TaskBoardService)({}),
             Layer.mock(SecretRequests.SecretRequests)({}),
             ServerSettings.layerTest(),
+            spawnGateServices,
             Layer.mock(ScheduledTaskService.ScheduledTaskService)({}),
             NodeServices.layer,
           ),

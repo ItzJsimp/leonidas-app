@@ -82,6 +82,8 @@ import {
   spawnApprovalId,
 } from "../subagents/spawnCardDetails.ts";
 import { instanceForModel } from "../subagents/instanceForModel.ts";
+import * as SubagentRuns from "../subagents/SubagentRuns.ts";
+import * as UsageService from "../usage/UsageService.ts";
 import { personaEngineSupport } from "../subagents/personaEngines.ts";
 import { loadSubagentPersona } from "../subagents/subagentPersona.ts";
 import { runRanAfter } from "@t3tools/shared/orchestrationV2ThreadError";
@@ -1076,6 +1078,8 @@ const make = Effect.gen(function* () {
     taskBoard.workspace(list).pipe(Effect.mapError(boardTaskFailure));
   const boardWorkspace = Effect.flatMap(boardProjects, boardWorkspaceOf);
   const serverSettings = yield* ServerSettings.ServerSettingsService;
+  const subagentRuns = yield* SubagentRuns.SubagentRuns;
+  const usageService = yield* UsageService.UsageService;
 
   /** A caller-named project, which must exist before anything is recorded against it. */
   const requireProject = (projectId: ProjectId) =>
@@ -2583,6 +2587,38 @@ const make = Effect.gen(function* () {
           task: input.task,
           accountUsage: describeAccountUsage(targetProvider),
         };
+        // The spawn gate (ADR-0098): who is asking, how many children run, what the account spent today.
+        const dayStart = DateTime.startOf(
+          DateTime.makeZonedUnsafe(yield* Clock.currentTimeMillis, {
+            timeZone: DateTime.zoneMakeLocal(),
+          }),
+          "day",
+        );
+        const spawnFacts = yield* subagentRuns
+          .spawnContext(
+            {
+              threadId: scope.thread.threadId,
+              account: target.modelSelection.instanceId,
+              sinceIso: DateTime.formatIso(DateTime.toUtc(dayStart)),
+            },
+            usageService.rateFor,
+          )
+          .pipe(
+            Effect.mapError(() =>
+              failure("orchestration_error", "Unable to read the subagent runs."),
+            ),
+          );
+        const gate = {
+          callerDepth: spawnFacts.depth,
+          callerCanSpawn: parent.thread.persona?.canSpawn === true,
+          runningChildren: spawnFacts.runningChildren,
+          todaySpendUsd: spawnFacts.spendUsd,
+          dailyCapUsd: delegationSettings.subagentDailyCapUsd,
+          rate:
+            usageService.rateFor === undefined
+              ? null
+              : yield* usageService.rateFor(target.modelSelection.model),
+        };
         if (persona === undefined) {
           yield* confirmDelegatedSpawn({
             parent,
@@ -2593,6 +2629,7 @@ const make = Effect.gen(function* () {
             reason: input.title ?? input.task,
             appFreeModels: delegationSettings.subagentFreeTierModels,
             approvalId,
+            gate,
             details: cardDetails,
           });
         } else {
@@ -2607,6 +2644,7 @@ const make = Effect.gen(function* () {
             reason: input.title ?? input.task,
             appFreeModels: delegationSettings.subagentFreeTierModels,
             approvalId,
+            gate,
             details: cardDetails,
           });
         }
@@ -2635,6 +2673,7 @@ const make = Effect.gen(function* () {
                     name: persona.spec.name,
                     systemPrompt: persona.systemPrompt,
                     tools: persona.spec.tools,
+                    canSpawn: persona.spec.canSpawn,
                   },
                 }),
             runtimeMode,
@@ -3312,4 +3351,6 @@ export const layer: Layer.Layer<
   | SecretRequests.SecretRequests
   | TaskBoardService.TaskBoardService
   | ServerSettings.ServerSettingsService
+  | SubagentRuns.SubagentRuns
+  | UsageService.UsageService
 > = Layer.effect(OrchestratorMcpService, make);

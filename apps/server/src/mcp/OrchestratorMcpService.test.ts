@@ -42,6 +42,7 @@ import { buildUnavailableProviderSnapshot } from "../provider/unavailableProvide
 import * as ProjectService from "../project/ProjectService.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import { spawnGateServices } from "./spawnGate.test-fixtures.ts";
 import * as SecretRequests from "../secrets/SecretRequests.ts";
 import * as TaskBoardService from "../taskBoard/TaskBoardService.ts";
 import type { McpInvocationScope } from "./McpInvocationContext.ts";
@@ -167,6 +168,7 @@ describe("OrchestratorMcpService", () => {
             ),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
         Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
           list: () => Effect.succeed([]),
@@ -271,6 +273,7 @@ describe("OrchestratorMcpService", () => {
           dispatch: () => Ref.update(dispatched, (count) => count + 1).pipe(Effect.as({} as never)),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
         Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
           list: () => Effect.succeed([]),
@@ -357,6 +360,7 @@ describe("OrchestratorMcpService", () => {
             ),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
         Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
           list: () => Effect.succeed([]),
@@ -435,6 +439,7 @@ describe("OrchestratorMcpService", () => {
             ),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
         Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
           list: () => Effect.succeed([]),
@@ -521,6 +526,7 @@ describe("OrchestratorMcpService", () => {
           stopDelegatedTasks: () => Effect.void,
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
         Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
           list: () => Effect.succeed([]),
@@ -609,6 +615,7 @@ describe("OrchestratorMcpService", () => {
           stopDelegatedTasks: () => Effect.void,
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
         Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
           list: () => Effect.succeed([]),
@@ -751,6 +758,7 @@ describe("OrchestratorMcpService", () => {
             }),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
         Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
           list: () => Effect.succeed([]),
@@ -1038,6 +1046,7 @@ describe("OrchestratorMcpService provider resolution", () => {
             getThreadRecords: () => Effect.succeed(parentProjection([])),
           }),
           ServerSettings.layerTest(),
+          spawnGateServices,
           Layer.mock(ProviderRegistry.ProviderRegistry)({
             getProviders: Effect.sync(() => providers),
           }),
@@ -1191,6 +1200,7 @@ describe("OrchestratorMcpService provider resolution", () => {
             [codexInstanceId]: { hiddenModels: ["gpt-5.4-mini", "my-model"], modelOrder: [] },
           },
         }),
+        spawnGateServices,
         providerRegistryLayer([
           {
             ...codex,
@@ -1275,6 +1285,7 @@ describe("OrchestratorMcpService provider resolution", () => {
               ),
           }),
           ServerSettings.layerTest(),
+          spawnGateServices,
           Layer.mock(ProviderRegistry.ProviderRegistry)({
             getProviders: Effect.succeed([
               providerSnapshot({
@@ -1393,6 +1404,7 @@ describe("OrchestratorMcpService provider resolution", () => {
           noProjects,
           Layer.mock(TaskBoardService.TaskBoardService)({}),
           ServerSettings.layerTest(),
+          spawnGateServices,
           Layer.mock(SecretRequests.SecretRequests)({}),
           Layer.mock(ScheduledTaskService.ScheduledTaskService)({}),
         );
@@ -1479,6 +1491,7 @@ describe("OrchestratorMcpService provider resolution", () => {
             ),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({
           getProviders: Effect.succeed([
             providerSnapshot({
@@ -1577,6 +1590,7 @@ describe("OrchestratorMcpService provider resolution", () => {
             ),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         providerRegistryLayer([
           providerSnapshot({
             instanceId: codexInstanceId,
@@ -1707,6 +1721,7 @@ describe("OrchestratorMcpService provider resolution", () => {
               ),
           }),
           ServerSettings.layerTest(),
+          spawnGateServices,
           Layer.mock(TaskBoardService.TaskBoardService)({}),
           providerRegistryLayer([
             providerSnapshot({
@@ -1774,6 +1789,7 @@ describe("OrchestratorMcpService provider resolution", () => {
               ),
           }),
           ServerSettings.layerTest(),
+          spawnGateServices,
           providerRegistryLayer([
             providerSnapshot({
               instanceId: codexInstanceId,
@@ -1829,6 +1845,7 @@ describe("OrchestratorMcpService provider resolution", () => {
               ),
           }),
           ServerSettings.layerTest(),
+          spawnGateServices,
           providerRegistryLayer([
             providerSnapshot({
               instanceId: codexInstanceId,
@@ -1883,6 +1900,7 @@ describe("OrchestratorMcpService provider resolution", () => {
             ),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         providerRegistryLayer([
           providerSnapshot({
             instanceId: codexInstanceId,
@@ -1937,6 +1955,7 @@ describe("OrchestratorMcpService provider resolution", () => {
           getThreadRecords: () => Effect.succeed(parentProjection([])),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         providerRegistryLayer([
           providerSnapshot({
             instanceId: codexInstanceId,
@@ -2048,6 +2067,7 @@ describe("OrchestratorMcpService provider resolution", () => {
             ),
         }),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({
           getProviders: Effect.succeed([codex, missingCli]),
           refreshInstance: () =>
@@ -2201,6 +2221,7 @@ describe("OrchestratorMcpService provider resolution", () => {
                 ),
             }),
             ServerSettings.layerTest(),
+            spawnGateServices,
             providerRegistryLayer([
               providerSnapshot({
                 instanceId: codexInstanceId,
@@ -2353,6 +2374,7 @@ describe("OrchestratorMcpService provider resolution", () => {
                 Effect.succeed(threadId === boundThreadId ? boundThread : null),
             }),
             ServerSettings.layerTest(),
+            spawnGateServices,
             Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
             Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
               list: () => Effect.succeed([]),
@@ -2423,6 +2445,7 @@ describe("OrchestratorMcpService provider resolution", () => {
                     getThreadRecords: () => Effect.succeed(idleThreadProjection(shell)),
                   }),
                   ServerSettings.layerTest(),
+                  spawnGateServices,
                   Layer.mock(ProviderRegistry.ProviderRegistry)({
                     getProviders: Effect.succeed([]),
                   }),
@@ -2514,6 +2537,7 @@ describe("OrchestratorMcpService provider resolution", () => {
                       ),
                   }),
                   ServerSettings.layerTest(),
+                  spawnGateServices,
                   Layer.mock(ProviderRegistry.ProviderRegistry)({
                     getProviders: Effect.succeed([]),
                   }),
@@ -2642,6 +2666,7 @@ describe("OrchestratorMcpService board tasks", () => {
         Layer.mergeAll(
           NodeServices.layer,
           ServerSettings.layerTest(),
+          spawnGateServices,
           Layer.mock(ThreadManagementService.ThreadManagementService)({
             getThreadRecords: () => Effect.succeed(idleThreadProjection(shell)),
           }),

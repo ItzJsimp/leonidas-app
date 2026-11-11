@@ -21,6 +21,7 @@ import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
 import * as ProjectService from "../project/ProjectService.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import { spawnGateServices } from "./spawnGate.test-fixtures.ts";
 import * as SecretRequests from "../secrets/SecretRequests.ts";
 import * as TaskBoardService from "../taskBoard/TaskBoardService.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
@@ -149,6 +150,7 @@ it("readThread prefers activity-run status over a newer cancelled queued run", a
               : Effect.die(`unexpected thread ${input.threadId}`),
         } satisfies Partial<ThreadManagementService.ThreadManagementService["Service"]>),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({
           getProviders: Effect.succeed([]),
         } satisfies Partial<ProviderRegistry.ProviderRegistry["Service"]>),
@@ -216,6 +218,7 @@ it("readThread prefers waiting activity status over a newer cancelled queued run
               : Effect.die(`unexpected thread ${input.threadId}`),
         } satisfies Partial<ThreadManagementService.ThreadManagementService["Service"]>),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({
           getProviders: Effect.succeed([]),
         } satisfies Partial<ProviderRegistry.ProviderRegistry["Service"]>),
@@ -331,6 +334,7 @@ it("taskStatus returns task.providerInstanceId rather than the driver kind", asy
           },
         } satisfies Partial<ThreadManagementService.ThreadManagementService["Service"]>),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({
           getProviders: Effect.succeed([]),
         } satisfies Partial<ProviderRegistry.ProviderRegistry["Service"]>),
@@ -456,6 +460,7 @@ it("readThread and sendToThread reach threads in other projects", async () => {
             } as unknown as ThreadManagementService.ThreadManagementSendResult),
         } satisfies Partial<ThreadManagementService.ThreadManagementService["Service"]>),
         ServerSettings.layerTest(),
+        spawnGateServices,
         Layer.mock(ProviderRegistry.ProviderRegistry)({
           getProviders: Effect.succeed([]),
         } satisfies Partial<ProviderRegistry.ProviderRegistry["Service"]>),

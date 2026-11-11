@@ -116,6 +116,8 @@ export const OrchestrationV2ThreadPersona = Schema.Struct({
   name: TrimmedNonEmptyString,
   systemPrompt: TrimmedNonEmptyString,
   tools: Schema.Array(TrimmedNonEmptyString),
+  /** The agent file's `canSpawn`. Only an orchestrator child may start subagents (ADR-0098). */
+  canSpawn: Schema.optional(Schema.Boolean),
 });
 export type OrchestrationV2ThreadPersona = typeof OrchestrationV2ThreadPersona.Type;
 
