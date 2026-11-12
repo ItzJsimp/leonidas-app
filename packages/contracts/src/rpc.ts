@@ -357,6 +357,8 @@ import {
   TradingImportsResult,
   TradingPackConsentInput,
   TradingStateError,
+  TradingSettings,
+  TradingSettingsSaveInput,
   TradingStateInput,
   TradingStateResult,
 } from "./trading.ts";
@@ -756,6 +758,7 @@ export const WS_METHODS = {
   tradingPackConsent: "trading.packConsent",
   tradingState: "trading.state",
   tradingAppend: "trading.append",
+  tradingSettingsSave: "trading.settingsSave",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
@@ -2185,6 +2188,12 @@ const WsTradingStateRpc = Rpc.make(WS_METHODS.tradingState, {
 const WsTradingAppendRpc = Rpc.make(WS_METHODS.tradingAppend, {
   payload: TradingAppendInput,
   success: TradingAppendResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingSettingsSaveRpc = Rpc.make(WS_METHODS.tradingSettingsSave, {
+  payload: TradingSettingsSaveInput,
+  success: TradingSettings,
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
@@ -3686,6 +3695,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsTradingPackConsentRpc,
   WsTradingStateRpc,
   WsTradingAppendRpc,
+  WsTradingSettingsSaveRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,

@@ -60,3 +60,15 @@ export const tradingAppend = createEnvironmentRpcCommand(connectionAtomRuntime, 
       ),
     ),
 });
+
+/** Saves the monthly fee cap, then reads the state again so the cap bar updates at once. */
+export const tradingSettingsSave = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:trading:settings-save",
+  tag: WS_METHODS.tradingSettingsSave,
+  onSuccess: ({ environmentId, input }, registry) =>
+    Effect.sync(() =>
+      registry.refresh(
+        tradingStateQuery({ environmentId, input: workspaceScopeInput(input.workspaceId) }),
+      ),
+    ),
+});

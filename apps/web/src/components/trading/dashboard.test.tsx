@@ -187,7 +187,12 @@ describe("chart", () => {
     const old = {
       ...FILLED,
       moneyTimeline: [
-        { at: "2025-12-01T12:00:00-07:00", category: "evaluation", amount: -1, netReturn: -1 },
+        {
+          at: "2025-12-01T12:00:00-07:00",
+          category: "evaluation" as const,
+          amount: -1,
+          netReturn: -1,
+        },
         ...FILLED.moneyTimeline,
       ],
     };
