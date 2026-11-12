@@ -180,3 +180,19 @@ it("offers the skill items only when the agent has skills, and auto-pick runs th
   await clickItem("Auto-pick skills");
   expect(pick).toHaveBeenCalledTimes(1);
 });
+
+it("keeps composer focus without cancelling the pointer events a menu opens on", async () => {
+  listRecentSnips.mockResolvedValue([]);
+  await act(async () => {
+    root.render(<Harness onSnip={vi.fn()} />);
+  });
+  const trigger = host.querySelector<HTMLButtonElement>(
+    'button[aria-label="Add to your message"]',
+  )!;
+  const fire = (event: Event) => trigger.dispatchEvent(event);
+  const init = { bubbles: true, cancelable: true };
+  // A cancelled pointerdown makes Chromium skip mousedown, and the menu opens on mousedown.
+  expect(fire(new PointerEvent("pointerdown", init))).toBe(true);
+  // A cancelled mousedown keeps focus in the composer.
+  expect(fire(new MouseEvent("mousedown", init))).toBe(false);
+});

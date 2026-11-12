@@ -64,7 +64,7 @@ export const ComposerPlusMenu = memo(function ComposerPlusMenu(props: {
               className="relative"
               data-tour="composer-plus-menu"
               aria-label="Add to your message"
-              onPointerDown={(event) => event.preventDefault()}
+              onMouseDown={(event) => event.preventDefault()}
             />
           }
         >
