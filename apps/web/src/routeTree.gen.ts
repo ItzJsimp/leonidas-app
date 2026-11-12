@@ -9,13 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as PairRouteImport } from './routes/pair'
 import { Route as ConnectAgentRouteImport } from './routes/connect-agent'
 import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as ChatIndexRouteImport } from './routes/_chat.index'
 import { Route as ProjectsProjectKeyRouteImport } from './routes/projects.$projectKey'
+import { Route as ChatWelcomeRouteImport } from './routes/_chat.welcome'
 import { Route as ChatUsageRouteImport } from './routes/_chat.usage'
 import { Route as ChatTodayRouteImport } from './routes/_chat.today'
 import { Route as ChatTeamRouteImport } from './routes/_chat.team'
@@ -76,11 +76,6 @@ import { Route as ChatSettingsAboutRouteImport } from './routes/_chat.settings.a
 import { Route as ChatDraftDraftIdRouteImport } from './routes/_chat.draft.$draftId'
 import { Route as ChatEnvironmentIdThreadIdRouteImport } from './routes/_chat.$environmentId.$threadId'
 
-const WelcomeRoute = WelcomeRouteImport.update({
-  id: '/welcome',
-  path: '/welcome',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PairRoute = PairRouteImport.update({
   id: '/pair',
   path: '/pair',
@@ -109,6 +104,11 @@ const ProjectsProjectKeyRoute = ProjectsProjectKeyRouteImport.update({
   id: '/projects/$projectKey',
   path: '/projects/$projectKey',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ChatWelcomeRoute = ChatWelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => ChatRoute,
 } as any)
 const ChatUsageRoute = ChatUsageRouteImport.update({
   id: '/usage',
@@ -417,7 +417,6 @@ export interface FileRoutesByFullPath {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
-  '/welcome': typeof WelcomeRoute
   '/automations': typeof ChatAutomationsRoute
   '/brain': typeof ChatBrainRoute
   '/command-center': typeof ChatCommandCenterRoute
@@ -442,6 +441,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof ChatTeamRoute
   '/today': typeof ChatTodayRoute
   '/usage': typeof ChatUsageRoute
+  '/welcome': typeof ChatWelcomeRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
@@ -483,7 +483,6 @@ export interface FileRoutesByTo {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
-  '/welcome': typeof WelcomeRoute
   '/automations': typeof ChatAutomationsRoute
   '/brain': typeof ChatBrainRoute
   '/command-center': typeof ChatCommandCenterRoute
@@ -508,6 +507,7 @@ export interface FileRoutesByTo {
   '/team': typeof ChatTeamRoute
   '/today': typeof ChatTodayRoute
   '/usage': typeof ChatUsageRoute
+  '/welcome': typeof ChatWelcomeRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
   '/': typeof ChatIndexRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
@@ -552,7 +552,6 @@ export interface FileRoutesById {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
-  '/welcome': typeof WelcomeRoute
   '/_chat/automations': typeof ChatAutomationsRoute
   '/_chat/brain': typeof ChatBrainRoute
   '/_chat/command-center': typeof ChatCommandCenterRoute
@@ -577,6 +576,7 @@ export interface FileRoutesById {
   '/_chat/team': typeof ChatTeamRoute
   '/_chat/today': typeof ChatTodayRoute
   '/_chat/usage': typeof ChatUsageRoute
+  '/_chat/welcome': typeof ChatWelcomeRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
@@ -622,7 +622,6 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/pair'
-    | '/welcome'
     | '/automations'
     | '/brain'
     | '/command-center'
@@ -647,6 +646,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/today'
     | '/usage'
+    | '/welcome'
     | '/projects/$projectKey'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
@@ -688,7 +688,6 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/pair'
-    | '/welcome'
     | '/automations'
     | '/brain'
     | '/command-center'
@@ -713,6 +712,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/today'
     | '/usage'
+    | '/welcome'
     | '/projects/$projectKey'
     | '/'
     | '/$environmentId/$threadId'
@@ -756,7 +756,6 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/pair'
-    | '/welcome'
     | '/_chat/automations'
     | '/_chat/brain'
     | '/_chat/command-center'
@@ -781,6 +780,7 @@ export interface FileRouteTypes {
     | '/_chat/team'
     | '/_chat/today'
     | '/_chat/usage'
+    | '/_chat/welcome'
     | '/projects/$projectKey'
     | '/_chat/'
     | '/_chat/$environmentId/$threadId'
@@ -825,19 +825,11 @@ export interface RootRouteChildren {
   ConnectRoute: typeof ConnectRoute
   ConnectAgentRoute: typeof ConnectAgentRoute
   PairRoute: typeof PairRoute
-  WelcomeRoute: typeof WelcomeRoute
   ProjectsProjectKeyRoute: typeof ProjectsProjectKeyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/welcome': {
-      id: '/welcome'
-      path: '/welcome'
-      fullPath: '/welcome'
-      preLoaderRoute: typeof WelcomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/pair': {
       id: '/pair'
       path: '/pair'
@@ -879,6 +871,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/projects/$projectKey'
       preLoaderRoute: typeof ProjectsProjectKeyRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_chat/welcome': {
+      id: '/_chat/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof ChatWelcomeRouteImport
+      parentRoute: typeof ChatRoute
     }
     '/_chat/usage': {
       id: '/_chat/usage'
@@ -1385,6 +1384,7 @@ interface ChatRouteChildren {
   ChatTeamRoute: typeof ChatTeamRoute
   ChatTodayRoute: typeof ChatTodayRoute
   ChatUsageRoute: typeof ChatUsageRoute
+  ChatWelcomeRoute: typeof ChatWelcomeRoute
   ChatIndexRoute: typeof ChatIndexRoute
   ChatEnvironmentIdThreadIdRoute: typeof ChatEnvironmentIdThreadIdRoute
   ChatDraftDraftIdRoute: typeof ChatDraftDraftIdRoute
@@ -1421,6 +1421,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatTeamRoute: ChatTeamRoute,
   ChatTodayRoute: ChatTodayRoute,
   ChatUsageRoute: ChatUsageRoute,
+  ChatWelcomeRoute: ChatWelcomeRoute,
   ChatIndexRoute: ChatIndexRoute,
   ChatEnvironmentIdThreadIdRoute: ChatEnvironmentIdThreadIdRoute,
   ChatDraftDraftIdRoute: ChatDraftDraftIdRoute,
@@ -1439,7 +1440,6 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectRoute: ConnectRoute,
   ConnectAgentRoute: ConnectAgentRoute,
   PairRoute: PairRoute,
-  WelcomeRoute: WelcomeRoute,
   ProjectsProjectKeyRoute: ProjectsProjectKeyRoute,
 }
 export const routeTree = rootRouteImport

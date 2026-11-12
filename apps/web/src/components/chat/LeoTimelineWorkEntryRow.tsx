@@ -69,6 +69,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { V2ItemInspector, FetchedToolOutput } from "./V2ItemInspector";
 import { useAssetUrls } from "../../assets/assetUrls";
+import { RetryRunButton } from "./RetryRunButton";
 
 /** The thread a `leo_thread_read` call targets, titled from live shell state so renames show. */
 export function useThreadReadTarget(entry: TimelineWorkEntry, environmentId: EnvironmentId) {
@@ -445,11 +446,14 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
           </span>
         }
         trailing={
-          <TimelineRowTimestamp
-            createdAt={workEntry.createdAt}
-            timestampFormat={timestampFormat}
-            alwaysVisible
-          />
+          <div className="flex items-center gap-2">
+            {retryRunId === null ? <RetryRunButton runId={failureItem.runId} /> : null}
+            <TimelineRowTimestamp
+              createdAt={workEntry.createdAt}
+              timestampFormat={timestampFormat}
+              alwaysVisible
+            />
+          </div>
         }
       >
         {!warning ? (

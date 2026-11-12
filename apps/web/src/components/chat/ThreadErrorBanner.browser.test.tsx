@@ -6,23 +6,20 @@ import { page } from "vite-plus/test/browser";
 
 import { ThreadErrorBanner } from "./ThreadErrorBanner";
 
-it("expands even a short JSON error to its exact diagnostics and collapses back to its message", async () => {
+it("shows a plain summary and expands to the exact error text", async () => {
   const error = '  {"error": {"message":"Turn failed", "code":"unsupported_value"}}\t ';
 
   await using screen = await renderUi(<ThreadErrorBanner error={error} />);
   const { container } = screen;
 
-  await expect.element(page.getByText("Turn failed", { exact: true })).toBeVisible();
-  expect(container.textContent).not.toContain("unsupported_value");
+  await expect.element(page.getByTestId("thread-error-summary")).toBeVisible();
+  expect(
+    container.querySelector('[data-testid="thread-error-summary"]')?.textContent,
+  ).not.toContain("unsupported_value");
 
-  await page.getByRole("button", { name: "Show full error" }).click();
+  await page.getByRole("button", { name: "View details" }).click();
 
-  const diagnostics = page.getByText(error, { exact: true });
+  const diagnostics = page.getByTestId("thread-error-details");
   await expect.element(diagnostics).toBeVisible();
   expect(diagnostics.element().textContent).toBe(error);
-
-  await page.getByRole("button", { name: "Show less" }).click();
-
-  await expect.element(page.getByText("Turn failed", { exact: true })).toBeVisible();
-  expect(container.textContent).not.toContain("unsupported_value");
 });

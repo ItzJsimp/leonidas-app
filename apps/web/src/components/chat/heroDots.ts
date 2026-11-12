@@ -33,7 +33,7 @@ export function createHeroDots(count = HERO_DOT_COUNT, seed = 7): HeroDot[] {
     // A slight upward bias reads as rising embers, not noise.
     vy: -0.004 - random() * 0.01,
     r: 0.8 + random() * 1.6,
-    alpha: 0.15 + random() * 0.45,
+    alpha: 0.12 + random() * 0.33,
   }));
 }
 

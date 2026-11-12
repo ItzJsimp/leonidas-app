@@ -40,6 +40,7 @@ import {
 } from "../../orchestration-v2/Adapters/ClaudeAdapterV2.ts";
 import { ProviderDriverError } from "../Errors.ts";
 import { makeClaudeAuth, makeClaudeAuthCommands } from "../ClaudeAuth.ts";
+import { makeClaudeAuthEventLog } from "../ClaudeAuthEvents.ts";
 import { claudeUsageReader } from "./claudeUsage.ts";
 import { claudeUsageResponseToLimits, makeClaudeScopedLimitNames } from "../claudeUsageLimits.ts";
 import * as ClaudeResetCredits from "../claudeResetCredits.ts";
@@ -177,6 +178,15 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
         processEnv,
       );
       const configDir = yield* resolveClaudeHomePath(effectiveConfig, processEnv);
+      // Evidence for the next unexpected sign-out: the server trace rotates in hours.
+      const authEvents = yield* makeClaudeAuthEventLog({
+        logPath: path.join(stateDir, "logs", "claude-auth-events.ndjson"),
+        configDir,
+        instanceId,
+      }).pipe(
+        Effect.provideService(FileSystem.FileSystem, fileSystem),
+        Effect.provideService(Path.Path, path),
+      );
       let lastResetCredits: { value: ServerProviderResetCredits; at: number } | undefined;
       if (enabled) {
         scheduleClaudePonytail({
@@ -295,6 +305,12 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
               ),
             ),
             Effect.map(stampIdentity),
+            Effect.tap((draft) =>
+              authEvents.observe({
+                authStatus: draft.auth.status,
+                connectionIssue: draft.connectionIssue,
+              }),
+            ),
           ),
         ),
         Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
@@ -440,10 +456,12 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
       const auth = yield* makeClaudeAuth({
         instanceId,
         ...authCommands,
+        signOut: authCommands.signOut.pipe(Effect.tap(() => authEvents.record("logout-run"))),
         credentialKey: continuationGroupKey,
         onAuthenticated: Cache.invalidateAll(capabilitiesProbeCache).pipe(
           Effect.andThen(snapshot.refresh),
           Effect.ignore,
+          Effect.andThen(authEvents.record("auth-flow-ended")),
         ),
       });
 

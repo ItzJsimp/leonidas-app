@@ -2363,14 +2363,49 @@ describe("pending user input answers", () => {
     });
   });
 
-  it("clears selected options while a custom answer is active", () => {
+  it("keeps the option when a message is typed and submitted", () => {
+    let draft = togglePendingUserInputOptionSelection(singleSelectQuestion, undefined, "Go");
+    draft = setPendingUserInputCustomAnswer(singleSelectQuestion, draft, "A typed complaint");
+    const answers = buildPendingUserInputAnswers([singleSelectQuestion], { [singleSelectQuestion.id]: draft });
+    expect(answers?.[singleSelectQuestion.id]).toBe("Go\n\nNote: A typed complaint");
+  });
+
+  it("keeps options when a message is typed and submitted for multi-select", () => {
+    let draft = togglePendingUserInputOptionSelection(multiSelectQuestion, undefined, "Orders");
+    draft = togglePendingUserInputOptionSelection(multiSelectQuestion, draft, "Listings");
+    draft = setPendingUserInputCustomAnswer(multiSelectQuestion, draft, "A typed complaint");
+    const answers = buildPendingUserInputAnswers([multiSelectQuestion], { [multiSelectQuestion.id]: draft });
+    expect(answers?.[multiSelectQuestion.id]).toEqual(["Orders", "Listings", "Note: A typed complaint"]);
+  });
+
+  it("keeps the selected options when a note is typed", () => {
     expect(
       setPendingUserInputCustomAnswer(
         multiSelectQuestion,
         { selectedOptionValues: ["Orders", "Listings"] },
         "Orders first",
       ),
-    ).toEqual({ customAnswer: "Orders first" });
+    ).toEqual({ customAnswer: "Orders first", selectedOptionValues: ["Orders", "Listings"] });
+  });
+
+  it("keeps the typed note when an option is selected", () => {
+    expect(
+      togglePendingUserInputOptionSelection(
+        singleSelectQuestion,
+        { customAnswer: "a note" },
+        "Go",
+      ),
+    ).toEqual({ customAnswer: "a note", selectedOptionValues: ["Go"] });
+  });
+
+  it("clears a single-select option on a second click and keeps the note", () => {
+    expect(
+      togglePendingUserInputOptionSelection(
+        singleSelectQuestion,
+        { customAnswer: "a note", selectedOptionValues: ["Go"] },
+        "Go",
+      ),
+    ).toEqual({ customAnswer: "a note" });
   });
 
   it("matches selected chips against normalized option labels", () => {
@@ -2387,7 +2422,7 @@ describe("pending user input answers", () => {
         { selectedOptionValues: ["Orders"], customAnswer: "Orders first" },
         "  Orders  ",
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 

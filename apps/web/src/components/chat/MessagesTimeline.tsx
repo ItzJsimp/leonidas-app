@@ -54,6 +54,9 @@ import {
 } from "@legendapp/list/react";
 
 import { type TimelineEntry } from "../../session-logic";
+import { retryPromptForRun } from "./retryPrompt";
+import { useStableCallback } from "../../hooks/useStableCallback";
+import { toastManager } from "../ui/toast";
 import type { CodexArtifactTemplate } from "@t3tools/shared/codexArtifactTemplates";
 import { type ChatFileAttachment, type TurnDiffSummary } from "../../types";
 
@@ -1168,6 +1171,12 @@ const ConversationTimeline = memo(function ConversationTimeline({
     };
   }, [timelineViewportElement, rows.length, reportContentOverflow, chatWidth]);
 
+  const onRetryRun = useStableCallback((runId: RunId) => {
+    const prompt = retryPromptForRun(timelineEntries, runId);
+    if (prompt !== null) onDockReply?.(prompt);
+    else toastManager.add({ type: "error", title: "No user prompt is available for this run" });
+  });
+
   const sharedState = useMemo<TimelineRowSharedState>(
     () => ({
       citationRequest: readyCitationRequest,
@@ -1190,6 +1199,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
       onFileOpen,
       onUseArtifactTemplate,
       onDockReply,
+      onRetryRun: onDockReply ? onRetryRun : undefined,
       onSendAppMessage,
       onAppFullscreenChange,
       onFileDownload,
@@ -1229,6 +1239,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
       onFileOpen,
       onUseArtifactTemplate,
       onDockReply,
+      onRetryRun,
       onSendAppMessage,
       onAppFullscreenChange,
       onFileDownload,
@@ -1449,9 +1460,9 @@ const ConversationTimeline = memo(function ConversationTimeline({
     footer === null
   ) {
     if (hideEmptyPlaceholder) {
-      // Occupy the pane with the theme surface so a thread switch cannot
-      // punch a hole through to the window chrome (white in light mode).
-      return <div className="h-full min-h-0 bg-background" data-timeline-loading="true" />;
+      // Occupy the pane. The parent in ChatView paints the theme surface, and
+      // this stays clear so the background dots show through.
+      return <div className="h-full min-h-0" data-timeline-loading="true" />;
     }
     return (
       <div className="flex h-full items-center justify-center">

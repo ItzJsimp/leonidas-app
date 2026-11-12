@@ -5,12 +5,17 @@ import { createHeroDots, stepHeroDots } from "./heroDots";
 // 30 frames a second is plenty for a slow drift and halves the cost.
 const FRAME_MS = 1000 / 30;
 
+// The soft sprite is drawn this many dot radii wide, so the edge fades out.
+const HALO = 3;
+const SPRITE_PX = 64;
+
 /**
- * Slow red dots behind the new chat screen. Still when the user asks for less
- * motion. The browser stops animation frames in a hidden window, so it costs
- * nothing there.
+ * Slow soft red dots behind every chat, dimmer behind an active chat. They
+ * always drift (Jake's choice: the drift is slow, so it ignores the system
+ * reduced-motion setting). The browser stops animation frames in a hidden
+ * window, so it costs nothing there.
  */
-export function DraftHeroDots() {
+export function DraftHeroDots({ dim = false }: { readonly dim?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -18,21 +23,20 @@ export function DraftHeroDots() {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const dots = createHeroDots();
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sprite = document.createElement("canvas");
+    sprite.width = sprite.height = SPRITE_PX;
+    const spriteCtx = sprite.getContext("2d");
     let width = 0;
     let height = 0;
-    let color = "";
     let frame = 0;
     let last = 0;
 
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = color;
       for (const dot of dots) {
+        const size = dot.r * HALO * 2;
         ctx.globalAlpha = dot.alpha;
-        ctx.beginPath();
-        ctx.arc(dot.x * width, dot.y * height, dot.r, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.drawImage(sprite, dot.x * width - size / 2, dot.y * height - size / 2, size, size);
       }
     };
     const tick = (now: number) => {
@@ -46,10 +50,6 @@ export function DraftHeroDots() {
     const stop = () => cancelAnimationFrame(frame);
     const start = () => {
       stop();
-      if (reduced.matches) {
-        draw();
-        return;
-      }
       last = performance.now();
       frame = requestAnimationFrame(tick);
     };
@@ -59,18 +59,30 @@ export function DraftHeroDots() {
       height = canvas.clientHeight;
       canvas.width = width;
       canvas.height = height;
-      // The canvas takes its color from the theme through `text-primary`.
-      color = getComputedStyle(canvas).color;
+      if (spriteCtx) {
+        // A soft-edged dot: a black fade as the shape, then the theme color
+        // (from `text-primary`) painted into it.
+        const half = SPRITE_PX / 2;
+        const fade = spriteCtx.createRadialGradient(half, half, 0, half, half, half);
+        fade.addColorStop(0, "rgb(0 0 0)");
+        fade.addColorStop(0.25, "rgb(0 0 0 / 0.6)");
+        fade.addColorStop(1, "rgb(0 0 0 / 0)");
+        spriteCtx.globalCompositeOperation = "source-over";
+        spriteCtx.clearRect(0, 0, SPRITE_PX, SPRITE_PX);
+        spriteCtx.fillStyle = fade;
+        spriteCtx.fillRect(0, 0, SPRITE_PX, SPRITE_PX);
+        spriteCtx.globalCompositeOperation = "source-in";
+        spriteCtx.fillStyle = getComputedStyle(canvas).color;
+        spriteCtx.fillRect(0, 0, SPRITE_PX, SPRITE_PX);
+      }
       draw();
     };
 
     const unobserve = observeResize(canvas, resize);
-    reduced.addEventListener("change", start);
     start();
     return () => {
       stop();
       unobserve();
-      reduced.removeEventListener("change", start);
     };
   }, []);
 
@@ -78,7 +90,7 @@ export function DraftHeroDots() {
     <canvas
       ref={canvasRef}
       aria-hidden
-      className="pointer-events-none absolute inset-0 size-full text-primary"
+      className={`pointer-events-none absolute inset-0 -z-10 size-full text-primary transition-opacity duration-500 ${dim ? "opacity-50" : ""}`}
     />
   );
 }

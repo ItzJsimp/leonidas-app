@@ -402,6 +402,8 @@ function normalizeSelectedOptionValues(
   );
 }
 
+const NOTE_PREFIX = "Note: ";
+
 function resolvePendingUserInputAnswer(
   question: ThreadUserInputQuestion,
   draft: PendingUserInputDraftAnswer | undefined,
@@ -413,11 +415,22 @@ function resolvePendingUserInputAnswer(
       : question.initialAnswer !== undefined
         ? (draft?.customAnswer ?? null)
         : normalizeDraftAnswer(draft?.customAnswer);
-  if (customAnswer !== null && customAnswer.length > 0) {
+  const selectedOptionValues = normalizeSelectedOptionValues(question, draft?.selectedOptionValues);
+  // Prefilled literal answers send the editor text exactly as written.
+  if (question.initialAnswer !== undefined && customAnswer !== null) {
     return customAnswer;
   }
-
-  const selectedOptionValues = normalizeSelectedOptionValues(question, draft?.selectedOptionValues);
+  // A typed note travels with the chosen options instead of replacing them.
+  const note = customAnswer !== null && customAnswer.length > 0 ? customAnswer : null;
+  if (note !== null && selectedOptionValues.length > 0) {
+    const noteLine = `${NOTE_PREFIX}${note}`;
+    return question.multiSelect
+      ? [...selectedOptionValues, noteLine]
+      : `${selectedOptionValues[0]}\n\n${noteLine}`;
+  }
+  if (note !== null) {
+    return note;
+  }
   if (question.multiSelect) {
     return selectedOptionValues.length > 0
       ? selectedOptionValues
@@ -1820,7 +1833,7 @@ export function setPendingUserInputCustomAnswer(
   }
 
   const selectedOptionValues =
-    question.initialAnswer !== undefined || customAnswer.trim().length > 0
+    question.initialAnswer !== undefined
       ? undefined
       : normalizeSelectedOptionValues(question, draft?.selectedOptionValues);
   return {
@@ -1834,10 +1847,6 @@ export function isPendingUserInputOptionSelected(
   draft: PendingUserInputDraftAnswer | undefined,
   optionValue: string,
 ): boolean {
-  if (question.allowCustomAnswer !== false && normalizeDraftAnswer(draft?.customAnswer)) {
-    return false;
-  }
-
   const resolvedOptionValue = resolvePendingUserInputOptionValue(question, optionValue);
   return (
     resolvedOptionValue !== null &&
@@ -1867,16 +1876,20 @@ export function togglePendingUserInputOptionSelection(
       : [...selectedOptionValues, resolvedOptionValue];
 
     return {
-      customAnswer: "",
+      customAnswer: draft?.customAnswer ?? "",
       ...(nextSelectedOptionValues.length > 0
         ? { selectedOptionValues: nextSelectedOptionValues }
         : {}),
     };
   }
 
+  const alreadySelected = normalizeSelectedOptionValues(
+    question,
+    draft?.selectedOptionValues,
+  ).includes(resolvedOptionValue);
   return {
-    customAnswer: "",
-    selectedOptionValues: [resolvedOptionValue],
+    customAnswer: draft?.customAnswer ?? "",
+    ...(alreadySelected ? {} : { selectedOptionValues: [resolvedOptionValue] }),
   };
 }
 
