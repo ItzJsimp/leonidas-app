@@ -5,6 +5,7 @@ export type RailTo =
   | "/trading/risk"
   | "/trading/money"
   | "/trading/crew"
+  | "/trading/library"
   | "/command-center"
   | "/"
   | "/scribe"
@@ -134,6 +135,14 @@ const TRADING_ONLY: readonly RailItem[] = [
   item("trade", "trading-money", "Money", "/trading/money", "Firm fees, Payouts and Total cost"),
   item("crew", "trading-crew", "Crew", "/trading/crew", "your Crew board"),
 ];
+/** The Trading Library: the course, pages and cards of the linked pack, and saved resources. */
+const TRADING_LIBRARY = item(
+  "learn",
+  "trading-library",
+  "Library",
+  "/trading/library",
+  "your course, firm pages, cards and saved resources",
+);
 const regroup = (id: string, group: RailGroup): RailItem => ({
   ...MAIN.find((entry) => entry.id === id)!,
   group,
@@ -141,7 +150,7 @@ const regroup = (id: string, group: RailGroup): RailItem => ({
 /** A Trading workspace shows its own tabs and none of the personal ones. */
 const TRADING: readonly RailItem[] = [
   ...TRADING_ONLY.slice(0, 5),
-  regroup("library", "learn"),
+  TRADING_LIBRARY,
   regroup("chat", "learn"),
   ...TRADING_ONLY.slice(5),
 ];
@@ -174,7 +183,7 @@ export function railItems(input: {
 export function activeRailId(pathname: string, onChat: boolean): string | null {
   if (onChat || pathname === "/") return "chat";
   const all = railItems({ business: true, builder: true, scribe: true });
-  const match = [...TRADING_ONLY, ...all.main, ...all.bottom].find(
+  const match = [...TRADING_ONLY, TRADING_LIBRARY, ...all.main, ...all.bottom].find(
     (entry) =>
       (entry.to !== "/" && under(pathname, entry.to)) ||
       entry.alsoActiveOn?.some((base) => under(pathname, base)) === true,

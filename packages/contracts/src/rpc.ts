@@ -373,6 +373,15 @@ import {
   TradingScreenshotSaveResult,
   TradingTradeAddInput,
   TradingTradeAddResult,
+  TradingLibraryIndexResult,
+  TradingLibraryInput,
+  TradingLibraryPageInput,
+  TradingLibraryPageResult,
+  TradingLibrarySearchInput,
+  TradingLibrarySearchResult,
+  TradingResourceListResult,
+  TradingResourceSaveInput,
+  TradingResourceSaveResult,
 } from "./trading.ts";
 import {
   PullRequestActionInput,
@@ -779,6 +788,11 @@ export const WS_METHODS = {
   tradingScreenshotSave: "trading.screenshotSave",
   tradingScreenshotRead: "trading.screenshotRead",
   tradingRiskRules: "trading.riskRules",
+  tradingLibraryIndex: "trading.libraryIndex",
+  tradingLibraryPage: "trading.libraryPage",
+  tradingLibrarySearch: "trading.librarySearch",
+  tradingResourceSave: "trading.resourceSave",
+  tradingResourceList: "trading.resourceList",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
@@ -2262,6 +2276,36 @@ const WsTradingScreenshotReadRpc = Rpc.make(WS_METHODS.tradingScreenshotRead, {
 const WsTradingRiskRulesRpc = Rpc.make(WS_METHODS.tradingRiskRules, {
   payload: TradingStateInput,
   success: TradingRiskRulesResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingLibraryIndexRpc = Rpc.make(WS_METHODS.tradingLibraryIndex, {
+  payload: TradingLibraryInput,
+  success: TradingLibraryIndexResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingLibraryPageRpc = Rpc.make(WS_METHODS.tradingLibraryPage, {
+  payload: TradingLibraryPageInput,
+  success: TradingLibraryPageResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingLibrarySearchRpc = Rpc.make(WS_METHODS.tradingLibrarySearch, {
+  payload: TradingLibrarySearchInput,
+  success: TradingLibrarySearchResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingResourceSaveRpc = Rpc.make(WS_METHODS.tradingResourceSave, {
+  payload: TradingResourceSaveInput,
+  success: TradingResourceSaveResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingResourceListRpc = Rpc.make(WS_METHODS.tradingResourceList, {
+  payload: TradingLibraryInput,
+  success: TradingResourceListResult,
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
@@ -3772,6 +3816,11 @@ export const WsRpcGroup = RpcGroup.make(
   WsTradingScreenshotSaveRpc,
   WsTradingScreenshotReadRpc,
   WsTradingRiskRulesRpc,
+  WsTradingLibraryIndexRpc,
+  WsTradingLibraryPageRpc,
+  WsTradingLibrarySearchRpc,
+  WsTradingResourceSaveRpc,
+  WsTradingResourceListRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,

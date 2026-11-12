@@ -57,6 +57,13 @@ import {
 import { addManualTrade } from "./trading/tradingManualTrade.ts";
 import { readDayNote, saveDayNote } from "./trading/tradingDays.ts";
 import { readScreenshot, saveScreenshot } from "./trading/tradingScreenshots.ts";
+import {
+  listResources,
+  readLibraryIndex,
+  readLibraryPage,
+  saveResource,
+  searchLibrary,
+} from "./trading/tradingLibrary.ts";
 import * as PromptSuggestion from "./workspace/PromptSuggestion.ts";
 import * as SkillPick from "./workspace/SkillPick.ts";
 import * as TextGeneration from "./textGeneration/TextGeneration.ts";
@@ -3278,6 +3285,36 @@ export const layerWsRpc = (
             Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
             Effect.orElseSucceed(() => null),
             Effect.flatMap(readTradingRiskRules),
+          ),
+        [WS_METHODS.tradingLibraryIndex]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(readLibraryIndex),
+          ),
+        [WS_METHODS.tradingLibraryPage]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => readLibraryPage(root, input)),
+          ),
+        [WS_METHODS.tradingLibrarySearch]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => searchLibrary(root, input)),
+          ),
+        [WS_METHODS.tradingResourceSave]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => saveResource(root, input)),
+          ),
+        [WS_METHODS.tradingResourceList]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(listResources),
           ),
         [WS_METHODS.releaseStatusRuns]: () => Effect.promise(() => readReleaseStatus()),
         [WS_METHODS.layaUsage]: () => Effect.promise(() => readLayaUsage()),

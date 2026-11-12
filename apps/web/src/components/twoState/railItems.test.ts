@@ -199,7 +199,7 @@ describe("railItems in a Trading workspace", () => {
       "trading-accounts",
       "trading-risk",
       "trading-money",
-      "library",
+      "trading-library",
       "chat",
       "trading-crew",
     ]);
@@ -228,5 +228,13 @@ describe("railItems in a Trading workspace", () => {
 
   it("marks the Trading icon for a Trading page", () => {
     expect(activeRailId("/trading/money", false)).toBe("trading-money");
+  });
+
+  it("points the Learn Library item at the Trading Library, not the personal one", () => {
+    const library = trading.main.find((item) => item.id === "trading-library");
+    expect(library?.to).toBe("/trading/library");
+    expect(library?.group).toBe("learn");
+    expect(activeRailId("/trading/library", false)).toBe("trading-library");
+    expect(activeRailId("/library", false)).toBe("library");
   });
 });

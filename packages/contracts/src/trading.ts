@@ -221,6 +221,9 @@ export class TradingStateError extends Schema.TaggedError<TradingStateError>()(
       "unsupported_image",
       "image_too_large",
       "image_mismatch",
+
+      "page_not_found",
+      "invalid_resource",
     ]),
     detail: Schema.optional(Schema.String),
   },
@@ -422,3 +425,120 @@ export const TradingScreenshotReadResult = Schema.Struct({
   dataBase64: Schema.String,
 });
 export type TradingScreenshotReadResult = typeof TradingScreenshotReadResult.Type;
+
+/** The Library reads the linked pack. Absent `workspaceId` means the first Trading workspace. */
+export const TradingLibraryInput = Schema.Struct({ workspaceId: Schema.optional(AiosWorkspaceId) });
+export type TradingLibraryInput = typeof TradingLibraryInput.Type;
+
+const LibraryLessonView = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  duration: Schema.String,
+  keywords: Schema.Array(Schema.String),
+  hasTranscript: Schema.Boolean,
+  url: Schema.NullOr(Schema.String),
+});
+
+const LibraryPageView = Schema.Struct({ id: Schema.String, title: Schema.String });
+
+/** The Library index. `status: none` means no pack is linked; `invalid` gives the reason. */
+export const TradingLibraryIndexResult = Schema.Struct({
+  status: Schema.Literals(["none", "ready", "invalid"]),
+  reason: Schema.NullOr(Schema.String),
+  chapters: Schema.Array(
+    Schema.Struct({
+      number: Schema.String,
+      title: Schema.String,
+      lessons: Schema.Array(LibraryLessonView),
+    }),
+  ),
+  knowledge: Schema.Array(LibraryPageView),
+  community: Schema.Array(LibraryPageView),
+  firms: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      name: Schema.String,
+      fetchDate: Schema.NullOr(Schema.String),
+      stale: Schema.Boolean,
+    }),
+  ),
+  cards: Schema.Array(
+    Schema.Struct({ front: Schema.String, back: Schema.String, citation: Schema.String }),
+  ),
+  quiz: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      topic: Schema.String,
+      level: Schema.String,
+      source: Schema.String,
+      prompt: Schema.String,
+      correct: Schema.Number,
+      options: Schema.Array(Schema.Struct({ text: Schema.String, why: Schema.String })),
+    }),
+  ),
+});
+export type TradingLibraryIndexResult = typeof TradingLibraryIndexResult.Type;
+
+export const TradingLibraryPageInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  kind: Schema.Literals(["lesson", "knowledge", "firm", "community"]),
+  id: Schema.String.check(Schema.isMaxLength(80)),
+});
+export type TradingLibraryPageInput = typeof TradingLibraryPageInput.Type;
+
+/** One page of text. `truncated` is true when the text was cut at 200,000 characters. */
+export const TradingLibraryPageResult = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  text: Schema.String,
+  truncated: Schema.Boolean,
+});
+export type TradingLibraryPageResult = typeof TradingLibraryPageResult.Type;
+
+export const TradingLibrarySearchInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  query: Schema.String.check(Schema.isMaxLength(200)),
+});
+export type TradingLibrarySearchInput = typeof TradingLibrarySearchInput.Type;
+
+export const TradingLibrarySearchResult = Schema.Struct({
+  hits: Schema.Array(
+    Schema.Struct({
+      kind: Schema.Literals(["lesson", "knowledge", "card", "community"]),
+      id: Schema.String,
+      title: Schema.String,
+      snippet: Schema.String,
+    }),
+  ),
+});
+export type TradingLibrarySearchResult = typeof TradingLibrarySearchResult.Type;
+
+export const TradingResourceKind = Schema.Literals(["link", "note", "pdf", "discord", "call"]);
+
+export const TradingResourceSaveInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  kind: TradingResourceKind,
+  title: Schema.String.check(Schema.isMaxLength(200)),
+  url: Schema.optional(Schema.String.check(Schema.isMaxLength(2_000))),
+  text: Schema.optional(Schema.String.check(Schema.isMaxLength(20_000))),
+  /** Private stays in `trading/resources`. Otherwise the item goes to the Crew outbox. */
+  private: Schema.Boolean,
+});
+export type TradingResourceSaveInput = typeof TradingResourceSaveInput.Type;
+
+export const TradingResourceSaveResult = Schema.Struct({ id: Schema.String });
+export type TradingResourceSaveResult = typeof TradingResourceSaveResult.Type;
+
+export const TradingResourceListResult = Schema.Struct({
+  resources: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      kind: TradingResourceKind,
+      title: Schema.String,
+      url: Schema.NullOr(Schema.String),
+      private: Schema.Boolean,
+      savedAt: Schema.String,
+    }),
+  ),
+});
+export type TradingResourceListResult = typeof TradingResourceListResult.Type;
