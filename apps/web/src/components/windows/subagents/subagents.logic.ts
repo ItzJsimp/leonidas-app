@@ -16,32 +16,48 @@ export function costLabel(costUsd: number | null): string {
   return `$${costUsd.toFixed(2)}`;
 }
 
+/** The four tiles above the run list. */
+export interface RunsStats {
+  readonly running: number;
+  readonly waiting: number;
+  readonly runsToday: number;
+  readonly doneToday: number;
+  readonly failedToday: number;
+  readonly spendTodayUsd: number;
+  readonly capUsd: number | null;
+}
+
 /**
- * The line above the run list: how many runs are live and what the runs on screen cost since local
- * midnight. shortcut: it sums the loaded page only, so a day with more runs than one page
- * undercounts. Upgrade when the server returns today's spend (the gate already has it).
+ * Counts the runs on screen: live ones now, and what started since local midnight.
+ * shortcut: it counts the loaded page only, so a day with more runs than one page undercounts.
+ * Upgrade when the server returns today's totals (the spawn gate already has the spend).
  */
-export function runsSummaryLabel(
+export function runsStats(
   runs: ReadonlyArray<Pick<SubagentRun, "status" | "startedAt" | "costUsd">>,
   now: number,
   capUsd: number | null,
-): string {
+): RunsStats {
   const midnight = new Date(now);
   midnight.setHours(0, 0, 0, 0);
-  const running = runs.filter(isLive).length;
-  const spend = runs.reduce(
-    (sum, run) =>
-      run.startedAt !== null && Date.parse(run.startedAt) >= midnight.getTime()
-        ? sum + (run.costUsd ?? 0)
-        : sum,
-    0,
+  const today = runs.filter(
+    (run) => run.startedAt !== null && Date.parse(run.startedAt) >= midnight.getTime(),
   );
-  const today =
-    capUsd === null
-      ? `$${spend.toFixed(2)} today`
-      : `$${spend.toFixed(2)} of $${capUsd.toFixed(2)} today`;
-  return `${running} running · ${today}`;
+  return {
+    running: runs.filter((run) => run.status === "running").length,
+    waiting: runs.filter((run) => run.status === "waiting").length,
+    runsToday: today.length,
+    doneToday: today.filter((run) => run.status === "done").length,
+    failedToday: today.filter((run) => run.status === "failed").length,
+    spendTodayUsd: today.reduce((sum, run) => sum + (run.costUsd ?? 0), 0),
+    capUsd,
+  };
 }
+
+/** How much of the daily cap is spent, 0 to 100. Zero when there is no cap. */
+export const spendPercent = (stats: Pick<RunsStats, "spendTodayUsd" | "capUsd">): number =>
+  stats.capUsd === null || stats.capUsd <= 0
+    ? 0
+    : Math.min(100, Math.round((stats.spendTodayUsd / stats.capUsd) * 100));
 
 export const STATUS_LABEL: Readonly<Record<SubagentRunStatus, string>> = {
   running: "Running",

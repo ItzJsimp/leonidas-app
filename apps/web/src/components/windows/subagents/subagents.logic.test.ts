@@ -10,7 +10,8 @@ import {
   modelLine,
   parentChats,
   resultPlaceholder,
-  runsSummaryLabel,
+  runsStats,
+  spendPercent,
 } from "./subagents.logic";
 
 const run = (over: Partial<SubagentRun> = {}): SubagentRun => ({
@@ -58,18 +59,33 @@ describe("subagents.logic", () => {
     expect(costLabel(null)).toBe("Cost unknown");
   });
 
-  it("sums the cost of today's runs and counts the live ones", () => {
+  it("counts the live runs and what started today", () => {
     const now = Date.parse("2026-10-23T12:00:00.000Z");
-    const today = (iso: string) => run({ startedAt: iso, costUsd: 0.1, status: "done" });
+    const at = (ms: number) => new Date(now - ms).toISOString();
     const runs = [
-      run({ costUsd: 0.1, startedAt: new Date(now - 60_000).toISOString() }),
-      today(new Date(now - 120_000).toISOString()),
+      run({ costUsd: 0.1, startedAt: at(60_000) }),
+      run({ status: "done", costUsd: 0.1, startedAt: at(120_000) }),
+      run({ status: "failed", costUsd: 0.05, startedAt: at(180_000) }),
+      run({ status: "waiting", costUsd: null, startedAt: at(240_000) }),
       run({ status: "done", costUsd: 5, startedAt: "2020-01-01T00:00:00.000Z" }),
       run({ status: "done", costUsd: null, startedAt: null }),
     ];
-    expect(runsSummaryLabel(runs, now, 2)).toBe("1 running · $0.20 of $2.00 today");
-    expect(runsSummaryLabel(runs, now, null)).toBe("1 running · $0.20 today");
-    expect(runsSummaryLabel([], now, null)).toBe("0 running · $0.00 today");
+    expect(runsStats(runs, now, 2)).toEqual({
+      running: 1,
+      waiting: 1,
+      runsToday: 4,
+      doneToday: 1,
+      failedToday: 1,
+      spendTodayUsd: 0.25,
+      capUsd: 2,
+    });
+    expect(runsStats([], now, null)).toMatchObject({ running: 0, runsToday: 0, spendTodayUsd: 0 });
+  });
+
+  it("shows how much of the cap is spent, and never over 100", () => {
+    expect(spendPercent({ spendTodayUsd: 0.3, capUsd: 2 })).toBe(15);
+    expect(spendPercent({ spendTodayUsd: 3, capUsd: 2 })).toBe(100);
+    expect(spendPercent({ spendTodayUsd: 1, capUsd: null })).toBe(0);
   });
 
   it("lists each parent chat once and filters live runs by a word", () => {
@@ -95,7 +111,7 @@ describe("subagents.logic", () => {
 });
 
 describe("daily cap (decision 4)", () => {
-  it("decision 4: the default cap is $2 a day and the Runs line shows spend against it", () => {
+  it("decision 4: the default cap is $2 a day and the Runs tiles show spend against it", () => {
     expect(DEFAULT_SUBAGENT_DAILY_CAP_USD).toBe(2);
     const now = Date.parse("2026-10-23T12:00:00.000Z");
     const spent = run({
@@ -103,8 +119,8 @@ describe("daily cap (decision 4)", () => {
       costUsd: 1.6,
       startedAt: new Date(now - 60_000).toISOString(),
     });
-    expect(runsSummaryLabel([spent], now, DEFAULT_SUBAGENT_DAILY_CAP_USD)).toBe(
-      "0 running · $1.60 of $2.00 today",
-    );
+    const stats = runsStats([spent], now, DEFAULT_SUBAGENT_DAILY_CAP_USD);
+    expect(stats.spendTodayUsd).toBeCloseTo(1.6);
+    expect(spendPercent(stats)).toBe(80);
   });
 });

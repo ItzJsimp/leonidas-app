@@ -500,7 +500,7 @@ function SubagentDetail({
             </Badge>
           )}
           {canWrite ? (
-            <div className="ms-auto flex items-center gap-3">
+            <div className="ms-auto flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <Switch
                   size="sm"
@@ -582,6 +582,11 @@ function SubagentDetail({
             </DetailRow>
             <DetailRow label="Account">
               {entry.account === null ? "Balanced (the app picks)" : entry.account}
+            </DetailRow>
+            <DetailRow label="Start">
+              {entry.tier === "free"
+                ? "No prompt (free tier)"
+                : "Asks first: a card shows the cost"}
             </DetailRow>
             {entry.effort == null ? null : <DetailRow label="Effort">{entry.effort}</DetailRow>}
             {entry.maxTurns == null ? null : (

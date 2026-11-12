@@ -28,7 +28,13 @@ import { useAtomCommand } from "~/state/use-atom-command";
 
 import { AvatarPicker } from "./AvatarPicker";
 import { defaultAvatar } from "./avatar.logic";
-import { basicsProblem, DEFAULT_AGENT_MODEL, draftInput, previewDraft } from "./createAgent.logic";
+import {
+  basicsProblem,
+  DEFAULT_AGENT_MODEL,
+  DEFAULT_CREATOR_MODEL,
+  draftInput,
+  previewDraft,
+} from "./createAgent.logic";
 import { writeFailureMessage } from "./SubagentEditor";
 import { modelDisplayName } from "./spawnApproval.logic";
 import {
@@ -270,6 +276,9 @@ function CreateFlow(props: CreateProps) {
         <DialogDescription>
           Step 2 of 2. Say what the agent does in one sentence. Then ask for changes until it fits.
         </DialogDescription>
+        <Badge variant="outline" size="sm" className="mt-1 w-fit">
+          Creator: {modelDisplayName(DEFAULT_CREATOR_MODEL)}
+        </Badge>
       </DialogHeader>
       <DialogPanel>
         <div className="flex flex-col gap-4 text-sm">

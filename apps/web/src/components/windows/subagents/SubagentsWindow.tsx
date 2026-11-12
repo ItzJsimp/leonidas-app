@@ -31,7 +31,9 @@ import {
   EMPTY_RUNS,
   isLive,
   matchRuns,
-  runsSummaryLabel,
+  costLabel,
+  runsStats,
+  spendPercent,
   STATUS_FILTERS,
 } from "./subagents.logic";
 import { useHistoryRuns, useRunningRuns, type HistoryFilters } from "./useSubagentRuns";
@@ -89,6 +91,60 @@ export function SubagentsWindow() {
         tab === "runs" ? <RunsTab /> : tab === "starters" ? <StartersTab /> : <SubagentStudio />
       }
     </RailWindow>
+  );
+}
+
+/** The four tiles above the run list: live now, runs today, spend against the cap, waiting. */
+function RunsTiles({ stats }: { readonly stats: ReturnType<typeof runsStats> }) {
+  const percent = spendPercent(stats);
+  const tile = "flex flex-col rounded-lg border border-border px-4 py-3";
+  return (
+    <dl aria-live="polite" className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className={tile}>
+        <dt className="text-xs text-muted-foreground">Running now</dt>
+        <dd className="order-first text-2xl font-semibold tabular-nums">{stats.running}</dd>
+        <dd className="text-xs text-muted-foreground">
+          {stats.running === 0 ? "Nothing is running" : "agents working"}
+        </dd>
+      </div>
+      <div className={tile}>
+        <dt className="text-xs text-muted-foreground">Runs today</dt>
+        <dd className="order-first text-2xl font-semibold tabular-nums">{stats.runsToday}</dd>
+        <dd className="text-xs text-muted-foreground tabular-nums">
+          {stats.doneToday} done, {stats.failedToday} failed
+        </dd>
+      </div>
+      <div className={tile}>
+        <dt className="text-xs text-muted-foreground">Spend today</dt>
+        <dd className="order-first text-2xl font-semibold tabular-nums">
+          {costLabel(stats.spendTodayUsd)}
+        </dd>
+        {stats.capUsd === null ? null : (
+          <>
+            <dd
+              role="progressbar"
+              aria-label="Share of the daily cap spent"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={percent}
+              className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted"
+            >
+              <span className="block h-full bg-primary" style={{ width: `${percent}%` }} />
+            </dd>
+            <dd className="mt-1 text-xs text-muted-foreground tabular-nums">
+              of ${stats.capUsd.toFixed(2)} daily cap
+            </dd>
+          </>
+        )}
+      </div>
+      <div className={tile}>
+        <dt className="text-xs text-muted-foreground">Waiting for you</dt>
+        <dd className="order-first text-2xl font-semibold tabular-nums">{stats.waiting}</dd>
+        <dd className="text-xs text-muted-foreground">
+          {stats.waiting === 0 ? "No spawn cards open" : "Open the chat to answer"}
+        </dd>
+      </div>
+    </dl>
   );
 }
 
@@ -249,14 +305,12 @@ function RunsTab() {
           Refresh
         </Button>
       </Tip>
-      <p aria-live="polite" className="ms-auto text-xs text-muted-foreground tabular-nums">
-        {runsSummaryLabel(shown ?? [], now, capUsd)}
-      </p>
     </div>
   );
 
   return (
     <section aria-label="Runs">
+      {shown === null ? null : <RunsTiles stats={runsStats(shown, now, capUsd)} />}
       {toolbar}
       {shown === null && loadError === null ? (
         <div role="status" aria-label="Loading runs" className="flex flex-col gap-2">
