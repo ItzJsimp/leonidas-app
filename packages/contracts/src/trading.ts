@@ -23,6 +23,7 @@ export const TradingAccountView = Schema.Struct({
   profitTarget: NullableNumber,
   winningDays: NullableNumber,
   bestDayPercent: NullableNumber,
+  consistencyPercent: NullableNumber,
 });
 export type TradingAccountView = typeof TradingAccountView.Type;
 
@@ -37,7 +38,17 @@ const TradingAttempt = Schema.Struct({
 
 const TradingMoneyPoint = Schema.Struct({
   at: Schema.String,
-  category: Schema.String,
+  category: Schema.Literals([
+    "evaluation",
+    "reset",
+    "activation",
+    "mentorship",
+    "data",
+    "tools",
+    "other",
+    "payout",
+  ]),
+  accountId: Schema.NullOr(Schema.String),
   amount: Schema.Number,
   netReturn: Schema.Number,
 });
@@ -92,6 +103,8 @@ export const TradingTradeView = Schema.Struct({
   setup: Schema.optional(Schema.String),
   ruleBreaks: Schema.optional(Schema.Array(Schema.String)),
   check: Schema.optional(Schema.Literals(["waiting", "graded"])),
+  /** The newest screenshot path (`screenshots/<day>/<name>`, relative to `trading/`). */
+  screenshot: Schema.optional(Schema.String),
 });
 export type TradingTradeView = typeof TradingTradeView.Type;
 
@@ -128,6 +141,8 @@ export const TradingPackView = Schema.Union([
     status: Schema.Literal("ready"),
     folder: Schema.String,
     firms: Schema.Array(TradingPackFirm),
+    /** The JJ setups a trade can be tagged with. Names only; the rules stay on the server. */
+    setups: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })),
     check: Schema.Struct({
       status: Schema.Literals(["none", "missing", "pending", "allowed", "declined"]),
       module: Schema.NullOr(Schema.String),
@@ -137,9 +152,44 @@ export const TradingPackView = Schema.Union([
 ]);
 export type TradingPackView = typeof TradingPackView.Type;
 
+/** What the trader shares with the Crew. Payouts and money are off by default. */
+export const TradingShareSettings = Schema.Struct({
+  journey: Schema.Boolean,
+  habits: Schema.Boolean,
+  payouts: Schema.Boolean,
+  money: Schema.Boolean,
+});
+export type TradingShareSettings = typeof TradingShareSettings.Type;
+
+/** The app's keys in `trading/settings.json`. Other keys stay in the file. */
+export const TradingSettings = Schema.Struct({
+  monthlyFeeCap: NullableNumber,
+  /** The name on the Crew card. Null until the trader sets it. */
+  traderName: Schema.NullOr(Schema.String),
+  share: TradingShareSettings,
+  /** True only after the trader turns on Crew sync. Nothing leaves this PC before that. */
+  crewSync: Schema.Boolean,
+});
+export type TradingSettings = typeof TradingSettings.Type;
+
+/** Each key is optional: only the keys sent change. A null cap removes the cap. */
+export const TradingSettingsSaveInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  monthlyFeeCap: Schema.optional(
+    Schema.NullOr(Schema.Number.check(Schema.isBetween({ minimum: 0, maximum: 1_000_000 }))),
+  ),
+  traderName: Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(40))),
+  share: Schema.optional(TradingShareSettings),
+  crewSync: Schema.optional(Schema.Boolean),
+});
+export type TradingSettingsSaveInput = typeof TradingSettingsSaveInput.Type;
+
 export const TradingStateResult = Schema.Struct({
   pack: TradingPackView,
   state: TradingState,
+  settings: TradingSettings,
+  /** True when `trading/settings.json` exists but cannot be read. The app then shows defaults. */
+  settingsUnreadable: Schema.Boolean,
   /** The newest trades, newest first, for the Journal. */
   trades: Schema.Array(TradingTradeView),
   /** Lines in the ledger or trades file that were skipped as unreadable. */
@@ -162,6 +212,18 @@ export class TradingStateError extends Schema.TaggedError<TradingStateError>()(
       "pack_not_found",
       "pack_changed",
       "invalid_event",
+      "invalid_settings",
+      "invalid_trade",
+      "invalid_day",
+      "note_too_long",
+      "invalid_name",
+      "unknown_trade",
+      "unsupported_image",
+      "image_too_large",
+      "image_mismatch",
+
+      "page_not_found",
+      "invalid_resource",
     ]),
     detail: Schema.optional(Schema.String),
   },
@@ -228,4 +290,255 @@ export const TradingAppendInput = Schema.Struct({
 export type TradingAppendInput = typeof TradingAppendInput.Type;
 
 export const TradingAppendResult = Schema.Struct({ appended: Schema.Number });
+
+/** One pack risk state. The pack path it came from stays on the server. */
+const TradingRiskState = Schema.Struct({
+  id: Schema.String,
+  market: Schema.String,
+  contracts: Schema.Number,
+  stopPoints: Schema.Number,
+  targetPoints: Schema.Number,
+  stopDollars: Schema.Number,
+  targetDollars: Schema.Number,
+});
+
+/** The linked pack's risk rules. `none` when no pack is linked or the pack is invalid. */
+export const TradingRiskRulesResult = Schema.Union([
+  Schema.Struct({ status: Schema.Literal("none") }),
+  Schema.Struct({
+    status: Schema.Literal("ready"),
+    riskStates: Schema.Array(TradingRiskState),
+    firstDay: Schema.NullOr(
+      Schema.Struct({
+        floor: Schema.Number,
+        cap: Schema.Number,
+        defaultPassRate: Schema.Number,
+      }),
+    ),
+    /** Keyed by `firm name/product name`, like the accounts. */
+    limits: Schema.Record(
+      Schema.String,
+      Schema.Struct({ dailyLoss: NullableNumber, maxLoss: NullableNumber }),
+    ),
+  }),
+]);
+export type TradingRiskRulesResult = typeof TradingRiskRulesResult.Type;
 export type TradingAppendResult = typeof TradingAppendResult.Type;
+
+const CrewCount = Schema.Number;
+/** One trader's shared card. A group is present only when the trader shares it. */
+export const TradingCrewCard = Schema.Struct({
+  version: Schema.Literal(1),
+  trader: Schema.String,
+  name: Schema.String,
+  updatedAt: Schema.String,
+  journey: Schema.optional(
+    Schema.Struct({
+      stage: Schema.Literals(["sim", "evaluation", "funded", "payouts"]),
+      passRate: Schema.Struct({ passed: CrewCount, finished: CrewCount }),
+      accounts: Schema.Struct({ sim: CrewCount, evaluation: CrewCount, funded: CrewCount }),
+    }),
+  ),
+  habits: Schema.optional(
+    Schema.Struct({ cleanStreak: CrewCount, bestClean: CrewCount, tradingDays: CrewCount }),
+  ),
+  payouts: Schema.optional(Schema.Struct({ count: CrewCount, total: Schema.Number })),
+  money: Schema.optional(
+    Schema.Struct({ firmFees: Schema.Number, totalCost: Schema.Number, netReturn: Schema.Number }),
+  ),
+});
+export type TradingCrewCard = typeof TradingCrewCard.Type;
+
+export const TradingCrewInput = Schema.Struct({ workspaceId: Schema.optional(AiosWorkspaceId) });
+export type TradingCrewInput = typeof TradingCrewInput.Type;
+
+/** What the Crew tab shows. `setup` says which step is missing before sync can run. */
+export const TradingCrewResult = Schema.Struct({
+  setup: Schema.Literals(["no_pack", "off", "needs_name", "on"]),
+  /** The file name part of this trader's own card. Null until a name is set. */
+  self: Schema.NullOr(Schema.String),
+  cards: Schema.Array(TradingCrewCard),
+  skippedCards: Schema.Number,
+  lastSyncAt: Schema.NullOr(Schema.String),
+  status: Schema.Literals(["never", "synced", "offline", "no_remote", "error"]),
+  detail: Schema.NullOr(Schema.String),
+});
+export type TradingCrewResult = typeof TradingCrewResult.Type;
+/** A manual trade for `trading/trades.jsonl`. The server sets the id, the time and platform `manual`. */
+export const TradingTradeAddInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  accountId: Schema.String,
+  day: Schema.String,
+  contract: Schema.String,
+  side: Schema.Literals(["long", "short"]),
+  size: Schema.Number,
+  points: Schema.Number,
+  /** Net dollars, after fees. */
+  pnl: Schema.Number,
+});
+export type TradingTradeAddInput = typeof TradingTradeAddInput.Type;
+
+export const TradingTradeAddResult = Schema.Struct({ id: Schema.String });
+export type TradingTradeAddResult = typeof TradingTradeAddResult.Type;
+
+/** The end-of-day note of one day. `day` is `YYYY-MM-DD`. */
+export const TradingDayReadInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  day: Schema.String,
+});
+export type TradingDayReadInput = typeof TradingDayReadInput.Type;
+
+export const TradingDayReadResult = Schema.Struct({ day: Schema.String, note: Schema.String });
+export type TradingDayReadResult = typeof TradingDayReadResult.Type;
+
+export const TradingDaySaveInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  day: Schema.String,
+  note: Schema.String,
+});
+export type TradingDaySaveInput = typeof TradingDaySaveInput.Type;
+
+const TradingScreenshotMime = Schema.Literals(["image/png", "image/jpeg", "image/webp"]);
+
+/** A pasted image. With `tradeId`, the server also tags that trade with the screenshot. */
+export const TradingScreenshotSaveInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  day: Schema.String,
+  tradeId: Schema.optional(Schema.String),
+  mime: TradingScreenshotMime,
+  dataBase64: Schema.String,
+});
+export type TradingScreenshotSaveInput = typeof TradingScreenshotSaveInput.Type;
+
+export const TradingScreenshotSaveResult = Schema.Struct({ name: Schema.String });
+export type TradingScreenshotSaveResult = typeof TradingScreenshotSaveResult.Type;
+
+export const TradingScreenshotReadInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  day: Schema.String,
+  name: Schema.String,
+});
+export type TradingScreenshotReadInput = typeof TradingScreenshotReadInput.Type;
+
+export const TradingScreenshotReadResult = Schema.Struct({
+  mime: TradingScreenshotMime,
+  dataBase64: Schema.String,
+});
+export type TradingScreenshotReadResult = typeof TradingScreenshotReadResult.Type;
+
+/** The Library reads the linked pack. Absent `workspaceId` means the first Trading workspace. */
+export const TradingLibraryInput = Schema.Struct({ workspaceId: Schema.optional(AiosWorkspaceId) });
+export type TradingLibraryInput = typeof TradingLibraryInput.Type;
+
+const LibraryLessonView = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  duration: Schema.String,
+  keywords: Schema.Array(Schema.String),
+  hasTranscript: Schema.Boolean,
+  url: Schema.NullOr(Schema.String),
+});
+
+const LibraryPageView = Schema.Struct({ id: Schema.String, title: Schema.String });
+
+/** The Library index. `status: none` means no pack is linked; `invalid` gives the reason. */
+export const TradingLibraryIndexResult = Schema.Struct({
+  status: Schema.Literals(["none", "ready", "invalid"]),
+  reason: Schema.NullOr(Schema.String),
+  chapters: Schema.Array(
+    Schema.Struct({
+      number: Schema.String,
+      title: Schema.String,
+      lessons: Schema.Array(LibraryLessonView),
+    }),
+  ),
+  knowledge: Schema.Array(LibraryPageView),
+  community: Schema.Array(LibraryPageView),
+  firms: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      name: Schema.String,
+      fetchDate: Schema.NullOr(Schema.String),
+      stale: Schema.Boolean,
+    }),
+  ),
+  cards: Schema.Array(
+    Schema.Struct({ front: Schema.String, back: Schema.String, citation: Schema.String }),
+  ),
+  quiz: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      topic: Schema.String,
+      level: Schema.String,
+      source: Schema.String,
+      prompt: Schema.String,
+      correct: Schema.Number,
+      options: Schema.Array(Schema.Struct({ text: Schema.String, why: Schema.String })),
+    }),
+  ),
+});
+export type TradingLibraryIndexResult = typeof TradingLibraryIndexResult.Type;
+
+export const TradingLibraryPageInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  kind: Schema.Literals(["lesson", "knowledge", "firm", "community"]),
+  id: Schema.String.check(Schema.isMaxLength(80)),
+});
+export type TradingLibraryPageInput = typeof TradingLibraryPageInput.Type;
+
+/** One page of text. `truncated` is true when the text was cut at 200,000 characters. */
+export const TradingLibraryPageResult = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  text: Schema.String,
+  truncated: Schema.Boolean,
+});
+export type TradingLibraryPageResult = typeof TradingLibraryPageResult.Type;
+
+export const TradingLibrarySearchInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  query: Schema.String.check(Schema.isMaxLength(200)),
+});
+export type TradingLibrarySearchInput = typeof TradingLibrarySearchInput.Type;
+
+export const TradingLibrarySearchResult = Schema.Struct({
+  hits: Schema.Array(
+    Schema.Struct({
+      kind: Schema.Literals(["lesson", "knowledge", "card", "community"]),
+      id: Schema.String,
+      title: Schema.String,
+      snippet: Schema.String,
+    }),
+  ),
+});
+export type TradingLibrarySearchResult = typeof TradingLibrarySearchResult.Type;
+
+export const TradingResourceKind = Schema.Literals(["link", "note", "pdf", "discord", "call"]);
+
+export const TradingResourceSaveInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  kind: TradingResourceKind,
+  title: Schema.String.check(Schema.isMaxLength(200)),
+  url: Schema.optional(Schema.String.check(Schema.isMaxLength(2_000))),
+  text: Schema.optional(Schema.String.check(Schema.isMaxLength(20_000))),
+  /** Private stays in `trading/resources`. Otherwise the item goes to the Crew outbox. */
+  private: Schema.Boolean,
+});
+export type TradingResourceSaveInput = typeof TradingResourceSaveInput.Type;
+
+export const TradingResourceSaveResult = Schema.Struct({ id: Schema.String });
+export type TradingResourceSaveResult = typeof TradingResourceSaveResult.Type;
+
+export const TradingResourceListResult = Schema.Struct({
+  resources: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      kind: TradingResourceKind,
+      title: Schema.String,
+      url: Schema.NullOr(Schema.String),
+      private: Schema.Boolean,
+      savedAt: Schema.String,
+    }),
+  ),
+});
+export type TradingResourceListResult = typeof TradingResourceListResult.Type;

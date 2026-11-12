@@ -12,6 +12,8 @@ export interface ProductRule {
   readonly profitTarget?: number;
   readonly winningDayMin?: number;
   readonly drawdown?: "trailing" | "static";
+  /** Percent of total profit one day may hold. */
+  readonly consistencyPercent?: number;
 }
 
 export interface Attempt {
@@ -39,6 +41,8 @@ export interface AccountView {
   readonly winningDays: number | null;
   /** The share of total profit that the best day holds. Null without a profit. */
   readonly bestDayPercent: number | null;
+  /** The pack's consistency limit for this product. Null without a pack rule. */
+  readonly consistencyPercent: number | null;
 }
 
 export type MoneyCategory = CostCategory | "payout";
@@ -46,6 +50,8 @@ export type MoneyCategory = CostCategory | "payout";
 export interface MoneyPoint {
   readonly at: string;
   readonly category: MoneyCategory;
+  /** The account the cost or Payout belongs to. Null when the event has none. */
+  readonly accountId: string | null;
   /** Negative for a cost, positive for a Payout. */
   readonly amount: number;
   readonly netReturn: number;
@@ -105,7 +111,7 @@ const FIRM_FEE_CATEGORIES: ReadonlySet<CostCategory> = new Set([
 ]);
 
 // Sums use whole cents, so repeated decimal amounts cannot drift.
-const toCents = (dollars: number): number => Math.round(dollars * 100);
+export const toCents = (dollars: number): number => Math.round(dollars * 100);
 const toDollars = (cents: number): number => cents / 100;
 
 type EventIssue = { eventId: string; reason: string };
@@ -195,6 +201,7 @@ function accountView(account: MutableAccount, rule: ProductRule | undefined): Ac
     profitTarget: rule?.profitTarget ?? null,
     winningDays: winningMin === null ? null : winningDays,
     bestDayPercent: balance > 0 ? Math.round((bestDay / balance) * 1000) / 10 : null,
+    consistencyPercent: rule?.consistencyPercent ?? null,
   };
 }
 
@@ -205,12 +212,22 @@ export function deriveTradingState(input: DeriveInput): TradingState {
   const attempts: MutableAttempt[] = [];
   const openAttempts = new Map<string, MutableAttempt[]>();
   const tags = new Map<string, { setup?: string; ruleBreaks?: readonly string[] }>();
-  const moneyPoints: { at: string; category: MoneyCategory; cents: number }[] = [];
+  const moneyPoints: {
+    at: string;
+    category: MoneyCategory;
+    accountId: string | null;
+    cents: number;
+  }[] = [];
   let activationCount = 0;
   let activationCents = 0;
 
-  const addCost = (at: string, category: CostCategory, amount: number) => {
-    moneyPoints.push({ at, category, cents: -toCents(amount) });
+  const addCost = (
+    at: string,
+    category: CostCategory,
+    amount: number,
+    accountId: string | null,
+  ) => {
+    moneyPoints.push({ at, category, accountId, cents: -toCents(amount) });
   };
 
   for (const event of liveEvents(input.events, issues)) {
@@ -243,7 +260,12 @@ export function deriveTradingState(input: DeriveInput): TradingState {
         openAttempts.set(event.accountId, [...(openAttempts.get(event.accountId) ?? []), attempt]);
         const account = accounts.get(event.accountId);
         if (account) account.startMs = time;
-        addCost(event.at, event.via === "purchase" ? "evaluation" : "reset", event.fee);
+        addCost(
+          event.at,
+          event.via === "purchase" ? "evaluation" : "reset",
+          event.fee,
+          event.accountId,
+        );
         break;
       }
       case "attempt.ended": {
@@ -276,7 +298,7 @@ export function deriveTradingState(input: DeriveInput): TradingState {
         }
         activationCount += 1;
         activationCents += toCents(event.activationFee);
-        addCost(event.at, "activation", event.activationFee);
+        addCost(event.at, "activation", event.activationFee, event.accountId);
         break;
       }
       case "account.closed": {
@@ -286,10 +308,15 @@ export function deriveTradingState(input: DeriveInput): TradingState {
         break;
       }
       case "cost.paid":
-        addCost(event.at, event.category, event.amount);
+        addCost(event.at, event.category, event.amount, event.accountId ?? null);
         break;
       case "payout.received":
-        moneyPoints.push({ at: event.at, category: "payout", cents: toCents(event.amount) });
+        moneyPoints.push({
+          at: event.at,
+          category: "payout",
+          accountId: event.accountId,
+          cents: toCents(event.amount),
+        });
         break;
       case "trade.tagged": {
         const tag = { ...tags.get(event.tradeId) };
@@ -353,6 +380,7 @@ export function deriveTradingState(input: DeriveInput): TradingState {
     moneyTimeline.push({
       at: point.at,
       category: point.category,
+      accountId: point.accountId,
       amount: toDollars(point.cents),
       netReturn: toDollars(runningCents),
     });

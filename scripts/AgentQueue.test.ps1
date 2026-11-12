@@ -129,6 +129,31 @@ try {
     Assert (-not (Test-Path $wtE)) 'the detached worktree is removed'
     Assert ($out -match 'epsilon removed') 'the queue says it removed the detached worktree'
     Assert ((Test-Path (Join-Path $outside 'SKILL.md')) -and (Test-Path (Join-Path $outside 'sub/a.txt'))) 'links in the worktree never cost the target a file'
+    # 6. Force directory deletion to throw after a successful push in the copied queue script.
+    $queueScript = Join-Path $repo 'scripts/Invoke-MergeQueue.ps1'
+    $source = Get-Content -LiteralPath $queueScript -Raw
+    $delete = '[System.IO.Directory]::Delete((Resolve-Path -LiteralPath $gone).ProviderPath, $true)'
+    Assert ($source.Contains($delete)) 'the deletion fault targets the real cleanup operation'
+    Set-Content -LiteralPath $queueScript ($source.Replace($delete, 'throw "injected directory removal failure"'))
+    Push-Location $repo
+    try {
+        pwsh -NoProfile -File scripts/Start-AgentTask.ps1 -Task zeta -Owner agent-7 | Out-Null
+        $wtZ = Join-Path $env:LEONIDAS_WORKTREE_ROOT 'zeta'
+        Set-Content (Join-Path $wtZ 'zeta.txt') 'z'
+        G $wtZ add zeta.txt
+        G $wtZ commit -q -m 'zeta work'
+        $expectedSha = (git -C $wtZ rev-parse HEAD).Trim()
+        $out = pwsh -NoProfile -File scripts/Invoke-MergeQueue.ps1 -Branch task/zeta -Task zeta -Wait -WaitMinutes 1 | Out-String
+        $exit = $LASTEXITCODE
+    } finally { Pop-Location }
+    $result = Get-ChildItem (Join-Path $repo '.git/leonidas-queue/done') -Filter *.json |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json } |
+        Where-Object branch -eq 'task/zeta'
+    Assert ($exit -eq 0 -and $result.status -eq 'landed') 'directory removal failure keeps the successful outcome'
+    Assert ($result.sha -eq $expectedSha) 'directory removal failure preserves the landed SHA'
+    Assert ((git -C $repo ls-remote origin refs/heads/main) -match $expectedSha) 'the recorded SHA reached origin'
+    Assert ($out -match 'injected directory removal failure') 'the cleanup failure remains visible'
+    Assert (@(Get-ChildItem (Split-Path $wtZ) -Directory -Filter 'zeta.landed-*').Count -eq 1) 'failed cleanup retains the directory'
     'PASS'
 } finally {
     Get-Job | Remove-Job -Force

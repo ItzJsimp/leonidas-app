@@ -1,18 +1,19 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
+// @effect-diagnostics nodeBuiltinImport:off - This test reads repository files with Node APIs.
+import * as NodeFS from "node:fs";
+import * as NodePath from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 
 // Always-loaded instructions cost tokens in every session (Batch 12, 2026-11-06).
-const root = path.resolve(import.meta.dirname, "..");
-const bytes = (file: string) => readFileSync(path.join(root, file)).byteLength;
+const root = NodePath.resolve(import.meta.dirname, "..");
+const bytes = (file: string) => NodeFS.readFileSync(NodePath.join(root, file)).byteLength;
 
 // AGENTS.md plus every in-repo file it pulls in with an `@path` line, followed recursively.
 function alwaysLoaded(file: string, seen = new Set<string>()): Set<string> {
   if (seen.has(file)) return seen;
   seen.add(file);
-  for (const line of readFileSync(path.join(root, file), "utf8").split("\n")) {
+  for (const line of NodeFS.readFileSync(NodePath.join(root, file), "utf8").split("\n")) {
     const match = /^@(\S+)\s*$/.exec(line.trim());
-    if (match?.[1] && !match[1].startsWith("../")) alwaysLoaded(path.normalize(match[1]), seen);
+    if (match?.[1] && !match[1].startsWith("../")) alwaysLoaded(NodePath.normalize(match[1]), seen);
   }
   return seen;
 }
