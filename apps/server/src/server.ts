@@ -8,6 +8,7 @@ import * as SubagentRuns from "./subagents/SubagentRuns.ts";
 import * as TaskAutoLog from "./taskBoard/TaskAutoLog.ts";
 import * as AiosChangeLog from "./events/AiosChangeLog.ts";
 import * as AutomationService from "./automations/AutomationService.ts";
+import * as WordSyncAutoSetup from "./scribe/WordSyncAutoSetup.ts";
 import * as TaskBoardService from "./taskBoard/TaskBoardService.ts";
 import * as AreaSyncService from "./areaSync/AreaSyncService.ts";
 import * as PromptPrediction from "./workspace/PromptPrediction.ts";
@@ -653,6 +654,8 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
     Layer.provide(ProjectionStoreV2.layer),
   ),
   DelegatedTaskAnalytics.layer,
+  // Turns Scribe word sync on for an AIOS that never set a folder.
+  Layer.effectDiscard(WordSyncAutoSetup.make.pipe(Effect.flatMap((service) => service.start()))),
   Layer.effectDiscard(
     Effect.gen(function* () {
       const service = yield* PullRequestSyncReactor.PullRequestSyncReactor;
