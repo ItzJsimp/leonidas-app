@@ -7,6 +7,7 @@ import {
   coderPreselect,
   markDone,
   openSetupItems,
+  setupResumeSummary,
   type SetupState,
 } from "./setupState.logic";
 
@@ -84,5 +85,20 @@ describe("coderPreselect", () => {
   it("does not guess when only the file manager is found", () => {
     expect(coderPreselect(["file-manager"])).toBeNull();
     expect(coderPreselect([])).toBeNull();
+  });
+});
+
+describe("setupResumeSummary", () => {
+  it("stays hidden for people who never ran the new setup", () => {
+    expect(setupResumeSummary(EMPTY_SETUP_STATE)).toBeNull();
+  });
+
+  it("counts finished items once setup started", () => {
+    const state = { ...EMPTY_SETUP_STATE, startedAt: "2026-11-11", done: ["basics", "account"] };
+    expect(setupResumeSummary(state)).toEqual({ done: 2, total: SETUP_ITEMS.length });
+  });
+
+  it("hides once every item is done", () => {
+    expect(setupResumeSummary({ ...allDone, startedAt: "2026-11-11" })).toBeNull();
   });
 });
