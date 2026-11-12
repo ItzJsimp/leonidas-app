@@ -33,6 +33,7 @@ import {
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { SidebarUpdatePill } from "~/components/sidebar/SidebarUpdatePill";
+import { FinishSetupRow } from "./FinishSetupRow";
 import { Popover, PopoverPopup, PopoverTrigger } from "~/components/ui/popover";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { SidebarMenu } from "~/components/ui/sidebar";
@@ -174,6 +175,7 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>
+      {expanded ? <FinishSetupRow /> : null}
       {/* The fade shows only on the edge that has more rows. Rows are links, so the list needs no tab stop. */}
       <ScrollArea
         scrollFade
