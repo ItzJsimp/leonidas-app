@@ -92,6 +92,8 @@ export const TradingTradeView = Schema.Struct({
   setup: Schema.optional(Schema.String),
   ruleBreaks: Schema.optional(Schema.Array(Schema.String)),
   check: Schema.optional(Schema.Literals(["waiting", "graded"])),
+  /** The newest screenshot path (`screenshots/<day>/<name>`, relative to `trading/`). */
+  screenshot: Schema.optional(Schema.String),
 });
 export type TradingTradeView = typeof TradingTradeView.Type;
 
@@ -128,6 +130,8 @@ export const TradingPackView = Schema.Union([
     status: Schema.Literal("ready"),
     folder: Schema.String,
     firms: Schema.Array(TradingPackFirm),
+    /** The JJ setups a trade can be tagged with. Names only; the rules stay on the server. */
+    setups: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })),
     check: Schema.Struct({
       status: Schema.Literals(["none", "missing", "pending", "allowed", "declined"]),
       module: Schema.NullOr(Schema.String),
@@ -162,6 +166,14 @@ export class TradingStateError extends Schema.TaggedError<TradingStateError>()(
       "pack_not_found",
       "pack_changed",
       "invalid_event",
+      "invalid_trade",
+      "invalid_day",
+      "note_too_long",
+      "invalid_name",
+      "unknown_trade",
+      "unsupported_image",
+      "image_too_large",
+      "image_mismatch",
     ]),
     detail: Schema.optional(Schema.String),
   },
@@ -229,3 +241,65 @@ export type TradingAppendInput = typeof TradingAppendInput.Type;
 
 export const TradingAppendResult = Schema.Struct({ appended: Schema.Number });
 export type TradingAppendResult = typeof TradingAppendResult.Type;
+
+/** A manual trade for `trading/trades.jsonl`. The server sets the id, the time and platform `manual`. */
+export const TradingTradeAddInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  accountId: Schema.String,
+  day: Schema.String,
+  contract: Schema.String,
+  side: Schema.Literals(["long", "short"]),
+  size: Schema.Number,
+  points: Schema.Number,
+  /** Net dollars, after fees. */
+  pnl: Schema.Number,
+});
+export type TradingTradeAddInput = typeof TradingTradeAddInput.Type;
+
+export const TradingTradeAddResult = Schema.Struct({ id: Schema.String });
+export type TradingTradeAddResult = typeof TradingTradeAddResult.Type;
+
+/** The end-of-day note of one day. `day` is `YYYY-MM-DD`. */
+export const TradingDayReadInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  day: Schema.String,
+});
+export type TradingDayReadInput = typeof TradingDayReadInput.Type;
+
+export const TradingDayReadResult = Schema.Struct({ day: Schema.String, note: Schema.String });
+export type TradingDayReadResult = typeof TradingDayReadResult.Type;
+
+export const TradingDaySaveInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  day: Schema.String,
+  note: Schema.String,
+});
+export type TradingDaySaveInput = typeof TradingDaySaveInput.Type;
+
+const TradingScreenshotMime = Schema.Literals(["image/png", "image/jpeg", "image/webp"]);
+
+/** A pasted image. With `tradeId`, the server also tags that trade with the screenshot. */
+export const TradingScreenshotSaveInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  day: Schema.String,
+  tradeId: Schema.optional(Schema.String),
+  mime: TradingScreenshotMime,
+  dataBase64: Schema.String,
+});
+export type TradingScreenshotSaveInput = typeof TradingScreenshotSaveInput.Type;
+
+export const TradingScreenshotSaveResult = Schema.Struct({ name: Schema.String });
+export type TradingScreenshotSaveResult = typeof TradingScreenshotSaveResult.Type;
+
+export const TradingScreenshotReadInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  day: Schema.String,
+  name: Schema.String,
+});
+export type TradingScreenshotReadInput = typeof TradingScreenshotReadInput.Type;
+
+export const TradingScreenshotReadResult = Schema.Struct({
+  mime: TradingScreenshotMime,
+  dataBase64: Schema.String,
+});
+export type TradingScreenshotReadResult = typeof TradingScreenshotReadResult.Type;

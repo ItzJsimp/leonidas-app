@@ -51,6 +51,9 @@ import {
   listTradingImports,
   makeTradingImportWatch,
 } from "./trading/tradingImports.ts";
+import { addManualTrade } from "./trading/tradingManualTrade.ts";
+import { readDayNote, saveDayNote } from "./trading/tradingDays.ts";
+import { readScreenshot, saveScreenshot } from "./trading/tradingScreenshots.ts";
 import * as PromptSuggestion from "./workspace/PromptSuggestion.ts";
 import * as SkillPick from "./workspace/SkillPick.ts";
 import * as TextGeneration from "./textGeneration/TextGeneration.ts";
@@ -3166,6 +3169,36 @@ export const layerWsRpc = (
             Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
             Effect.orElseSucceed(() => null),
             Effect.flatMap((root) => appendTradingEvents(root, input.events)),
+          ),
+        [WS_METHODS.tradingTradeAdd]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => addManualTrade(root, input)),
+          ),
+        [WS_METHODS.tradingDayRead]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => readDayNote(root, input)),
+          ),
+        [WS_METHODS.tradingDaySave]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => saveDayNote(root, input)),
+          ),
+        [WS_METHODS.tradingScreenshotSave]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => saveScreenshot(root, input)),
+          ),
+        [WS_METHODS.tradingScreenshotRead]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => readScreenshot(root, input)),
           ),
         [WS_METHODS.releaseStatusRuns]: () => Effect.promise(() => readReleaseStatus()),
         [WS_METHODS.layaUsage]: () => Effect.promise(() => readLayaUsage()),

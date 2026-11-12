@@ -20,12 +20,13 @@ export const FORM_TITLES: Readonly<Record<Exclude<FormKind, "edit">, string>> = 
 export const MESSAGES = {
   amount: "Enter an amount of 0 or more.",
   future: "The date cannot be in the future.",
+  number: "Enter a number. Use a minus sign for a loss.",
   required: "Enter a value.",
 } as const;
 
 const MAX_AMOUNT = 1_000_000_000;
 
-export type FieldKind = "text" | "amount" | "date";
+export type FieldKind = "text" | "amount" | "signed" | "date";
 export type FieldErrors = Record<string, string>;
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -53,6 +54,11 @@ export function validateField(kind: FieldKind, raw: string, now: Date = new Date
     return value > localDay(now) ? MESSAGES.future : null;
   }
   const amount = Number(value);
+  if (kind === "signed") {
+    return value === "" || !Number.isFinite(amount) || Math.abs(amount) > MAX_AMOUNT
+      ? MESSAGES.number
+      : null;
+  }
   return value === "" || !Number.isFinite(amount) || amount < 0 || amount > MAX_AMOUNT
     ? MESSAGES.amount
     : null;
