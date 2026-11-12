@@ -2,6 +2,7 @@ import {
   TradingStateError,
   type TradingPackView,
   type TradingStateResult,
+  type TradingTradeView,
 } from "@t3tools/contracts";
 import {
   deriveTradingState,
@@ -10,6 +11,7 @@ import {
   parseTrades,
   productKey,
   type ProductRule,
+  type TradingEvent,
 } from "@t3tools/trading";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -17,6 +19,7 @@ import * as Path from "effect/Path";
 
 import { readWorkspaceFile } from "../taskBoard/aiosWorkspaces.ts";
 import { readLinkedPack, type LinkedPack } from "./tradingPack.ts";
+import { readTradingSettings } from "./tradingSettings.ts";
 
 /** The Journal gets this many of the newest trades. */
 const JOURNAL_TRADES = 300;
@@ -39,6 +42,7 @@ function packView(linked: LinkedPack): TradingPackView {
   return {
     status: "ready",
     folder: linked.folder,
+    setups: linked.pack.setups.map(({ id, name }) => ({ id, name })),
     firms: linked.pack.firms.map((firm) => ({
       id: firm.id,
       name: firm.name,
@@ -61,10 +65,26 @@ function productRules(linked: LinkedPack): ReadonlyMap<string, ProductRule> {
       rules.set(productKey(firm.name, product.name), {
         ...(product.maxLoss === null ? {} : { maxLoss: product.maxLoss }),
         ...(product.profitTarget === null ? {} : { profitTarget: product.profitTarget }),
+        ...(product.consistencyPercent === null
+          ? {}
+          : { consistencyPercent: product.consistencyPercent }),
       });
     }
   }
   return rules;
+}
+
+/** The latest setup and screenshot tagged on each trade, as the Journal shows them. */
+function tradeTags(events: readonly TradingEvent[]) {
+  const tags = new Map<string, { setup?: string; screenshot?: string }>();
+  for (const event of events) {
+    if (event.kind !== "trade.tagged") continue;
+    const tag = { ...tags.get(event.tradeId) };
+    if (event.setup !== undefined) tag.setup = event.setup;
+    if (event.screenshot !== undefined) tag.screenshot = event.screenshot;
+    tags.set(event.tradeId, tag);
+  }
+  return tags;
 }
 
 /**
@@ -82,15 +102,18 @@ export const readTradingState = Effect.fn("trading.readState")(function* (aiosRo
       Effect.mapError(() => new TradingStateError({ reason: "read_failed" })),
     );
   };
-  const [ledgerText, tradesText, linked] = yield* Effect.all([
+  const [ledgerText, tradesText, linked, { settings, settingsUnreadable }] = yield* Effect.all([
     readText("ledger.jsonl"),
     readText("trades.jsonl"),
     readLinkedPack(root),
+    readTradingSettings(root),
   ]);
   const ledger = parseLedger(ledgerText);
   const trades = parseTrades(tradesText);
+  const live = liveEvents(ledger.events, []);
+  const tags = tradeTags(live);
   // Newest first for the Edit an entry list. `trade.tagged` has no row there.
-  const entries = liveEvents(ledger.events, [])
+  const entries = live
     .filter((event) => event.kind !== "trade.tagged")
     .toReversed()
     .slice(0, MAX_ENTRIES)
@@ -103,11 +126,17 @@ export const readTradingState = Effect.fn("trading.readState")(function* (aiosRo
       products: productRules(linked),
     }),
     pack: packView(linked),
+    settings,
+    settingsUnreadable,
     trades: trades.trades
       .map((trade) => ({ trade, time: Date.parse(trade.at) }))
       .toSorted((a, b) => b.time - a.time)
       .slice(0, JOURNAL_TRADES)
-      .map(({ trade }) => trade),
+      .map(({ trade }): TradingTradeView => {
+        const tag = tags.get(trade.id);
+        if (tag === undefined) return trade;
+        return { ...trade, ...tag };
+      }),
     skippedLines: ledger.issues.length + trades.issues.length,
   } satisfies TradingStateResult;
 });

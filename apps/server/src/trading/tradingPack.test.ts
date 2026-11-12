@@ -30,7 +30,7 @@ const PACK = {
           profitTarget: 1000,
           maxLoss: 500,
           dailyLoss: null,
-          consistencyPercent: null,
+          consistencyPercent: 40,
           winningDayRule: null,
           prices: { monthly: 10, activation: 20, reset: 10, oneTime: null },
           sourceFile: "firms/firm-a.md",
@@ -315,6 +315,7 @@ export const reviewDay = () => { for (;;) {} };`,
 
       const good = yield* setup();
       assert.strictEqual((yield* good.state()).state.accounts[0]?.profitTarget, 1000);
+      assert.strictEqual((yield* good.state()).state.accounts[0]?.consistencyPercent, 40);
     }).pipe(Effect.scoped),
   );
 });
