@@ -1,9 +1,9 @@
 // Browser test files that fail today. The browser project skips them so a NEW failure stops a release.
 // Fix a file, then delete its line here. Do not add a file without a task card that names the reason.
+// Files that fail on upstream own code too (navigation, citationDraft, AssistantCitationChip) get fixed by the next upstream catch-up.
 export const KNOWN_FAILING_BROWSER_TESTS: ReadonlyArray<string> = [
   "src/components/CommandPalette.focus.browser.test.tsx",
   "src/components/ComposerPromptEditorTiptap.citationDraft.browser.test.tsx",
-  "src/components/ComposerPromptEditorTiptap.input.browser.test.tsx",
   "src/components/ComposerPromptEditorTiptap.navigation.browser.test.tsx",
   "src/components/ThreadNotificationCoordinator.badge.browser.test.tsx",
   "src/components/ThreadNotificationCoordinator.browser.test.tsx",
