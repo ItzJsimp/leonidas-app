@@ -43,6 +43,7 @@ const FUNDED: TradingState = {
       profitTarget: null,
       winningDays: null,
       bestDayPercent: null,
+      consistencyPercent: null,
     },
   ],
 };

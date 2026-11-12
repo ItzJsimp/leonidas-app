@@ -62,6 +62,9 @@ function productRules(linked: LinkedPack): ReadonlyMap<string, ProductRule> {
       rules.set(productKey(firm.name, product.name), {
         ...(product.maxLoss === null ? {} : { maxLoss: product.maxLoss }),
         ...(product.profitTarget === null ? {} : { profitTarget: product.profitTarget }),
+        ...(product.consistencyPercent === null
+          ? {}
+          : { consistencyPercent: product.consistencyPercent }),
       });
     }
   }

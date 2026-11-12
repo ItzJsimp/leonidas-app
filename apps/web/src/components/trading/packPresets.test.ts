@@ -44,6 +44,7 @@ const account = (product: string) =>
     profitTarget: null,
     winningDays: null,
     bestDayPercent: null,
+    consistencyPercent: null,
   }) satisfies TradingState["accounts"][number];
 
 describe("pack presets", () => {

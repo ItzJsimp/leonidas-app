@@ -37,6 +37,7 @@ const account = (index: number, room: number | null = 1000 + index) =>
     profitTarget: 3000,
     winningDays: null,
     bestDayPercent: null,
+    consistencyPercent: null,
   }) as const;
 
 const EMPTY: TradingState = {
@@ -87,9 +88,9 @@ const FILLED: TradingState = {
   averageFundedCost: 200,
   lowestRoom: { accountId: "a1", room: 1001 },
   moneyTimeline: [
-    { at: day(1), category: "evaluation", amount: -100, netReturn: -100 },
-    { at: day(2), category: "evaluation", amount: -100, netReturn: -200 },
-    { at: day(10), category: "payout", amount: 800, netReturn: 500 },
+    { at: day(1), category: "evaluation", accountId: null, amount: -100, netReturn: -100 },
+    { at: day(2), category: "evaluation", accountId: null, amount: -100, netReturn: -200 },
+    { at: day(10), category: "payout", accountId: null, amount: 800, netReturn: 500 },
   ],
   setups: [{ setup: "Continuation", trades: 4, wins: 3, pnl: 120 }],
   streaks: { clean: 3, bestClean: 5 },
@@ -190,6 +191,7 @@ describe("chart", () => {
         {
           at: "2025-12-01T12:00:00-07:00",
           category: "evaluation" as const,
+          accountId: null,
           amount: -1,
           netReturn: -1,
         },
