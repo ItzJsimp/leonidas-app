@@ -42,7 +42,7 @@ export type LinkedPack =
       readonly check: PackCheck;
     };
 
-const inside = (path: Path.Path, folder: string, file: string) => {
+export const inside = (path: Path.Path, folder: string, file: string) => {
   const relative = path.relative(folder, file);
   return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 };

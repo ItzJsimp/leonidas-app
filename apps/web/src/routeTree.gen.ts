@@ -42,6 +42,7 @@ import { Route as ChatBrainRouteImport } from './routes/_chat.brain'
 import { Route as ChatAutomationsRouteImport } from './routes/_chat.automations'
 import { Route as ChatTradingRiskRouteImport } from './routes/_chat.trading.risk'
 import { Route as ChatTradingMoneyRouteImport } from './routes/_chat.trading.money'
+import { Route as ChatTradingLibraryRouteImport } from './routes/_chat.trading.library'
 import { Route as ChatTradingJournalRouteImport } from './routes/_chat.trading.journal'
 import { Route as ChatTradingDashboardRouteImport } from './routes/_chat.trading.dashboard'
 import { Route as ChatTradingCrewRouteImport } from './routes/_chat.trading.crew'
@@ -238,6 +239,11 @@ const ChatTradingRiskRoute = ChatTradingRiskRouteImport.update({
 const ChatTradingMoneyRoute = ChatTradingMoneyRouteImport.update({
   id: '/trading/money',
   path: '/trading/money',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatTradingLibraryRoute = ChatTradingLibraryRouteImport.update({
+  id: '/trading/library',
+  path: '/trading/library',
   getParentRoute: () => ChatRoute,
 } as any)
 const ChatTradingJournalRoute = ChatTradingJournalRouteImport.update({
@@ -476,6 +482,7 @@ export interface FileRoutesByFullPath {
   '/trading/crew': typeof ChatTradingCrewRoute
   '/trading/dashboard': typeof ChatTradingDashboardRoute
   '/trading/journal': typeof ChatTradingJournalRoute
+  '/trading/library': typeof ChatTradingLibraryRoute
   '/trading/money': typeof ChatTradingMoneyRoute
   '/trading/risk': typeof ChatTradingRiskRoute
 }
@@ -543,6 +550,7 @@ export interface FileRoutesByTo {
   '/trading/crew': typeof ChatTradingCrewRoute
   '/trading/dashboard': typeof ChatTradingDashboardRoute
   '/trading/journal': typeof ChatTradingJournalRoute
+  '/trading/library': typeof ChatTradingLibraryRoute
   '/trading/money': typeof ChatTradingMoneyRoute
   '/trading/risk': typeof ChatTradingRiskRoute
 }
@@ -612,6 +620,7 @@ export interface FileRoutesById {
   '/_chat/trading/crew': typeof ChatTradingCrewRoute
   '/_chat/trading/dashboard': typeof ChatTradingDashboardRoute
   '/_chat/trading/journal': typeof ChatTradingJournalRoute
+  '/_chat/trading/library': typeof ChatTradingLibraryRoute
   '/_chat/trading/money': typeof ChatTradingMoneyRoute
   '/_chat/trading/risk': typeof ChatTradingRiskRoute
 }
@@ -681,6 +690,7 @@ export interface FileRouteTypes {
     | '/trading/crew'
     | '/trading/dashboard'
     | '/trading/journal'
+    | '/trading/library'
     | '/trading/money'
     | '/trading/risk'
   fileRoutesByTo: FileRoutesByTo
@@ -748,6 +758,7 @@ export interface FileRouteTypes {
     | '/trading/crew'
     | '/trading/dashboard'
     | '/trading/journal'
+    | '/trading/library'
     | '/trading/money'
     | '/trading/risk'
   id:
@@ -816,6 +827,7 @@ export interface FileRouteTypes {
     | '/_chat/trading/crew'
     | '/_chat/trading/dashboard'
     | '/_chat/trading/journal'
+    | '/_chat/trading/library'
     | '/_chat/trading/money'
     | '/_chat/trading/risk'
   fileRoutesById: FileRoutesById
@@ -1060,6 +1072,13 @@ declare module '@tanstack/react-router' {
       path: '/trading/money'
       fullPath: '/trading/money'
       preLoaderRoute: typeof ChatTradingMoneyRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/trading/library': {
+      id: '/_chat/trading/library'
+      path: '/trading/library'
+      fullPath: '/trading/library'
+      preLoaderRoute: typeof ChatTradingLibraryRouteImport
       parentRoute: typeof ChatRoute
     }
     '/_chat/trading/journal': {
@@ -1392,6 +1411,7 @@ interface ChatRouteChildren {
   ChatTradingCrewRoute: typeof ChatTradingCrewRoute
   ChatTradingDashboardRoute: typeof ChatTradingDashboardRoute
   ChatTradingJournalRoute: typeof ChatTradingJournalRoute
+  ChatTradingLibraryRoute: typeof ChatTradingLibraryRoute
   ChatTradingMoneyRoute: typeof ChatTradingMoneyRoute
   ChatTradingRiskRoute: typeof ChatTradingRiskRoute
 }
@@ -1428,6 +1448,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatTradingCrewRoute: ChatTradingCrewRoute,
   ChatTradingDashboardRoute: ChatTradingDashboardRoute,
   ChatTradingJournalRoute: ChatTradingJournalRoute,
+  ChatTradingLibraryRoute: ChatTradingLibraryRoute,
   ChatTradingMoneyRoute: ChatTradingMoneyRoute,
   ChatTradingRiskRoute: ChatTradingRiskRoute,
 }

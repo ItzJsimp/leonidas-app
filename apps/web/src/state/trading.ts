@@ -60,3 +60,50 @@ export const tradingAppend = createEnvironmentRpcCommand(connectionAtomRuntime, 
       ),
     ),
 });
+
+/** The Library of the linked pack: course, pages, firms, cards and quiz. */
+export const tradingLibraryIndexQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:trading:library-index",
+  tag: WS_METHODS.tradingLibraryIndex,
+  staleTimeMs: 30_000,
+  idleTtlMs: 60_000,
+});
+
+/** One search over the Library. Runs only while the trader types a search. */
+export const tradingLibrarySearchQuery = createEnvironmentRpcQueryAtomFamily(
+  connectionAtomRuntime,
+  {
+    label: "environment-data:trading:library-search",
+    tag: WS_METHODS.tradingLibrarySearch,
+    staleTimeMs: 10_000,
+    idleTtlMs: 30_000,
+  },
+);
+
+/** One lesson transcript, knowledge page or firm page. */
+export const tradingLibraryPageQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:trading:library-page",
+  tag: WS_METHODS.tradingLibraryPage,
+  staleTimeMs: 60_000,
+  idleTtlMs: 60_000,
+});
+
+/** The saved resources, private and Crew, newest first. */
+export const tradingResourceListQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:trading:resource-list",
+  tag: WS_METHODS.tradingResourceList,
+  staleTimeMs: 5_000,
+  idleTtlMs: 60_000,
+});
+
+/** Saves one resource, then reads the saved list again. */
+export const tradingResourceSave = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:trading:resource-save",
+  tag: WS_METHODS.tradingResourceSave,
+  onSuccess: ({ environmentId, input }, registry) =>
+    Effect.sync(() =>
+      registry.refresh(
+        tradingResourceListQuery({ environmentId, input: workspaceScopeInput(input.workspaceId) }),
+      ),
+    ),
+});
