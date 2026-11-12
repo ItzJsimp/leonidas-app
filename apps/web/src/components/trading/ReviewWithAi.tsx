@@ -1,5 +1,6 @@
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ModelSelection } from "@t3tools/contracts";
+import { indexBenchmarkEntries } from "@t3tools/shared/modelBenchmarkMatch";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -17,10 +18,13 @@ import { Spinner } from "~/components/ui/spinner";
 import { useComposerDraftStore } from "~/composerDraftStore";
 import { useOnboardingChat } from "~/onboarding/useOnboardingChat";
 import { deriveProviderInstanceEntries } from "~/providerInstances";
+import { pickerModelStats } from "~/lib/pickerModelStats";
 import { useEnvironmentProviders } from "~/state/environments";
+import { useEnvironmentQuery } from "~/state/query";
+import { serverEnvironment } from "~/state/server";
 import { buildThreadRouteParams } from "~/threadRoutes";
 
-import { reviewPrompt, tokenEstimate } from "./journal.logic";
+import { reviewPrompt, roughCost, tokenEstimate } from "./journal.logic";
 
 const NO_PROVIDERS = [] as const;
 
@@ -30,6 +34,8 @@ export function ReviewDialogView({
   engine,
   model,
   characters,
+  inputPrice,
+  outputPrice,
   ready,
   submitting,
   failure,
@@ -41,12 +47,17 @@ export function ReviewDialogView({
   readonly model: string;
   /** The characters the day files hold. The token count is an estimate from this. */
   readonly characters: number;
+  /** Dollars per million tokens for the model; null when no price is known. */
+  readonly inputPrice: number | null;
+  readonly outputPrice: number | null;
   readonly ready: boolean;
   readonly submitting: boolean;
   readonly failure: string | null;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
 }) {
+  const tokens = tokenEstimate(characters);
+  const cost = roughCost({ tokens, inputPrice, outputPrice });
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onCancel())}>
       <DialogPopup>
@@ -64,10 +75,10 @@ export function ReviewDialogView({
             <dt className="text-muted-foreground">Model</dt>
             <dd className="break-all">{model}</dd>
             <dt className="text-muted-foreground">Cost</dt>
-            <dd>Cost depends on your plan</dd>
+            <dd>{cost ? `${cost}, a rough estimate` : "Cost depends on your plan"}</dd>
             <dt className="text-muted-foreground">Size</dt>
             <dd className="tabular-nums">
-              About {tokenEstimate(characters).toLocaleString("en-US")} tokens (estimate for {day})
+              About {tokens.toLocaleString("en-US")} tokens (estimate for {day})
             </dd>
           </dl>
           {failure ? (
@@ -117,6 +128,11 @@ export function ReviewWithAi({
       ? (store.stickyModelSelectionByProvider[store.stickyActiveProvider] ?? null)
       : null,
   );
+  // The server caches the catalog; the picker reads the same copy.
+  const benchmarkCatalog = useEnvironmentQuery(
+    serverEnvironment.modelBenchmarkCatalog({ environmentId, input: {} }),
+  ).data;
+  const benchmarkIndex = benchmarkCatalog ? indexBenchmarkEntries(benchmarkCatalog.entries) : null;
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -127,6 +143,10 @@ export function ReviewWithAi({
       ? stickySelection
       : null;
   const selection: ModelSelection | null = sticky ?? defaultSelection;
+  const prices =
+    selection && benchmarkIndex
+      ? pickerModelStats(benchmarkIndex, { modelId: selection.model })
+      : null;
   const engine = selection
     ? (entries.find((entry) => entry.instanceId === selection.instanceId)?.displayName ??
       selection.instanceId)
@@ -167,6 +187,8 @@ export function ReviewWithAi({
       engine={engine}
       model={selection?.model ?? "None"}
       characters={characters}
+      inputPrice={prices?.inputPrice ?? null}
+      outputPrice={prices?.outputPrice ?? null}
       ready={selection !== null}
       submitting={submitting}
       failure={failure ?? (selection ? null : "Connect an AI first.")}

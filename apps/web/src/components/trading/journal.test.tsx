@@ -250,6 +250,8 @@ describe("Review with AI dialog", () => {
           engine="Test engine"
           model="test-model"
           characters={4000}
+          inputPrice={5}
+          outputPrice={25}
           ready
           submitting={false}
           failure={null}
@@ -261,8 +263,32 @@ describe("Review with AI dialog", () => {
     const text = document.body.textContent ?? "";
     expect(text).toContain("Test engine");
     expect(text).toContain("test-model");
-    expect(text).toContain("Cost depends on your plan");
+    expect(text).toContain("About $0.03, a rough estimate");
+    expect(text).not.toContain("Cost depends on your plan");
     expect(text).toContain("1,000 tokens");
+  });
+
+  it("falls back to the plan line when the model has no price", async () => {
+    await act(async () => {
+      root.render(
+        <ReviewDialogView
+          day="2026-11-04"
+          engine="Test engine"
+          model="test-model"
+          characters={4000}
+          inputPrice={null}
+          outputPrice={null}
+          ready
+          submitting={false}
+          failure={null}
+          onConfirm={() => undefined}
+          onCancel={() => undefined}
+        />,
+      );
+    });
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("Cost depends on your plan");
+    expect(text).not.toContain("rough estimate");
   });
 
   it("sends nothing on Cancel", async () => {
@@ -275,6 +301,8 @@ describe("Review with AI dialog", () => {
           engine="Test engine"
           model="test-model"
           characters={4000}
+          inputPrice={null}
+          outputPrice={null}
           ready
           submitting={false}
           failure={null}

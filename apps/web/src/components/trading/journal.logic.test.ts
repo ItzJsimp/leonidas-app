@@ -7,6 +7,7 @@ import {
   errorReason,
   isImageType,
   journalErrorText,
+  roughCost,
   screenshotParts,
   setupChoices,
   tokenEstimate,
@@ -79,6 +80,25 @@ describe("screenshotParts", () => {
     expect(screenshotParts(`screenshots/2026-11-04/../${SHOT_NAME}`)).toBeNull();
     expect(screenshotParts("screenshots/2026-11-04/abc.png")).toBeNull();
     expect(screenshotParts(`../screenshots/2026-11-04/${SHOT_NAME}`)).toBeNull();
+  });
+});
+
+describe("roughCost", () => {
+  it("prices the tokens as input plus the same count as output, rounded up to a cent", () => {
+    // 1,000 tokens at $5 in and $25 out per million: $0.03.
+    expect(roughCost({ tokens: 1000, inputPrice: 5, outputPrice: 25 })).toBe("About $0.03");
+    // 1,000 tokens at $3 in and $15 out: $0.018, so the cent rounds up to $0.02.
+    expect(roughCost({ tokens: 1000, inputPrice: 3, outputPrice: 15 })).toBe("About $0.02");
+  });
+
+  it("says under a cent when the rounded cost is one cent or less", () => {
+    // 1,000 tokens at $0.10 in and $0.40 out: $0.0005.
+    expect(roughCost({ tokens: 1000, inputPrice: 0.1, outputPrice: 0.4 })).toBe("Under $0.01");
+  });
+
+  it("returns null when either price is missing", () => {
+    expect(roughCost({ tokens: 1000, inputPrice: null, outputPrice: 25 })).toBeNull();
+    expect(roughCost({ tokens: 1000, inputPrice: 5, outputPrice: null })).toBeNull();
   });
 });
 

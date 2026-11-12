@@ -161,6 +161,26 @@ export function buildTagEvent(tradeId: string, setup: string, now: Date = new Da
 /** A rough size in tokens: about one token for every four characters. */
 export const tokenEstimate = (characters: number): number => Math.ceil(characters / 4);
 
+/**
+ * A rough price for one review: the tokens at the input price, plus the same count at the output
+ * price. Prices are dollars per million tokens. Null when the model has no price.
+ */
+export function roughCost({
+  tokens,
+  inputPrice,
+  outputPrice,
+}: {
+  readonly tokens: number;
+  readonly inputPrice: number | null;
+  readonly outputPrice: number | null;
+}): string | null {
+  if (inputPrice === null || outputPrice === null) return null;
+  // Cents: dollars times 100. The small margin stops float noise from adding a cent.
+  const cents = (tokens * (inputPrice + outputPrice)) / 10_000;
+  const rounded = Math.ceil(cents - 1e-9);
+  return rounded <= 1 ? "Under $0.01" : `About $${(rounded / 100).toFixed(2)}`;
+}
+
 /** The prompt for Review with AI. It names the day's files; the thread reads them in the workspace. */
 export const reviewPrompt = (day: string): string =>
   `Review my trading day ${day}. Read trading/days/${day}.md for my notes, then the trades for ${day} in trading/trades.jsonl. Say what went well, which rules I broke, and what to do next.`;
