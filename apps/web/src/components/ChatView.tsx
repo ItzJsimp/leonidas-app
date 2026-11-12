@@ -1,3 +1,4 @@
+import { resolveThreadDetailsModelSelection } from "./chat/threadDetailsModelSelection";
 import { useComposerOutputActions } from "./chat/useComposerOutputActions";
 import { deriveAgentActivity } from "../agentActivity";
 import { reportMessageSent } from "../lib/usageAnalytics/reportMessageSent";
@@ -3611,13 +3612,16 @@ export default function ChatView(props: ChatViewProps) {
   });
   const detailsModelSelection = useMemo(
     () =>
-      isServerThread || activeProviderInstanceId === null
-        ? activeThread?.modelSelection
-        : createModelSelection(
-            activeProviderInstanceId,
-            draftModelState.selectedModel,
-            draftModelState.modelOptions?.[activeProviderInstanceId],
-          ),
+      resolveThreadDetailsModelSelection({
+        isServerThread,
+        instanceId: activeProviderInstanceId,
+        threadSelection: activeThread?.modelSelection,
+        draftModel: draftModelState.selectedModel,
+        draftOptions:
+          activeProviderInstanceId === null
+            ? undefined
+            : draftModelState.modelOptions?.[activeProviderInstanceId],
+      }),
     [
       activeProviderInstanceId,
       activeThread?.modelSelection,

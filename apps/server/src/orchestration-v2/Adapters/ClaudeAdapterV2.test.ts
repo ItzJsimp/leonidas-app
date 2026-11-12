@@ -81,6 +81,8 @@ import { WorkflowAgentTranscriptReadObserver } from "../workflowAgentTranscript.
 import * as ServerConfig from "../../config.ts";
 import * as McpProviderSession from "@t3tools/provider-core/server/mcpSession";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+import { nativeSpawnGateAllowAll } from "../../subagents/nativeSpawnGate.test-fixtures.ts";
+import type { NativeSpawnRequest, NativeSpawnVerdict } from "../../subagents/nativeSpawnGate.ts";
 import { PreviewControlsToolkit } from "../../mcp/toolkits/previewControls/tools.ts";
 import { HtmlToolkit } from "../../mcp/toolkits/html/tools.ts";
 import { InsightToolkit } from "../../mcp/toolkits/insight/tools.ts";
@@ -1247,6 +1249,164 @@ describe("ClaudeAdapterV2 Auto-accept edits", () => {
   );
 });
 
+describe("ClaudeAdapterV2 native spawn gate", () => {
+  // Opens a session whose gate records each Agent call and answers with `verdict`.
+  const openWithGate = (verdict: NativeSpawnVerdict) =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const idAllocator = yield* IdAllocator.IdAllocatorV2;
+      const attachmentsDir = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-claude-native-spawn-",
+      });
+      const asked: Array<NativeSpawnRequest> = [];
+      let openedOptions: ClaudeAdapterV2.ClaudeAgentSdkQueryOptions | undefined;
+      const adapter = yield* ClaudeAdapterV2.makeClaudeAdapterV2({
+        instanceId: ClaudeAdapterV2.CLAUDE_DEFAULT_INSTANCE_ID,
+        settings: DEFAULT_CLAUDE_SETTINGS,
+        environment: {},
+        attachmentsDir,
+        fileSystem,
+        path: yield* Path.Path,
+        crypto: yield* Crypto.Crypto,
+        idAllocator,
+        nativeSpawnGate: {
+          check: (request) =>
+            Effect.sync(() => {
+              asked.push(request);
+              return verdict;
+            }),
+        },
+        queryRunner: {
+          allocateSessionId: Effect.succeed("native-thread-claude-native-spawn"),
+          open: (input) =>
+            Effect.sync(() => {
+              openedOptions = input.options;
+              return {
+                messages: Stream.never,
+                offer: () => Effect.void,
+                setModel: () => Effect.void,
+                applyFlagSettings: () => Effect.void,
+                setPermissionMode: () => Effect.void,
+                backgroundTasks: () => Effect.succeed(false),
+                stopTask: () => Effect.void,
+                interrupt: Effect.void,
+                close: Effect.void,
+              };
+            }),
+          forkSession: () => Effect.die("unused"),
+          subagentLaunchToolUseId: () => Effect.succeed(null),
+          assertComplete: Effect.void,
+        },
+      });
+      const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+        // Not full-access: bypass mode waits for a person, so an allowed Agent call would hang.
+        runtimeMode: "auto",
+        interactionMode: "default",
+        cwd: "/workspace",
+      });
+      const threadId = ThreadId.make("thread-claude-native-spawn");
+      const runtime = yield* adapter.openSession({
+        threadId,
+        providerSessionId: ProviderSessionId.make("provider-session-claude-native-spawn"),
+        modelSelection: CLAUDE_TEST_MODEL_SELECTION,
+        runtimePolicy,
+      });
+      const providerThread = yield* runtime.ensureThread({
+        threadId,
+        modelSelection: CLAUDE_TEST_MODEL_SELECTION,
+        runtimePolicy,
+      });
+      yield* runtime.startTurn(
+        makeClaudeTestTurnInput({
+          threadId,
+          providerThread,
+          now: yield* DateTime.now,
+          attemptId: RunAttemptId.make("attempt-claude-native-spawn"),
+          text: "Look around.",
+          attachments: [],
+          runtimePolicy,
+        }),
+      );
+      const canUseTool = openedOptions?.canUseTool;
+      assert.isFunction(canUseTool);
+      const callAgent = (input: Record<string, unknown>, agentID?: string) =>
+        Effect.promise(() =>
+          canUseTool!("Agent", input, {
+            signal: new AbortController().signal,
+            toolUseID: "tool-agent-1",
+            requestId: "request-agent-1",
+            ...(agentID === undefined ? {} : { agentID }),
+          }),
+        );
+      return { asked, callAgent };
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+      ),
+    );
+
+  it.effect(
+    "decision 3: a refused Agent call is denied with the gate's message and starts no child",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const { asked, callAgent } = yield* openWithGate({
+            allow: false,
+            message: "The user denied the Explore spawn on claude-opus-5-5.",
+          });
+          const result = yield* callAgent({
+            description: "Find callers",
+            prompt: "Find every caller of confirmPersonaSpawn",
+            subagent_type: "Explore",
+            model: "opus",
+          });
+          assert.equal(result?.behavior, "deny");
+          assert.equal(
+            result?.behavior === "deny" ? result.message : "",
+            "The user denied the Explore spawn on claude-opus-5-5.",
+          );
+          assert.equal(asked.length, 1);
+          // The call's own model wins, resolved to the catalog's full id. The label, task and
+          // reason come from the Agent tool's fields, and this chat is the caller.
+          assert.deepEqual(
+            [asked[0]?.label, asked[0]?.task, asked[0]?.reason, asked[0]?.callerIsSubagent],
+            ["Explore", "Find every caller of confirmPersonaSpawn", "Find callers", false],
+          );
+          assert.notEqual(asked[0]?.model, "opus");
+          assert.match(asked[0]?.model ?? "", /opus/);
+        }),
+      ),
+  );
+
+  it.effect("decision 3: an allowed Agent call goes on, and 'inherit' means the chat's model", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const { asked, callAgent } = yield* openWithGate({ allow: true });
+        const result = yield* callAgent({
+          description: "Look",
+          prompt: "Look around",
+          model: "inherit",
+        });
+        assert.equal(result?.behavior, "allow");
+        assert.equal(asked[0]?.model, CLAUDE_TEST_MODEL_SELECTION.model);
+        assert.equal(asked[0]?.label, "subagent");
+      }),
+    ),
+  );
+
+  it.effect(
+    "decision 2: a call from inside a native subagent is marked, so the gate refuses it",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const { asked, callAgent } = yield* openWithGate({ allow: true });
+          yield* callAgent({ description: "Nested", prompt: "Go deeper" }, "agent-7");
+          assert.equal(asked[0]?.callerIsSubagent, true);
+        }),
+      ),
+  );
+});
+
 describe("ClaudeAdapterV2 append-system-prompt-file launch argument", () => {
   const startTurnWithLaunchArgs = Effect.fnUntraced(function* (launchArgs: string, cwd: string) {
     const fileSystem = yield* FileSystem.FileSystem;
@@ -1453,9 +1613,12 @@ const captureSdkExecutablePaths = Effect.fn("captureSdkExecutablePaths")(functio
     {},
   ).pipe(
     Effect.provide(
-      ServerConfig.layerTest(process.cwd(), {
-        prefix: "t3-claude-binary-path-",
-      }),
+      Layer.mergeAll(
+        ServerConfig.layerTest(process.cwd(), {
+          prefix: "t3-claude-binary-path-",
+        }),
+        nativeSpawnGateAllowAll,
+      ),
     ),
     Effect.provideService(ClaudeAdapterV2.ClaudeAgentSdkQueryRunner, {
       allocateSessionId: Effect.succeed("native-thread-claude-binary-path"),

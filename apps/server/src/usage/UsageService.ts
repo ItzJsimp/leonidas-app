@@ -61,7 +61,13 @@ import type {
   UsageRecord,
 } from "@t3tools/provider-core/server/usage";
 import { resolveModelAliases, UsageAggregator } from "./usageAggregation.ts";
-import { createOverrideRateTable, parseRateTable, type RateTable } from "./usagePricing.ts";
+import {
+  createOverrideRateTable,
+  lookupRate,
+  parseRateTable,
+  type ModelRate,
+  type RateTable,
+} from "./usagePricing.ts";
 import {
   listTranscriptFiles,
   readDirectoryVolumeId,
@@ -184,6 +190,8 @@ export class UsageService extends Context.Service<
     >;
     readonly readSummary: (input: UsageSummaryInput) => Effect.Effect<UsageSummary, UsageReadError>;
     readonly refreshRates: Effect.Effect<UsagePricing>;
+    /** One model's price, or null when the price table does not know it. Rough, for cost labels. */
+    readonly rateFor?: (model: string) => Effect.Effect<ModelRate | null>;
   }
 >()("t3/usage/UsageService") {}
 
@@ -1085,7 +1093,14 @@ export const make = Effect.gen(function* () {
     }
     return { sourceKey: [...dirs].sort().join("\0"), totals };
   });
-  return { readSummary, readSubscriptionTokens, refreshRates, awaitPersisted } as const;
+  // A short wait for the table, then whatever is loaded: a label must not stall on the network.
+  const rateFor = (model: string) =>
+    ensureRates(false).pipe(
+      Effect.timeout(2_000),
+      Effect.ignoreCause,
+      Effect.map(() => lookupRate(rates, model)),
+    );
+  return { readSummary, readSubscriptionTokens, refreshRates, rateFor, awaitPersisted } as const;
 });
 
 export const layer = Layer.effect(UsageService, make);

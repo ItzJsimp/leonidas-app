@@ -72,6 +72,7 @@ import * as ThreadLaunchService from "../orchestration-v2/ThreadLaunchService.ts
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import { spawnGateServices } from "./spawnGate.test-fixtures.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as ThreadSearch from "../orchestration-v2/ThreadSearch.ts";
 import * as ProviderAdapterRegistry from "../orchestration-v2/ProviderAdapterRegistry.ts";
@@ -760,6 +761,7 @@ describe("orchestrator MCP toolkit", () => {
             Layer.provide(
               ServerSettings.layerTest({ subagentFreeTierModels: [codexModel, claudeModel] }),
             ),
+            Layer.provide(spawnGateServices),
             Layer.provide(layerScheduledTaskStub),
             Layer.provide(Layer.mock(ThreadSearch.ThreadSearch)({})),
             Layer.provide(Layer.mock(TaskBoardService.TaskBoardService)({})),
@@ -4534,6 +4536,7 @@ describe("orchestrator MCP toolkit", () => {
             ServerSettings.layerTest({ subagentFreeTierModels: [codexModel, claudeModel] }),
           ),
           Layer.provide(layerUnusedScheduledTaskStub),
+          Layer.provide(spawnGateServices),
           Layer.provide(Layer.mock(ProjectService.ProjectService)({})),
           Layer.provide(Layer.mock(TaskBoardService.TaskBoardService)({})),
           Layer.provide(Layer.mock(ModelBenchmarks.ModelBenchmarks)({})),

@@ -99,8 +99,8 @@ const MAIN: readonly RailItem[] = [
   item("work", "tasks", "Tasks", "/tasks", "what to do and what is in progress"),
   item("work", "projects", "Projects", "/projects", "the projects you work on"),
   item("brain", "memory", "Memory", "/memory", "what Leonidas knows and remembers", ["/brain"]),
-  item("brain", "library", "Library", "/library", "skills, helpers, reply styles and rules"),
-  item("brain", "subagents", "Subagents", "/subagents", "helpers your chats run, live and past"),
+  item("brain", "library", "Library", "/library", "skills, reply styles and rules"),
+  item("brain", "subagents", "Agents", "/subagents", "your agent team, what it ran and starters"),
   item("brain", "automations", "Automations", "/automations", "everything that runs by itself", [
     "/system-care",
   ]),

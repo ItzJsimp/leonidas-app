@@ -179,6 +179,7 @@ import {
   questionBudgetAllows,
 } from "@t3tools/provider-core/server/runtimeInstructions";
 import { isPonytailPluginEnabled } from "../../provider/PonytailEnsure.ts";
+import { NativeSpawnGate } from "../../subagents/nativeSpawnGate.ts";
 import {
   mcpToolPresentation,
   normalizeMcpText,
@@ -4048,6 +4049,11 @@ export interface ClaudeAdapterV2Options {
       request: ProviderContinuationRequests.ProviderContinuationRequest,
     ) => Effect.Effect<void>;
   };
+  /**
+   * The spawn gate for native Agent tool calls (ADR-0098). The app always provides it. A caller
+   * that builds the adapter by hand, such as a test, may leave it out: every spawn then starts.
+   */
+  readonly nativeSpawnGate?: NativeSpawnGate["Service"];
 }
 
 export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
@@ -9159,6 +9165,35 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           const heldForEcho = context.heldRootFrames.length > 0;
           const startToolCall = toolName !== "Agent" && options?.startToolCall !== false;
           if (toolName === "Agent") {
+            const nativeSpawnGate = adapterOptions.nativeSpawnGate;
+            if (nativeSpawnGate !== undefined) {
+              // The child's model: the call's own, else the chat's ("inherit" is the chat's too).
+              const requested = firstStringInputField(nativeToolInput, ["model"]);
+              const verdict = yield* nativeSpawnGate.check({
+                threadId: context.input.threadId,
+                threadTitle: context.input.appThread.title,
+                cwd: context.input.runtimePolicy.cwd ?? null,
+                instanceId: adapterOptions.instanceId,
+                account: adapterOptions.instanceId,
+                model:
+                  requested === undefined || requested === "inherit"
+                    ? context.input.modelSelection.model
+                    : canonicalClaudeSubagentModel(subagentModelCatalog, requested),
+                callerIsSubagent: callbackOptions.agentID !== undefined,
+                label: firstStringInputField(nativeToolInput, ["subagent_type"]) ?? "subagent",
+                task: firstStringInputField(nativeToolInput, ["prompt"]) ?? "",
+                reason: firstStringInputField(nativeToolInput, ["description"]) ?? "",
+                toolUseId: nativeRequestId,
+              });
+              // A refusal comes back to the model as the tool's error text; no child starts.
+              if (!verdict.allow) {
+                return {
+                  behavior: "deny",
+                  message: verdict.message,
+                  toolUseID: callbackOptions.toolUseID,
+                } satisfies PermissionResult;
+              }
+            }
             rememberClaudeSubagentLaunch(
               subagentModelCatalog,
               context,
@@ -10873,6 +10908,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
 });
 
 export type ClaudeAdapterV2DriverEnv =
+  | NativeSpawnGate
   | ClaudeAgentSdkQueryRunner
   | Crypto.Crypto
   | FileSystem.FileSystem
@@ -10898,6 +10934,7 @@ export const createClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2Driver.create")(
     const queryRunner = yield* ClaudeAgentSdkQueryRunner;
     const serverConfig = yield* ServerConfig.ServerConfig;
     const continuationRequests = yield* ProviderContinuationRequests.ProviderContinuationRequests;
+    const nativeSpawnGate = yield* NativeSpawnGate;
     const baseEnvironment = yield* mergeProviderInstanceEnvironment(environment, hostEnvironment);
     const claudeEnvironment = yield* makeClaudeEnvironment(config, baseEnvironment);
     const path = yield* Path.Path;
@@ -10918,6 +10955,7 @@ export const createClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2Driver.create")(
       idAllocator,
       queryRunner,
       continuationRequests,
+      nativeSpawnGate,
       ...hooks,
     });
   },
@@ -10954,6 +10992,7 @@ const makeDefaultClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2.layer")(function* 
   const queryRunner = yield* ClaudeAgentSdkQueryRunner;
   const serverConfig = yield* ServerConfig.ServerConfig;
   const continuationRequests = yield* ProviderContinuationRequests.ProviderContinuationRequests;
+  const nativeSpawnGate = yield* NativeSpawnGate;
 
   return yield* makeClaudeAdapterV2({
     instanceId: CLAUDE_DEFAULT_INSTANCE_ID,
@@ -10966,6 +11005,7 @@ const makeDefaultClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2.layer")(function* 
     idAllocator,
     queryRunner,
     continuationRequests,
+    nativeSpawnGate,
   });
 });
 
@@ -10977,6 +11017,7 @@ const layer: Layer.Layer<
   | FileSystem.FileSystem
   | IdAllocator.IdAllocatorV2
   | McpProviderSessions.McpProviderSessions
+  | NativeSpawnGate
   | Path.Path
   | ServerConfig.ServerConfig
 > = Layer.effect(ProviderAdapter.ProviderAdapterV2, makeDefaultClaudeAdapterV2());

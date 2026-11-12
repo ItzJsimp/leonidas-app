@@ -2,18 +2,62 @@ import type { SubagentRun, SubagentRunKind, SubagentRunStatus } from "@t3tools/c
 
 import type { WindowTab } from "../../twoState/WindowHeader";
 
-export type SubagentsTab = "running" | "history";
+/** The Agents window tabs. Team comes first, so it is the one that opens by default. */
+export const AGENT_TABS: readonly WindowTab[] = [
+  { id: "team", label: "Team" },
+  { id: "runs", label: "Runs" },
+  { id: "starters", label: "Starters" },
+];
 
-export function subagentsTab(value: string | undefined): SubagentsTab {
-  return value === "history" ? "history" : "running";
+/** "$0.03", "under $0.01" for a tiny cost, or "Cost unknown". */
+export function costLabel(costUsd: number | null): string {
+  if (costUsd === null) return "Cost unknown";
+  if (costUsd > 0 && costUsd < 0.005) return "under $0.01";
+  return `$${costUsd.toFixed(2)}`;
 }
 
-export function subagentsTabs(runningCount: number | null): WindowTab[] {
-  return [
-    { id: "running", label: runningCount === null ? "Running" : `Running ${runningCount}` },
-    { id: "history", label: "History" },
-  ];
+/** The four tiles above the run list. */
+export interface RunsStats {
+  readonly running: number;
+  readonly waiting: number;
+  readonly runsToday: number;
+  readonly doneToday: number;
+  readonly failedToday: number;
+  readonly spendTodayUsd: number;
+  readonly capUsd: number | null;
 }
+
+/**
+ * Counts the runs on screen: live ones now, and what started since local midnight.
+ * shortcut: it counts the loaded page only, so a day with more runs than one page undercounts.
+ * Upgrade when the server returns today's totals (the spawn gate already has the spend).
+ */
+export function runsStats(
+  runs: ReadonlyArray<Pick<SubagentRun, "status" | "startedAt" | "costUsd">>,
+  now: number,
+  capUsd: number | null,
+): RunsStats {
+  const midnight = new Date(now);
+  midnight.setHours(0, 0, 0, 0);
+  const today = runs.filter(
+    (run) => run.startedAt !== null && Date.parse(run.startedAt) >= midnight.getTime(),
+  );
+  return {
+    running: runs.filter((run) => run.status === "running").length,
+    waiting: runs.filter((run) => run.status === "waiting").length,
+    runsToday: today.length,
+    doneToday: today.filter((run) => run.status === "done").length,
+    failedToday: today.filter((run) => run.status === "failed").length,
+    spendTodayUsd: today.reduce((sum, run) => sum + (run.costUsd ?? 0), 0),
+    capUsd,
+  };
+}
+
+/** How much of the daily cap is spent, 0 to 100. Zero when there is no cap. */
+export const spendPercent = (stats: Pick<RunsStats, "spendTodayUsd" | "capUsd">): number =>
+  stats.capUsd === null || stats.capUsd <= 0
+    ? 0
+    : Math.min(100, Math.round((stats.spendTodayUsd / stats.capUsd) * 100));
 
 export const STATUS_LABEL: Readonly<Record<SubagentRunStatus, string>> = {
   running: "Running",
@@ -36,14 +80,14 @@ export const STATUS_VARIANT: Readonly<
 
 export const KIND_LABEL: Readonly<Record<SubagentRunKind, string>> = {
   delegated: "Delegated task",
-  persona: "Persona",
+  persona: "Team agent",
   native: "Built-in helper",
   workflow: "Workflow",
 };
 
 export const KIND_HELP: Readonly<Record<SubagentRunKind, string>> = {
   delegated: "A chat handed this task to a new chat of its own.",
-  persona: "A named helper that a chat started, such as a reviewer.",
+  persona: "An agent from your team that a chat started, such as a reviewer.",
   native: "A helper that the AI provider started inside the chat turn.",
   workflow: "A coordinator that runs several helpers in steps.",
 };
@@ -109,15 +153,10 @@ export function matchRuns(runs: ReadonlyArray<SubagentRun>, query: string): Suba
   );
 }
 
-/** What the Running tab shows when the list is empty. */
-export const EMPTY_RUNNING = {
-  title: "No subagents are running",
-  line: "A subagent is a helper that a chat starts to do one task on its own. Running ones show here.",
-};
-
-export const EMPTY_HISTORY = {
-  title: "No subagent history yet",
-  line: "A subagent is a helper that a chat starts to do one task on its own. Finished ones show here, with what they did.",
+/** What the Runs tab shows when the list is empty. */
+export const EMPTY_RUNS = {
+  title: "No agent runs yet",
+  line: "When a chat starts an agent from your team, the run shows here with its model, its cost and its result.",
 };
 
 /** The text under the result when no answer exists, by the status of the run. */

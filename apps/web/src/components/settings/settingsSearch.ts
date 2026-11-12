@@ -437,6 +437,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["subagent spawn tier free confirm card approval premium model haiku opus cost"],
   },
   {
+    id: "subagent-daily-cap",
+    title: "Daily spend cap for agents",
+    to: "/settings/threads",
+    searchTerms: ["agent subagent daily cost cap budget limit dollars spend warning spawn"],
+  },
+  {
     id: "working-shelf",
     title: "Working section (beta)",
     to: "/settings/general",

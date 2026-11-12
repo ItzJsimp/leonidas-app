@@ -4,6 +4,7 @@ import * as DevPreviewService from "./devPreview/DevPreviewService.ts";
 import * as ImageService from "./images/ImageService.ts";
 import * as LocalModelsService from "./localModels/LocalModelsService.ts";
 import * as AttachmentArchive from "./files/AttachmentArchive.ts";
+import * as NativeSpawnGateLive from "./subagents/nativeSpawnGateLive.ts";
 import * as SubagentRuns from "./subagents/SubagentRuns.ts";
 import * as TaskAutoLog from "./taskBoard/TaskAutoLog.ts";
 import * as AiosChangeLog from "./events/AiosChangeLog.ts";
@@ -345,6 +346,18 @@ const layerHttpServer = Layer.unwrap(
 const layerPlatformServices = NodeServices.layer;
 
 const layerPersistence = Layer.empty.pipe(Layer.provideMerge(SqlitePersistence.layerConfig));
+
+// The spawn gate for native Claude Agent calls (ADR-0098). Its inputs are the same layer values
+// that the rest of the server uses, so each is built once.
+const layerNativeSpawnGate = NativeSpawnGateLive.layer.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      SubagentRuns.layer.pipe(Layer.provide(layerPersistence)),
+      layerUsage,
+      layerServerSettings,
+    ),
+  ),
+);
 
 const layerVcsDriverRegistry = VcsDriverRegistry.layer.pipe(Layer.provide(VcsProjectConfig.layer));
 
@@ -706,7 +719,13 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
     Layer.mergeAll(Keybindings.layer, EnvironmentTheme.layer, UsageLimitSources.layer),
   ),
   Layer.provideMerge(ProviderRegistry.layer),
-  Layer.provideMerge(ProviderInstanceRegistryHydration.layer),
+  // The instance registry is the new routing keystone — text generation,
+  // adapter lookup, and runtime ingestion all resolve `ProviderInstanceId`
+  // through this layer. Built-in drivers come from `BUILT_IN_DRIVERS`;
+  // hydration adds their default instances to `providerInstances` on boot.
+  Layer.provideMerge(
+    ProviderInstanceRegistryHydration.layer.pipe(Layer.provideMerge(layerNativeSpawnGate)),
+  ),
   // Provider hydration builds the Claude runner, which reports agents to the same scanner the
   // terminal and preview layers share.
   Layer.provideMerge(layerPortScanner),

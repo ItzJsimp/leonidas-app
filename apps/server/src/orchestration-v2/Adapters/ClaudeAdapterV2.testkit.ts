@@ -33,6 +33,7 @@ import {
   resolveClaudeSdkExecutablePath,
 } from "../../provider/Drivers/ClaudeExecutable.ts";
 import * as ClaudeAdapterV2 from "./ClaudeAdapterV2.ts";
+import { nativeSpawnGateAllowAll } from "../../subagents/nativeSpawnGate.test-fixtures.ts";
 import { claudeTaskOutputRoot } from "./ClaudeTaskOutputTail.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import { ProviderAdapterDriverCreateError } from "@t3tools/provider-core/server/adapterDriver";
@@ -1074,6 +1075,7 @@ function layerClaudeProviderAdapterRegistryReplay(
         IdAllocator.layer,
         NodeServices.layer,
         layerServerConfig,
+        nativeSpawnGateAllowAll,
       ),
     ),
   );

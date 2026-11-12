@@ -13,8 +13,12 @@ import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 
+import type { TokenRates } from "../usage/usagePricing.ts";
 import { SpawnApprovals } from "./SpawnApprovals.ts";
+import { estimateSpawnCostUsd, formatRoughCost } from "./spawnCost.ts";
+import { decideSpawn, type SpawnGateInput } from "./spawnGate.ts";
 import {
+  type AiosModelTiers,
   estimatePersonaStartTokens,
   readAiosModelTiersNear,
   type ResolvedSpawnTier,
@@ -30,6 +34,47 @@ const denied = (message: string) =>
  * the call answers first. The card stays open and a retry with the same id joins it.
  */
 const SPAWN_CALL_WAIT = Duration.seconds(45);
+
+/**
+ * What the spawn gate needs about the caller and the paying account (ADR-0098). `rate` is the
+ * target model's price, for the card's "about $X". Null when the price table does not know it.
+ */
+export interface SpawnGateContext extends Pick<
+  SpawnGateInput,
+  "callerDepth" | "callerCanSpawn" | "runningChildren" | "todaySpendUsd" | "dailyCapUsd"
+> {
+  readonly rate: TokenRates | null;
+}
+
+/**
+ * Runs the spawn gate for one spawn. A refusal fails with the reason, so the model reads why
+ * nothing started. Otherwise it says whether the spawn starts at once or asks first.
+ */
+const gateSpawn = Effect.fnUntraced(function* (input: {
+  readonly model: string;
+  readonly appFreeModels: ReadonlyArray<string>;
+  readonly aios: AiosModelTiers | null;
+  readonly forceConfirm?: boolean;
+  readonly gate: SpawnGateContext;
+  readonly estimatedStartTokens: number;
+}) {
+  const { rate, ...facts } = input.gate;
+  const decision = decideSpawn({
+    model: input.model,
+    appFreeModels: input.appFreeModels,
+    aios: input.aios,
+    ...(input.forceConfirm === undefined ? {} : { forceConfirm: input.forceConfirm }),
+    ...facts,
+  });
+  if (decision.kind === "reject") return yield* denied(decision.reason);
+  return {
+    startsAtOnce: decision.kind === "start",
+    capWarning: decision.capWarning,
+    roughCost: formatRoughCost(
+      estimateSpawnCostUsd({ startTokens: input.estimatedStartTokens, rate }),
+    ),
+  };
+});
 
 /** What the card shows next to the model, so the user sees what they approve. */
 export interface SpawnCardDetails {
@@ -62,6 +107,12 @@ const awaitSpawnCard = Effect.fnUntraced(function* (input: {
   readonly filesInScope: ReadonlyArray<string>;
   readonly toolCount: number;
   readonly estimatedStartTokens: number;
+  /** The gate's answer: true starts with no card. */
+  readonly startsAtOnce: boolean;
+  readonly roughCost: string;
+  readonly capWarning: boolean;
+  /** Wait for the user with no call timeout. For a caller that can block, such as the SDK. */
+  readonly untilAnswered?: boolean;
   readonly engineNote?: string;
   readonly details?: SpawnCardDetails;
   /** Runs once when the spawn may start. */
@@ -69,7 +120,7 @@ const awaitSpawnCard = Effect.fnUntraced(function* (input: {
 }) {
   const { parent, subagent, model, tier, started } = input;
   const approvals = yield* SpawnApprovals;
-  if (tier.tier === "free") return yield* started;
+  if (input.startsAtOnce) return yield* started;
   if (yield* approvals.isAllowedForThread({ threadId: parent.thread.id, subagent, model })) {
     return yield* started;
   }
@@ -85,13 +136,15 @@ const awaitSpawnCard = Effect.fnUntraced(function* (input: {
       filesInScope: [...input.filesInScope],
       toolCount: input.toolCount,
       estimatedStartTokens: input.estimatedStartTokens,
+      roughCost: input.roughCost,
+      capWarning: input.capWarning,
       tierSource: tier.source,
       goodFor: tier.goodFor,
       ...(input.engineNote === undefined ? {} : { engineNote: input.engineNote }),
       ...cardDetails(input.details),
       requestedAt: DateTime.formatIso(yield* DateTime.now),
     },
-    { waitFor: SPAWN_CALL_WAIT },
+    input.untilAnswered === true ? undefined : { waitFor: SPAWN_CALL_WAIT },
   );
   switch (outcome.kind) {
     case "still_waiting":
@@ -136,6 +189,7 @@ export const confirmPersonaSpawn = Effect.fn("confirmPersonaSpawn")(function* (i
   readonly reason: string;
   readonly appFreeModels: ReadonlyArray<string>;
   readonly approvalId: string;
+  readonly gate: SpawnGateContext;
   readonly engineNote?: string;
   readonly details?: SpawnCardDetails;
 }) {
@@ -156,7 +210,17 @@ export const confirmPersonaSpawn = Effect.fn("confirmPersonaSpawn")(function* (i
           goodFor: DEFAULT_SUBAGENT_TIER_GOOD_FOR.confirm,
         }
       : mapped;
+  const gated = yield* gateSpawn({
+    model,
+    appFreeModels,
+    aios,
+    // A spec may force the card with `tier: confirm`. It can never lower the tier.
+    forceConfirm: persona.spec.tier === "confirm",
+    gate: input.gate,
+    estimatedStartTokens,
+  });
   return yield* awaitSpawnCard({
+    ...gated,
     parent: input.parent,
     subagent: persona.spec.name,
     model,
@@ -190,12 +254,29 @@ export const confirmDelegatedSpawn = Effect.fn("confirmDelegatedSpawn")(function
   readonly reason: string;
   readonly appFreeModels: ReadonlyArray<string>;
   readonly approvalId: string;
+  readonly gate: SpawnGateContext;
+  /** What the card calls the child. Defaults to "delegated task". */
+  readonly label?: string;
+  /** Wait for the user with no call timeout. For a caller that can block, such as the SDK. */
+  readonly untilAnswered?: boolean;
   readonly details?: SpawnCardDetails;
 }) {
   const aios = input.cwd === null ? null : yield* readTiers(`${input.cwd}/.agents`);
+  const estimatedStartTokens = estimatePersonaStartTokens({
+    systemPromptChars: input.task.length,
+    tools: [],
+  });
+  const gated = yield* gateSpawn({
+    model: input.model,
+    appFreeModels: input.appFreeModels,
+    aios,
+    gate: input.gate,
+    estimatedStartTokens,
+  });
   return yield* awaitSpawnCard({
+    ...gated,
     parent: input.parent,
-    subagent: DELEGATED_TASK_SPAWN_LABEL,
+    subagent: input.label ?? DELEGATED_TASK_SPAWN_LABEL,
     model: input.model,
     account: input.account,
     reason: input.reason,
@@ -203,10 +284,8 @@ export const confirmDelegatedSpawn = Effect.fn("confirmDelegatedSpawn")(function
     tier: resolveSpawnTier({ model: input.model, appFreeModels: input.appFreeModels, aios }),
     filesInScope: [],
     toolCount: 0,
-    estimatedStartTokens: estimatePersonaStartTokens({
-      systemPromptChars: input.task.length,
-      tools: [],
-    }),
+    estimatedStartTokens,
+    ...(input.untilAnswered === undefined ? {} : { untilAnswered: input.untilAnswered }),
     ...(input.details === undefined ? {} : { details: input.details }),
     started: Effect.void,
   });

@@ -10,14 +10,21 @@ import * as ImageService from "./images/ImageService.ts";
 import * as LocalModelsService from "./localModels/LocalModelsService.ts";
 import * as AttachmentArchive from "./files/AttachmentArchive.ts";
 import * as SubagentRuns from "./subagents/SubagentRuns.ts";
+import * as SubagentDraftLive from "./subagents/subagentDraftLive.ts";
 import { isPathInRoot } from "./taskBoard/aiosWorkspaces.ts";
 import * as WorkspacePictures from "./taskBoard/workspacePictures.ts";
 import * as TaskBoardService from "./taskBoard/TaskBoardService.ts";
 import * as AreaSyncService from "./areaSync/AreaSyncService.ts";
 import { SpawnApprovals } from "./subagents/SpawnApprovals.ts";
+import { readAiosModelTiersNear } from "./subagents/spawnTiers.ts";
 import { listSubagents, subagentSources } from "./subagents/subagentCatalog.ts";
 import { subagentWorkspaceProjects } from "./subagents/workspaceProjects.ts";
-import { createStudioSubagent, updateStudioSubagent } from "./subagents/subagentStudioWrites.ts";
+import {
+  createStudioSubagent,
+  deleteStudioSubagent,
+  duplicateStudioSubagent,
+  updateStudioSubagent,
+} from "./subagents/subagentStudioWrites.ts";
 import { appendDraft, feedStream } from "./events/eventsRpc.ts";
 import * as AutomationService from "./automations/AutomationService.ts";
 import * as MarketingRpc from "./marketing/marketingRpc.ts";
@@ -1502,6 +1509,16 @@ export const layerWsRpc = (
       const localModels = yield* LocalModelsService.LocalModelsService;
       const attachmentArchive = yield* AttachmentArchive.AttachmentArchive;
       const subagentRuns = yield* SubagentRuns.SubagentRuns;
+      // The creator draft reads the AIOS model map, so a model it marks free needs no confirm.
+      const subagentDraft = yield* SubagentDraftLive.make({
+        cwd: config.cwd,
+        aiosTiers: studioWriteScope(undefined).pipe(
+          Effect.map(({ aiosRoot }) =>
+            aiosRoot === null ? null : readAiosModelTiersNear(`${aiosRoot}/.agents/subagents/x.md`),
+          ),
+          Effect.orElseSucceed(() => null),
+        ),
+      });
       const withImagesProject = <A, E, R>(
         projectId: ProjectId,
         use: (project: Project) => Effect.Effect<A, E, R>,
@@ -3039,6 +3056,29 @@ export const layerWsRpc = (
                 }),
             });
           }),
+        [WS_METHODS.subagentsDelete]: (input) =>
+          Effect.gen(function* () {
+            const scope = yield* studioWriteScope(input.workspaceId);
+            return yield* Effect.try({
+              try: () => deleteStudioSubagent(scope, input),
+              catch: (error) =>
+                new SubagentEditError({
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+            });
+          }),
+        [WS_METHODS.subagentsDraft]: (input) => subagentDraft(input),
+        [WS_METHODS.subagentsDuplicate]: (input) =>
+          Effect.gen(function* () {
+            const scope = yield* studioWriteScope(input.workspaceId);
+            return yield* Effect.try({
+              try: () => duplicateStudioSubagent(scope, input),
+              catch: (error) =>
+                new SubagentEditError({
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+            });
+          }),
         [WS_METHODS.eventsSubscribe]: (input) =>
           feedStream(
             allTaskBoardProjects.pipe(
@@ -3138,7 +3178,7 @@ export const layerWsRpc = (
         [WS_METHODS.localModelsDelete]: (input) => localModels.remove(input),
         [WS_METHODS.filesList]: (input) => attachmentArchive.list(input),
         [WS_METHODS.filesDelete]: (input) => attachmentArchive.remove(input),
-        [WS_METHODS.subagentRunsList]: (input) => subagentRuns.list(input),
+        [WS_METHODS.subagentRunsList]: (input) => subagentRuns.list(input, usage.rateFor),
         [WS_METHODS.taskBoardWorkspace]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.workspace(projects, input.workspaceId)),

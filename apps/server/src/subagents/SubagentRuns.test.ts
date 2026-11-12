@@ -5,7 +5,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as SubagentRuns from "./SubagentRuns.ts";
-import { runStatus, summaryLine } from "./subagentRuns.logic.ts";
+import { runCostUsd, runStatus, summaryLine } from "./subagentRuns.logic.ts";
 
 const addThread = (sql: SqlClient.SqlClient, id: string, title: string, payload = "{}") =>
   sql`
@@ -103,3 +103,181 @@ it("maps stored statuses to page statuses", () => {
   ).toEqual(["running", "waiting", "done", "done", "cancelled", "failed"]);
   expect(summaryLine("  ", "")).toBe("Subagent task");
 });
+
+const HAIKU_RATE = {
+  inputCostPerToken: 1e-6,
+  outputCostPerToken: 5e-6,
+  cacheReadCostPerToken: 1e-7,
+  cacheCreationCostPerToken: 1.25e-6,
+  fast: null,
+  ultrafast: null,
+};
+const rateFor = (model: string) => Effect.succeed(model === "claude-haiku-5-5" ? HAIKU_RATE : null);
+
+const addTurn = (
+  sql: SqlClient.SqlClient,
+  input: { readonly id: string; readonly thread: string; readonly ordinal: number },
+  usage: Record<string, unknown>,
+) =>
+  sql`
+    INSERT INTO orchestration_v2_projection_provider_turns
+      (provider_turn_id, thread_id, provider_thread_id, node_id, ordinal, status, payload_json)
+    VALUES (${input.id}, ${input.thread}, 'pt', 'node', ${input.ordinal}, 'completed',
+      ${JSON.stringify({ turnTokenUsage: { usageScope: "main_agent", hasSubagents: false, ...usage } })})
+  `;
+
+it("prices a run from reported tokens, and counts cached input once", () => {
+  // Input includes the cached and cache-creation tokens, so 1000 of the 1500 are plain input.
+  const tokens = { input: 1500, cachedInput: 400, cacheCreation: 100, output: 300 };
+  expect(runCostUsd(tokens, HAIKU_RATE)).toBeCloseTo(0.002665, 9);
+  expect(runCostUsd(tokens, null)).toBeNull();
+  expect(
+    runCostUsd({ input: null, cachedInput: null, cacheCreation: null, output: null }, HAIKU_RATE),
+  ).toBeNull();
+});
+
+it.effect("returns account, cost and the parent run for a run started by another run", () =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* addThread(sql, "main", "Main chat");
+    yield* addThread(sql, "lead-chat", "Lead chat");
+    yield* addThread(sql, "scout-chat", "Scout chat");
+    const done = {
+      origin: "app_owned",
+      status: "completed",
+      startedAt: "2026-10-20T10:00:00.000Z",
+      completedAt: "2026-10-20T10:01:00.000Z",
+    };
+    yield* addRun(sql, {
+      ...done,
+      id: "lead",
+      thread: "main",
+      child: "lead-chat",
+      payload: { prompt: "Plan", model: "claude-haiku-5-5" },
+    });
+    yield* addRun(sql, {
+      ...done,
+      id: "scout",
+      thread: "lead-chat",
+      child: "scout-chat",
+      payload: { prompt: "Look", model: "claude-haiku-5-5" },
+    });
+    yield* addTurn(
+      sql,
+      { id: "t1", thread: "scout-chat", ordinal: 1 },
+      {
+        usageStatus: "complete",
+        inputTokens: 1000,
+        cachedInputTokens: 400,
+        cacheCreationTokens: 100,
+        outputTokens: 200,
+      },
+    );
+    yield* addTurn(
+      sql,
+      { id: "t2", thread: "scout-chat", ordinal: 2 },
+      { usageStatus: "complete", inputTokens: 500, outputTokens: 100 },
+    );
+    const service = yield* SubagentRuns.SubagentRuns;
+
+    const { runs } = yield* service.list({ scope: "history" }, rateFor);
+    const byId = new Map(runs.map((run) => [run.id, run]));
+    expect(byId.get("scout")?.parentRunId).toBe("lead");
+    expect(byId.get("lead")?.parentRunId).toBeNull();
+    expect(byId.get("scout")?.account).toBe("claude");
+    expect(byId.get("scout")?.costUsd).toBeCloseTo(0.002665, 9);
+    // The lead's own chat reported no tokens, so its cost is unknown, never zero.
+    expect(byId.get("lead")?.costUsd).toBeNull();
+
+    // Without a price lookup the cost stays unknown.
+    const unpriced = yield* service.list({ scope: "history" });
+    expect(unpriced.runs.map((run) => run.costUsd)).toEqual([null, null]);
+  }).pipe(Effect.provide(Layer.provideMerge(SubagentRuns.layer, SqlitePersistence.layerMemory))),
+);
+
+it.effect("reads the caller's depth, live children and today's spend for the spawn gate", () =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* addThread(sql, "main", "Main");
+    // The lead chat runs an agent file with canSpawn: true, so it may start subagents.
+    yield* addThread(
+      sql,
+      "lead-chat",
+      "Lead",
+      JSON.stringify({ persona: { name: "lead", canSpawn: true } }),
+    );
+    yield* addThread(sql, "scout-chat", "Scout");
+    const done = {
+      origin: "app_owned",
+      status: "completed",
+      startedAt: "2026-10-20T10:00:00.000Z",
+      completedAt: "2026-10-20T10:01:00.000Z",
+    };
+    yield* addRun(sql, {
+      ...done,
+      id: "lead",
+      thread: "main",
+      child: "lead-chat",
+      payload: { prompt: "Plan", model: "claude-haiku-5-5" },
+    });
+    yield* addRun(sql, {
+      ...done,
+      id: "scout",
+      thread: "lead-chat",
+      child: "scout-chat",
+      payload: { prompt: "Look", model: "claude-haiku-5-5" },
+    });
+    for (const id of ["live-1", "live-2"]) {
+      yield* addRun(sql, {
+        id,
+        thread: "lead-chat",
+        origin: "app_owned",
+        status: "running",
+        startedAt: "2026-10-20T10:02:00.000Z",
+        payload: { prompt: "Work" },
+      });
+    }
+    yield* addTurn(
+      sql,
+      { id: "t1", thread: "scout-chat", ordinal: 1 },
+      {
+        usageStatus: "complete",
+        inputTokens: 1000,
+        cachedInputTokens: 400,
+        cacheCreationTokens: 100,
+        outputTokens: 200,
+      },
+    );
+    const service = yield* SubagentRuns.SubagentRuns;
+    const since = "2026-10-20T00:00:00.000Z";
+
+    const top = yield* service.spawnContext(
+      { threadId: "main", account: "claude", sinceIso: since },
+      rateFor,
+    );
+    expect([top.depth, top.runningChildren]).toEqual([0, 0]);
+    const lead = yield* service.spawnContext(
+      { threadId: "lead-chat", account: "claude", sinceIso: since },
+      rateFor,
+    );
+    expect([lead.depth, lead.runningChildren, lead.callerCanSpawn]).toEqual([1, 2, true]);
+    const scout = yield* service.spawnContext(
+      { threadId: "scout-chat", account: "claude", sinceIso: since },
+      rateFor,
+    );
+    expect(scout.depth).toBe(2);
+    expect([top.callerCanSpawn, scout.callerCanSpawn]).toEqual([false, false]);
+    // Today's spend adds the priced runs of the account: only `scout` reported tokens here.
+    expect(lead.spendUsd).toBeCloseTo(0.001665, 9);
+    const otherAccount = yield* service.spawnContext(
+      { threadId: "main", account: "codex", sinceIso: since },
+      rateFor,
+    );
+    expect(otherAccount.spendUsd).toBe(0);
+    const tomorrow = yield* service.spawnContext(
+      { threadId: "main", account: "claude", sinceIso: "2026-10-21T00:00:00.000Z" },
+      rateFor,
+    );
+    expect(tomorrow.spendUsd).toBe(0);
+  }).pipe(Effect.provide(Layer.provideMerge(SubagentRuns.layer, SqlitePersistence.layerMemory))),
+);

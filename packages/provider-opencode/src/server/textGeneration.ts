@@ -19,6 +19,7 @@ const OpenCodeTextGenerationOperation = Schema.Literals([
   "assessThread",
   "generatePromptSuggestion",
   "pickSkills",
+  "draftAgent",
   "generateVoiceLogDraft",
   "generateReviewGuide",
 ]);

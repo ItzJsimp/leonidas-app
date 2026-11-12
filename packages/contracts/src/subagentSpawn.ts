@@ -9,6 +9,9 @@ export const SubagentSpawnTier = Schema.Literals(["free", "confirm"]);
 export type SubagentSpawnTier = typeof SubagentSpawnTier.Type;
 
 /** The app's default free tier. Settings edits it; an AIOS model-tiers.json overrides it. */
+/** The daily cap on subagent run cost, in USD, for each account (ADR-0098). */
+export const DEFAULT_SUBAGENT_DAILY_CAP_USD = 2;
+
 export const DEFAULT_SUBAGENT_FREE_TIER_MODELS: ReadonlyArray<string> = [
   "claude-haiku-5-5",
   "gpt-6-luna",
@@ -33,6 +36,10 @@ export const SubagentSpawnApproval = Schema.Struct({
   filesInScope: Schema.Array(Schema.String),
   toolCount: NonNegativeInt,
   estimatedStartTokens: NonNegativeInt,
+  /** The start cost as the card prints it, for example "about $0.02" (ADR-0098). */
+  roughCost: Schema.optional(Schema.String),
+  /** True when today's subagent spend is at 80 percent of the account's daily cap. */
+  capWarning: Schema.optional(Schema.Boolean),
   /** Where the tier came from: the app's map, the AIOS model-tiers.json, or the spec's own `tier: confirm`. */
   tierSource: Schema.Literals(["app", "aios", "subagent"]),
   goodFor: Schema.String,
@@ -101,6 +108,14 @@ export const SubagentCatalogEntry = Schema.Struct({
   never: Schema.Array(Schema.String),
   context: Schema.Array(SubagentContextEntry),
   estimatedStartTokens: Schema.NullOr(NonNegativeInt),
+  /** Format v1 keys added for the Agents tab. Optional so older payloads still decode. */
+  avatar: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  effort: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  skills: Schema.optionalKey(Schema.Array(Schema.String)),
+  canSpawn: Schema.optionalKey(Schema.Boolean),
+  maxTurns: Schema.optionalKey(Schema.NullOr(NonNegativeInt)),
+  /** The instructions: the text after the frontmatter, cut at 20,000 characters. */
+  instructions: Schema.optionalKey(Schema.String),
   /** Old-format files from before format v1 show as legacy until they are migrated. */
   legacy: Schema.Boolean,
   error: Schema.NullOr(Schema.String),
@@ -135,6 +150,18 @@ export const SubagentSpecPatch = Schema.Struct({
   model: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   tools: Schema.optional(Schema.Array(TrimmedNonEmptyString)),
   context: Schema.optional(Schema.Array(TrimmedNonEmptyString)),
+  /** A library id such as `felt/researcher`. `null` removes the line. */
+  avatar: Schema.optional(Schema.NullOr(TrimmedNonEmptyString.check(Schema.isMaxLength(80)))),
+  /** The effort option the child runs at. `null` removes the line. */
+  effort: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+  /** Skill names that join the Context List. An empty list removes the line. */
+  skills: Schema.optional(Schema.Array(TrimmedNonEmptyString)),
+  /** `true` marks the orchestrator. `null` removes the line. */
+  canSpawn: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  /** A whole number of 1 or more. `null` removes the line. */
+  maxTurns: Schema.optional(Schema.NullOr(Schema.Number)),
+  /** The instructions: the text after the frontmatter. */
+  body: Schema.optional(Schema.String.check(Schema.isMaxLength(60_000))),
 });
 export type SubagentSpecPatch = typeof SubagentSpecPatch.Type;
 
@@ -161,5 +188,63 @@ export const SubagentCreateInput = Schema.Struct({
     Schema.Struct({ kind: Schema.Literal("aios") }),
     Schema.Struct({ kind: Schema.Literal("project"), projectName: TrimmedNonEmptyString }),
   ]),
+  /**
+   * What to do when `<name>.md` exists. `error` (the default) refuses, so the editor can reject a
+   * duplicate name. `number` writes the first free `<name>-N.md`, with N from 2, as Import does.
+   */
+  onNameTaken: Schema.optional(Schema.Literals(["error", "number"])),
 });
 export type SubagentCreateInput = typeof SubagentCreateInput.Type;
+
+export const SubagentDeleteInput = Schema.Struct({
+  ...studioWorkspace,
+  /** A `specPath` from the catalog. The server refuses any other file. */
+  specPath: TrimmedNonEmptyString,
+});
+export type SubagentDeleteInput = typeof SubagentDeleteInput.Type;
+
+export const SubagentDeleteResult = Schema.Struct({ specPath: Schema.String });
+export type SubagentDeleteResult = typeof SubagentDeleteResult.Type;
+
+/** Copies a listed agent into the AIOS folder as the first free `<name>-N.md`. */
+export const SubagentDuplicateInput = SubagentDeleteInput;
+export type SubagentDuplicateInput = typeof SubagentDuplicateInput.Type;
+
+/**
+ * One creator-chat turn (S7). `request` is the user's sentence, or on a revision what to change;
+ * `currentDraft` is the file text so far. Nothing is written: the editor saves the draft.
+ */
+export const SubagentDraftInput = Schema.Struct({
+  name: TrimmedNonEmptyString.check(Schema.isMaxLength(64)),
+  avatar: Schema.optional(TrimmedNonEmptyString.check(Schema.isMaxLength(80))),
+  /** The agent's model: the draft writes it to the file's `model:` line. */
+  model: TrimmedNonEmptyString,
+  /**
+   * The model that writes the draft. Absent: `model`. A confirm-tier creator model needs
+   * `confirmed: true` (ADR-0082), so a frontier agent can still be drafted on a free model.
+   */
+  creatorModel: Schema.optional(TrimmedNonEmptyString),
+  request: TrimmedNonEmptyString.check(Schema.isMaxLength(2_000)),
+  currentDraft: Schema.optional(Schema.String.check(Schema.isMaxLength(60_000))),
+  confirmed: Schema.optional(Schema.Boolean),
+});
+export type SubagentDraftInput = typeof SubagentDraftInput.Type;
+
+export const SubagentDraftResult = Schema.Union([
+  /** The agent file text, ready for the editor. */
+  Schema.Struct({
+    kind: Schema.Literal("draft"),
+    contents: Schema.String,
+    model: Schema.String,
+    roughCost: Schema.String,
+    capWarning: Schema.Boolean,
+  }),
+  /** The creator model is confirm-tier: show the cost, then ask again with `confirmed: true`. */
+  Schema.Struct({
+    kind: Schema.Literal("needs_confirm"),
+    model: Schema.String,
+    roughCost: Schema.String,
+    capWarning: Schema.Boolean,
+  }),
+]);
+export type SubagentDraftResult = typeof SubagentDraftResult.Type;

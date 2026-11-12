@@ -1,9 +1,11 @@
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { SubagentRun } from "@t3tools/contracts";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { BotIcon, RefreshCwIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
+import { StartersTab } from "~/components/subagents/StartersTab";
+import { SubagentStudio } from "~/components/subagents/SubagentStudio";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
@@ -16,6 +18,7 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { toastManager } from "~/components/ui/toast";
 import { observeResize } from "~/lib/observeResize";
+import { useServerConfigs } from "~/state/entities";
 import { useOrchestrationCommand } from "~/state/use-orchestration-command";
 import { threadEnvironment } from "~/state/threads";
 
@@ -24,13 +27,14 @@ import { Tip } from "../../twoState/Tip";
 import { SubagentDetail } from "./SubagentDetail";
 import { RunRow } from "./SubagentRows";
 import {
-  EMPTY_HISTORY,
-  EMPTY_RUNNING,
+  AGENT_TABS,
+  EMPTY_RUNS,
   isLive,
   matchRuns,
+  costLabel,
+  runsStats,
+  spendPercent,
   STATUS_FILTERS,
-  subagentsTab,
-  subagentsTabs,
 } from "./subagents.logic";
 import { useHistoryRuns, useRunningRuns, type HistoryFilters } from "./useSubagentRuns";
 
@@ -77,12 +81,78 @@ function EmptyBlock({
 }
 
 /**
- * The Subagents window: the helpers that chats start. Running shows live ones with Open and
- * Stop. History shows every run that ended, with its task, its answer and its timing.
+ * The Agents window (route `/subagents`). Team is your agent files, Runs is every agent that a
+ * chat started, and Starters is the gallery of tested agents to import.
  */
 export function SubagentsWindow() {
-  const search = useSearch({ strict: false }) as { readonly tab?: unknown };
-  const tab = subagentsTab(typeof search.tab === "string" ? search.tab : undefined);
+  return (
+    <RailWindow title="Agents" tabs={AGENT_TABS}>
+      {(tab) =>
+        tab === "runs" ? <RunsTab /> : tab === "starters" ? <StartersTab /> : <SubagentStudio />
+      }
+    </RailWindow>
+  );
+}
+
+/** The four tiles above the run list: live now, runs today, spend against the cap, waiting. */
+function RunsTiles({ stats }: { readonly stats: ReturnType<typeof runsStats> }) {
+  const percent = spendPercent(stats);
+  const tile = "flex flex-col rounded-lg border border-border px-4 py-3";
+  return (
+    <dl aria-live="polite" className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className={tile}>
+        <dt className="text-xs text-muted-foreground">Running now</dt>
+        <dd className="order-first text-2xl font-semibold tabular-nums">{stats.running}</dd>
+        <dd className="text-xs text-muted-foreground">
+          {stats.running === 0 ? "Nothing is running" : "agents working"}
+        </dd>
+      </div>
+      <div className={tile}>
+        <dt className="text-xs text-muted-foreground">Runs today</dt>
+        <dd className="order-first text-2xl font-semibold tabular-nums">{stats.runsToday}</dd>
+        <dd className="text-xs text-muted-foreground tabular-nums">
+          {stats.doneToday} done, {stats.failedToday} failed
+        </dd>
+      </div>
+      <div className={tile}>
+        <dt className="text-xs text-muted-foreground">Spend today</dt>
+        <dd className="order-first text-2xl font-semibold tabular-nums">
+          {costLabel(stats.spendTodayUsd)}
+        </dd>
+        {stats.capUsd === null ? null : (
+          <>
+            <dd
+              role="progressbar"
+              aria-label="Share of the daily cap spent"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={percent}
+              className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted"
+            >
+              <span className="block h-full bg-primary" style={{ width: `${percent}%` }} />
+            </dd>
+            <dd className="mt-1 text-xs text-muted-foreground tabular-nums">
+              of ${stats.capUsd.toFixed(2)} daily cap
+            </dd>
+          </>
+        )}
+      </div>
+      <div className={tile}>
+        <dt className="text-xs text-muted-foreground">Waiting for you</dt>
+        <dd className="order-first text-2xl font-semibold tabular-nums">{stats.waiting}</dd>
+        <dd className="text-xs text-muted-foreground">
+          {stats.waiting === 0 ? "No spawn cards open" : "Open the chat to answer"}
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
+/**
+ * Runs: live agents first, then the ones that ended, in one list. Each row shows its status, its
+ * task, its model and its cost. The detail shows the result and links a child run to its parent.
+ */
+function RunsTab() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<HistoryFilters["status"]>(null);
@@ -94,11 +164,8 @@ export function SubagentsWindow() {
   const [frame, setFrame] = useState<HTMLDivElement | null>(null);
 
   const running = useRunningRuns();
-  const filters = useMemo<HistoryFilters>(
-    () => ({ status, parentThreadId: parentId, query }),
-    [status, parentId, query],
-  );
-  const history = useHistoryRuns(tab === "history", filters, running.signature);
+  const filters: HistoryFilters = { status, parentThreadId: parentId, query };
+  const history = useHistoryRuns(true, filters, running.signature);
   const stop = useOrchestrationCommand(threadEnvironment.interruptTurn, { reportFailure: false });
 
   useEffect(() => {
@@ -109,16 +176,28 @@ export function SubagentsWindow() {
     });
   }, [frame]);
 
-  const liveRuns = useMemo(() => matchRuns(running.runs ?? [], query), [running.runs, query]);
+  // A result filter (Done, Failed, Cancelled) hides the live runs, which have no result yet.
+  const liveRuns =
+    status === null
+      ? matchRuns(running.runs ?? [], query).filter(
+          (run) => parentId === null || run.parent.id === parentId,
+        )
+      : [];
   const shown: ReadonlyArray<SubagentRun> | null =
-    tab === "running" ? (running.runs === null ? null : liveRuns) : history.runs;
-  const now = useNow(tab === "running" ? liveRuns.length > 0 : (shown ?? []).some(isLive));
+    running.runs === null && history.runs === null ? null : [...liveRuns, ...(history.runs ?? [])];
+  const now = useNow((shown ?? []).some(isLive));
   const selected = shown?.find((run) => run.id === selectedId);
+  const parentRun =
+    selected?.parentRunId == null
+      ? null
+      : ((shown ?? []).find((run) => run.id === selected.parentRunId) ?? null);
   const showDetail = selected !== undefined && (!narrow || detailOpen);
   const showList = !narrow || !showDetail;
   const filtering = query.trim() !== "" || status !== null || parentId !== null;
-  const loadError = tab === "running" ? running.error : history.error;
+  const loadError = running.error ?? history.error;
   const environmentId = running.environmentId;
+  const capUsd =
+    useServerConfigs().get(environmentId as never)?.settings.subagentDailyCapUsd ?? null;
 
   const openThread = (threadId: string) => {
     if (!environmentId) return;
@@ -128,6 +207,10 @@ export function SubagentsWindow() {
     });
   };
   const openRun = (run: SubagentRun) => openThread(run.childThreadId ?? run.parent.id);
+  const reload = () => {
+    void running.reload();
+    history.reload();
+  };
 
   const stopRun = async (run: SubagentRun) => {
     if (!environmentId || !run.childThreadId) return;
@@ -138,7 +221,7 @@ export function SubagentsWindow() {
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Could not stop the subagent",
+        title: "Could not stop the agent",
         description: error instanceof Error ? error.message : "Try again.",
       });
       return;
@@ -146,15 +229,6 @@ export function SubagentsWindow() {
     void running.reload();
   };
 
-  const switchTab = (id: "running" | "history") =>
-    void navigate({
-      to: ".",
-      search: ((previous: Record<string, unknown>) => ({
-        ...previous,
-        tab: id === "running" ? undefined : id,
-      })) as never,
-      replace: true,
-    });
   const clearFilters = () => {
     setQuery("");
     setStatus(null);
@@ -165,102 +239,89 @@ export function SubagentsWindow() {
     setDetailOpen(true);
   };
 
-  const actions = (
-    <>
-      <div data-window-search className="w-48 max-[727px]:w-full sm:w-56">
+  const toolbar = (
+    <div role="group" aria-label="Find runs" className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="w-56 max-w-full">
         <Input
           type="search"
           size="compact"
-          aria-label="Search subagents"
+          aria-label="Search runs"
           placeholder="Search tasks and chats"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      <Tip text="Ask for the latest runs">
-        <Button
-          size="xs"
-          variant="ghost-muted"
-          onClick={() => {
-            void running.reload();
-            history.reload();
-          }}
+      <div className="w-40">
+        <Select
+          value={status ?? "all"}
+          onValueChange={(value) =>
+            setStatus(value === "all" ? null : (value as HistoryFilters["status"]))
+          }
         >
+          <SelectTrigger size="sm" aria-label="Filter by result">
+            <SelectValue>
+              {STATUS_FILTERS.find((item) => item.id === (status ?? "all"))?.label}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectPopup align="start" alignItemWithTrigger={false}>
+            {STATUS_FILTERS.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+      </div>
+      <div className="w-48 max-w-full">
+        <Select
+          value={parentId ?? ALL_CHATS}
+          onValueChange={(value) => setParentId(value === ALL_CHATS ? null : value)}
+        >
+          <SelectTrigger size="sm" aria-label="Filter by parent chat">
+            <SelectValue>
+              {parentId === null
+                ? "All chats"
+                : (history.parents.find((parent) => parent.id === parentId)?.title ?? "One chat")}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectPopup align="start" alignItemWithTrigger={false}>
+            <SelectItem value={ALL_CHATS}>All chats</SelectItem>
+            {history.parents.map((parent) => (
+              <SelectItem key={parent.id} value={parent.id}>
+                {parent.title}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+      </div>
+      {filtering ? (
+        <Button size="xs" variant="ghost-muted" onClick={clearFilters}>
+          Clear filters
+        </Button>
+      ) : null}
+      <Tip text="Ask for the latest runs">
+        <Button size="xs" variant="ghost-muted" onClick={reload}>
           <RefreshCwIcon aria-hidden />
           Refresh
         </Button>
       </Tip>
-    </>
+    </div>
   );
 
   return (
-    <RailWindow title="Subagents" tabs={subagentsTabs(running.runningCount)} actions={actions}>
-      {tab === "history" ? (
-        <div role="group" aria-label="Filter the history" className="mb-3 flex flex-wrap gap-2">
-          <div className="w-44">
-            <Select
-              value={status ?? "all"}
-              onValueChange={(value) =>
-                setStatus(value === "all" ? null : (value as HistoryFilters["status"]))
-              }
-            >
-              <SelectTrigger size="sm" aria-label="Filter by result">
-                <SelectValue>
-                  {STATUS_FILTERS.find((item) => item.id === (status ?? "all"))?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectPopup align="start" alignItemWithTrigger={false}>
-                {STATUS_FILTERS.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          </div>
-          <div className="w-56 max-w-full">
-            <Select
-              value={parentId ?? ALL_CHATS}
-              onValueChange={(value) => setParentId(value === ALL_CHATS ? null : value)}
-            >
-              <SelectTrigger size="sm" aria-label="Filter by parent chat">
-                <SelectValue>
-                  {parentId === null
-                    ? "All chats"
-                    : (history.parents.find((parent) => parent.id === parentId)?.title ??
-                      "One chat")}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectPopup align="start" alignItemWithTrigger={false}>
-                <SelectItem value={ALL_CHATS}>All chats</SelectItem>
-                {history.parents.map((parent) => (
-                  <SelectItem key={parent.id} value={parent.id}>
-                    {parent.title}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          </div>
-          {filtering ? (
-            <Button size="xs" variant="ghost-muted" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+    <section aria-label="Runs">
+      {shown === null ? null : <RunsTiles stats={runsStats(shown, now, capUsd)} />}
+      {toolbar}
       {shown === null && loadError === null ? (
-        <div role="status" aria-label="Loading subagents" className="flex flex-col gap-2">
+        <div role="status" aria-label="Loading runs" className="flex flex-col gap-2">
           {[0, 1, 2, 3].map((key) => (
             <Skeleton key={key} className="h-12 w-full" shape="card" />
           ))}
         </div>
       ) : shown === null ? (
         <WindowError
-          message="Your subagents did not load. Check that Leonidas is running, then try again."
-          onRetry={() => {
-            void running.reload();
-            history.reload();
-          }}
+          message="Your agent runs did not load. Check that Leonidas is running, then try again."
+          onRetry={reload}
         />
       ) : shown.length === 0 ? (
         filtering ? (
@@ -269,26 +330,20 @@ export function SubagentsWindow() {
             line="Try other words, or clear the filters."
             action={{ label: "Clear filters", onPress: clearFilters }}
           />
-        ) : tab === "running" ? (
-          <EmptyBlock
-            {...EMPTY_RUNNING}
-            action={{ label: "See history", onPress: () => switchTab("history") }}
-          />
         ) : (
-          <EmptyBlock {...EMPTY_HISTORY} />
+          <EmptyBlock {...EMPTY_RUNS} />
         )
       ) : (
-        // The window body pads its content; the two panes sit flush against its edges.
         <div
           ref={setFrame}
           onKeyDown={(event) => {
             if (event.key === "Escape" && narrow && showDetail) setDetailOpen(false);
           }}
-          className="-m-4 flex h-[calc(100%+2rem)] min-h-0"
+          className="flex min-h-[26rem] overflow-hidden rounded-lg border border-border"
         >
           {showList ? (
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-3">
-              {running.staleError && tab === "running" ? (
+            <div className="min-w-0 flex-1 p-3">
+              {running.staleError ? (
                 <p role="alert" className="mb-2 px-3 text-xs text-destructive-foreground">
                   The list could not update. It shows the last answer.
                 </p>
@@ -299,7 +354,7 @@ export function SubagentsWindow() {
                     <RunRow
                       run={run}
                       now={now}
-                      live={tab === "running"}
+                      live={isLive(run)}
                       selected={run.id === selectedId}
                       stopping={stoppingId === run.id}
                       onSelect={() => select(run)}
@@ -309,7 +364,7 @@ export function SubagentsWindow() {
                   </li>
                 ))}
               </ul>
-              {tab === "history" && history.hasMore ? (
+              {history.hasMore ? (
                 <div className="mt-4 flex justify-center">
                   <Button
                     size="sm"
@@ -321,7 +376,7 @@ export function SubagentsWindow() {
                   </Button>
                 </div>
               ) : null}
-              {tab === "history" && history.moreError ? (
+              {history.moreError ? (
                 <p role="alert" className="mt-3 text-center text-xs text-destructive-foreground">
                   More runs did not load. Try again.
                 </p>
@@ -341,8 +396,10 @@ export function SubagentsWindow() {
                 run={selected}
                 now={now}
                 stopping={stoppingId === selected.id}
+                parentRun={parentRun}
                 onBack={narrow ? () => setDetailOpen(false) : null}
                 onOpenParent={() => openThread(selected.parent.id)}
+                onOpenParentRun={parentRun === null ? null : () => select(parentRun)}
                 onOpenChild={() => openRun(selected)}
                 onStop={() => void stopRun(selected)}
               />
@@ -356,6 +413,6 @@ export function SubagentsWindow() {
           ) : null}
         </div>
       )}
-    </RailWindow>
+    </section>
   );
 }
