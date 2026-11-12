@@ -1,4 +1,4 @@
-import type { TradingState } from "@t3tools/contracts";
+import type { TradingCrewResult, TradingState } from "@t3tools/contracts";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState, type ReactNode } from "react";
 
@@ -16,6 +16,7 @@ import {
   setupRows,
   type Range,
 } from "./dashboard.logic";
+import { sortCards, statusLine } from "./crew.logic";
 import { chartMarkers } from "./money.logic";
 
 export function Card({
@@ -257,14 +258,59 @@ function JourneyCard({ state }: { readonly state: TradingState }) {
   );
 }
 
+/** The Crew card: each trader's clean streak, yours first, and when the board last synced. */
+export function CrewPreview({ crew }: { readonly crew: TradingCrewResult | null }) {
+  const shown =
+    crew === null || crew.setup !== "on"
+      ? []
+      : sortCards(
+          crew.cards.filter((card) => card.habits !== undefined),
+          crew.self,
+        ).slice(0, 4);
+  return (
+    <Card title="Crew" aside="Clean streak">
+      {crew === null || crew.setup !== "on" ? (
+        <p className="text-xs text-muted-foreground">
+          Join a Crew to compare clean streaks.{" "}
+          <Link to="/trading/crew" className="underline underline-offset-2">
+            Open Crew
+          </Link>
+        </p>
+      ) : shown.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No one shares streaks yet.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {shown.map((card) => (
+            <li key={card.trader} className="flex justify-between gap-2 py-1.5 text-sm first:pt-0">
+              <span className="truncate">{card.name}</span>
+              <span className="tabular-nums">{card.habits?.cleanStreak ?? 0}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {crew !== null && crew.setup === "on" ? (
+        <p className="mt-2 text-2xs text-muted-foreground">
+          {statusLine(crew, Date.now()).text}{" "}
+          <Link to="/trading/crew" className="underline underline-offset-2">
+            Open Crew
+          </Link>
+        </p>
+      ) : null}
+    </Card>
+  );
+}
+
 /** Dashboard B Cockpit with A's journey row (Doop pick). Numbers come from `deriveTradingState`. */
 /** `notice` shows above the key numbers, for example a new TopstepX export to import. */
 export function DashboardView({
   state,
   notice,
+  crew,
 }: {
   readonly state: TradingState;
   readonly notice?: ReactNode;
+  /** The Crew from the last sync. Null or absent shows the join line. */
+  readonly crew?: TradingCrewResult | null;
 }) {
   const numbers = keyNumbers(state);
   return (
@@ -298,11 +344,7 @@ export function DashboardView({
       <div className="grid gap-3 lg:grid-cols-[1.25fr_1fr_1fr]">
         <AccountsPreview state={state} />
         <SetupsCard state={state} />
-        <Card title="Crew" aside="Clean streak">
-          <p className="text-xs text-muted-foreground">
-            Join a Crew in Setup to compare clean streaks.
-          </p>
-        </Card>
+        <CrewPreview crew={crew ?? null} />
       </div>
       <JourneyCard state={state} />
     </div>

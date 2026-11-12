@@ -41,7 +41,12 @@ const render = (monthlyFeeCap: number | null, settingsUnreadable = false) =>
   renderToStaticMarkup(
     <MoneyView
       state={deriveTradingState({ events: EVENTS, trades: [] })}
-      settings={{ monthlyFeeCap }}
+      settings={{
+        monthlyFeeCap,
+        traderName: null,
+        share: { journey: true, habits: true, payouts: false, money: false },
+        crewSync: false,
+      }}
       settingsUnreadable={settingsUnreadable}
       onEditEntries={() => {}}
     />,

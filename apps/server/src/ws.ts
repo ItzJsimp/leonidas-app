@@ -44,7 +44,8 @@ import {
 import { readReleaseStatus } from "./releaseStatus/releaseStatus.ts";
 import { homeNews, homeWeather } from "./taskBoard/homeFeeds.ts";
 import { appendTradingEvents } from "./trading/appendTradingEvents.ts";
-import { saveTradingSetting } from "./trading/tradingSettings.ts";
+import { crewResult, makeCrewRunner } from "./trading/crewRunner.ts";
+import { saveTradingSettings } from "./trading/tradingSettings.ts";
 import { readTradingState, requireTradingRoot } from "./trading/readTradingState.ts";
 import { savePackConsent } from "./trading/tradingPack.ts";
 import {
@@ -1526,6 +1527,39 @@ export const layerWsRpc = (
       const backgroundPolicy = yield* BackgroundPolicy.BackgroundPolicy;
       const tradingImports = makeTradingImportWatch();
       yield* Effect.addFinalizer(() => Effect.sync(tradingImports.close));
+      const crewFs = yield* FileSystem.FileSystem;
+      const crewPath = yield* Path.Path;
+      const crewScope = yield* Effect.scope;
+      // Crew sync runs its Git commands through the Git workflow service. Never a password prompt.
+      const crewSync = makeCrewRunner({
+        scope: crewScope,
+        provide: (effect) =>
+          effect.pipe(
+            Effect.provideService(FileSystem.FileSystem, crewFs),
+            Effect.provideService(Path.Path, crewPath),
+          ),
+        run: (cwd, args) =>
+          gitWorkflow
+            .runGit({
+              operation: "TradingCrewSync",
+              cwd,
+              args,
+              allowNonZeroExit: true,
+              timeoutMs: 60_000,
+              env: { GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never" },
+            })
+            .pipe(
+              Effect.map((result) => ({
+                exitCode: Number(result.exitCode),
+                stdout: result.stdout,
+                stderr: result.stderr,
+              })),
+              // A Git error reads as a failed command, so the sync reports it and carries on.
+              Effect.catch((cause) =>
+                Effect.succeed({ exitCode: 1, stdout: "", stderr: String(cause) }),
+              ),
+            ),
+      });
       const rpcClientIds = yield* Ref.make(new Set<RpcClientId>());
       yield* Effect.addFinalizer(() =>
         Ref.get(rpcClientIds).pipe(
@@ -3145,7 +3179,11 @@ export const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
             Effect.orElseSucceed(() => null),
-            Effect.flatMap((root) => importTradingExport(root, input, tradingImports)),
+            Effect.flatMap((root) =>
+              importTradingExport(root, input, tradingImports).pipe(
+                Effect.tap(() => (root === null ? Effect.void : crewSync.poke(root))),
+              ),
+            ),
           ),
         [WS_METHODS.tradingPackConsent]: (input) =>
           allTaskBoardProjects.pipe(
@@ -3166,7 +3204,11 @@ export const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
             Effect.orElseSucceed(() => null),
-            Effect.flatMap((root) => appendTradingEvents(root, input.events)),
+            Effect.flatMap((root) =>
+              appendTradingEvents(root, input.events).pipe(
+                Effect.tap(() => (root === null ? Effect.void : crewSync.poke(root))),
+              ),
+            ),
           ),
         [WS_METHODS.tradingSettingsSave]: (input) =>
           allTaskBoardProjects.pipe(
@@ -3174,8 +3216,28 @@ export const layerWsRpc = (
             Effect.orElseSucceed(() => null),
             Effect.flatMap(requireTradingRoot),
             Effect.flatMap((root) =>
-              saveTradingSetting(root, "monthlyFeeCap", input.monthlyFeeCap),
+              saveTradingSettings(root, {
+                monthlyFeeCap: input.monthlyFeeCap,
+                traderName: input.traderName,
+                share: input.share,
+                crewSync: input.crewSync,
+              }).pipe(Effect.tap(() => crewSync.poke(root))),
             ),
+          ),
+        [WS_METHODS.tradingCrew]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(requireTradingRoot),
+            Effect.tap((root) => crewSync.watch(root)),
+            Effect.flatMap(crewResult),
+          ),
+        [WS_METHODS.tradingCrewSync]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(requireTradingRoot),
+            Effect.flatMap(crewSync.syncNow),
           ),
         [WS_METHODS.releaseStatusRuns]: () => Effect.promise(() => readReleaseStatus()),
         [WS_METHODS.layaUsage]: () => Effect.promise(() => readLayaUsage()),

@@ -66,9 +66,30 @@ export const tradingSettingsSave = createEnvironmentRpcCommand(connectionAtomRun
   label: "environment-data:trading:settings-save",
   tag: WS_METHODS.tradingSettingsSave,
   onSuccess: ({ environmentId, input }, registry) =>
+    Effect.sync(() => {
+      const scope = workspaceScopeInput(input.workspaceId);
+      registry.refresh(tradingStateQuery({ environmentId, input: scope }));
+      registry.refresh(tradingCrewQuery({ environmentId, input: scope }));
+    }),
+});
+
+/** The Crew board from the last sync, read from the local clone. The server syncs every 3 minutes. */
+export const tradingCrewQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:trading:crew",
+  tag: WS_METHODS.tradingCrew,
+  staleTimeMs: 10_000,
+  idleTtlMs: 60_000,
+  refreshIntervalMs: 30_000,
+});
+
+/** Syncs the Crew now. The Retry action and Sync now call this, then read the board again. */
+export const tradingCrewSync = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:trading:crew-sync",
+  tag: WS_METHODS.tradingCrewSync,
+  onSuccess: ({ environmentId, input }, registry) =>
     Effect.sync(() =>
       registry.refresh(
-        tradingStateQuery({ environmentId, input: workspaceScopeInput(input.workspaceId) }),
+        tradingCrewQuery({ environmentId, input: workspaceScopeInput(input.workspaceId) }),
       ),
     ),
 });

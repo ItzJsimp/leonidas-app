@@ -5,7 +5,12 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
 import { writeWorkspaceFile, type AiosWorkspaceType } from "../taskBoard/aiosWorkspaces.ts";
-import { readTradingSettings, saveTradingSetting } from "./tradingSettings.ts";
+import {
+  DEFAULT_SETTINGS,
+  readTradingSettings,
+  saveTradingSetting,
+  saveTradingSettings,
+} from "./tradingSettings.ts";
 
 const withWorkspace = <A, E>(
   type: AiosWorkspaceType,
@@ -43,7 +48,11 @@ it.layer(NodeServices.layer)("tradingSettings", (it) => {
           JSON.stringify({ traderName: "Test Trader", monthlyFeeCap: 100, extra: { kept: true } }),
         );
         const saved = yield* saveTradingSetting(root, "monthlyFeeCap", 250);
-        assert.deepEqual(saved, { monthlyFeeCap: 250 });
+        assert.deepEqual(saved, {
+          ...DEFAULT_SETTINGS,
+          traderName: "Test Trader",
+          monthlyFeeCap: 250,
+        });
         const onDisk = JSON.parse(yield* readFile(root));
         assert.deepEqual(onDisk, {
           traderName: "Test Trader",
@@ -58,9 +67,11 @@ it.layer(NodeServices.layer)("tradingSettings", (it) => {
     withWorkspace("trading", (root) =>
       Effect.gen(function* () {
         assert.deepEqual(yield* saveTradingSetting(root, "monthlyFeeCap", 500), {
+          ...DEFAULT_SETTINGS,
           monthlyFeeCap: 500,
         });
         assert.deepEqual(yield* saveTradingSetting(root, "monthlyFeeCap", null), {
+          ...DEFAULT_SETTINGS,
           monthlyFeeCap: null,
         });
         assert.deepEqual(JSON.parse(yield* readFile(root)), { monthlyFeeCap: null });
@@ -77,7 +88,7 @@ it.layer(NodeServices.layer)("tradingSettings", (it) => {
         }
         const reading = yield* readTradingSettings(root);
         assert.deepEqual(reading, {
-          settings: { monthlyFeeCap: null },
+          settings: { ...DEFAULT_SETTINGS, monthlyFeeCap: null },
           settingsUnreadable: false,
         });
       }),
@@ -110,7 +121,7 @@ it.layer(NodeServices.layer)("tradingSettings", (it) => {
           yield* writeSettings(root, text);
           const reading = yield* readTradingSettings(root);
           assert.deepEqual(reading, {
-            settings: { monthlyFeeCap: null },
+            settings: { ...DEFAULT_SETTINGS, monthlyFeeCap: null },
             settingsUnreadable: true,
           });
         }
@@ -122,7 +133,42 @@ it.layer(NodeServices.layer)("tradingSettings", (it) => {
     withWorkspace("trading", (root) =>
       Effect.gen(function* () {
         const reading = yield* readTradingSettings(root);
-        assert.deepEqual(reading, { settings: { monthlyFeeCap: null }, settingsUnreadable: false });
+        assert.deepEqual(reading, {
+          settings: { ...DEFAULT_SETTINGS, monthlyFeeCap: null },
+          settingsUnreadable: false,
+        });
+      }),
+    ),
+  );
+  it.effect("saves the Crew keys, rejects bad ones, and never loses a key in parallel saves", () =>
+    withWorkspace("trading", (root) =>
+      Effect.gen(function* () {
+        yield* writeSettings(root, JSON.stringify({ extra: 1 }));
+        yield* Effect.all(
+          [
+            saveTradingSettings(root, { traderName: "Ada" }),
+            saveTradingSettings(root, { crewSync: true }),
+            saveTradingSettings(root, {
+              share: { journey: true, habits: false, payouts: false, money: false },
+            }),
+          ],
+          { concurrency: "unbounded" },
+        );
+        assert.deepEqual(JSON.parse(yield* readFile(root)), {
+          extra: 1,
+          traderName: "Ada",
+          crewSync: true,
+          share: { journey: true, habits: false, payouts: false, money: false },
+        });
+        for (const bad of [
+          { traderName: "" },
+          { traderName: "x".repeat(41) },
+          { crewSync: "yes" },
+          { share: { journey: true } },
+        ]) {
+          const error = yield* Effect.flip(saveTradingSettings(root, bad));
+          assert.strictEqual(error.reason, "invalid_settings");
+        }
       }),
     ),
   );

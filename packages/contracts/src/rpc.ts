@@ -359,6 +359,8 @@ import {
   TradingStateError,
   TradingSettings,
   TradingSettingsSaveInput,
+  TradingCrewInput,
+  TradingCrewResult,
   TradingStateInput,
   TradingStateResult,
 } from "./trading.ts";
@@ -759,6 +761,8 @@ export const WS_METHODS = {
   tradingState: "trading.state",
   tradingAppend: "trading.append",
   tradingSettingsSave: "trading.settingsSave",
+  tradingCrew: "trading.crew",
+  tradingCrewSync: "trading.crewSync",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
@@ -2194,6 +2198,18 @@ const WsTradingAppendRpc = Rpc.make(WS_METHODS.tradingAppend, {
 const WsTradingSettingsSaveRpc = Rpc.make(WS_METHODS.tradingSettingsSave, {
   payload: TradingSettingsSaveInput,
   success: TradingSettings,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingCrewRpc = Rpc.make(WS_METHODS.tradingCrew, {
+  payload: TradingCrewInput,
+  success: TradingCrewResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingCrewSyncRpc = Rpc.make(WS_METHODS.tradingCrewSync, {
+  payload: TradingCrewInput,
+  success: TradingCrewResult,
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
@@ -3696,6 +3712,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsTradingStateRpc,
   WsTradingAppendRpc,
   WsTradingSettingsSaveRpc,
+  WsTradingCrewRpc,
+  WsTradingCrewSyncRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,

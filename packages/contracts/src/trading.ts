@@ -146,16 +146,35 @@ export const TradingPackView = Schema.Union([
 ]);
 export type TradingPackView = typeof TradingPackView.Type;
 
+/** What the trader shares with the Crew. Payouts and money are off by default. */
+export const TradingShareSettings = Schema.Struct({
+  journey: Schema.Boolean,
+  habits: Schema.Boolean,
+  payouts: Schema.Boolean,
+  money: Schema.Boolean,
+});
+export type TradingShareSettings = typeof TradingShareSettings.Type;
+
 /** The app's keys in `trading/settings.json`. Other keys stay in the file. */
-export const TradingSettings = Schema.Struct({ monthlyFeeCap: NullableNumber });
+export const TradingSettings = Schema.Struct({
+  monthlyFeeCap: NullableNumber,
+  /** The name on the Crew card. Null until the trader sets it. */
+  traderName: Schema.NullOr(Schema.String),
+  share: TradingShareSettings,
+  /** True only after the trader turns on Crew sync. Nothing leaves this PC before that. */
+  crewSync: Schema.Boolean,
+});
 export type TradingSettings = typeof TradingSettings.Type;
 
-/** Null removes the cap. A number is a dollar cap from 0 to 1,000,000. */
+/** Each key is optional: only the keys sent change. A null cap removes the cap. */
 export const TradingSettingsSaveInput = Schema.Struct({
   workspaceId: Schema.optional(AiosWorkspaceId),
-  monthlyFeeCap: Schema.NullOr(
-    Schema.Number.check(Schema.isBetween({ minimum: 0, maximum: 1_000_000 })),
+  monthlyFeeCap: Schema.optional(
+    Schema.NullOr(Schema.Number.check(Schema.isBetween({ minimum: 0, maximum: 1_000_000 }))),
   ),
+  traderName: Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(40))),
+  share: Schema.optional(TradingShareSettings),
+  crewSync: Schema.optional(Schema.Boolean),
 });
 export type TradingSettingsSaveInput = typeof TradingSettingsSaveInput.Type;
 
@@ -255,3 +274,43 @@ export type TradingAppendInput = typeof TradingAppendInput.Type;
 
 export const TradingAppendResult = Schema.Struct({ appended: Schema.Number });
 export type TradingAppendResult = typeof TradingAppendResult.Type;
+
+const CrewCount = Schema.Number;
+/** One trader's shared card. A group is present only when the trader shares it. */
+export const TradingCrewCard = Schema.Struct({
+  version: Schema.Literal(1),
+  trader: Schema.String,
+  name: Schema.String,
+  updatedAt: Schema.String,
+  journey: Schema.optional(
+    Schema.Struct({
+      stage: Schema.Literals(["sim", "evaluation", "funded", "payouts"]),
+      passRate: Schema.Struct({ passed: CrewCount, finished: CrewCount }),
+      accounts: Schema.Struct({ sim: CrewCount, evaluation: CrewCount, funded: CrewCount }),
+    }),
+  ),
+  habits: Schema.optional(
+    Schema.Struct({ cleanStreak: CrewCount, bestClean: CrewCount, tradingDays: CrewCount }),
+  ),
+  payouts: Schema.optional(Schema.Struct({ count: CrewCount, total: Schema.Number })),
+  money: Schema.optional(
+    Schema.Struct({ firmFees: Schema.Number, totalCost: Schema.Number, netReturn: Schema.Number }),
+  ),
+});
+export type TradingCrewCard = typeof TradingCrewCard.Type;
+
+export const TradingCrewInput = Schema.Struct({ workspaceId: Schema.optional(AiosWorkspaceId) });
+export type TradingCrewInput = typeof TradingCrewInput.Type;
+
+/** What the Crew tab shows. `setup` says which step is missing before sync can run. */
+export const TradingCrewResult = Schema.Struct({
+  setup: Schema.Literals(["no_pack", "off", "needs_name", "on"]),
+  /** The file name part of this trader's own card. Null until a name is set. */
+  self: Schema.NullOr(Schema.String),
+  cards: Schema.Array(TradingCrewCard),
+  skippedCards: Schema.Number,
+  lastSyncAt: Schema.NullOr(Schema.String),
+  status: Schema.Literals(["never", "synced", "offline", "no_remote", "error"]),
+  detail: Schema.NullOr(Schema.String),
+});
+export type TradingCrewResult = typeof TradingCrewResult.Type;

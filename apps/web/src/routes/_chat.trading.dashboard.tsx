@@ -14,7 +14,7 @@ import { TradingEmpty } from "../components/trading/TradingEmpty";
 import { useActiveAiosWorkspace } from "../components/workspace/useActiveAiosWorkspace";
 import { Spinner } from "../components/ui/spinner";
 import { useEnvironmentQuery } from "../state/query";
-import { tradingStateQuery } from "../state/trading";
+import { tradingCrewQuery, tradingStateQuery } from "../state/trading";
 
 function TradingDashboard() {
   const { environmentId, scope, scopeReady } = useActiveAiosWorkspace();
@@ -22,6 +22,9 @@ function TradingDashboard() {
     environmentId && scopeReady ? tradingStateQuery({ environmentId, input: scope }) : null,
   );
   const data = query.data;
+  const crew = useEnvironmentQuery(
+    environmentId && scopeReady ? tradingCrewQuery({ environmentId, input: scope }) : null,
+  );
   const append = useTradingAppend();
   const [form, setForm] = useState<FormKind | null>(null);
 
@@ -69,6 +72,7 @@ function TradingDashboard() {
       <RailWindow title="Dashboard" actions={add}>
         <DashboardView
           state={data.state}
+          crew={crew.data ?? null}
           notice={
             environmentId ? (
               <>
