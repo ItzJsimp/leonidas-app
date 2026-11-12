@@ -240,6 +240,7 @@ describe("Add account with a linked pack", () => {
   const PACK = {
     status: "ready",
     folder: "C:/packs/test",
+    setups: [],
     firms: [
       {
         id: "firm-a",

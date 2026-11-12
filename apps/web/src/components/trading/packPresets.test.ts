@@ -7,6 +7,7 @@ import { accountFee, findProduct, presetFirms, sizeLabel } from "./packPresets";
 const PACK: TradingPackView = {
   status: "ready",
   folder: "C:/packs/test",
+  setups: [],
   firms: [
     {
       id: "firm-a",

@@ -2,6 +2,7 @@ import {
   TradingStateError,
   type TradingPackView,
   type TradingStateResult,
+  type TradingTradeView,
 } from "@t3tools/contracts";
 import {
   deriveTradingState,
@@ -10,6 +11,7 @@ import {
   parseTrades,
   productKey,
   type ProductRule,
+  type TradingEvent,
 } from "@t3tools/trading";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -40,6 +42,7 @@ function packView(linked: LinkedPack): TradingPackView {
   return {
     status: "ready",
     folder: linked.folder,
+    setups: linked.pack.setups.map(({ id, name }) => ({ id, name })),
     firms: linked.pack.firms.map((firm) => ({
       id: firm.id,
       name: firm.name,
@@ -71,6 +74,19 @@ function productRules(linked: LinkedPack): ReadonlyMap<string, ProductRule> {
   return rules;
 }
 
+/** The latest setup and screenshot tagged on each trade, as the Journal shows them. */
+function tradeTags(events: readonly TradingEvent[]) {
+  const tags = new Map<string, { setup?: string; screenshot?: string }>();
+  for (const event of events) {
+    if (event.kind !== "trade.tagged") continue;
+    const tag = { ...tags.get(event.tradeId) };
+    if (event.setup !== undefined) tag.setup = event.setup;
+    if (event.screenshot !== undefined) tag.screenshot = event.screenshot;
+    tags.set(event.tradeId, tag);
+  }
+  return tags;
+}
+
 /**
  * Reads `trading/ledger.jsonl` and `trading/trades.jsonl` in a Trading workspace folder and derives
  * the full state. A missing file is an empty ledger. A corrupt line is skipped and counted.
@@ -94,8 +110,10 @@ export const readTradingState = Effect.fn("trading.readState")(function* (aiosRo
   ]);
   const ledger = parseLedger(ledgerText);
   const trades = parseTrades(tradesText);
+  const live = liveEvents(ledger.events, []);
+  const tags = tradeTags(live);
   // Newest first for the Edit an entry list. `trade.tagged` has no row there.
-  const entries = liveEvents(ledger.events, [])
+  const entries = live
     .filter((event) => event.kind !== "trade.tagged")
     .toReversed()
     .slice(0, MAX_ENTRIES)
@@ -114,7 +132,11 @@ export const readTradingState = Effect.fn("trading.readState")(function* (aiosRo
       .map((trade) => ({ trade, time: Date.parse(trade.at) }))
       .toSorted((a, b) => b.time - a.time)
       .slice(0, JOURNAL_TRADES)
-      .map(({ trade }) => trade),
+      .map(({ trade }): TradingTradeView => {
+        const tag = tags.get(trade.id);
+        if (tag === undefined) return trade;
+        return { ...trade, ...tag };
+      }),
     skippedLines: ledger.issues.length + trades.issues.length,
   } satisfies TradingStateResult;
 });

@@ -363,6 +363,15 @@ import {
   TradingCrewResult,
   TradingStateInput,
   TradingStateResult,
+  TradingDayReadInput,
+  TradingDayReadResult,
+  TradingDaySaveInput,
+  TradingScreenshotReadInput,
+  TradingScreenshotReadResult,
+  TradingScreenshotSaveInput,
+  TradingScreenshotSaveResult,
+  TradingTradeAddInput,
+  TradingTradeAddResult,
 } from "./trading.ts";
 import {
   PullRequestActionInput,
@@ -763,6 +772,11 @@ export const WS_METHODS = {
   tradingSettingsSave: "trading.settingsSave",
   tradingCrew: "trading.crew",
   tradingCrewSync: "trading.crewSync",
+  tradingTradeAdd: "trading.tradeAdd",
+  tradingDayRead: "trading.dayRead",
+  tradingDaySave: "trading.daySave",
+  tradingScreenshotSave: "trading.screenshotSave",
+  tradingScreenshotRead: "trading.screenshotRead",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
@@ -2210,6 +2224,36 @@ const WsTradingCrewRpc = Rpc.make(WS_METHODS.tradingCrew, {
 const WsTradingCrewSyncRpc = Rpc.make(WS_METHODS.tradingCrewSync, {
   payload: TradingCrewInput,
   success: TradingCrewResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingTradeAddRpc = Rpc.make(WS_METHODS.tradingTradeAdd, {
+  payload: TradingTradeAddInput,
+  success: TradingTradeAddResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingDayReadRpc = Rpc.make(WS_METHODS.tradingDayRead, {
+  payload: TradingDayReadInput,
+  success: TradingDayReadResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingDaySaveRpc = Rpc.make(WS_METHODS.tradingDaySave, {
+  payload: TradingDaySaveInput,
+  success: Schema.Void,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingScreenshotSaveRpc = Rpc.make(WS_METHODS.tradingScreenshotSave, {
+  payload: TradingScreenshotSaveInput,
+  success: TradingScreenshotSaveResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingScreenshotReadRpc = Rpc.make(WS_METHODS.tradingScreenshotRead, {
+  payload: TradingScreenshotReadInput,
+  success: TradingScreenshotReadResult,
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
@@ -3714,6 +3758,11 @@ export const WsRpcGroup = RpcGroup.make(
   WsTradingSettingsSaveRpc,
   WsTradingCrewRpc,
   WsTradingCrewSyncRpc,
+  WsTradingTradeAddRpc,
+  WsTradingDayReadRpc,
+  WsTradingDaySaveRpc,
+  WsTradingScreenshotSaveRpc,
+  WsTradingScreenshotReadRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,

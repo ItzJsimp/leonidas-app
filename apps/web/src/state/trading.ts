@@ -93,3 +93,58 @@ export const tradingCrewSync = createEnvironmentRpcCommand(connectionAtomRuntime
       ),
     ),
 });
+
+/** The end-of-day note of one day. Reads an empty note for a day with no file yet. */
+export const tradingDayQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:trading:day",
+  tag: WS_METHODS.tradingDayRead,
+  staleTimeMs: 5_000,
+  idleTtlMs: 60_000,
+});
+
+/** Saves the end-of-day note of one day, then reads that day's note again. */
+export const tradingDaySave = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:trading:day-save",
+  tag: WS_METHODS.tradingDaySave,
+  onSuccess: ({ environmentId, input }, registry) =>
+    Effect.sync(() =>
+      registry.refresh(
+        tradingDayQuery({
+          environmentId,
+          input: { ...workspaceScopeInput(input.workspaceId), day: input.day },
+        }),
+      ),
+    ),
+});
+
+/** One saved screenshot as base64, for a thumbnail. Screenshots never change, so they stay cached. */
+export const tradingScreenshotQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:trading:screenshot",
+  tag: WS_METHODS.tradingScreenshotRead,
+  staleTimeMs: 600_000,
+  idleTtlMs: 60_000,
+});
+
+/** Saves a pasted image, then reads the state so a tagged trade shows its thumbnail. */
+export const tradingScreenshotSave = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:trading:screenshot-save",
+  tag: WS_METHODS.tradingScreenshotSave,
+  onSuccess: ({ environmentId, input }, registry) =>
+    Effect.sync(() =>
+      registry.refresh(
+        tradingStateQuery({ environmentId, input: workspaceScopeInput(input.workspaceId) }),
+      ),
+    ),
+});
+
+/** Adds one manual trade, then reads the state so the Journal and Dashboard update at once. */
+export const tradingTradeAdd = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:trading:trade-add",
+  tag: WS_METHODS.tradingTradeAdd,
+  onSuccess: ({ environmentId, input }, registry) =>
+    Effect.sync(() =>
+      registry.refresh(
+        tradingStateQuery({ environmentId, input: workspaceScopeInput(input.workspaceId) }),
+      ),
+    ),
+});
