@@ -108,3 +108,28 @@ it("remeasures the open bar when its font size changes without resizing the canv
   expect(canvas?.detailsCardTopInset).toBe(72);
   expect(canvas?.layout.frame?.y).toBe(84);
 });
+
+// ThreadDetailsCard reports its rect in one layout effect and clears it in a cleanup keyed on the
+// same callback. A callback that changes every render makes the two fight forever (React error 185,
+// the crash that shipped in 0.124.103).
+it("settles when a card reports its rect and clears it on cleanup", async () => {
+  using _layout = mockLayout();
+  let commits = 0;
+  function Card() {
+    useLayoutEffect(() => {
+      commits += 1;
+    });
+    const reportDetailsCard = useChatCanvas()?.reportDetailsCard;
+    useLayoutEffect(() => {
+      reportDetailsCard?.({ left: 10, right: 300, bottom: 200 });
+    }, [reportDetailsCard]);
+    useLayoutEffect(() => () => reportDetailsCard?.(null), [reportDetailsCard]);
+    return null;
+  }
+  await using _screen = await render(
+    <ChatCanvas composerOverlayElement={null}>
+      <Card />
+    </ChatCanvas>,
+  );
+  expect(commits).toBeLessThan(10);
+});

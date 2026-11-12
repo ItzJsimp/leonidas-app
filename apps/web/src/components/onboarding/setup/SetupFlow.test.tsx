@@ -186,3 +186,41 @@ it("lets a returning user copy the AIOS, then skips the questions", async () => 
   const open = openSetupItems(storedState()).map((item) => item.id);
   expect(open).not.toContain("questions");
 });
+
+it("skips one step at a time and colors the progress bar", async () => {
+  await act(async () => root.render(<SetupFlow localAvailable onDone={() => {}} />));
+  const label = (step: string) =>
+    document.body.querySelector(`[aria-label^="${step}, "]`)?.getAttribute("aria-label");
+  expect(label("You")).toBe("You, current step");
+
+  await act(async () => button("Skip").click());
+  expect(document.body.textContent).toContain("Continue without an AI");
+  expect(label("You")).toBe("You, to do");
+  expect(label("AI account")).toBe("AI account, current step");
+
+  await act(async () => button("Skip").click());
+  expect(document.body.textContent).toContain("Skip for now");
+  expect(document.body.textContent).not.toContain("Continue without an AI");
+  expect(completeOnboarding).not.toHaveBeenCalled();
+});
+
+it("marks a finished step done on the progress bar", async () => {
+  await act(async () => root.render(<SetupFlow localAvailable onDone={() => {}} />));
+  await act(async () => button("Continue").click());
+  expect(document.body.querySelector('[aria-label^="You, "]')?.getAttribute("aria-label")).toBe(
+    "You, done",
+  );
+});
+
+it("leaves setup from any step with Set up later", async () => {
+  await act(async () => root.render(<SetupFlow localAvailable onDone={() => {}} />));
+  await act(async () => button("Set up later").click());
+  expect(completeOnboarding).toHaveBeenCalledOnce();
+  expect(navigate).toHaveBeenCalledWith({ to: "/command-center", replace: true });
+});
+
+it("counts a skipped setup as started so the rail can resume it", async () => {
+  await act(async () => root.render(<SetupFlow localAvailable onDone={() => {}} />));
+  await act(async () => button("Skip").click());
+  expect(storedState().startedAt).not.toBeNull();
+});

@@ -1460,9 +1460,9 @@ const ConversationTimeline = memo(function ConversationTimeline({
     footer === null
   ) {
     if (hideEmptyPlaceholder) {
-      // Occupy the pane with the theme surface so a thread switch cannot
-      // punch a hole through to the window chrome (white in light mode).
-      return <div className="h-full min-h-0 bg-background" data-timeline-loading="true" />;
+      // Occupy the pane. The parent in ChatView paints the theme surface, and
+      // this stays clear so the background dots show through.
+      return <div className="h-full min-h-0" data-timeline-loading="true" />;
     }
     return (
       <div className="flex h-full items-center justify-center">

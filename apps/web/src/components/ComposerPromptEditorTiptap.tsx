@@ -395,8 +395,7 @@ function ComposerSkillNodeView({ node }: NodeViewProps) {
         <div className="space-y-3 p-2 text-sm">
           <p className="font-medium">{skillLabel}</p>
           <p>
-            {skill?.description ??
-              skillDescription ??
+            {description ||
               (isCommand
                 ? "Keeps the agent working across turns until the goal is met."
                 : "No description is available for this skill.")}

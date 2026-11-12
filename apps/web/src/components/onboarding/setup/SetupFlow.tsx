@@ -1,7 +1,7 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, ScopedProjectRef } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import {
@@ -39,7 +39,8 @@ import { primaryServerAvailableEditorsAtom } from "../../../state/server";
 import * as Schema from "effect/Schema";
 import { Dialog } from "../../ui/dialog";
 import { Spinner } from "../../ui/spinner";
-import { WizardHeader, WizardPanel, WizardPopup, WizardSteps } from "../../ui/wizard";
+import { Button } from "../../ui/button";
+import { WizardHeader, WizardPanel, WizardPopup } from "../../ui/wizard";
 import { AgentsStep } from "../AgentsStep";
 import { PairingForm, WelcomeWizard } from "../WelcomeWizard";
 import { ReturningDevicePanel } from "./ReturningDevicePanel";
@@ -52,6 +53,7 @@ import { useAtomCommand } from "../../../state/use-atom-command";
 import { QUICK_QUESTION_COUNT, coderPreselect } from "../../../onboarding/setupState.logic";
 import { DEFAULT_AI_NAME, SetupBasicsScreen, type SetupBasics } from "./SetupBasicsScreen";
 import { SetupPreviewBar } from "./SetupPreviewBar";
+import { SetupProgress } from "./SetupProgress";
 import { SetupQuestionsScreen } from "./SetupQuestionsScreen";
 
 const STEPS = ["You", "AI account", "About you"] as const;
@@ -106,10 +108,8 @@ function LocalSetupFlow({ environmentId }: { readonly environmentId: Environment
   const [folderConfirmed, setFolderConfirmed] = useState(false);
   const voice = voiceFor(basics?.coder ?? state.coder);
   const inspectFolder = useFolderInspection(environmentId);
-  const resolveFolder = useCallback(
-    async (folder: string) => resolvedFolderPath(await inspectFolder(folder, []), folder),
-    [inspectFolder],
-  );
+  const resolveFolder = async (folder: string) =>
+    resolvedFolderPath(await inspectFolder(folder, []), folder);
   // The returning-user path: its target folder (null while the panel is closed).
   const [returningFolder, setReturningFolder] = useState<string | null>(null);
   // A returning user already has an AIOS, so the questions are skipped.
@@ -205,11 +205,41 @@ function LocalSetupFlow({ environmentId }: { readonly environmentId: Environment
     return null;
   };
 
+  // A skipped setup still counts as started, so the rail shows Finish setup.
+  const markStarted = () =>
+    setState((current) => ({
+      ...current,
+      startedAt: current.startedAt ?? new Date().toISOString(),
+    }));
+
+  // Skip moves one step on and leaves that step open on the checklist.
+  const skipStep = () => {
+    markStarted();
+    if (!basics) {
+      setBasics({
+        aiName: DEFAULT_AI_NAME,
+        userName: "",
+        folder: DEFAULT_AIOS_FOLDER,
+        coder: coderPreselect(editorIds),
+      });
+    }
+    if (step === 1 && cameBack) void finish();
+    else setStep(step === 0 ? 1 : 2);
+  };
+
   return (
     <Dialog open disablePointerDismissal onOpenChange={(_, event) => event.cancel()}>
       <WizardPopup size="wide" bottomStickOnMobile={false} showCloseButton={false}>
         <WizardHeader title={voice === "builder" ? "Set up Leonidas" : "Set up Leonidas"}>
-          <WizardSteps steps={STEPS} currentStep={step} />
+          <SetupProgress
+            steps={STEPS}
+            currentStep={step}
+            done={[
+              state.done.includes("basics"),
+              state.done.includes("account"),
+              state.questionsAnswered >= QUICK_QUESTION_COUNT,
+            ]}
+          />
         </WizardHeader>
         <WizardPanel stableHeight>
           <SetupPreviewBar />
@@ -281,6 +311,22 @@ function LocalSetupFlow({ environmentId }: { readonly environmentId: Environment
             />
           )}
         </WizardPanel>
+        <div className="flex items-center justify-between px-6 pb-5">
+          <Button
+            variant="ghost-muted"
+            onClick={() => {
+              markStarted();
+              void skipQuestions();
+            }}
+          >
+            Set up later
+          </Button>
+          {step < 2 ? (
+            <Button variant="ghost-muted" onClick={skipStep}>
+              Skip
+            </Button>
+          ) : null}
+        </div>
       </WizardPopup>
     </Dialog>
   );

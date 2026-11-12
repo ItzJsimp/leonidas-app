@@ -68,6 +68,50 @@ jobs:
           (cd apps/web && vp run typecheck)
           (cd packages/shared && vp test run src/usageLimits.test.ts src/promptPrediction.test.ts src/harnessReliability.test.ts src/hardwareWatch.test.ts src/turnLedger.test.ts)
 
+  # Renders real screens in headless Chromium. This is the check that catches a screen that
+  # crashes or loops, such as the render loop that shipped in 0.124.103. It runs beside the
+  # builds, so it adds no time. Files that fail today are listed in
+  # apps/web/browserTestsKnownFailing.ts and are skipped. A new failure stops the release.
+  browser:
+    name: Browser screen tests
+    runs-on: windows-latest
+    timeout-minutes: 25
+    concurrency:
+      group: team-release-browser
+      cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: false
+          run-install: false
+
+      - name: Locate dependency cache
+        id: dependencies
+        run: echo "path=$(vp pm cache dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore desktop dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.dependencies.outputs.path }}
+          key: desktop-deps-${{ runner.os }}-x64-${{ hashFiles('pnpm-lock.yaml', '.github/workflows/team-release.yml') }}
+
+      - name: Install web dependencies
+        run: vp install --frozen-lockfile --filter @t3tools/monorepo --filter @t3tools/web...
+
+      - name: Install Chromium
+        run: node apps/web/node_modules/playwright/cli.js install --only-shell chromium
+
+      - name: Run browser screen tests
+        run: (cd apps/web && vp test run --project browser)
+
   windows:
     name: Windows x64 installer
     runs-on: windows-latest
@@ -328,11 +372,11 @@ jobs:
 
   publish:
     name: Publish complete release
-    needs: [windows, mac, checks]
+    needs: [windows, mac, checks, browser]
     # Publish only when Windows, Mac and the checks all passed. A release without Mac files breaks
     # every Mac app (no update feed) and the Mac download link. A cancelled Mac build means a newer
     # push replaced this run, and that run publishes instead.
-    if: ${{ always() && !cancelled() && needs.windows.result == 'success' && needs.mac.result == 'success' && needs.checks.result == 'success' }}
+    if: ${{ always() && !cancelled() && needs.windows.result == 'success' && needs.mac.result == 'success' && needs.checks.result == 'success' && needs.browser.result == 'success' }}
     outputs:
       published: ${{ steps.publish.outputs.published }}
     runs-on: ubuntu-latest

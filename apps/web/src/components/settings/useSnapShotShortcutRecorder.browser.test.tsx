@@ -63,7 +63,8 @@ it("suppresses capture while recording and uses the physical key for shifted dig
   await using screen = await renderRecorder();
   const { button } = screen;
   await screen.start();
-  expect(suppress).toHaveBeenCalledExactlyOnceWith(true);
+  // StrictMode runs the unmount cleanup once on mount, which calls suppress(false); only the true calls matter here.
+  expect(suppress.mock.calls.filter(([value]) => value === true)).toHaveLength(1);
   expect(button().textContent).toBe("Press shortcut…");
   await press("{Control>}{Shift>}2{/Shift}{/Control}");
   expect(recorded).toHaveBeenCalledExactlyOnceWith({
@@ -85,7 +86,7 @@ it("lets users replace an unrecognized desktop label without displaying guessed 
   await using screen = await renderRecorder({ shortcutLabel });
   const { button } = screen;
   expect(button().textContent).toBe("Change shortcut");
-  expect(button().getAttribute("aria-label")).toBe("Change snapshot shortcut");
+  expect(button().getAttribute("aria-label")).toBe("Change capture shortcut");
   await userEvent.click(button());
   expect(button().textContent).toBe("Press shortcut…");
   await press("{Control>}{Shift>}2{/Shift}{/Control}");

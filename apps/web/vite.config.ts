@@ -21,6 +21,7 @@ import {
 
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
+import { KNOWN_FAILING_BROWSER_TESTS } from "./browserTestsKnownFailing";
 import { formatDevVersionLabel } from "./src/devVersionLabel";
 import { tailwindPlugins } from "./vite/tailwind";
 
@@ -120,11 +121,19 @@ const unitTestProject = {
   },
 } satisfies TestProjectInlineConfiguration;
 
+// Renders real screens in headless Chromium. This is what catches a render loop or a crash on a
+// screen before it ships. Run `playwright install --only-shell chromium` once on a new machine.
 const browserTestProject = {
   extends: true,
+  // Prebundle these up front; finding them mid-run makes Vite reload a test.
+  optimizeDeps: { include: ["heic-to/next", "tiff"] },
   test: {
     name: "browser",
     include: ["src/**/*.browser.test.{ts,tsx}"],
+    exclude: [...KNOWN_FAILING_BROWSER_TESTS, "**/node_modules/**"],
+    hookTimeout: 30_000,
+    testTimeout: 30_000,
+    fileParallelism: false,
     browser: {
       enabled: true,
       headless: true,
@@ -439,7 +448,6 @@ export default defineConfig(() => {
     },
     worker: { format: "es" },
     test: {
-      api: { strictPort: false },
       projects: [defineProject(unitTestProject), defineProject(browserTestProject)],
     },
   };

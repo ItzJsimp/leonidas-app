@@ -29,6 +29,7 @@
     "src",
     "vite",
     "vite.config.ts",
+    "browserTestsKnownFailing.ts",
     "vercel.ts",
     "test",
     "scripts/warm-dep-cache.ts",
