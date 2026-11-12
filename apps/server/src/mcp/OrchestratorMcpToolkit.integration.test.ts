@@ -443,15 +443,22 @@ function waitForProjection(
   predicate: (projection: OrchestrationV2ThreadProjection) => boolean,
 ) {
   return Effect.gen(function* () {
-    for (let attempt = 0; attempt < 1_000; attempt += 1) {
-      const projection = yield* orchestrator.getThreadProjection(threadId);
-      if (predicate(projection)) {
-        return projection;
-      }
-      yield* Effect.sleep("5 millis");
-    }
-    return yield* Effect.die(
-      new Error(`Timed out waiting for orchestration projection ${threadId}.`),
+    const afterSequence = yield* orchestrator.getThreadEventSequence(threadId);
+    const initial = yield* orchestrator.getThreadProjection(threadId);
+    if (predicate(initial)) return initial;
+    return yield* orchestrator.streamStoredEventsFrom({ threadId, afterSequence }).pipe(
+      Stream.mapEffect(() => orchestrator.getThreadProjection(threadId)),
+      Stream.filter(predicate),
+      Stream.runHead,
+      Effect.flatMap(
+        Option.match({
+          onNone: () =>
+            Effect.die(
+              new Error(`Expected projection was not recorded for ${threadId}: ${predicate}`),
+            ),
+          onSome: Effect.succeed,
+        }),
+      ),
     );
   });
 }
