@@ -239,6 +239,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.tradingDaySave]: AuthOrchestrationOperateScope,
   [WS_METHODS.tradingScreenshotSave]: AuthOrchestrationOperateScope,
   [WS_METHODS.tradingScreenshotRead]: AuthOrchestrationReadScope,
+  [WS_METHODS.tradingRiskRules]: AuthOrchestrationReadScope,
   [WS_METHODS.releaseStatusRuns]: AuthReleaseReadScope,
   [WS_METHODS.layaUsage]: AuthOrchestrationReadScope,
   [WS_METHODS.ponytailUsage]: AuthOrchestrationReadScope,

@@ -195,6 +195,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.tradingDaySave]: "workspace",
   [WS_METHODS.tradingScreenshotSave]: "workspace",
   [WS_METHODS.tradingScreenshotRead]: "workspace",
+  [WS_METHODS.tradingRiskRules]: "workspace",
   [WS_METHODS.taskBoardCreate]: "workspace",
   [WS_METHODS.taskBoardClaim]: "workspace",
   [WS_METHODS.taskBoardRelease]: "workspace",

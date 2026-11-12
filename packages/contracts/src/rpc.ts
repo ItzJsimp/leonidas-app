@@ -356,6 +356,7 @@ import {
   TradingImportResult,
   TradingImportsResult,
   TradingPackConsentInput,
+  TradingRiskRulesResult,
   TradingStateError,
   TradingSettings,
   TradingSettingsSaveInput,
@@ -777,6 +778,7 @@ export const WS_METHODS = {
   tradingDaySave: "trading.daySave",
   tradingScreenshotSave: "trading.screenshotSave",
   tradingScreenshotRead: "trading.screenshotRead",
+  tradingRiskRules: "trading.riskRules",
   releaseStatusRuns: "releaseStatus.runs",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
@@ -2254,6 +2256,12 @@ const WsTradingScreenshotSaveRpc = Rpc.make(WS_METHODS.tradingScreenshotSave, {
 const WsTradingScreenshotReadRpc = Rpc.make(WS_METHODS.tradingScreenshotRead, {
   payload: TradingScreenshotReadInput,
   success: TradingScreenshotReadResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingRiskRulesRpc = Rpc.make(WS_METHODS.tradingRiskRules, {
+  payload: TradingStateInput,
+  success: TradingRiskRulesResult,
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
@@ -3763,6 +3771,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsTradingDaySaveRpc,
   WsTradingScreenshotSaveRpc,
   WsTradingScreenshotReadRpc,
+  WsTradingRiskRulesRpc,
   WsReleaseStatusRunsRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,

@@ -148,3 +148,11 @@ export const tradingTradeAdd = createEnvironmentRpcCommand(connectionAtomRuntime
       ),
     ),
 });
+
+/** The linked pack's risk states, firm limits and first day rule. `none` without a valid pack. */
+export const tradingRiskRulesQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:trading:risk-rules",
+  tag: WS_METHODS.tradingRiskRules,
+  staleTimeMs: 5_000,
+  idleTtlMs: 60_000,
+});

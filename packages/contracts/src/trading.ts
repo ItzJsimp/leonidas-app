@@ -287,6 +287,39 @@ export const TradingAppendInput = Schema.Struct({
 export type TradingAppendInput = typeof TradingAppendInput.Type;
 
 export const TradingAppendResult = Schema.Struct({ appended: Schema.Number });
+
+/** One pack risk state. The pack path it came from stays on the server. */
+const TradingRiskState = Schema.Struct({
+  id: Schema.String,
+  market: Schema.String,
+  contracts: Schema.Number,
+  stopPoints: Schema.Number,
+  targetPoints: Schema.Number,
+  stopDollars: Schema.Number,
+  targetDollars: Schema.Number,
+});
+
+/** The linked pack's risk rules. `none` when no pack is linked or the pack is invalid. */
+export const TradingRiskRulesResult = Schema.Union([
+  Schema.Struct({ status: Schema.Literal("none") }),
+  Schema.Struct({
+    status: Schema.Literal("ready"),
+    riskStates: Schema.Array(TradingRiskState),
+    firstDay: Schema.NullOr(
+      Schema.Struct({
+        floor: Schema.Number,
+        cap: Schema.Number,
+        defaultPassRate: Schema.Number,
+      }),
+    ),
+    /** Keyed by `firm name/product name`, like the accounts. */
+    limits: Schema.Record(
+      Schema.String,
+      Schema.Struct({ dailyLoss: NullableNumber, maxLoss: NullableNumber }),
+    ),
+  }),
+]);
+export type TradingRiskRulesResult = typeof TradingRiskRulesResult.Type;
 export type TradingAppendResult = typeof TradingAppendResult.Type;
 
 const CrewCount = Schema.Number;
