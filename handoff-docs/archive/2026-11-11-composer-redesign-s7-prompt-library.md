@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 ---
 
 # Session Handoff: Composer redesign, build S7 (prompt library)
