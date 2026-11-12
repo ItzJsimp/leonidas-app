@@ -1,12 +1,13 @@
 import { cn } from "~/lib/utils";
 
-import { avatarId, avatarUrl, initials } from "./avatar.logic";
+import { avatarIdFor, avatarUrl, initials } from "./avatar.logic";
 
 export type AvatarSize = 20 | 36 | 56;
 
 /**
  * An agent's felt avatar as a circle. 125% size and a 3% top offset keep the whole head in view
- * (skill note). An unknown or missing avatar shows the initials of the name instead.
+ * (skill note). A missing or unknown avatar falls back to the library id that the name holds,
+ * and then to the initials of the name.
  * The name always shows beside it, so the circle is decoration.
  */
 export function AgentAvatar(props: {
@@ -16,7 +17,7 @@ export function AgentAvatar(props: {
   readonly className?: string;
 }) {
   const size = props.size ?? 36;
-  const id = avatarId(props.avatar);
+  const id = avatarIdFor(props.avatar, props.name);
   return (
     <span
       aria-hidden

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   AVATAR_IDS,
   avatarId,
+  avatarIdFor,
   avatarUrl,
   avatarValue,
   defaultAvatar,
@@ -34,6 +35,15 @@ describe("avatar logic", () => {
   it("starts a new agent on the avatar named like it, else the helper", () => {
     expect(defaultAvatar("reviewer")).toBe("felt/reviewer");
     expect(defaultAvatar("my-odd-agent")).toBe("felt/helper");
+    expect(defaultAvatar("test-scout")).toBe("felt/scout");
+    expect(defaultAvatar("team-lead")).toBe("felt/team-lead");
+  });
+
+  it("draws the file's avatar, else the id the name holds, else initials", () => {
+    expect(avatarIdFor("felt/wizard", "reviewer")).toBe("wizard");
+    expect(avatarIdFor(null, "reviewer")).toBe("reviewer");
+    expect(avatarIdFor("hexagon:teal", "test-scout")).toBe("scout");
+    expect(avatarIdFor(undefined, "explorer")).toBeNull();
   });
 
   it("makes initials for the fallback badge", () => {

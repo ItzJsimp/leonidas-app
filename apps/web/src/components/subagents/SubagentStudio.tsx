@@ -53,6 +53,7 @@ import {
   countReady,
   entryId,
   formatTokensShort,
+  entryAvatar,
   groupStudioEntries,
   isLead,
   personaEngineHint,
@@ -372,7 +373,7 @@ function StudioListItem(props: {
         props.selected && "bg-accent",
       )}
     >
-      <AgentAvatar avatar={entry.avatar} name={entry.name} size={36} />
+      <AgentAvatar avatar={entryAvatar(entry)} name={entry.name} size={36} />
       <span className="min-w-0 flex-1">
         <Tooltip>
           <TooltipTrigger render={<span className="block truncate" />}>{entry.name}</TooltipTrigger>
@@ -472,7 +473,7 @@ function SubagentDetail({
     <article aria-labelledby="studio-detail-title" className="flex flex-col gap-4">
       <header className="min-w-0">
         <div className="flex flex-wrap items-center gap-3">
-          <AgentAvatar avatar={entry.avatar} name={entry.name} size={56} />
+          <AgentAvatar avatar={entryAvatar(entry)} name={entry.name} size={56} />
           <Tooltip>
             <TooltipTrigger
               render={

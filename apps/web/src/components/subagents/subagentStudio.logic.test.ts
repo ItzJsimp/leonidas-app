@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   countReady,
+  entryAvatar,
   formatTokensShort,
   groupStudioEntries,
   personaEngineHint,
@@ -62,6 +63,14 @@ describe("groupStudioEntries", () => {
     expect(names("on")).toEqual(["explorer"]);
     expect(names("projects")).toEqual(["roblox"]);
     expect(names("fix")).toContain("broken-lead");
+  });
+
+  it("shows the team lead character for a lead with no avatar of its own", () => {
+    expect(entryAvatar(entry({ name: "test-lead", canSpawn: true }))).toBe("felt/team-lead");
+    expect(entryAvatar(entry({ name: "scout", avatar: "felt/scout", canSpawn: true }))).toBe(
+      "felt/scout",
+    );
+    expect(entryAvatar(entry({ name: "explorer" }))).toBeNull();
   });
 
   it("searches name, description and project", () => {

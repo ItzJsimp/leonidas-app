@@ -16,6 +16,10 @@ const needsFix = (entry: SubagentCatalogEntry) => entry.legacy || entry.error !=
 /** The orchestrator: a team agent that may start the others. */
 export const isLead = (entry: SubagentCatalogEntry) => entry.canSpawn === true && !needsFix(entry);
 
+/** The avatar to show: the file's own, else the team lead character for a lead, else none. */
+export const entryAvatar = (entry: SubagentCatalogEntry): string | null =>
+  entry.avatar ?? (isLead(entry) ? "felt/team-lead" : null);
+
 /**
  * The Team list: the lead first, then AIOS agents that are on, the AIOS catalog (off),
  * project agents, then specs that do not resolve. The search matches

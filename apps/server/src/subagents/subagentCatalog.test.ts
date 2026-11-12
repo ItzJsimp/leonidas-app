@@ -49,6 +49,17 @@ describe("listSubagents", () => {
       "Find.",
     ]);
     writeSpec(aios, "old", ["---", "name: old", "models:", "  claude: haiku", "---", "Old."]);
+    writeSpec(aios, "scout-v1", [
+      "---",
+      "name: scout-v1",
+      "model: claude-haiku-5-5",
+      "avatar: felt/scout",
+      "tools: [Read]",
+      "effort: low",
+      "maxTurns: 12",
+      "---",
+      "Find.",
+    ]);
     const game = NodePath.join(aios, "projects", "game");
     writeSpec(game, "roblox", ["---", "name: roblox", "extends: frontend-designer", "---"]);
     writeSpec(game, "bad", ["---", "name: bad", "extends: nobody", "---"]);
@@ -75,6 +86,14 @@ describe("listSubagents", () => {
       instructions: "Find.",
     });
     expect(byName.get("old")).toMatchObject({ legacy: true });
+    // A format v1 file with the new keys is not legacy (found in the live check: effort).
+    expect(byName.get("scout-v1")).toMatchObject({
+      legacy: false,
+      error: null,
+      effort: "low",
+      maxTurns: 12,
+      avatar: "felt/scout",
+    });
     expect(byName.get("roblox")).toMatchObject({
       source: "project",
       projectName: "game",

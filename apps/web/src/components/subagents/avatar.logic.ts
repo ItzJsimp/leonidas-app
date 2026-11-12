@@ -49,9 +49,20 @@ export function avatarId(avatar: string | null | undefined): string | null {
 export const avatarValue = (id: string) => `felt/${id}`;
 export const avatarUrl = (id: string) => `/agents/avatars/${id}.webp`;
 
-/** The avatar a new agent starts with: the library id that equals its name, else `helper`. */
+/** The library id that a name holds: the name itself ("reviewer") or a dash word of it ("test-scout"). */
+function idInName(name: string): string | null {
+  if (KNOWN.has(name)) return name;
+  return name.split("-").find((word) => KNOWN.has(word)) ?? null;
+}
+
+/** The avatar a new agent starts with: the library id its name holds, else `helper`. */
 export function defaultAvatar(name: string): string {
-  return avatarValue(KNOWN.has(name) ? name : "helper");
+  return avatarValue(idInName(name) ?? "helper");
+}
+
+/** The library id to draw: the file's own avatar, else the one the name holds, else null. */
+export function avatarIdFor(avatar: string | null | undefined, name: string): string | null {
+  return avatarId(avatar) ?? idInName(name);
 }
 
 /** Up to two letters for the fallback badge: "team-lead" gives "TL", "scout" gives "SC". */

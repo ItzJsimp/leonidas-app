@@ -18,7 +18,8 @@ import { resolveSubagentSpec } from "./subagentPersona.ts";
 
 /** About 4 characters per token, the same rule the confirm card uses. */
 const tokensForBytes = (bytes: number) => Math.round(bytes / 4);
-const LEGACY_FIELD = /^(models|permissions|effort|omit_claude_md):/m;
+// `effort` is a format v1 key (Agents tab), so it is not a sign of the old format.
+const LEGACY_FIELD = /^(models|permissions|omit_claude_md):/m;
 
 export interface SubagentSource {
   readonly folder: string;
