@@ -37,7 +37,16 @@ const TradingAttempt = Schema.Struct({
 
 const TradingMoneyPoint = Schema.Struct({
   at: Schema.String,
-  category: Schema.String,
+  category: Schema.Literals([
+    "evaluation",
+    "reset",
+    "activation",
+    "mentorship",
+    "data",
+    "tools",
+    "other",
+    "payout",
+  ]),
   amount: Schema.Number,
   netReturn: Schema.Number,
 });
@@ -137,9 +146,25 @@ export const TradingPackView = Schema.Union([
 ]);
 export type TradingPackView = typeof TradingPackView.Type;
 
+/** The app's keys in `trading/settings.json`. Other keys stay in the file. */
+export const TradingSettings = Schema.Struct({ monthlyFeeCap: NullableNumber });
+export type TradingSettings = typeof TradingSettings.Type;
+
+/** Null removes the cap. A number is a dollar cap from 0 to 1,000,000. */
+export const TradingSettingsSaveInput = Schema.Struct({
+  workspaceId: Schema.optional(AiosWorkspaceId),
+  monthlyFeeCap: Schema.NullOr(
+    Schema.Number.check(Schema.isBetween({ minimum: 0, maximum: 1_000_000 })),
+  ),
+});
+export type TradingSettingsSaveInput = typeof TradingSettingsSaveInput.Type;
+
 export const TradingStateResult = Schema.Struct({
   pack: TradingPackView,
   state: TradingState,
+  settings: TradingSettings,
+  /** True when `trading/settings.json` exists but cannot be read. The app then shows defaults. */
+  settingsUnreadable: Schema.Boolean,
   /** The newest trades, newest first, for the Journal. */
   trades: Schema.Array(TradingTradeView),
   /** Lines in the ledger or trades file that were skipped as unreadable. */
@@ -162,6 +187,7 @@ export class TradingStateError extends Schema.TaggedError<TradingStateError>()(
       "pack_not_found",
       "pack_changed",
       "invalid_event",
+      "invalid_settings",
     ]),
     detail: Schema.optional(Schema.String),
   },

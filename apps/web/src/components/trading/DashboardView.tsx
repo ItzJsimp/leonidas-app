@@ -16,8 +16,9 @@ import {
   setupRows,
   type Range,
 } from "./dashboard.logic";
+import { chartMarkers } from "./money.logic";
 
-function Card({
+export function Card({
   title,
   aside,
   className,
@@ -39,9 +40,19 @@ function Card({
   );
 }
 
-function NetReturnChart({ state }: { readonly state: TradingState }) {
-  const [range, setRange] = useState<Range>("3M");
+/** The net return line. The Money tab adds `markers` for each Payout and Firm fee. */
+export function NetReturnChart({
+  state,
+  defaultRange = "3M",
+  markers = false,
+}: {
+  readonly state: TradingState;
+  readonly defaultRange?: Range;
+  readonly markers?: boolean;
+}) {
+  const [range, setRange] = useState<Range>(defaultRange);
   const chart = useMemo(() => chartModel(state, range), [state, range]);
+  const marks = markers ? chartMarkers(chart.plot) : [];
   return (
     <Card
       title="Net return over time"
@@ -74,38 +85,52 @@ function NetReturnChart({ state }: { readonly state: TradingState }) {
         </p>
       ) : (
         <div className="relative">
-          <svg
-            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-            preserveAspectRatio="none"
-            className="block h-28 w-full sm:h-32"
-            role="img"
-            aria-label="Net return line chart"
-          >
-            <defs>
-              <linearGradient id="trading-net-area" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="var(--color-state)" stopOpacity=".28" />
-                <stop offset="1" stopColor="var(--color-state)" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <line
-              x1="0"
-              x2={CHART_WIDTH}
-              y1={chart.zeroY}
-              y2={chart.zeroY}
-              stroke="var(--color-input)"
-              strokeDasharray="3 4"
-              vectorEffect="non-scaling-stroke"
-            />
-            <path d={chart.area ?? ""} fill="url(#trading-net-area)" />
-            <polyline
-              points={chart.points}
-              fill="none"
-              stroke="var(--color-state)"
-              strokeWidth="2"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
+          <div className="relative">
+            <svg
+              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+              preserveAspectRatio="none"
+              className="block h-28 w-full sm:h-32"
+              role="img"
+              aria-label="Net return line chart"
+            >
+              <defs>
+                <linearGradient id="trading-net-area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="var(--color-state)" stopOpacity=".28" />
+                  <stop offset="1" stopColor="var(--color-state)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <line
+                x1="0"
+                x2={CHART_WIDTH}
+                y1={chart.zeroY}
+                y2={chart.zeroY}
+                stroke="var(--color-input)"
+                strokeDasharray="3 4"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path d={chart.area ?? ""} fill="url(#trading-net-area)" />
+              <polyline
+                points={chart.points}
+                fill="none"
+                stroke="var(--color-state)"
+                strokeWidth="2"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            {marks.map((mark) => (
+              <span
+                key={mark.key}
+                style={{ left: `${mark.left}%`, top: `${mark.top}%` }}
+                className={cn(
+                  "pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded border border-input bg-card px-1 py-0.5 text-3xs font-semibold tabular-nums",
+                  mark.kind === "fee" && "text-muted-foreground",
+                )}
+              >
+                {mark.label}
+              </span>
+            ))}
+          </div>
           {chart.payoutNote ? (
             <span className="absolute right-1 top-0 rounded border border-input bg-card px-1.5 py-0.5 text-3xs font-semibold">
               {chart.payoutNote}

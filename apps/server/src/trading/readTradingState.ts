@@ -17,6 +17,7 @@ import * as Path from "effect/Path";
 
 import { readWorkspaceFile } from "../taskBoard/aiosWorkspaces.ts";
 import { readLinkedPack, type LinkedPack } from "./tradingPack.ts";
+import { readTradingSettings } from "./tradingSettings.ts";
 
 /** The Journal gets this many of the newest trades. */
 const JOURNAL_TRADES = 300;
@@ -82,10 +83,11 @@ export const readTradingState = Effect.fn("trading.readState")(function* (aiosRo
       Effect.mapError(() => new TradingStateError({ reason: "read_failed" })),
     );
   };
-  const [ledgerText, tradesText, linked] = yield* Effect.all([
+  const [ledgerText, tradesText, linked, { settings, settingsUnreadable }] = yield* Effect.all([
     readText("ledger.jsonl"),
     readText("trades.jsonl"),
     readLinkedPack(root),
+    readTradingSettings(root),
   ]);
   const ledger = parseLedger(ledgerText);
   const trades = parseTrades(tradesText);
@@ -103,6 +105,8 @@ export const readTradingState = Effect.fn("trading.readState")(function* (aiosRo
       products: productRules(linked),
     }),
     pack: packView(linked),
+    settings,
+    settingsUnreadable,
     trades: trades.trades
       .map((trade) => ({ trade, time: Date.parse(trade.at) }))
       .toSorted((a, b) => b.time - a.time)
