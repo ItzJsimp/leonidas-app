@@ -45,6 +45,7 @@ import { readReleaseStatus } from "./releaseStatus/releaseStatus.ts";
 import { homeNews, homeWeather } from "./taskBoard/homeFeeds.ts";
 import { appendTradingEvents } from "./trading/appendTradingEvents.ts";
 import { readTradingState, requireTradingRoot } from "./trading/readTradingState.ts";
+import { readTradingRiskRules } from "./trading/tradingRiskRules.ts";
 import { savePackConsent } from "./trading/tradingPack.ts";
 import {
   importTradingExport,
@@ -3166,6 +3167,12 @@ export const layerWsRpc = (
             Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
             Effect.orElseSucceed(() => null),
             Effect.flatMap((root) => appendTradingEvents(root, input.events)),
+          ),
+        [WS_METHODS.tradingRiskRules]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(readTradingRiskRules),
           ),
         [WS_METHODS.releaseStatusRuns]: () => Effect.promise(() => readReleaseStatus()),
         [WS_METHODS.layaUsage]: () => Effect.promise(() => readLayaUsage()),

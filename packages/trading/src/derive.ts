@@ -105,7 +105,7 @@ const FIRM_FEE_CATEGORIES: ReadonlySet<CostCategory> = new Set([
 ]);
 
 // Sums use whole cents, so repeated decimal amounts cannot drift.
-const toCents = (dollars: number): number => Math.round(dollars * 100);
+export const toCents = (dollars: number): number => Math.round(dollars * 100);
 const toDollars = (cents: number): number => cents / 100;
 
 type EventIssue = { eventId: string; reason: string };
