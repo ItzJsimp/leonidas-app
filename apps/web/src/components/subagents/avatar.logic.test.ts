@@ -7,7 +7,6 @@ import {
   avatarUrl,
   avatarValue,
   defaultAvatar,
-  initials,
 } from "./avatar.logic";
 
 describe("avatar logic", () => {
@@ -39,17 +38,11 @@ describe("avatar logic", () => {
     expect(defaultAvatar("team-lead")).toBe("felt/team-lead");
   });
 
-  it("draws the file's avatar, else the id the name holds, else initials", () => {
+  it("draws the file's avatar, else the id the name holds, else the default helper", () => {
     expect(avatarIdFor("felt/wizard", "reviewer")).toBe("wizard");
     expect(avatarIdFor(null, "reviewer")).toBe("reviewer");
     expect(avatarIdFor("hexagon:teal", "test-scout")).toBe("scout");
-    expect(avatarIdFor(undefined, "explorer")).toBeNull();
-  });
-
-  it("makes initials for the fallback badge", () => {
-    expect(initials("team-lead")).toBe("TL");
-    expect(initials("scout")).toBe("SC");
-    expect(initials("data ingestor tool")).toBe("DI");
-    expect(initials("")).toBe("?");
+    expect(avatarIdFor(undefined, "explorer")).toBe("helper");
+    expect(avatarIdFor("felt/not-in-the-library", "")).toBe("helper");
   });
 });

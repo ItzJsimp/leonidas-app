@@ -57,23 +57,10 @@ function idInName(name: string): string | null {
 
 /** The avatar a new agent starts with: the library id its name holds, else `helper`. */
 export function defaultAvatar(name: string): string {
-  return avatarValue(idInName(name) ?? "helper");
+  return avatarValue(avatarIdFor(null, name));
 }
 
-/** The library id to draw: the file's own avatar, else the one the name holds, else null. */
-export function avatarIdFor(avatar: string | null | undefined, name: string): string | null {
-  return avatarId(avatar) ?? idInName(name);
-}
-
-/** Up to two letters for the fallback badge: "team-lead" gives "TL", "scout" gives "SC". */
-export function initials(name: string): string {
-  const words = name.split(/[\s_-]+/u).filter((word) => word.length > 0);
-  const letters =
-    words.length > 1
-      ? words
-          .slice(0, 2)
-          .map((word) => word.charAt(0))
-          .join("")
-      : (words[0] ?? "?").slice(0, 2);
-  return letters.toUpperCase();
+/** The library id to draw: the file's own avatar, else the one the name holds, else `helper`. Never empty. */
+export function avatarIdFor(avatar: string | null | undefined, name: string): string {
+  return avatarId(avatar) ?? idInName(name) ?? "helper";
 }

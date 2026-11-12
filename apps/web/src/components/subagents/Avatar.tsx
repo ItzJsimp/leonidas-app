@@ -1,13 +1,13 @@
 import { cn } from "~/lib/utils";
 
-import { avatarIdFor, avatarUrl, initials } from "./avatar.logic";
+import { avatarIdFor, avatarUrl } from "./avatar.logic";
 
 export type AvatarSize = 20 | 36 | 56;
 
 /**
  * An agent's felt avatar as a circle. 125% size and a 3% top offset keep the whole head in view
  * (skill note). A missing or unknown avatar falls back to the library id that the name holds,
- * and then to the initials of the name.
+ * and then to the default `helper` avatar, so every agent shows a felt character.
  * The name always shows beside it, so the circle is decoration.
  */
 export function AgentAvatar(props: {
@@ -21,26 +21,16 @@ export function AgentAvatar(props: {
   return (
     <span
       aria-hidden
-      data-avatar={id ?? "initials"}
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted font-medium text-muted-foreground",
-        props.className,
-      )}
+      data-avatar={id}
+      className={cn("inline-flex shrink-0 overflow-hidden rounded-full bg-muted", props.className)}
       style={{
         width: size,
         height: size,
-        fontSize: Math.round(size * 0.4),
-        ...(id === null
-          ? {}
-          : {
-              backgroundImage: `url(${avatarUrl(id)})`,
-              backgroundSize: "125%",
-              backgroundPosition: "50% 3%",
-              backgroundRepeat: "no-repeat",
-            }),
+        backgroundImage: `url(${avatarUrl(id)})`,
+        backgroundSize: "125%",
+        backgroundPosition: "50% 3%",
+        backgroundRepeat: "no-repeat",
       }}
-    >
-      {id === null ? initials(props.name) : null}
-    </span>
+    />
   );
 }
