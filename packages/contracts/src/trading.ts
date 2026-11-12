@@ -23,6 +23,7 @@ export const TradingAccountView = Schema.Struct({
   profitTarget: NullableNumber,
   winningDays: NullableNumber,
   bestDayPercent: NullableNumber,
+  consistencyPercent: NullableNumber,
 });
 export type TradingAccountView = typeof TradingAccountView.Type;
 
@@ -38,6 +39,7 @@ const TradingAttempt = Schema.Struct({
 const TradingMoneyPoint = Schema.Struct({
   at: Schema.String,
   category: Schema.String,
+  accountId: Schema.NullOr(Schema.String),
   amount: Schema.Number,
   netReturn: Schema.Number,
 });

@@ -261,6 +261,29 @@ describe("account numbers", () => {
     assert.strictEqual(closed.lowestRoom, null);
   });
 
+  it("carries the consistency limit from the rule and the best-day share", () => {
+    const rules = new Map([
+      [productKey("Firm A", "Plan 1"), { maxLoss: 1000, consistencyPercent: 40 }],
+    ]);
+    const state = deriveTradingState({
+      events: [
+        opened("a"),
+        start("a", 1),
+        { ...base(4), kind: "payout.received", accountId: "a", amount: 50 },
+      ],
+      trades: [trade("t1", "a", 2, 100), trade("t2", "a", 3, 300)],
+      products: rules,
+    });
+    const account = state.accounts[0];
+    assert.strictEqual(account?.consistencyPercent, 40);
+    assert.strictEqual(account?.bestDayPercent, 75);
+    assert.deepStrictEqual(
+      state.moneyTimeline.map((point) => point.accountId),
+      ["a", "a"],
+    );
+    assert.strictEqual(derive([opened("a")]).accounts[0]?.consistencyPercent, null);
+  });
+
   it("counts setups and clean-day streaks, and a tag overrides the import", () => {
     const state = derive(
       [

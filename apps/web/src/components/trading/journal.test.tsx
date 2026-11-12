@@ -24,6 +24,7 @@ const account = (id: string, closed = false) =>
     profitTarget: null,
     winningDays: null,
     bestDayPercent: null,
+    consistencyPercent: null,
   }) satisfies TradingAccountView;
 const trade = (id: string, day: string, time: string, pnl: number): TradingTradeView => ({
   id: `topstepx:${id}`,
