@@ -87,7 +87,7 @@ import { instanceForModel } from "../subagents/instanceForModel.ts";
 import * as SubagentRuns from "../subagents/SubagentRuns.ts";
 import * as UsageService from "../usage/UsageService.ts";
 import { personaEngineSupport } from "../subagents/personaEngines.ts";
-import { loadSubagentPersona } from "../subagents/subagentPersona.ts";
+import { loadSubagentPersona, personaTools } from "../subagents/subagentPersona.ts";
 import { runRanAfter } from "@t3tools/shared/orchestrationV2ThreadError";
 import {
   evaluatePredictiveQuota,
@@ -2780,7 +2780,7 @@ const make = Effect.gen(function* () {
                   persona: {
                     name: persona.spec.name,
                     systemPrompt: persona.systemPrompt,
-                    tools: persona.spec.tools,
+                    tools: personaTools(persona.spec),
                     canSpawn: persona.spec.canSpawn,
                   },
                 }),

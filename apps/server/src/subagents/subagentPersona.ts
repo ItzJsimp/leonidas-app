@@ -108,6 +108,22 @@ export interface LoadedSubagentPersona {
   readonly systemPrompt: string;
 }
 
+/** The app tool that starts another agent. A lead (`canSpawn`) gets it without listing it. */
+export const SPAWN_TOOL = "mcp__leonidas__leo_delegate_task";
+
+/**
+ * The tools a child starts with: the file's list, plus the start tool for a lead.
+ * The Claude adapter keeps the app tools only when the list names one, so a lead
+ * with `tools: [Read]` could not start anyone.
+ */
+export function personaTools(
+  spec: Pick<ResolvedSubagentSpec, "tools" | "canSpawn">,
+): ReadonlyArray<string> {
+  return spec.canSpawn && !spec.tools.includes(SPAWN_TOOL)
+    ? [...spec.tools, SPAWN_TOOL]
+    : spec.tools;
+}
+
 export class SubagentPersonaError extends Error {
   override readonly name = "SubagentPersonaError";
 }

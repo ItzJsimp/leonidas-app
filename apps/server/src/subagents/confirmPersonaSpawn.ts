@@ -24,7 +24,7 @@ import {
   type ResolvedSpawnTier,
   resolveSpawnTier,
 } from "./spawnTiers.ts";
-import type { LoadedSubagentPersona } from "./subagentPersona.ts";
+import { type LoadedSubagentPersona, personaTools } from "./subagentPersona.ts";
 
 const denied = (message: string) =>
   new OrchestratorMcpFailure({ code: "capability_denied", message });
@@ -197,7 +197,7 @@ export const confirmPersonaSpawn = Effect.fn("confirmPersonaSpawn")(function* (i
   const approvals = yield* SpawnApprovals;
   const estimatedStartTokens = estimatePersonaStartTokens({
     systemPromptChars: persona.systemPrompt.length,
-    tools: persona.spec.tools,
+    tools: personaTools(persona.spec),
   });
   const aios = yield* readTiers(persona.specPath);
   const mapped = resolveSpawnTier({ model, appFreeModels, aios });
@@ -229,7 +229,7 @@ export const confirmPersonaSpawn = Effect.fn("confirmPersonaSpawn")(function* (i
     approvalId: input.approvalId,
     tier,
     filesInScope: persona.spec.context.map((entry) => entry.path),
-    toolCount: persona.spec.tools.length,
+    toolCount: personaTools(persona.spec).length,
     estimatedStartTokens,
     ...(input.engineNote === undefined ? {} : { engineNote: input.engineNote }),
     ...(input.details === undefined ? {} : { details: input.details }),

@@ -6,7 +6,13 @@ import * as NodePath from "node:path";
 import { afterEach, describe, expect, it } from "@effect/vitest";
 
 import { updateSubagentSpec } from "./subagentEdit.ts";
-import { loadSubagentPersona, parseSubagentSpec, resolveSubagentSpec } from "./subagentPersona.ts";
+import {
+  SPAWN_TOOL,
+  loadSubagentPersona,
+  parseSubagentSpec,
+  personaTools,
+  resolveSubagentSpec,
+} from "./subagentPersona.ts";
 
 const roots: string[] = [];
 
@@ -222,6 +228,34 @@ describe("agents tab keys", () => {
     expect(
       resolveSubagentSpec(NodePath.join(project, ".agents", "subagents", "worker.md")).canSpawn,
     ).toBe(false);
+  });
+
+  it("decision 2: a lead gets the start tool once, and a plain agent never does", () => {
+    const root = makeRoot();
+    writeSpec(root, "lead", [
+      "---",
+      "name: lead",
+      "canSpawn: true",
+      "tools: [Read]",
+      "---",
+      "Lead.",
+    ]);
+    writeSpec(root, "listed", [
+      "---",
+      "name: listed",
+      "canSpawn: true",
+      `tools: [Read, ${SPAWN_TOOL}]`,
+      "---",
+      "Lead.",
+    ]);
+    writeSpec(root, "plain", ["---", "name: plain", "tools: [Read]", "---", "Plain."]);
+    const at = (name: string) =>
+      resolveSubagentSpec(NodePath.join(root, ".agents", "subagents", `${name}.md`));
+
+    expect(personaTools(at("lead"))).toEqual(["Read", SPAWN_TOOL]);
+    expect(personaTools(at("listed"))).toEqual(["Read", SPAWN_TOOL]);
+    expect(personaTools(at("plain"))).toEqual(["Read"]);
+    expect(at("lead").tools).toEqual(["Read"]);
   });
 
   it("decision 1: rejects a bad maxTurns, canSpawn and skill name", () => {
