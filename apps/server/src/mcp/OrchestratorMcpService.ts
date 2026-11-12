@@ -1,4 +1,8 @@
 import {
+  threadPullRequestsOf,
+  visibleThreadPullRequests,
+} from "@t3tools/shared/threadPullRequests";
+import {
   CommandId,
   type RunId,
   isProviderAvailable,
@@ -142,13 +146,13 @@ import * as TaskBoardService from "../taskBoard/TaskBoardService.ts";
 
 const DEFAULT_WAIT_TIMEOUT_MS = 10 * 60 * 1_000;
 const MAX_WAIT_TIMEOUT_MS = 60 * 60 * 1_000;
-// Events that can make a delegated task terminal: the parent's task record,
-// and the child's runs, nested tasks, and pending provider background work.
+// Task completion and pending input or approval requests must end a blocking wait.
 const TASK_WAKE_EVENTS = [
   { thread: "parent", eventType: "subagent.updated" },
   { thread: "child", eventType: "run.updated" },
   { thread: "child", eventType: "subagent.updated" },
   { thread: "child", eventType: "provider-thread.updated" },
+  { thread: "child", eventType: "runtime-request.updated" },
 ] as const;
 /** A person answers the card, so a slower poll is plenty. */
 const SECRET_REQUEST_POLL_INTERVAL_MS = 500;
@@ -933,6 +937,17 @@ function threadSnooze(
   };
 }
 
+function threadPullRequestSummaries(thread: Parameters<typeof threadPullRequestsOf>[0]) {
+  return visibleThreadPullRequests(threadPullRequestsOf(thread)).map((link) => ({
+    host: link.host,
+    repository: link.repository,
+    number: link.number,
+    url: link.url,
+    source: link.source,
+    state: link.snapshot?.state ?? null,
+  }));
+}
+
 function listItemFromShell(
   shell: OrchestrationV2ThreadShell,
   nowMs: number,
@@ -949,6 +964,7 @@ function listItemFromShell(
     runtimeMode: shell.runtimeMode,
     interactionMode: shell.interactionMode,
     linkedPullRequest: shell.linkedPullRequest ?? null,
+    pullRequests: threadPullRequestSummaries(shell),
     ...threadSettlement(shell),
     ...threadSnooze(shell, nowMs),
     parentThreadId: shell.lineage.parentThreadId,
@@ -981,6 +997,7 @@ function threadDetail(
     runtimeMode: projection.thread.runtimeMode,
     interactionMode: projection.thread.interactionMode,
     linkedPullRequest: projection.thread.linkedPullRequest ?? null,
+    pullRequests: threadPullRequestSummaries(projection.thread),
     titleRegeneration:
       projection.thread.titleRegeneration === undefined ||
       projection.thread.titleRegeneration === null
@@ -1847,6 +1864,9 @@ const make = Effect.gen(function* () {
         workState,
         hasPendingChildRuns: hasPendingChildRuns(childProjection, childRun),
         providerInstanceId: task.providerInstanceId,
+        ...(childRun?.modelSelection?.options === undefined
+          ? {}
+          : { options: childRun.modelSelection.options }),
         model: task.model,
         ...(task.routingReason === undefined ? {} : { routingReason: task.routingReason }),
         summary: derivedResult,
@@ -2842,11 +2862,11 @@ const make = Effect.gen(function* () {
           Math.max(1, input.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS),
         );
         const waited = yield* waitForTask(scope, taskId, timeoutMs);
-        if (Option.isSome(waited)) {
+        if (Option.isSome(waited) && isTerminalTaskStatus(waited.value.status)) {
           return waited.value;
         }
-        // The blocking wait timed out, so it no longer owns delivery: upgrade
-        // the task so a later terminal wakes the parent even mid-turn. Best
+        // A timeout, question or approval ends the blocking wait before completion.
+        // Upgrade delivery so a later terminal wakes the parent even mid-turn. Best
         // effort; on failure the settled_only policy still wakes a settled
         // parent.
         yield* threadManagement
@@ -2884,7 +2904,7 @@ const make = Effect.gen(function* () {
               }),
             ),
           );
-        return yield* readTask(scope, taskId, true, true);
+        return Option.isSome(waited) ? waited.value : yield* readTask(scope, taskId, true, true);
       }),
     taskStatus: (callerScope, taskId) =>
       Effect.gen(function* () {
@@ -3017,6 +3037,25 @@ const make = Effect.gen(function* () {
         // A task waiting on its own delegates has work to stop below it. One with neither
         // a running turn nor delegates (such as one awaiting a restart) keeps its delivery.
         const child = yield* loadProjection(current.childThreadId);
+        const queuedRun = child.runs.find(
+          (run) => run.id === current.childRunId && run.status === "queued",
+        );
+        if (queuedRun !== undefined) {
+          yield* threadManagement
+            .dispatch({
+              type: "queued-run.cancel",
+              commandId: stableCommandId({
+                scope,
+                requestKey: key,
+                operation: "cancel-queued-task",
+              }),
+              threadId: current.childThreadId,
+              runId: queuedRun.id,
+            })
+            .pipe(Effect.mapError(threadManagementFailure));
+          yield* disposeCompletionDelivery;
+          return { taskId: input.taskId, status: "cancel_requested" };
+        }
         if (
           current.workState !== "waiting_for_children" &&
           ThreadManagementService.latestActiveRun(child) === undefined
