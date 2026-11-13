@@ -192,7 +192,7 @@ function CreateFlow(props: CreateProps) {
 
   if (step === "basics") {
     return (
-      <form onSubmit={onBasicsSubmit}>
+      <form className="flex min-h-0 flex-col" onSubmit={onBasicsSubmit}>
         <DialogHeader>
           <DialogTitle>New agent: name, avatar and model</DialogTitle>
           <DialogDescription>
@@ -270,7 +270,7 @@ function CreateFlow(props: CreateProps) {
   }
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-col">
       <DialogHeader>
         <DialogTitle>New agent: {name}</DialogTitle>
         <DialogDescription>

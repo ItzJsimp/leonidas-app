@@ -163,6 +163,23 @@ describe("persisted counts", () => {
     }),
   );
 
+  it.effect("does not add the saved counts again when the same file is kept twice", () =>
+    Effect.gen(function* () {
+      const { folder, file } = withTempFile();
+      const first = yield* makeSpawnApprovals;
+      yield* first.keepStatsIn(file);
+      yield* first.recordSpawn(10_000);
+
+      const second = yield* makeSpawnApprovals;
+      yield* second.keepStatsIn(file);
+      yield* second.keepStatsIn(file);
+      yield* second.keepStatsIn(file);
+      const stats = yield* second.stats;
+      NodeFs.rmSync(folder, { recursive: true, force: true });
+      expect(stats.spawnsToday).toBe(1);
+    }),
+  );
+
   it("ignores counts saved on another day or damaged", () => {
     const saved = JSON.stringify({ day: "2026-10-15", spawns: 4, waited: 1, startTokens: 40_000 });
     expect(parseSavedCounts(saved, "2026-10-16")).toBeNull();

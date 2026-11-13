@@ -124,9 +124,9 @@ export function StartersTab() {
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-sm font-semibold">{card.name}</h3>
                 {card.model === null ? null : (
-                  <p className="truncate font-mono text-xs text-muted-foreground">
-                    {modelDisplayName(card.model)}
-                    {card.tier === null ? "" : ` · ${card.tier}`}
+                  <p className="flex flex-wrap gap-x-1 font-mono text-xs text-muted-foreground">
+                    <span>{modelDisplayName(card.model)}</span>
+                    {card.tier === null ? null : <span>{`· ${card.tier}`}</span>}
                   </p>
                 )}
               </div>

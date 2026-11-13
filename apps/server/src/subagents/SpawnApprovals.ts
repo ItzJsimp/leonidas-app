@@ -233,6 +233,8 @@ export const makeSpawnApprovals = Effect.gen(function* () {
       }),
     keepStatsIn: (file) =>
       Effect.gen(function* () {
+        // The RPC layer builds once per connection. A second call for the same file would add the saved counts again.
+        if (statsFile === file) return;
         const day = yield* localDay;
         statsFile = file;
         const saved = yield* Effect.sync(() => {

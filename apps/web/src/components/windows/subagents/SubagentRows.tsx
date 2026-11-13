@@ -72,18 +72,19 @@ export function RunRow({
         aria-pressed={selected}
         onClick={onSelect}
         className={cn(
-          "flex min-w-0 flex-1 basis-56 items-center gap-3 rounded-md text-left",
+          "flex min-w-0 flex-1 basis-56 flex-wrap items-center gap-x-3 gap-y-1 rounded-md text-left",
           FOCUS,
         )}
       >
         <span className="w-28 shrink-0">
           <StatusBadge run={run} />
         </span>
-        <span className="min-w-0 flex-1">
+        {/* basis-40 keeps the title readable: the time and cost wrap below it in a narrow list. */}
+        <span className="min-w-0 flex-1 basis-40">
           <TruncatedText text={run.summary} className="text-sm font-medium text-foreground" />
           <TruncatedText text={detail} className="text-xs text-muted-foreground" />
         </span>
-        <span className="shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+        <span className="ml-auto shrink-0 text-right text-xs text-muted-foreground tabular-nums">
           <span className="block">{elapsedLabel(run, now)}</span>
           {run.costUsd === null ? null : <span className="block">{costLabel(run.costUsd)}</span>}
           {!live && run.endedAt ? (
