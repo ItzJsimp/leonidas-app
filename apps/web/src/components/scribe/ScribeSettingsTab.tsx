@@ -5,7 +5,7 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import type { ScribeSettings } from "@t3tools/contracts";
 import { XIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useEnvironmentQuery } from "~/state/query";
 import {
@@ -94,11 +94,8 @@ export function ScribeSettingsTab({ environmentId, live }: ScribeTabProps) {
     previousConnected.current = live.connected;
   }, [live.connected, error, refresh]);
 
-  const savedDraft = useMemo(() => (settings === null ? null : toDraft(settings)), [settings]);
-  const patches = useMemo(
-    () => (savedDraft === null || draft === null ? [] : diffDraft(savedDraft, draft)),
-    [savedDraft, draft],
-  );
+  const savedDraft = settings === null ? null : toDraft(settings);
+  const patches = savedDraft === null || draft === null ? [] : diffDraft(savedDraft, draft);
 
   const fail = (result: AtomCommandResult<unknown, unknown> & { _tag: "Failure" }) => {
     if (!isAtomCommandInterrupted(result)) {
@@ -229,7 +226,25 @@ export function ScribeSettingsTab({ environmentId, live }: ScribeTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Section title="Shortcuts" note="Click Record, then press the keys or a mouse button.">
+      <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center gap-3 border-b bg-background p-3">
+        <Button disabled={busy || patches.length === 0} onClick={() => void save()}>
+          {busy ? "Saving" : "Save changes"}
+        </Button>
+        <Button
+          variant="ghost"
+          disabled={busy || patches.length === 0}
+          onClick={() => setEdits(null)}
+        >
+          Discard
+        </Button>
+        <span className="text-sm text-muted-foreground" aria-live="polite">
+          {patches.length > 0 ? "Save changes to apply your settings." : "No unsaved changes"}
+        </span>
+      </div>
+      <Section
+        title="Shortcuts"
+        note="Each shortcut works on its own. Click Record, then press the keys or a mouse button."
+      >
         {HOTKEY_ROWS.map((row) => (
           <HotkeyRow
             key={row.key}
@@ -371,24 +386,6 @@ export function ScribeSettingsTab({ environmentId, live }: ScribeTabProps) {
         onClear={clearKey}
         onCopy={copyKey}
       />
-
-      <div className="sticky bottom-0 -mx-1 flex items-center gap-3 border-t bg-background/95 p-3 backdrop-blur">
-        <Button disabled={busy || patches.length === 0} onClick={() => void save()}>
-          {busy ? "Saving" : "Save changes"}
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={busy || patches.length === 0}
-          onClick={() => setEdits(null)}
-        >
-          Discard
-        </Button>
-        {patches.length > 0 ? (
-          <span className="text-sm text-muted-foreground" aria-live="polite">
-            Unsaved changes
-          </span>
-        ) : null}
-      </div>
     </div>
   );
 }

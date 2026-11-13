@@ -11,7 +11,7 @@ import {
   Trash2Icon,
   WandSparklesIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useEnvironmentQuery } from "~/state/query";
 import { scribePatchSettings, scribeSettingsQuery } from "~/state/scribe";
@@ -82,18 +82,18 @@ export function ScribeRewriteTab({ environmentId, live }: ScribeTabProps) {
   }, [live.connected, error, refresh]);
 
   const settings = settingsQuery.data;
-  const current = useMemo(
-    () =>
-      saved !== null
-        ? readRewritePresets({ rewrite: saved })
-        : settings === null
-          ? null
-          : readRewritePresets(settings.sections.presets),
-    [saved, settings],
-  );
-  const savedRows = useMemo(() => (current === null ? [] : withIds(current.list)), [current]);
+  const current =
+    saved !== null
+      ? readRewritePresets({ rewrite: saved })
+      : settings === null
+        ? null
+        : readRewritePresets(settings.sections.presets);
+  const savedRows =
+    current === null
+      ? []
+      : current.list.map((preset, index) => ({ ...preset, id: `saved-preset-${index}` }));
   const draft = rows ?? savedRows;
-  const errors = useMemo(() => validatePresets(draft), [draft]);
+  const errors = validatePresets(draft);
   const changed = current !== null && !samePresets(draft, current.list);
 
   if (settings === null || current === null) {
@@ -213,6 +213,17 @@ export function ScribeRewriteTab({ environmentId, live }: ScribeTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center gap-3 border-b bg-background p-3">
+        <Button disabled={busy || !changed} onClick={() => void save()}>
+          {busy ? "Saving" : "Save presets"}
+        </Button>
+        <Button variant="ghost" disabled={busy || !changed} onClick={discard}>
+          Discard
+        </Button>
+        <span className="text-sm text-muted-foreground" aria-live="polite">
+          {changed ? "Save presets to apply your changes." : "No unsaved changes"}
+        </span>
+      </div>
       <HowItWorks keys={keys} />
 
       <section aria-labelledby="rewrite-presets" className="flex flex-col gap-3">
@@ -291,20 +302,6 @@ export function ScribeRewriteTab({ environmentId, live }: ScribeTabProps) {
       <p className="sr-only" aria-live="polite">
         {announcement}
       </p>
-
-      <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-background/95 p-3 backdrop-blur">
-        <Button disabled={busy || !changed} onClick={() => void save()}>
-          {busy ? "Saving" : "Save presets"}
-        </Button>
-        <Button variant="ghost" disabled={busy || !changed} onClick={discard}>
-          Discard
-        </Button>
-        {changed ? (
-          <span className="text-sm text-muted-foreground" aria-live="polite">
-            Unsaved changes
-          </span>
-        ) : null}
-      </div>
     </div>
   );
 }
