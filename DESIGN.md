@@ -150,6 +150,17 @@ One card holds **Run**, **Context** and **Limits**, in that order. `Ctrl+Shift+B
 - **Targets and tokens:** icon buttons are at least 24 by 24 px. Status chips use a solid fill. No colored `border-left` thicker than 1 px. No hex in components.
 - **New chat hero:** the red helmet at 60 percent, a time-of-day greeting with the project picker, and slow red dots. Jake's pick (Doop `MJ2ukUgbs-`) is dots only, with no haze. The dots have soft edges, show behind every chat (half strength behind an active chat) and always drift: Jake chose that they ignore `prefers-reduced-motion`, the one exception to the motion rule above. The helmet glow is 406 px wide and fades out from the helmet. The question line sits 24 px above the composer.
 
+## Usage Quota tab
+
+Jake's pick: Doop `9S7bhAMQ5E` (A, one ranked table of chats). The **Quota** tab sits after Cost, Text used and Limits on the Usage page. It has no shortcut key.
+
+- **Table:** columns are Chat (title, project), Account (name, plan chip), 5-hour, Weekly and Last active. Rows are sorted by weekly points, then 5-hour points. Eight rows show first, then "Show all".
+- **Units:** both columns are percent of one limit, so a chat that used two 5-hour windows reads 200%. Bars scale to the largest row on screen. Points of different accounts do not add up, so the footnote says so.
+- **Shared mark:** a hollow `warning-foreground` ring before the figure means another chat or device may share the points. Screen readers get "Up to".
+- **Range:** only 24h, 7d and 30d work, because readings are kept 30 days. The other presets are disabled. A saved 90d or short range falls back to 7d.
+- **Empty and error:** "No quota readings in this period" teaches what creates readings. A failed read says to try Refresh. A chat the app no longer lists keeps its row as "Chat no longer in the list".
+- **Narrow windows:** the table scrolls sideways inside its card from 44 rem down. The page itself never scrolls sideways.
+
 ## Doop workflow
 
 Every visible change follows the Doop reference. Reuse an approved frame for small edits.

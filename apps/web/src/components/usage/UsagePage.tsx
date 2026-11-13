@@ -65,6 +65,8 @@ import { ScrollArea } from "../ui/scroll-area";
 import { AppRouteModal, AppRouteModalClose } from "../AppRouteModal";
 import { Skeleton } from "../ui/skeleton";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
+import { QuotaAudit } from "./QuotaAudit";
+import { QUOTA_RANGES, quotaRangeFor } from "./quotaAudit.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import {
@@ -148,6 +150,8 @@ export function UsagePage() {
   });
   const metric = preferences.metric;
   const showingLimits = metric === "limits";
+  const showingQuota = metric === "quota";
+  const [quotaRefresh, setQuotaRefresh] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [limitsNow, setLimitsNow] = useState(() => Date.now());
   const refreshingRef = useRef(false);
@@ -315,6 +319,10 @@ export function UsagePage() {
   };
   const selectMetric = (nextMetric: UsageMetric) => {
     if (nextMetric === "limits") setLimitsNow(Date.now());
+    // Readings last 30 days, so the quota view only offers 24h, 7d and 30d.
+    if (nextMetric === "quota" && quotaRangeFor(rangeId).id !== rangeId) {
+      selectWindow(quotaRangeFor(rangeId).id);
+    }
     updatePreferences({ metric: nextMetric });
   };
   const refreshLimits = async (automatic = false, afterPending = false) => {
@@ -356,7 +364,13 @@ export function UsagePage() {
     event.preventDefault();
     event.stopPropagation();
     if (metricOption) selectMetric(metricOption.value);
-    if (periodOption && !showingLimits) selectWindow(periodOption.id);
+    if (
+      periodOption &&
+      !showingLimits &&
+      (!showingQuota || QUOTA_RANGES.some((range) => range.id === periodOption.id))
+    ) {
+      selectWindow(periodOption.id);
+    }
   });
 
   useEffect(() => {
@@ -366,6 +380,10 @@ export function UsagePage() {
 
   const refreshWindow = () => {
     if (refreshingRef.current) return;
+    if (showingQuota) {
+      setQuotaRefresh((count) => count + 1);
+      return;
+    }
 
     if (showingLimits) {
       refreshingRef.current = true;
@@ -435,7 +453,7 @@ export function UsagePage() {
             selectedEnvironments={selectedEnvironments}
             selectedEnvironmentIds={selectedEnvironmentIds}
             onSelectionChange={setSelectedEnvironmentIds}
-            showUsageStatus={!showingLimits}
+            showUsageStatus={!showingLimits && !showingQuota}
             refreshing={refreshingUsage}
             isPartial={isPartial}
             duplicateSources={merged.duplicateSources}
@@ -454,9 +472,11 @@ export function UsagePage() {
       <Button
         className="ms-auto"
         onClick={refreshWindow}
-        aria-label={showingLimits ? "Refresh limits" : "Refresh usage"}
+        aria-label={
+          showingLimits ? "Refresh limits" : showingQuota ? "Refresh quota" : "Refresh usage"
+        }
         aria-busy={isRefreshing}
-        disabled={isRefreshing || (!showingLimits && !canReadDiagnostics)}
+        disabled={isRefreshing || (!showingLimits && !showingQuota && !canReadDiagnostics)}
         size="icon-sm"
         variant="ghost"
       >
@@ -496,7 +516,7 @@ export function UsagePage() {
         <ToggleGroup
           aria-label="Time period"
           variant="segmented"
-          value={[rangeId]}
+          value={[showingQuota ? quotaRangeFor(rangeId).id : rangeId]}
           disabled={showingLimits}
           onValueChange={(next) => {
             const value = next[0];
@@ -507,6 +527,7 @@ export function UsagePage() {
             <Toggle
               key={option.id}
               value={option.id}
+              disabled={showingQuota && !QUOTA_RANGES.some((range) => range.id === option.id)}
               title={shortcutTitle({
                 label: option.long,
                 ...("command" in option ? { command: option.command } : {}),
@@ -517,7 +538,7 @@ export function UsagePage() {
           ))}
         </ToggleGroup>
       </div>
-      {!showingLimits ? (
+      {!showingLimits && !showingQuota ? (
         <span className="min-w-0 truncate text-xs text-muted-foreground">{windowLabel}</span>
       ) : null}
     </div>
@@ -537,9 +558,18 @@ export function UsagePage() {
             {selectedEnvironments.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {environments.length === 0
-                  ? `Connect to a computer to see ${showingLimits ? "limits" : "usage"}.`
-                  : `Select a computer to see ${showingLimits ? "limits" : "usage"}.`}
+                  ? `Connect to a computer to see ${showingLimits ? "limits" : showingQuota ? "quota" : "usage"}.`
+                  : `Select a computer to see ${showingLimits ? "limits" : showingQuota ? "quota" : "usage"}.`}
               </p>
+            ) : showingQuota ? (
+              <QuotaAudit
+                environments={selectedEnvironments.map((environment) => ({
+                  environmentId: environment.environmentId,
+                  label: environment.label,
+                }))}
+                days={quotaRangeFor(rangeId).days}
+                refreshSignal={quotaRefresh}
+              />
             ) : showingLimits ? (
               <div className="flex flex-col gap-8">
                 <UsageLimitsSection
@@ -1262,7 +1292,7 @@ export function UsagePage() {
           </WorkspacePageContainer>
         </ScrollArea>
       </div>
-      {selectedModel !== undefined && !showingLimits ? (
+      {selectedModel !== undefined && !showingLimits && !showingQuota ? (
         <UsageModelDialog
           model={selectedModel}
           environments={selectedEnvironments}

@@ -15,3 +15,9 @@ An installed version starts collecting after it includes this feature. It cannot
 For Claude accounts, the Limits section of the chat details shows a line such as "This chat used 38% of 5-hour · 4% of weekly". It is the rise in your plan limit while this chat ran, counted from the first time Leonidas saw your limit move.
 
 When another chat, another device or the Claude website used the same account at the same time, the line says "up to". The real share is then lower than the number shown. These are estimates: the provider does not report limits for each request. A chat with no readings shows no line. Leonidas keeps readings for 30 days and stores only numbers, never message text.
+
+## Audit your quota
+
+Open the Usage page and choose **Quota**. It ranks your chats by the share of your plan limits they used, with the account, the 5-hour and weekly shares, and the last time each chat ran. Use 24h, 7d or 30d to change the period.
+
+A share is a percent of one limit. A chat that used two full 5-hour limits shows 200%. A hollow dot means another chat or device may share the number, so it is a ceiling. Shares of different accounts do not add up. Leonidas counts only from the day it first saw your limit move, and keeps readings for 30 days.
