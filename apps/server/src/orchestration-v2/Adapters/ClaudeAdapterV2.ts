@@ -1373,6 +1373,8 @@ export function makeClaudeQueryOptions(input: {
   readonly cwd: string | null;
   /** Reply style body from the runtime policy; absent means Leonidas. */
   readonly replyStyle?: string | undefined;
+  /** The Home chat's `<home_agent>` block; absent for every other chat. */
+  readonly homeAgent?: string | undefined;
   /**
    * The attachments dir grant lets the agent Read/copy pasted images at the
    * paths appended to the turn text, without an approval prompt. It is a leaf
@@ -1497,6 +1499,7 @@ export function makeClaudeQueryOptions(input: {
                 harness: "Claude Code",
                 ponytailPlugin: isPonytailPluginEnabled(input.environment),
                 replyStyle: input.replyStyle,
+                homeAgent: input.homeAgent,
               }) + (input.mcpServers === undefined ? "" : LEONIDAS_ORCHESTRATION_INSTRUCTIONS),
               ...launchAppendSystemPrompt,
             ].join("\n\n"),
@@ -2332,6 +2335,7 @@ export function claudeEffectiveQueryPolicyKey(
     readonly mcpServers?: ClaudeQueryOptions["mcpServers"];
   },
   replyStyle?: string,
+  homeAgent?: string,
 ): string {
   return JSON.stringify({
     runtimePolicy: claudeRuntimeQueryPolicyKey({
@@ -2342,6 +2346,7 @@ export function claudeEffectiveQueryPolicyKey(
     }),
     mcpServers: mcpOverrides.mcpServers,
     replyStyle,
+    homeAgent,
   });
 }
 
@@ -9592,6 +9597,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             queryPolicy,
             mcpOverrides,
             turnInput.runtimePolicy.replyStyle,
+            turnInput.runtimePolicy.homeAgent,
           );
           const compiledSelection = compileClaudeModelSelection(turnInput.modelSelection);
           const resumeSessionAt = yield* getNativeConversationHeadId(turnInput.providerThread);
@@ -9711,6 +9717,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             ...(resumeSessionAt === undefined ? {} : { resumeSessionAt }),
             cwd: turnInput.runtimePolicy.cwd,
             replyStyle: turnInput.runtimePolicy.replyStyle,
+            homeAgent: turnInput.runtimePolicy.homeAgent,
             attachmentsDir,
             settings: adapterOptions.settings,
             environment: claudeTurnEnvironment(adapterOptions.environment, {

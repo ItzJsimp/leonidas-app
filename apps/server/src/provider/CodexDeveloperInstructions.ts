@@ -193,6 +193,7 @@ export interface CodexRuntimeInfo {
   readonly modelName?: string | undefined;
   readonly reasoningEffort?: string | undefined;
   readonly replyStyle?: string | undefined;
+  readonly homeAgent?: string | undefined;
 }
 
 export function buildCodexDeveloperInstructions(interactionMode: ProviderInteractionMode): string {
