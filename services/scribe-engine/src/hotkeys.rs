@@ -320,8 +320,32 @@ mod platform {
     use windows_sys::Win32::{
         Foundation::{LPARAM, LRESULT, WPARAM},
         System::{LibraryLoader::GetModuleHandleW, Threading::GetCurrentThreadId},
-        UI::WindowsAndMessaging::*,
+        UI::{
+            Shell::{SHQueryUserNotificationState, QUNS_BUSY, QUNS_RUNNING_D3D_FULL_SCREEN},
+            WindowsAndMessaging::*,
+        },
     };
+
+    /// True while a full screen app (a game) owns the screen. A poller sets it, so a hook
+    /// callback never waits on the shell.
+    static FULLSCREEN: AtomicBool = AtomicBool::new(false);
+
+    /// Starts the one poller of this process. Hotkey restarts do not start another.
+    fn watch_fullscreen() {
+        static START: std::sync::Once = std::sync::Once::new();
+        START.call_once(|| {
+            let _ = std::thread::Builder::new()
+                .name("scribe-fullscreen".into())
+                .spawn(|| loop {
+                    let mut state = 0;
+                    // shortcut: a failed query counts as not full screen, so keys keep working.
+                    let busy = unsafe { SHQueryUserNotificationState(&mut state) } == 0
+                        && matches!(state, QUNS_BUSY | QUNS_RUNNING_D3D_FULL_SCREEN);
+                    FULLSCREEN.store(busy, Ordering::Relaxed);
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                });
+        });
+    }
 
     struct HookState {
         matcher: Matcher,
@@ -339,6 +363,10 @@ mod platform {
             let Some(state) = state.as_mut() else {
                 return false;
             };
+            // Releases still reach the matcher, so a key held when the game opens is let go.
+            if down && FULLSCREEN.load(Ordering::Relaxed) {
+                return false;
+            }
             if down && input.modifier() == 0 {
                 // GetAsyncKeyState here reflects the state before this event, which is
                 // correct for modifiers other than the current input.
@@ -427,6 +455,7 @@ mod platform {
         tx: Sender<HotkeyEvent>,
     ) -> Result<HotkeyHandle, String> {
         let matcher = Matcher::new(bindings, accept_injected)?;
+        watch_fullscreen();
         let (ready_tx, ready_rx) = mpsc::channel();
         let thread = std::thread::Builder::new()
             .name("scribe-hotkeys".into())
@@ -485,6 +514,38 @@ mod platform {
             }
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn a_full_screen_app_gets_every_press() {
+            let bindings = Bindings {
+                hold: vec![],
+                toggle: vec!["F8".into()],
+                cancel: vec![],
+                rewrite: vec![],
+                enabled: true,
+            };
+            let (tx, rx) = mpsc::channel();
+            STATE.with(|s| {
+                *s.borrow_mut() = Some(HookState {
+                    matcher: Matcher::new(&bindings, true).unwrap(),
+                    active: Arc::new(AtomicBool::new(false)),
+                    tx,
+                })
+            });
+            let f8 = Input::Key(0x77);
+            FULLSCREEN.store(true, Ordering::Relaxed);
+            assert!(!dispatch(f8, true, false, Instant::now()));
+            assert!(rx.try_recv().is_err());
+            FULLSCREEN.store(false, Ordering::Relaxed);
+            assert!(dispatch(f8, true, false, Instant::now()));
+            assert!(matches!(rx.try_recv(), Ok(HotkeyEvent::Toggle(_))));
+            STATE.with(|s| *s.borrow_mut() = None);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -529,6 +590,7 @@ mod tests {
                 toggle: toggle.iter().map(|s| (*s).into()).collect(),
                 cancel: vec!["Escape".into()],
                 rewrite: vec![],
+                enabled: true,
             },
             false,
         )
@@ -785,6 +847,7 @@ mod tests {
                 toggle: vec![],
                 cancel: vec![],
                 rewrite: vec![],
+                enabled: true,
             },
             false
         )
@@ -804,6 +867,7 @@ mod tests {
                 toggle: vec!["Ctrl+Alt+F9".into()],
                 cancel: vec![],
                 rewrite: vec![],
+                enabled: true,
             },
             Arc::new(AtomicBool::new(false)),
             true,

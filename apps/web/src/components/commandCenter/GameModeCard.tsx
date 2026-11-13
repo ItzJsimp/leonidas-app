@@ -1,18 +1,64 @@
 import {
   AuthGameModeControlScope,
+  type EnvironmentId,
   type GameModeAction,
   type GameModeMode,
 } from "@t3tools/contracts";
+import { isAtomCommandInterrupted } from "@t3tools/client-runtime/state/runtime";
 import { useEffect, useState } from "react";
 
 import { Button } from "~/components/ui/button";
+import { toastManager } from "~/components/ui/toast";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { gameModeRun, gameModeStatusQuery } from "~/state/gameMode";
 import { useEnvironmentQuery } from "~/state/query";
+import { scribePatchSettings, scribeSettingsQuery } from "~/state/scribe";
 import { useEnvironmentScope } from "~/state/session";
 import { useAtomCommand } from "~/state/use-atom-command";
 
 import { BigNumber, HomeWidget, WidgetError, WidgetSkeleton } from "./HomeWidget";
+
+/**
+ * Turns the Scribe keys and mouse button on or off. Off removes Scribe's key hooks, so it reads
+ * no key at all. Scribe also leaves its keys alone while a full screen game runs.
+ * Stays out of the way until Scribe answers.
+ */
+function ScribeToggle({ environmentId }: { readonly environmentId: EnvironmentId }) {
+  const query = useEnvironmentQuery(scribeSettingsQuery({ environmentId, input: {} }));
+  const patch = useAtomCommand(scribePatchSettings, { reportFailure: false });
+  const [busy, setBusy] = useState(false);
+  const hotkeys = query.data?.sections.hotkeys;
+  if (!hotkeys) return null;
+  const on = hotkeys.enabled !== false;
+
+  const flip = async () => {
+    setBusy(true);
+    const result = await patch({
+      environmentId,
+      input: { section: "hotkeys", values: { enabled: !on } },
+    });
+    setBusy(false);
+    if (result._tag === "Success") query.refresh();
+    else if (!isAtomCommandInterrupted(result)) {
+      toastManager.add({
+        type: "error",
+        title: "Could not change Scribe. Check that Scribe is running, then try again.",
+      });
+    }
+  };
+
+  return (
+    <Button
+      size="xs"
+      variant={on ? "default" : "outline"}
+      aria-pressed={on}
+      disabled={busy}
+      onClick={() => void flip()}
+    >
+      {on ? "Scribe: on" : "Scribe: off"}
+    </Button>
+  );
+}
 
 const POLL_MS = 10_000;
 
@@ -104,6 +150,7 @@ export function GameModeCard() {
                 ? "Turn virtual display off"
                 : "Turn virtual display on"}
             </Button>
+            <ScribeToggle environmentId={environmentId} />
           </div>
         </div>
       )}
