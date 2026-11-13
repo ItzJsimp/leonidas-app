@@ -140,12 +140,16 @@ fn run() -> Result<(), String> {
     #[cfg(windows)]
     let rewrite_active = active.clone();
     let (hotkey_tx, hotkey_rx) = mpsc::channel();
-    let hooks = hotkeys::spawn(
-        &cfg.bindings,
-        active.clone(),
-        accept_injected,
-        hotkey_tx.clone(),
-    )?;
+    let hooks = if cfg.bindings.enabled {
+        Some(hotkeys::spawn(
+            &cfg.bindings,
+            active.clone(),
+            accept_injected,
+            hotkey_tx.clone(),
+        )?)
+    } else {
+        None
+    };
 
     // v1.2: apply each saved settings section that can change without a restart.
     {
@@ -153,7 +157,7 @@ fn run() -> Result<(), String> {
         let settings = settings.clone();
         let engine = engine.clone();
         let active = active.clone();
-        let mut hooks = Some(hooks);
+        let mut hooks = hooks;
         std::thread::Builder::new()
             .name("scribe-settings".into())
             .spawn(move || {
@@ -171,14 +175,18 @@ fn run() -> Result<(), String> {
                         "hotkeys" => {
                             // Stop the old hooks first, so a key is never bound twice.
                             drop(hooks.take());
-                            hooks = hotkeys::spawn(
-                                &cfg.bindings,
-                                active.clone(),
-                                accept_injected,
-                                hotkey_tx.clone(),
-                            )
-                            .inspect_err(|e| eprintln!("hotkeys: {e}"))
-                            .ok();
+                            hooks = if cfg.bindings.enabled {
+                                hotkeys::spawn(
+                                    &cfg.bindings,
+                                    active.clone(),
+                                    accept_injected,
+                                    hotkey_tx.clone(),
+                                )
+                                .inspect_err(|e| eprintln!("hotkeys: {e}"))
+                                .ok()
+                            } else {
+                                None
+                            };
                         }
                         _ => {}
                     }
