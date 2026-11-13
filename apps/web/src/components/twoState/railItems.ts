@@ -7,6 +7,7 @@ export type RailTo =
   | "/trading/crew"
   | "/trading/library"
   | "/command-center"
+  | "/home"
   | "/"
   | "/scribe"
   | "/meetings"
@@ -92,6 +93,7 @@ const MAIN: readonly RailItem[] = [
   ),
   item("home", "today", "Today", "/today", "your priorities, schedule and briefing"),
   item("home", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
+  item("work", "home", "Home", "/home", "talk to one agent that runs your team"),
   {
     ...item("work", "chat", "Leonidas Chat", "/", "talk with Leonidas"),
     tooltip: "Leonidas Chat: talk with Leonidas and run agents",
