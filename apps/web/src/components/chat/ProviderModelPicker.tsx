@@ -341,7 +341,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         touchBackdrop
       >
         {/* The column renders with the placeholder, so the popup never resizes (and squeezes the list) when the list loads. */}
-        <div className="flex min-w-0">
+        <div className="flex min-w-0 flex-col sm:flex-row">
           {listOpen ? (
             <ModelPickerContent
               environmentId={props.environmentId}
