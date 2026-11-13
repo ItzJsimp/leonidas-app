@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import { applyUsageLimitsUpdate } from "@t3tools/provider-core/server/usageLimits";
 
-import { claudeRateLimitEventToUpdate, claudeUsageResponseToLimits } from "./claudeUsageLimits.ts";
+import {
+  claudeRateLimitEventToChatQuota,
+  claudeRateLimitEventToUpdate,
+  claudeUsageResponseToLimits,
+} from "./claudeUsageLimits.ts";
 
 const checkedAt = "2026-07-18T10:00:00.000Z";
 const noNames = { overageIncluded: undefined } as const;
@@ -345,5 +349,37 @@ describe("claudeRateLimitEventToUpdate", () => {
         },
       ],
     });
+  });
+});
+
+describe("claudeRateLimitEventToChatQuota", () => {
+  it("reads both windows from unifiedWindows", () => {
+    const info = {
+      status: "allowed",
+      rateLimitType: "five_hour",
+      unifiedWindows: {
+        five_hour: { utilization: 0.09, resetsAt: 1794123000, status: "allowed" },
+        seven_day: { utilization: 0.27, resetsAt: 1794481200, status: "allowed" },
+      },
+    } as Parameters<typeof claudeRateLimitEventToChatQuota>[0];
+    expect(claudeRateLimitEventToChatQuota(info, "thread-1", 5)).toEqual({
+      at: 5,
+      threadId: "thread-1",
+      fiveHour: { usedPercent: 9, resetsAt: "2026-11-08T07:30:00.000Z" },
+      weekly: { usedPercent: 27, resetsAt: "2026-11-12T11:00:00.000Z" },
+    });
+  });
+
+  it("falls back to the event's own window, and skips events with no percent", () => {
+    expect(
+      claudeRateLimitEventToChatQuota(
+        { status: "allowed", rateLimitType: "seven_day", utilization: 0.5 },
+        "t",
+        1,
+      ),
+    ).toEqual({ at: 1, threadId: "t", weekly: { usedPercent: 50, resetsAt: undefined } });
+    expect(
+      claudeRateLimitEventToChatQuota({ status: "rejected", rateLimitType: "five_hour" }, "t", 1),
+    ).toBeUndefined();
   });
 });

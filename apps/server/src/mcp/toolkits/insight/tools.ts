@@ -1,7 +1,10 @@
 import { OrchestratorMcpFailure, ReleaseStatus, ThreadId } from "@t3tools/contracts";
+import * as FileSystem from "effect/FileSystem";
+import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import { Tool, Toolkit } from "effect/ai";
 import * as Calendar from "#server/calendar/Calendar.ts";
+import * as ServerConfig from "#server/config.ts";
 import * as HardwareWatch from "#server/hardwareWatch/HardwareWatch.ts";
 import * as LocalModelsService from "#server/localModels/LocalModelsService.ts";
 import * as ScribeEngine from "#server/scribe/ScribeEngine.ts";
@@ -359,7 +362,45 @@ const LocalModelsAdviceTool = Tool.make("leo_local_models_advice", {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, true);
 
+const ChatQuotaUse = Schema.Struct({ points: Schema.Number, sharedPoints: Schema.Number });
+const ChatQuotaTool = Tool.make("leo_chat_quota", {
+  ...shared,
+  dependencies: [
+    McpInvocationContext.McpInvocationContext,
+    ProviderRegistry.ProviderRegistry,
+    ServerConfig.ServerConfig,
+    FileSystem.FileSystem,
+    Path.Path,
+  ],
+  description:
+    "Rank chats by the plan quota they used: five-hour and weekly percentage points per Claude account. `sharedPoints` may include other chats or devices. Use it for a quota audit.",
+  parameters: Schema.Struct({
+    days: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 30 }))),
+    threadId: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
+    limit: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 100 }))),
+  }),
+  success: Schema.Struct({
+    method: Schema.String,
+    coverageStart: Schema.NullOr(Schema.String),
+    chats: Schema.Array(
+      Schema.Struct({
+        threadId: Schema.String,
+        providerInstanceId: Schema.String,
+        account: Schema.String,
+        fiveHour: ChatQuotaUse,
+        weekly: ChatQuotaUse,
+        firstAt: Schema.String,
+        lastAt: Schema.String,
+      }),
+    ),
+  }),
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true);
+
 export const InsightToolkit = Toolkit.make(
+  ChatQuotaTool,
   MemorySearchTool,
   MemoryReadTool,
   UsageStatusTool,
