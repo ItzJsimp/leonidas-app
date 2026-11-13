@@ -253,6 +253,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.aiosDirection]: "workspace",
   [WS_METHODS.aiosWorkspacesList]: "workspace",
   [WS_METHODS.aiosWorkspacesInit]: "workspace",
+  [WS_METHODS.aiosProjectsScaffold]: "workspace",
   [WS_METHODS.aiosWorkspacePicturesList]: "workspace",
   [WS_METHODS.aiosWorkspacePictureSet]: "workspace",
   [WS_METHODS.aiosWorkspaceHiddenProjectsSet]: "workspace",

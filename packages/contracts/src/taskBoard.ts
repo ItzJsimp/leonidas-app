@@ -523,6 +523,21 @@ export const AiosWorkspaceInitInput = Schema.Struct({
 });
 export type AiosWorkspaceInitInput = typeof AiosWorkspaceInitInput.Type;
 
+// One-click new project: copies the AIOS project template to `<root>/projects/<slug>` inside an
+// AIOS folder the app lists. The result is the new folder, ready to add as an app project.
+export const AiosProjectScaffoldInput = Schema.Struct({
+  root: TrimmedNonEmptyString,
+  name: TrimmedNonEmptyString.check(Schema.isMaxLength(80)),
+  purpose: Schema.String.check(Schema.isMaxLength(300)),
+});
+export type AiosProjectScaffoldInput = typeof AiosProjectScaffoldInput.Type;
+
+export const AiosProjectScaffoldResult = Schema.Struct({
+  root: Schema.String,
+  slug: Schema.String,
+});
+export type AiosProjectScaffoldResult = typeof AiosProjectScaffoldResult.Type;
+
 // A card a workspace pack adds to the Command Home. Data only: the core renders it and never
 // imports the pack. `[]` means no pack, or a workspace that is not `type: business`.
 export const WorkspacePackKpi = Schema.Struct({

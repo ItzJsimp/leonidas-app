@@ -46,6 +46,8 @@ import {
   type TaskBoardWorkspaceSnapshot,
   type Project,
   type AiosWorkspaceInitInput,
+  type AiosProjectScaffoldInput,
+  type AiosProjectScaffoldResult,
   type AiosWorkspaceHiddenProjectsInput,
   type AiosWorkspaceSummary,
   type AiosWorkspacesListResult,
@@ -137,6 +139,7 @@ import {
   writeTradingStarter,
   writeWorkspaceFile,
 } from "./aiosWorkspaces.ts";
+import { scaffoldAiosProject } from "./aiosProjectScaffold.ts";
 import { planSharedSync, publicCopy } from "./sharedSync.ts";
 import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
@@ -718,6 +721,11 @@ export class TaskBoardService extends Context.Service<
       input: AiosWorkspaceInitInput,
       projects: ReadonlyArray<Project>,
     ) => Effect.Effect<AiosWorkspaceSummary, TaskBoardOperationError>;
+    /** One-click new project: copies the project template to `<root>/projects/<slug>` in a listed AIOS. */
+    readonly projectScaffold: (
+      input: AiosProjectScaffoldInput,
+      projects: ReadonlyArray<Project>,
+    ) => Effect.Effect<AiosProjectScaffoldResult, TaskBoardOperationError>;
     /** Saves the projects the Tasks rail folds into "More" in the workspace's workspace.json. */
     readonly hiddenProjectsSet: (
       projects: ReadonlyArray<Project>,
@@ -2599,6 +2607,19 @@ const make = Effect.gen(function* () {
       return summarize(written, projects, after.defaultRoot);
     });
 
+  const projectScaffold = (input: AiosProjectScaffoldInput, projects: ReadonlyArray<Project>) => {
+    // Only a folder the app lists as an AIOS may receive a project: no write to a free path.
+    const { workspaces: found } = scopeFor(projects);
+    if (!found.some((state) => state.root === input.root)) {
+      return Effect.fail(storageError("The app does not list that folder as an AIOS."));
+    }
+    return Effect.try({
+      try: () => scaffoldAiosProject(input),
+      catch: (error) =>
+        storageError(error instanceof Error ? error.message : "Could not make the project."),
+    });
+  };
+
   const aiosDetect = (input: TaskBoardAiosDetectInput, projects: ReadonlyArray<Project>) =>
     Effect.sync(() => ({
       confirmedRoot: confirmedRoot ?? null,
@@ -2641,6 +2662,7 @@ const make = Effect.gen(function* () {
     workspaces,
     workspaceRoot,
     workspaceInit,
+    projectScaffold,
     hiddenProjectsSet,
     aiosDetect,
     aiosConfirm,
