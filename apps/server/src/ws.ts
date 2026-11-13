@@ -2750,6 +2750,28 @@ export const layerWsRpc = (
         [WS_METHODS.serverGetResourceTelemetryHistory]: (input) =>
           resourceTelemetry.readHistory(input),
         [WS_METHODS.serverGetUsageSummary]: (input) => usage.readSummary(input),
+        [WS_METHODS.serverGetChatQuotaReport]: (input) =>
+          Effect.flatMap(Clock.currentTimeMillis, (nowMs) =>
+            readChatQuota(config.providerStatusCacheDir, nowMs - input.days * 86_400_000),
+          ).pipe(
+            Effect.map(({ coverageStart, chats }) => ({
+              coverageStart:
+                coverageStart === null
+                  ? null
+                  : DateTime.formatIso(DateTime.makeUnsafe(coverageStart)),
+              chats: chats.map((chat) => ({
+                threadId: chat.threadId,
+                // The log file name comes from a valid instance id.
+                providerInstanceId: chat.providerInstanceId as ProviderInstanceId,
+                fiveHour: chat.fiveHour,
+                weekly: chat.weekly,
+                firstAt: DateTime.formatIso(DateTime.makeUnsafe(chat.firstAt)),
+                lastAt: DateTime.formatIso(DateTime.makeUnsafe(chat.lastAt)),
+              })),
+            })),
+            Effect.provideService(FileSystem.FileSystem, chatQuotaFileSystem),
+            Effect.provideService(Path.Path, chatQuotaPath),
+          ),
         [WS_METHODS.serverGetChatQuota]: (input) =>
           readChatQuota(config.providerStatusCacheDir, 0).pipe(
             Effect.map(({ coverageStart, chats }) => ({

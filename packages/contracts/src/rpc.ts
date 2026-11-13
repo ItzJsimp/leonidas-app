@@ -566,7 +566,7 @@ import {
   ProviderConsumeResetCreditInput,
   ProviderConsumeResetCreditResult,
 } from "./providerUsageLimits.ts";
-import { ChatQuota, ChatQuotaInput } from "./chatQuota.ts";
+import { ChatQuota, ChatQuotaInput, ChatQuotaReport, ChatQuotaReportInput } from "./chatQuota.ts";
 import { UsagePricing, UsageReadError, UsageSummary, UsageSummaryInput } from "./usage.ts";
 import { TestApiKeyInput, TestApiKeyResult } from "./apiKeys.ts";
 import {
@@ -1013,6 +1013,7 @@ export const WS_METHODS = {
   serverGetBackgroundPolicy: "server.getBackgroundPolicy",
   serverGetUsageSummary: "server.getUsageSummary",
   serverGetChatQuota: "server.getChatQuota",
+  serverGetChatQuotaReport: "server.getChatQuotaReport",
   serverRefreshUsageRates: "server.refreshUsageRates",
   serverGetModelBenchmarks: "server.getModelBenchmarks",
   serverGetModelBenchmarkCatalog: "server.getModelBenchmarkCatalog",
@@ -1420,6 +1421,12 @@ const WsServerCheckOtlpEndpointRpc = Rpc.make(WS_METHODS.serverCheckOtlpEndpoint
 const WsServerGetChatQuotaRpc = Rpc.make(WS_METHODS.serverGetChatQuota, {
   payload: ChatQuotaInput,
   success: ChatQuota,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsServerGetChatQuotaReportRpc = Rpc.make(WS_METHODS.serverGetChatQuotaReport, {
+  payload: ChatQuotaReportInput,
+  success: ChatQuotaReport,
   error: EnvironmentAuthorizationError,
 });
 
@@ -3719,6 +3726,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerCheckOtlpEndpointRpc,
   WsServerGetUsageSummaryRpc,
   WsServerGetChatQuotaRpc,
+  WsServerGetChatQuotaReportRpc,
   WsServerRefreshUsageRatesRpc,
   WsServerGetModelBenchmarksRpc,
   WsServerGetModelBenchmarkCatalogRpc,

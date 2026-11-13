@@ -28,3 +28,26 @@ export const ChatQuota = Schema.Struct({
   accounts: Schema.Array(ChatQuotaAccount),
 });
 export type ChatQuota = typeof ChatQuota.Type;
+
+/** Readings are kept 30 days, so a longer range would only repeat the same rows. */
+export const ChatQuotaReportInput = Schema.Struct({
+  days: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 30 })),
+});
+export type ChatQuotaReportInput = typeof ChatQuotaReportInput.Type;
+
+const ChatQuotaReportChat = Schema.Struct({
+  threadId: Schema.String,
+  providerInstanceId: ProviderInstanceId,
+  fiveHour: ChatQuotaUse,
+  weekly: ChatQuotaUse,
+  firstAt: IsoDateTime,
+  lastAt: IsoDateTime,
+});
+export type ChatQuotaReportChat = typeof ChatQuotaReportChat.Type;
+
+/** Every chat with readings in the range, most weekly points first. */
+export const ChatQuotaReport = Schema.Struct({
+  coverageStart: Schema.NullOr(IsoDateTime),
+  chats: Schema.Array(ChatQuotaReportChat),
+});
+export type ChatQuotaReport = typeof ChatQuotaReport.Type;
