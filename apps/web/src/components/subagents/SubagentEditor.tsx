@@ -16,6 +16,7 @@ import { workspaceScopeInput } from "~/components/workspace/aiosWorkspace.logic"
 import { activeWorkspaceId } from "~/components/workspace/aiosWorkspaceStore";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { AvatarPicker } from "./AvatarPicker";
+import { ModelSelect } from "./ModelSelect";
 import { modelDisplayName } from "./spawnApproval.logic";
 import {
   BUILT_IN_TOOLS,
@@ -23,7 +24,6 @@ import {
   EFFORT_SUGGESTIONS,
   isEmptyPatch,
   maxTurnsProblem,
-  MODEL_SUGGESTIONS,
   parseToolList,
   patchFromDraft,
   raisesSpend,
@@ -155,23 +155,15 @@ export function SubagentEditor(props: {
         <label htmlFor={`${ids}-model`} className="font-medium">
           Model
         </label>
-        <Input
+        <ModelSelect
           id={`${ids}-model`}
           value={draft.model}
-          list={`${ids}-models`}
-          placeholder="Not set (follows its base or the app default)"
-          onChange={(event) => {
+          unsetLabel="Not set (follows its base or the app default)"
+          onChange={(model) => {
             setConfirming(false);
-            setDraft({ ...draft, model: event.target.value });
+            setDraft({ ...draft, model });
           }}
         />
-        <datalist id={`${ids}-models`}>
-          {MODEL_SUGGESTIONS.map((model) => (
-            <option key={model} value={model}>
-              {modelDisplayName(model)}
-            </option>
-          ))}
-        </datalist>
       </div>
 
       <fieldset className="flex flex-col gap-1.5">

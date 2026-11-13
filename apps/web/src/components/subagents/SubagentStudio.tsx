@@ -45,6 +45,7 @@ import { workspaceScopeInput } from "~/components/workspace/aiosWorkspace.logic"
 import { activeWorkspaceId } from "~/components/workspace/aiosWorkspaceStore";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { AgentAvatar } from "./Avatar";
+import { AgentModelValue } from "./AgentModelValue";
 import { NewSubagentDialog } from "./NewSubagentDialog";
 import { SubagentEditor, writeFailureMessage } from "./SubagentEditor";
 import { knownFreeModels } from "./subagentEdit.logic";
@@ -573,7 +574,13 @@ function SubagentDetail({
         <>
           <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-4 gap-y-3 text-sm">
             <DetailRow label="Model">
-              {entry.model === null ? "Not set" : modelDisplayName(entry.model)}
+              <AgentModelValue
+                entry={entry}
+                environmentId={environmentId}
+                canWrite={canWrite}
+                onChanged={onChanged}
+                onError={setToggleError}
+              />
               {personaEngineHint(entry.model) === null ? null : (
                 <span className="mt-0.5 block text-xs text-muted-foreground">
                   {personaEngineHint(entry.model)}

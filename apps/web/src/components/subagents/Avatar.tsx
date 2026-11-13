@@ -5,8 +5,8 @@ import { avatarIdFor, avatarUrl } from "./avatar.logic";
 export type AvatarSize = 20 | 36 | 56;
 
 /**
- * An agent's felt avatar as a circle. 125% size and a 3% top offset keep the whole head in view
- * (skill note). A missing or unknown avatar falls back to the library id that the name holds,
+ * An agent's felt avatar as a circle. The image is a head-and-shoulders portrait, so 100% shows the
+ * whole picture; a larger size cropped the ears and the props (Jake, 2026-11-12). A missing or unknown avatar falls back to the library id that the name holds,
  * and then to the default `helper` avatar, so every agent shows a felt character.
  * The name always shows beside it, so the circle is decoration.
  */
@@ -27,8 +27,8 @@ export function AgentAvatar(props: {
         width: size,
         height: size,
         backgroundImage: `url(${avatarUrl(id)})`,
-        backgroundSize: "125%",
-        backgroundPosition: "50% 3%",
+        backgroundSize: "100%",
+        backgroundPosition: "50% 50%",
         backgroundRepeat: "no-repeat",
       }}
     />
