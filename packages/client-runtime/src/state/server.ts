@@ -1284,6 +1284,12 @@ export function createServerEnvironmentAtoms<R, E>(
       tag: WS_METHODS.serverGetModelBenchmarks,
       staleTimeMs: 10 * 60_000,
     }),
+    // Read from a small local log. Short stale time: a chat's share grows while it runs.
+    chatQuota: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:server:chat-quota",
+      tag: WS_METHODS.serverGetChatQuota,
+      staleTimeMs: 30_000,
+    }),
     modelRunStats: createEnvironmentRpcQueryAtomFamily(runtime, {
       label: "environment-data:server:model-run-stats",
       tag: WS_METHODS.serverGetModelRunStats,

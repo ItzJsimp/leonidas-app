@@ -42,6 +42,7 @@ import { readUsagePagePreferences, saveUsagePagePreferences } from "../usage/usa
 import type { StartBenchmarkArena } from "./BenchmarkExplorer";
 import { UsageBar } from "./PlanUsageLimits";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
+import { ThreadDetailsChatQuota } from "./ThreadDetailsChatQuota";
 import {
   ThreadDetailsFoldButton,
   ThreadDetailsFoldLine,
@@ -371,6 +372,9 @@ export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUs
 
   const activeIds = useMemo(() => new Set(active.map((account) => account.id)), [active]);
   const accounts = useMemo(() => [...active, ...others], [active, others]);
+  const chatQuotaRefreshKey = active
+    .flatMap((account) => account.limits.windows.map((window) => window.usedPercent))
+    .join(",");
   const refreshNow = async () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -555,6 +559,12 @@ export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUs
             </Button>
           </div>
         )}
+        <ThreadDetailsChatQuota
+          environmentId={environmentId}
+          threadId={usage.threadId}
+          instanceId={instanceId}
+          refreshKey={chatQuotaRefreshKey}
+        />
         <div className="flex items-center gap-1 text-2xs">
           <Tooltip>
             <TooltipTrigger

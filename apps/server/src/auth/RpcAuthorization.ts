@@ -121,6 +121,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.serverGetResourceTelemetryHistory]: AuthDiagnosticsReadScope,
   [WS_METHODS.serverRetryResourceTelemetry]: AuthDiagnosticsReadScope,
   [WS_METHODS.serverGetUsageSummary]: AuthDiagnosticsReadScope,
+  [WS_METHODS.serverGetChatQuota]: AuthOrchestrationReadScope,
   [WS_METHODS.serverRefreshUsageRates]: AuthDiagnosticsReadScope,
   // Public data about models, read when choosing one for a thread.
   [WS_METHODS.serverGetModelBenchmarks]: AuthOrchestrationReadScope,

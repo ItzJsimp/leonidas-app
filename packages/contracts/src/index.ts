@@ -21,6 +21,7 @@ export * from "./providerRuntime.ts";
 export * from "./providerUsageLimits.ts";
 export * from "./providerReadiness.ts";
 export * from "./apiKeys.ts";
+export * from "./chatQuota.ts";
 export * from "./modelBenchmarks.ts";
 export * from "./usageLimitSourceId.ts";
 export * from "./providerPolicy.ts";

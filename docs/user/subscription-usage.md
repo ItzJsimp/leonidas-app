@@ -9,3 +9,9 @@ These are approximate local token equivalents for your observed workload, not a 
 Measurements survive a server restart. Account, plan, transcript-home and quota-reset changes start a new calibration. Missing telemetry, shared transcript homes, expired windows and model-specific quotas cannot produce an estimate. Claude and Codex have supported local transcript readers; other subscriptions keep their reported quota bars without a token estimate until reliable correlation is available.
 
 An installed version starts collecting after it includes this feature. It cannot reconstruct historical plan percentages from token transcripts alone.
+
+## See how much one chat used
+
+For Claude accounts, the Limits section of the chat details shows a line such as "This chat used 38% of 5-hour · 4% of weekly". It is the rise in your plan limit while this chat ran, counted from the first time Leonidas saw your limit move.
+
+When another chat, another device or the Claude website used the same account at the same time, the line says "up to". The real share is then lower than the number shown. These are estimates: the provider does not report limits for each request. A chat with no readings shows no line. Leonidas keeps readings for 30 days and stores only numbers, never message text.

@@ -323,6 +323,7 @@ import * as HostResources from "./resourceTelemetry/HostResources.ts";
 import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
 import { featureUsage } from "./telemetry/FeatureUsage.ts";
 import type { TelemetryOwner } from "./telemetry/Identify.ts";
+import { readChatQuota } from "./usage/ChatQuotaLog.ts";
 import * as UsageService from "./usage/UsageService.ts";
 import { HttpClient } from "effect/http";
 import { testApiKey } from "./apiKeys/testApiKey.ts";
@@ -1389,6 +1390,8 @@ export const layerWsRpc = (
               Effect.orElseSucceed(() => null),
             );
       const usage = yield* UsageService.UsageService;
+      const chatQuotaFileSystem = yield* FileSystem.FileSystem;
+      const chatQuotaPath = yield* Path.Path;
       const modelBenchmarks = yield* ModelBenchmarks.ModelBenchmarks;
       const calendar = yield* Calendar.Calendar;
       const apiKeyHttpClient = yield* HttpClient.HttpClient;
@@ -2747,6 +2750,26 @@ export const layerWsRpc = (
         [WS_METHODS.serverGetResourceTelemetryHistory]: (input) =>
           resourceTelemetry.readHistory(input),
         [WS_METHODS.serverGetUsageSummary]: (input) => usage.readSummary(input),
+        [WS_METHODS.serverGetChatQuota]: (input) =>
+          readChatQuota(config.providerStatusCacheDir, 0).pipe(
+            Effect.map(({ coverageStart, chats }) => ({
+              coverageStart:
+                coverageStart === null
+                  ? null
+                  : DateTime.formatIso(DateTime.makeUnsafe(coverageStart)),
+              accounts: chats
+                .filter((chat) => chat.threadId === input.threadId)
+                .map((chat) => ({
+                  // The log file name comes from a valid instance id.
+                  providerInstanceId: chat.providerInstanceId as ProviderInstanceId,
+                  fiveHour: chat.fiveHour,
+                  weekly: chat.weekly,
+                  lastAt: DateTime.formatIso(DateTime.makeUnsafe(chat.lastAt)),
+                })),
+            })),
+            Effect.provideService(FileSystem.FileSystem, chatQuotaFileSystem),
+            Effect.provideService(Path.Path, chatQuotaPath),
+          ),
         [WS_METHODS.serverRefreshUsageRates]: (_input) => usage.refreshRates,
         [WS_METHODS.serverGetModelBenchmarks]: (input) => modelBenchmarks.report(input.models),
         [WS_METHODS.serverGetModelBenchmarkCatalog]: () => modelBenchmarks.catalog,

@@ -566,6 +566,7 @@ import {
   ProviderConsumeResetCreditInput,
   ProviderConsumeResetCreditResult,
 } from "./providerUsageLimits.ts";
+import { ChatQuota, ChatQuotaInput } from "./chatQuota.ts";
 import { UsagePricing, UsageReadError, UsageSummary, UsageSummaryInput } from "./usage.ts";
 import { TestApiKeyInput, TestApiKeyResult } from "./apiKeys.ts";
 import {
@@ -1011,6 +1012,7 @@ export const WS_METHODS = {
   serverReportHostPowerState: "server.reportHostPowerState",
   serverGetBackgroundPolicy: "server.getBackgroundPolicy",
   serverGetUsageSummary: "server.getUsageSummary",
+  serverGetChatQuota: "server.getChatQuota",
   serverRefreshUsageRates: "server.refreshUsageRates",
   serverGetModelBenchmarks: "server.getModelBenchmarks",
   serverGetModelBenchmarkCatalog: "server.getModelBenchmarkCatalog",
@@ -1412,6 +1414,12 @@ const WsServerRetryResourceTelemetryRpc = Rpc.make(WS_METHODS.serverRetryResourc
 const WsServerCheckOtlpEndpointRpc = Rpc.make(WS_METHODS.serverCheckOtlpEndpoint, {
   payload: OtlpEndpointCheckInput,
   success: OtlpEndpointCheckResult,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsServerGetChatQuotaRpc = Rpc.make(WS_METHODS.serverGetChatQuota, {
+  payload: ChatQuotaInput,
+  success: ChatQuota,
   error: EnvironmentAuthorizationError,
 });
 
@@ -3710,6 +3718,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerRetryResourceTelemetryRpc,
   WsServerCheckOtlpEndpointRpc,
   WsServerGetUsageSummaryRpc,
+  WsServerGetChatQuotaRpc,
   WsServerRefreshUsageRatesRpc,
   WsServerGetModelBenchmarksRpc,
   WsServerGetModelBenchmarkCatalogRpc,
