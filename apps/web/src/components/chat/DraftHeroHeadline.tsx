@@ -3,8 +3,8 @@ import { composerDraftHasUserContent, useComposerDraftStore } from "~/composerDr
 import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
-import { FolderPlusIcon, MessageSquareIcon } from "lucide-react";
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FolderPlusIcon, MessageSquareIcon, PlusIcon } from "lucide-react";
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import { heroGreeting } from "./heroGreeting";
 
 import { openCommandPalette } from "~/commandPaletteBus";
@@ -38,12 +38,17 @@ import {
 } from "../ui/combobox";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { InlineButton } from "../ui/button";
+import { openNewAiosProject } from "../workspace/newAiosProjectStore";
+import { useAiosProjectRoot } from "../workspace/useAiosProjectRoot";
 import { useWorkspaceProjects } from "../workspace/useWorkspaceProjects";
+import { AiosRootNudge, AiosRootTip } from "./AiosRootNudge";
 import { DraftProjectName } from "./DraftProjectName";
 import { DraftHeroProjectHeading } from "./DraftHeroProjectHeading";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 
 const ADD_PROJECT_VALUE = "add-project";
+// Picker value for "New project": makes a project folder from the AIOS template.
+const NEW_PROJECT_VALUE = "new-aios-project";
 // Picker value for the "No project" row: starts the chat in the scratch home.
 const SCRATCH_VALUE = "no-project";
 
@@ -94,6 +99,7 @@ export function DraftHeroHeadline({
   const openAddProject = () => openCommandPalette({ open: "add-project" });
   const { scratchEnvironmentId, scratchWorkspaceRootFor, openScratchProject } = useScratchProject();
   const openProjectDraft = useNewThreadHandler();
+  const { root: aiosRoot } = useAiosProjectRoot();
 
   const environmentLabelById = new Map(
     environments.map((environment) => [environment.environmentId, environment.label] as const),
@@ -160,29 +166,29 @@ export function DraftHeroHeadline({
   // {value, label} items let Base UI drive the combobox selection while the
   // popup search filters the same collection. "Add project" is an action, not
   // a project, so it only trails the unfiltered list.
-  const pickerItems = useMemo<readonly PickerItem[]>(
-    () => [
-      ...menuEntries.map(({ group }) => ({ value: group.projectKey, label: group.displayName })),
-      ...(scratchWorkspaceRoot !== null && !isScratchDraft
-        ? [{ value: SCRATCH_VALUE, label: "No project" }]
-        : []),
-      { value: ADD_PROJECT_VALUE, label: "Add project" },
-    ],
-    [menuEntries, scratchWorkspaceRoot, isScratchDraft],
-  );
+  const pickerItems: readonly PickerItem[] = [
+    ...menuEntries.map(({ group }) => ({ value: group.projectKey, label: group.displayName })),
+    ...(scratchWorkspaceRoot !== null && !isScratchDraft
+      ? [{ value: SCRATCH_VALUE, label: "No project" }]
+      : []),
+    ...(aiosRoot !== null ? [{ value: NEW_PROJECT_VALUE, label: "New project" }] : []),
+    { value: ADD_PROJECT_VALUE, label: "Add project" },
+  ];
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
+  const openProjectPicker = () => setPickerOpen(true);
   const pickerFilter = useComboboxFilter();
-  const filteredPickerItems = useMemo(() => {
-    const query = pickerQuery.trim();
-    if (query.length === 0) return pickerItems;
-    return pickerItems.filter(
-      (item) =>
-        item.value !== ADD_PROJECT_VALUE &&
-        item.value !== SCRATCH_VALUE &&
-        pickerFilter.contains(item, query, (candidate) => candidate.label),
-    );
-  }, [pickerFilter, pickerItems, pickerQuery]);
+  const pickerSearch = pickerQuery.trim();
+  const filteredPickerItems =
+    pickerSearch.length === 0
+      ? pickerItems
+      : pickerItems.filter(
+          (item) =>
+            item.value !== ADD_PROJECT_VALUE &&
+            item.value !== NEW_PROJECT_VALUE &&
+            item.value !== SCRATCH_VALUE &&
+            pickerFilter.contains(item, pickerSearch, (candidate) => candidate.label),
+        );
   const selectedPickerItem = pickerItems.find((item) => item.value === activeProjectKey) ?? null;
 
   // The picker can change the draft's target while the no-project home is
@@ -268,6 +274,10 @@ export function DraftHeroHeadline({
           openAddProject();
           return;
         }
+        if (item.value === NEW_PROJECT_VALUE) {
+          openNewAiosProject();
+          return;
+        }
         if (item.value === SCRATCH_VALUE) {
           void startScratch();
           return;
@@ -298,7 +308,10 @@ export function DraftHeroHeadline({
           />
         </TooltipTrigger>
         {activeProjectDisplayName && !isScratchDraft ? (
-          <TooltipPopup side="top">{activeProjectDisplayName}</TooltipPopup>
+          <TooltipPopup side="top">
+            {activeProjectDisplayName}
+            <AiosRootTip projectRoot={activeProject?.workspaceRoot ?? null} />
+          </TooltipPopup>
         ) : null}
       </Tooltip>
       <ComboboxPopup align="center" className="w-72 overflow-hidden">
@@ -316,6 +329,8 @@ export function DraftHeroHeadline({
               <ComboboxItem key={item.value} hideIndicator value={item}>
                 {item.value === ADD_PROJECT_VALUE ? (
                   <FolderPlusIcon className="size-4 shrink-0" />
+                ) : item.value === NEW_PROJECT_VALUE ? (
+                  <PlusIcon className="size-4 shrink-0" />
                 ) : item.value === SCRATCH_VALUE ? (
                   <MessageSquareIcon className="size-4 shrink-0" />
                 ) : entry ? (
@@ -397,6 +412,12 @@ export function DraftHeroHeadline({
       {isScratchDraft ? (
         <p className="mt-2 flex h-6 items-center text-sm">{projectSelector}</p>
       ) : null}
+      {/* A new chat in the whole AIOS folder: teach the project folder, once. */}
+      <AiosRootNudge
+        projectRoot={isScratchDraft ? null : (activeProject?.workspaceRoot ?? null)}
+        canPick={menuEntries.length > 1}
+        onPick={openProjectPicker}
+      />
     </div>
   );
 }

@@ -110,6 +110,8 @@ import {
   WorkspaceOrgActionResult,
   AiosWorkspaceSummary,
   AiosWorkspaceInitInput,
+  AiosProjectScaffoldInput,
+  AiosProjectScaffoldResult,
   AiosWorkspaceHiddenProjectsInput,
   TaskBoardHomeNews,
   PonytailCodexHooks,
@@ -769,6 +771,7 @@ export const WS_METHODS = {
   aiosDirection: "taskBoard.aiosDirection",
   aiosWorkspacesList: "aiosWorkspaces.list",
   aiosWorkspacesInit: "aiosWorkspaces.init",
+  aiosProjectsScaffold: "aiosProjects.scaffold",
   aiosWorkspacePicturesList: "aiosWorkspaces.picturesList",
   aiosWorkspacePictureSet: "aiosWorkspaces.pictureSet",
   aiosWorkspacePictureRemove: "aiosWorkspaces.pictureRemove",
@@ -2134,6 +2137,12 @@ const WsWorkspacePackOrgDecideRpc = Rpc.make(WS_METHODS.workspacePackOrgDecide, 
 const WsAiosWorkspacesInitRpc = Rpc.make(WS_METHODS.aiosWorkspacesInit, {
   payload: AiosWorkspaceInitInput,
   success: AiosWorkspaceSummary,
+  error: Schema.Union([TaskBoardReadError, TaskBoardOperationError, EnvironmentAuthorizationError]),
+});
+
+const WsAiosProjectsScaffoldRpc = Rpc.make(WS_METHODS.aiosProjectsScaffold, {
+  payload: AiosProjectScaffoldInput,
+  success: AiosProjectScaffoldResult,
   error: Schema.Union([TaskBoardReadError, TaskBoardOperationError, EnvironmentAuthorizationError]),
 });
 
@@ -3816,6 +3825,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsAiosFolderListRpc,
   WsAiosWorkspacesListRpc,
   WsAiosWorkspacesInitRpc,
+  WsAiosProjectsScaffoldRpc,
   WsAiosWorkspacePicturesListRpc,
   WsAiosWorkspacePictureSetRpc,
   WsAiosWorkspacePictureRemoveRpc,

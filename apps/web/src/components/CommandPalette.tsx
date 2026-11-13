@@ -182,6 +182,7 @@ import {
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { buildThreadRouteParams, resolveThreadRouteTarget } from "../threadRoutes";
 import { useAvailableSettingsSearchItems } from "./settings/useAvailableSettingsSearchItems";
+import { NewAiosProjectDialog } from "./workspace/NewAiosProjectDialog";
 import { NewWorkspaceDialog } from "./workspace/NewWorkspaceDialog";
 import { useRemoveProject } from "./workspace/useRemoveProject";
 import { openNewWorkspace } from "./workspace/newWorkspaceStore";
@@ -589,6 +590,7 @@ export function CommandPalette({ children }: { children: ReactNode }) {
         />
       </CommandDialog>
       <NewWorkspaceDialog />
+      <NewAiosProjectDialog />
     </ComposerHandleContext>
   );
 }
