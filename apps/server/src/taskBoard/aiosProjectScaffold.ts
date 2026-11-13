@@ -61,7 +61,8 @@ id: project-{{PROJECT_SLUG}}
 name: "{{PROJECT_NAME}}"
 status: "Active"
 description: "{{ONE_LINE_PURPOSE}}"
-created: {{DATE}}
+scope: personal
+created: "{{DATE}}"
 tasks: []
 ---
 # {{PROJECT_NAME}}

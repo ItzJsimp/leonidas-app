@@ -41,7 +41,8 @@ describe("scaffoldAiosProject", () => {
 
     const project = read("projects", "my-space-game", "project.md");
     expect(project).toContain("id: project-my-space-game");
-    expect(project).toContain("created: 2026-11-12");
+    expect(project).toContain('created: "2026-11-12"');
+    expect(project).toContain("scope: personal");
     expect(project).toContain("name: \"My 'Space' Game\"");
     expect(read("projects", "my-space-game", "AGENTS.md")).toContain("A game about ''DATE'' ships");
     expect(read("projects", "my-space-game", "CLAUDE.md")).toBe("@AGENTS.md\n");
