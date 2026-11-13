@@ -517,7 +517,9 @@ function AboutVersionSection() {
   const description =
     action === "download" || action === "install"
       ? "Update available."
-      : "This is the current version of Leonidas.";
+      : updateState?.checkedAt
+        ? `Up to date. Last checked ${new Date(updateState.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
+        : "This is the current version of Leonidas.";
 
   return (
     <>
