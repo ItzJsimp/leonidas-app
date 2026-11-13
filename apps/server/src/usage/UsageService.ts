@@ -188,7 +188,10 @@ export class UsageService extends Context.Service<
       { sourceKey: string; totals: import("@t3tools/contracts").UsageTokenTotals } | null,
       UsageReadError
     >;
-    readonly readSummary: (input: UsageSummaryInput) => Effect.Effect<UsageSummary, UsageReadError>;
+    readonly readSummary: (
+      input: UsageSummaryInput,
+      options?: { readonly onlyProvider?: UsageProviderKind },
+    ) => Effect.Effect<UsageSummary, UsageReadError>;
     readonly refreshRates: Effect.Effect<UsagePricing>;
     /** One model's price, or null when the price table does not know it. Rough, for cost labels. */
     readonly rateFor?: (model: string) => Effect.Effect<ModelRate | null>;
@@ -966,7 +969,11 @@ export const make = Effect.gen(function* () {
 
   const inflightScans = new Map<string, Deferred.Deferred<UsageSummary, UsageReadError>>();
 
-  const scanKey = (input: UsageSummaryInput, settings: ServerSettingsValue): string =>
+  const scanKey = (
+    input: UsageSummaryInput,
+    settings: ServerSettingsValue,
+    onlyProvider?: UsageProviderKind,
+  ): string =>
     JSON.stringify([
       input.timeZone,
       input.sinceDay,
@@ -975,13 +982,18 @@ export const make = Effect.gen(function* () {
       input.sinceTime ?? null,
       input.untilTime ?? null,
       input.bucketMinutes ?? null,
+      onlyProvider ?? null,
       settings,
       input.awaitRefresh === true,
     ]);
 
-  const readSummary = Effect.fn("UsageService.readSummary")(function* (input: UsageSummaryInput) {
+  const readSummary = Effect.fn("UsageService.readSummary")(function* (
+    input: UsageSummaryInput,
+    options?: { readonly onlyProvider?: UsageProviderKind },
+  ) {
+    const onlyProvider = options?.onlyProvider;
     const settings = yield* readSettings;
-    const key = scanKey(input, settings);
+    const key = scanKey(input, settings, onlyProvider);
     const deferred = yield* Effect.uninterruptible(
       Effect.gen(function* () {
         const existing = inflightScans.get(key);
@@ -995,7 +1007,7 @@ export const make = Effect.gen(function* () {
         // the fibers awaiting it; a finished scan warms the cache either way.
         // The cache write is registered before the waiters resume, so they
         // can await it, but its fiber starts after they have the summary.
-        yield* scanSummary(input, settings).pipe(
+        yield* scanSummary(input, settings, onlyProvider).pipe(
           Effect.onExit((exit) =>
             Effect.sync(() => inflightScans.delete(key)).pipe(
               Effect.andThen(Exit.isSuccess(exit) ? schedulePersist : Effect.void),

@@ -502,12 +502,14 @@ export const layer = Layer.effect(
         readonly publish?: boolean;
         readonly persist?: boolean;
         readonly replace?: boolean;
+        readonly trackSubscriptions?: boolean;
       },
     ) {
       const manifest = yield* manifestService.current;
+      const track = options?.trackSubscriptions === false ? Effect.succeed : trackSubscription;
       const nextProvidersWithUpdateState = yield* Effect.forEach(
         nextProviders,
-        (provider) => applyProviderUpdateState(provider).pipe(Effect.flatMap(trackSubscription)),
+        (provider) => applyProviderUpdateState(provider).pipe(Effect.flatMap(track)),
         {
           concurrency: "unbounded",
         },
@@ -904,7 +906,7 @@ export const layer = Layer.effect(
       }),
     );
 
-    yield* upsertProviders(fallbackProviders, { publish: false });
+    yield* upsertProviders(fallbackProviders, { publish: false, trackSubscriptions: false });
     const instanceChanges = yield* instanceRegistry.subscribeChanges;
     yield* syncLiveSources;
     yield* Stream.runForEach(
