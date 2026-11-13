@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
+import { APP_VERSION_LABEL } from "~/branding";
+import { openReleaseHistoryDialog } from "~/components/desktop/ReleaseHistoryDialog";
 import { SidebarUpdatePill } from "~/components/sidebar/SidebarUpdatePill";
 import { FinishSetupRow } from "./FinishSetupRow";
 import { Popover, PopoverPopup, PopoverTrigger } from "~/components/ui/popover";
@@ -172,6 +174,16 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
         needsYou={unread}
         onToggle={drawer ? null : () => setStored(!expanded)}
       />
+      {expanded ? (
+        <button
+          type="button"
+          title="Version of Leonidas. Select to see what changed in each update."
+          onClick={openReleaseHistoryDialog}
+          className="h-7 shrink-0 rounded-lg px-2.5 text-left text-xs text-muted-foreground tabular-nums outline-hidden ring-ring transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset [-webkit-app-region:no-drag]"
+        >
+          v{APP_VERSION_LABEL} · what changed
+        </button>
+      ) : null}
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>

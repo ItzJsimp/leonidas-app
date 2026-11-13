@@ -13,6 +13,7 @@ import { runningThreadCountAtom } from "../../state/threads";
 import { installDesktopUpdate, retryDesktopUpdateDownload } from "../desktopUpdate.actions";
 import { resolveUpdatePill, summarizeUpdate } from "../desktopUpdate.logic";
 import { Button } from "../ui/button";
+import { openReleaseHistoryDialog } from "../desktop/ReleaseHistoryDialog";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { SidebarMenuItem } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -184,6 +185,41 @@ function ReadyPill({
   );
 }
 
+function DownloadingPill({
+  state,
+  expanded,
+  className,
+}: {
+  readonly state: DesktopUpdateState;
+  readonly expanded: boolean;
+  readonly className: string | undefined;
+}) {
+  const percent = state.downloadPercent === null ? null : Math.round(state.downloadPercent);
+  const label = percent === null ? "Downloading update" : `Downloading ${percent}%`;
+  return (
+    <SidebarMenuItem className={cn("shrink-0", className)}>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              aria-label={`${label}. Show what changed.`}
+              className={cn(PILL_CLASS, expanded ? "pr-3 pl-2.5" : "w-7 justify-center")}
+              onClick={() => openReleaseHistoryDialog()}
+            />
+          }
+        >
+          <DownloadIcon aria-hidden className="size-3.5 animate-pulse motion-reduce:animate-none" />
+          {expanded ? <span className="whitespace-nowrap">{label}</span> : null}
+        </TooltipTrigger>
+        <TooltipPopup side="top">
+          Leonidas {state.availableVersion ?? ""} is on its way. It installs by itself.
+        </TooltipPopup>
+      </Tooltip>
+    </SidebarMenuItem>
+  );
+}
+
 function PausedPill({
   state,
   expanded,
@@ -242,6 +278,9 @@ export function UpdateReadyPill({
   const level = useUpdatePreferencesStore((store) => store.updateNotice);
   const kind = resolveUpdatePill(state, level);
   if (!state || !kind) return null;
+  if (kind === "downloading") {
+    return <DownloadingPill state={state} expanded={expanded} className={className} />;
+  }
   return kind === "paused" ? (
     <PausedPill state={state} expanded={expanded} className={className} />
   ) : (
