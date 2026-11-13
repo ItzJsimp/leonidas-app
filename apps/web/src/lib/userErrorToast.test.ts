@@ -131,4 +131,21 @@ describe("userErrorToastFields", () => {
       expect.stringContaining("raw stack text"),
     );
   });
+
+  it("names the cause of an unknown error only when the caller asks", () => {
+    const error = new Error("Disk is full.\nstack line");
+    expect(userErrorToastFields(error).description).toBe(
+      "An unexpected error stopped this action.",
+    );
+    expect(userErrorToastFields(error, { showCause: true }).description).toBe("Disk is full.");
+  });
+
+  it("keeps the plain reason of a known error when the caller asks for the cause", () => {
+    const fields = userErrorToastFields(
+      new Error("Workspace D:\\SimplyGersi AIOS already belongs to project a04f23d9."),
+      { showCause: true },
+    );
+    expect(fields.description).toContain("Open it from Projects");
+    expect(fields.actionProps.children).toBe("Open Projects");
+  });
 });

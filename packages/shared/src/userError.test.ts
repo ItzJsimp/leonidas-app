@@ -4,6 +4,7 @@ import {
   describeUserError,
   formatErrorDetail,
   GENERAL_SETTINGS_ROUTE,
+  PROJECTS_ROUTE,
   INSTALLER_DOWNLOAD_URL,
   PROVIDER_SETTINGS_ROUTE,
   redactSecrets,
@@ -194,5 +195,31 @@ describe("formatErrorDetail", () => {
     expect(redactSecrets("Authorization: Bearer abc.def")).not.toContain("abc.def");
     expect(redactSecrets("key sk-ant-1234567890abcdef")).toBe("key <REDACTED>");
     expect(formatErrorDetail(new Error("api_key=supersecret failed"))).not.toContain("supersecret");
+  });
+});
+
+describe("describeUserError for adding a folder", () => {
+  it("names the owner problem and sends the user to Projects", () => {
+    const result = describeUserError(
+      new Error("Workspace D:\\SimplyGersi AIOS already belongs to project a04f23d9."),
+    );
+    expect(result.kind).toBe("folder-already-project");
+    expect(result.reason).toContain("Open it from Projects");
+    expect(result.action).toEqual({ kind: "route", label: "Open Projects", to: PROJECTS_ROUTE });
+  });
+
+  it("says a folder cannot be used and what to do", () => {
+    const result = describeUserError({
+      message: "Project operation failed.",
+      cause: new Error("Failed to create workspace root: C:\\Locked\\AIOS"),
+    });
+    expect(result.kind).toBe("folder-unusable");
+    expect(result.reason).toContain("Pick another folder");
+  });
+
+  it("keeps a missing AI program a missing AI program", () => {
+    expect(describeUserError(nodeError("spawn claude ENOENT", "ENOENT")).kind).toBe(
+      "provider-cli-missing",
+    );
   });
 });

@@ -76,7 +76,9 @@ import {
   FolderGit2Icon,
   FolderIcon,
   FolderPlusIcon,
+  GitBranchIcon,
   MessageSquareDashedIcon,
+  PlusIcon,
   LinkIcon,
   MessageSquareIcon,
   MonitorIcon,
@@ -151,7 +153,7 @@ import { resolveThreadActionProjectRef, startNewThreadFromContext } from "../lib
 import {
   appendBrowsePathSegment,
   ensureBrowseDirectoryPath,
-  findProjectByPath,
+  findExistingProjectForFolder,
   getBrowseDirectoryPath,
   hasTrailingPathSeparator,
   inferProjectTitleFromPath,
@@ -185,7 +187,9 @@ import { useAvailableSettingsSearchItems } from "./settings/useAvailableSettings
 import { NewAiosProjectDialog } from "./workspace/NewAiosProjectDialog";
 import { NewWorkspaceDialog } from "./workspace/NewWorkspaceDialog";
 import { useRemoveProject } from "./workspace/useRemoveProject";
+import { openNewAiosProject } from "./workspace/newAiosProjectStore";
 import { openNewWorkspace } from "./workspace/newWorkspaceStore";
+import { useAiosProjectRoot } from "./workspace/useAiosProjectRoot";
 import {
   applyWslEnvironmentConfiguration,
   parseWslUncPath,
@@ -827,6 +831,9 @@ function OpenCommandPaletteDialog(props: {
     null,
   );
   const [isPickingProjectFolder, setIsPickingProjectFolder] = useState(false);
+  // Open a folder asks the system dialog as soon as the folder step shows.
+  const pendingNativePickRef = useRef(false);
+  const { environmentId: aiosEnvironmentId, root: aiosRoot } = useAiosProjectRoot();
   const [addProjectCloneFlow, setAddProjectCloneFlow] = useState<AddProjectCloneFlow | null>(null);
   // The name step of New project: while set, the palette input is the name.
   const [newProjectFlow, setNewProjectFlow] = useState<{
@@ -1531,6 +1538,152 @@ function OpenCommandPaletteDialog(props: {
     }
   }
 
+  const handleAddProjectForEnvironment = useCallback(
+    async (input: {
+      readonly environmentId: EnvironmentId;
+      readonly rawCwd: string;
+      readonly platform: string;
+      readonly currentProjectCwd: string | null;
+    }) => {
+      const environment = environments.find(
+        (candidate) => candidate.environmentId === input.environmentId,
+      );
+      if (!canCreateProjectInEnvironment(environment?.connection.phase)) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: "Computer unavailable",
+            description: `${environment?.label ?? "The selected computer"} is not connected.`,
+          }),
+        );
+        return;
+      }
+      const rawCwd = input.rawCwd;
+
+      if (isUnsupportedWindowsProjectPath(rawCwd.trim(), input.platform)) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: "Could not add project",
+            description: "Windows-style paths are only supported on Windows.",
+          }),
+        );
+        return;
+      }
+
+      if (isExplicitRelativeProjectPath(rawCwd.trim()) && !input.currentProjectCwd) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: "Could not add project",
+            description: "Relative paths require an active project.",
+          }),
+        );
+        return;
+      }
+
+      const cwd = resolveProjectPathForDispatch(rawCwd, input.currentProjectCwd);
+      if (cwd.length === 0) return;
+
+      const existing = findExistingProjectForFolder(allProjects, input.environmentId, cwd);
+      if (existing) {
+        const latestThread = getLatestThreadForProject(
+          threads.filter((thread) => thread.environmentId === existing.environmentId),
+          existing.id,
+          clientSettings.sidebarThreadSortOrder,
+        );
+        if (latestThread && latestThread.settledOverride !== "settled") {
+          await navigate({
+            to: "/$environmentId/$threadId",
+            params: buildThreadRouteParams(
+              scopeThreadRef(latestThread.environmentId, latestThread.id),
+            ),
+          });
+        } else {
+          const navigationResult = await settlePromise(() =>
+            handleNewThread(scopeProjectRef(existing.environmentId, existing.id)),
+          );
+          if (navigationResult._tag === "Failure") {
+            const error = squashAtomCommandFailure(navigationResult);
+            toastManager.add(
+              stackedThreadToast({
+                type: "error",
+                title: "Could not open project",
+                ...userErrorToastFields(error),
+              }),
+            );
+            return;
+          }
+        }
+        setOpen(false);
+        return;
+      }
+
+      if (!readEnvironmentScope(input.environmentId, AuthOrchestrationOperateScope)) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: "Cannot add project",
+            description: "This connection cannot add projects.",
+          }),
+        );
+        return;
+      }
+      const projectId = newProjectId();
+      const createResult = await createProject({
+        environmentId: input.environmentId,
+        input: {
+          projectId,
+          title: inferProjectTitleFromPath(cwd),
+          workspaceRoot: cwd,
+          createWorkspaceRootIfMissing: true,
+          defaultModelSelection: null,
+        },
+      });
+      if (createResult._tag === "Failure") {
+        if (!isAtomCommandInterrupted(createResult)) {
+          const error = squashAtomCommandFailure(createResult);
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Could not add project",
+              ...userErrorToastFields(error, { showCause: true }),
+            }),
+          );
+        }
+        return;
+      }
+
+      const navigationResult = await settlePromise(() =>
+        handleNewThread(scopeProjectRef(input.environmentId, projectId)),
+      );
+      if (navigationResult._tag === "Failure") {
+        const error = squashAtomCommandFailure(navigationResult);
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: "Could not add project",
+            ...userErrorToastFields(error, { showCause: true }),
+          }),
+        );
+        return;
+      }
+      setOpen(false);
+    },
+    [
+      handleNewThread,
+      createProject,
+      environments,
+      navigate,
+      primaryEnvironmentId,
+      allProjects,
+      providers,
+      setOpen,
+      clientSettings.sidebarThreadSortOrder,
+      threads,
+    ],
+  );
+
   const startAddProjectBrowse = useCallback(
     async (environmentId: EnvironmentId): Promise<void> => {
       const initialQuery = getAddProjectInitialQueryForEnvironment(environmentId);
@@ -1609,47 +1762,13 @@ function OpenCommandPaletteDialog(props: {
       environmentId: EnvironmentId,
       readinessBySource: AddProjectRemoteSourceReadiness,
     ): CommandPaletteView["groups"] => {
-      const sourceItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [
-        {
-          kind: "action",
-          value: `action:add-project:${environmentId}:local`,
-          searchTerms: ["local", "folder", "directory", "browse"],
-          title: "Local folder",
-          description: "Browse a folder on disk",
-          icon: <FolderPlusIcon className={ITEM_ICON_CLASS} />,
-          keepOpen: true,
-          run: async () => {
-            await startAddProjectBrowse(environmentId);
-          },
-        },
-      ];
+      const environment = environments.find(
+        (candidate) => candidate.environmentId === environmentId,
+      );
+      const canMakeRepository = newProjectsRootFor(environmentId) !== null;
+      const projectFromTemplate = aiosEnvironmentId === environmentId && aiosRoot !== null;
 
-      if (newProjectsRootFor(environmentId) !== null) {
-        sourceItems.unshift({
-          kind: "action",
-          value: `action:add-project:${environmentId}:new-workspace`,
-          searchTerms: ["new workspace", "business", "trading", "personal", "company", "team"],
-          title: "New workspace",
-          description: "Personal, business or trading",
-          icon: <BriefcaseIcon className={ITEM_ICON_CLASS} />,
-          run: async () => {
-            openNewWorkspace();
-          },
-        });
-        sourceItems.unshift({
-          kind: "action",
-          value: `action:add-project:${environmentId}:new`,
-          searchTerms: ["new project", "create", "empty", "repository", "git init"],
-          title: "New project",
-          description: "Start a new Git repository from a name",
-          icon: <FolderGit2Icon className={ITEM_ICON_CLASS} />,
-          keepOpen: true,
-          run: async () => {
-            startNewProject(environmentId, environmentId);
-          },
-        });
-      }
-
+      const gitItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
       const orderedSources: ReadonlyArray<AddProjectRemoteSource> = [
         "url",
         ...sortAddProjectProviderSources(readinessBySource),
@@ -1657,11 +1776,11 @@ function OpenCommandPaletteDialog(props: {
 
       for (const source of orderedSources) {
         const label = addProjectRemoteSourceLabel(source);
-        const title = source === "url" ? "Git URL" : `${label} repository`;
+        const title = source === "url" ? "Git link" : label;
         const description =
           source === "url"
-            ? "Clone from a remote URL"
-            : `Clone ${label} ${addProjectRemoteSourcePathHint(source)}`;
+            ? "Copy a repository from its link"
+            : `Copy ${addProjectRemoteSourcePathHint(source)}`;
         const readiness = readinessBySource(source);
         const disabledHint = readiness.hint;
 
@@ -1689,7 +1808,7 @@ function OpenCommandPaletteDialog(props: {
         );
 
         if (!readiness.ready) {
-          sourceItems.push({
+          gitItems.push({
             kind: "action",
             value: `action:add-project:${environmentId}:${source}:not-ready`,
             searchTerms: ["clone", "remote", "repository", "repo", "git", label, "setup required"],
@@ -1703,7 +1822,7 @@ function OpenCommandPaletteDialog(props: {
           continue;
         }
 
-        sourceItems.push({
+        gitItems.push({
           kind: "action",
           value: `action:add-project:${environmentId}:${source}`,
           searchTerms: ["clone", "remote", "repository", "repo", "git", label],
@@ -1718,11 +1837,102 @@ function OpenCommandPaletteDialog(props: {
         });
       }
 
-      return [{ value: `sources:${environmentId}`, label: "Sources", items: sourceItems }];
+      // With the project template on offer, the Git repository from a name moves in here.
+      if (canMakeRepository && projectFromTemplate) {
+        gitItems.push({
+          kind: "action",
+          value: `action:add-project:${environmentId}:new-repository`,
+          searchTerms: ["new repository", "empty", "git init", "create"],
+          title: "New empty repository",
+          description: "Start a Git repository from a name",
+          icon: <FolderGit2Icon className={ITEM_ICON_CLASS} />,
+          keepOpen: true,
+          run: async () => {
+            startNewProject(environmentId, environmentId);
+          },
+        });
+      }
+
+      const sourceItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [
+        {
+          kind: "action",
+          value: `action:add-project:${environmentId}:local`,
+          searchTerms: ["local", "folder", "directory", "browse", "open", "existing"],
+          title: "Open a folder",
+          description:
+            environmentId === primaryEnvironmentId
+              ? "Pick a folder on this computer"
+              : `Pick a folder on ${environment?.label ?? "that computer"}`,
+          icon: <FolderIcon className={ITEM_ICON_CLASS} />,
+          keepOpen: true,
+          run: async () => {
+            pendingNativePickRef.current = true;
+            await startAddProjectBrowse(environmentId);
+          },
+        },
+      ];
+
+      if (projectFromTemplate) {
+        sourceItems.push({
+          kind: "action",
+          value: `action:add-project:${environmentId}:new`,
+          searchTerms: ["new project", "create", "template", "start"],
+          title: "New project",
+          description: "Start from the Leonidas project template",
+          icon: <PlusIcon className={ITEM_ICON_CLASS} />,
+          run: async () => {
+            openNewAiosProject();
+          },
+        });
+      } else if (canMakeRepository) {
+        sourceItems.push({
+          kind: "action",
+          value: `action:add-project:${environmentId}:new`,
+          searchTerms: ["new project", "create", "empty", "repository", "git init"],
+          title: "New project",
+          description: "Start a new Git repository from a name",
+          icon: <PlusIcon className={ITEM_ICON_CLASS} />,
+          keepOpen: true,
+          run: async () => {
+            startNewProject(environmentId, environmentId);
+          },
+        });
+      }
+
+      sourceItems.push({
+        kind: "submenu",
+        value: `action:add-project:${environmentId}:git`,
+        searchTerms: ["git", "clone", "remote", "repository", "github", "gitlab", "link", "url"],
+        title: "From Git",
+        description: "GitHub, GitLab, a link and more",
+        icon: <GitBranchIcon className={ITEM_ICON_CLASS} />,
+        addonIcon: <GitBranchIcon className={ADDON_ICON_CLASS} />,
+        groups: [{ value: `git:${environmentId}`, label: "", items: gitItems }],
+      });
+
+      if (canMakeRepository) {
+        sourceItems.push({
+          kind: "action",
+          value: `action:add-project:${environmentId}:new-workspace`,
+          searchTerms: ["new workspace", "business", "trading", "personal", "company", "team"],
+          title: "New workspace",
+          description: "Personal, business or trading",
+          icon: <BriefcaseIcon className={ITEM_ICON_CLASS} />,
+          run: async () => {
+            openNewWorkspace();
+          },
+        });
+      }
+
+      return [{ value: `sources:${environmentId}`, label: "", items: sourceItems }];
     },
     [
+      aiosEnvironmentId,
+      aiosRoot,
+      environments,
       newProjectsRootFor,
       openSourceControlSettings,
+      primaryEnvironmentId,
       startAddProjectBrowse,
       startAddProjectClone,
       startNewProject,
@@ -2535,155 +2745,6 @@ function OpenCommandPaletteDialog(props: {
           })
         : allThreadItems,
   });
-
-  const handleAddProjectForEnvironment = useCallback(
-    async (input: {
-      readonly environmentId: EnvironmentId;
-      readonly rawCwd: string;
-      readonly platform: string;
-      readonly currentProjectCwd: string | null;
-    }) => {
-      const environment = environments.find(
-        (candidate) => candidate.environmentId === input.environmentId,
-      );
-      if (!canCreateProjectInEnvironment(environment?.connection.phase)) {
-        toastManager.add(
-          stackedThreadToast({
-            type: "error",
-            title: "Computer unavailable",
-            description: `${environment?.label ?? "The selected computer"} is not connected.`,
-          }),
-        );
-        return;
-      }
-      const rawCwd = input.rawCwd;
-
-      if (isUnsupportedWindowsProjectPath(rawCwd.trim(), input.platform)) {
-        toastManager.add(
-          stackedThreadToast({
-            type: "error",
-            title: "Could not add project",
-            description: "Windows-style paths are only supported on Windows.",
-          }),
-        );
-        return;
-      }
-
-      if (isExplicitRelativeProjectPath(rawCwd.trim()) && !input.currentProjectCwd) {
-        toastManager.add(
-          stackedThreadToast({
-            type: "error",
-            title: "Could not add project",
-            description: "Relative paths require an active project.",
-          }),
-        );
-        return;
-      }
-
-      const cwd = resolveProjectPathForDispatch(rawCwd, input.currentProjectCwd);
-      if (cwd.length === 0) return;
-
-      const existing = findProjectByPath(
-        projects.filter((project) => project.environmentId === input.environmentId),
-        cwd,
-      );
-      if (existing) {
-        const latestThread = getLatestThreadForProject(
-          threads.filter((thread) => thread.environmentId === existing.environmentId),
-          existing.id,
-          clientSettings.sidebarThreadSortOrder,
-        );
-        if (latestThread && latestThread.settledOverride !== "settled") {
-          await navigate({
-            to: "/$environmentId/$threadId",
-            params: buildThreadRouteParams(
-              scopeThreadRef(latestThread.environmentId, latestThread.id),
-            ),
-          });
-        } else {
-          const navigationResult = await settlePromise(() =>
-            handleNewThread(scopeProjectRef(existing.environmentId, existing.id)),
-          );
-          if (navigationResult._tag === "Failure") {
-            const error = squashAtomCommandFailure(navigationResult);
-            toastManager.add(
-              stackedThreadToast({
-                type: "error",
-                title: "Could not open project",
-                ...userErrorToastFields(error),
-              }),
-            );
-            return;
-          }
-        }
-        setOpen(false);
-        return;
-      }
-
-      if (!readEnvironmentScope(input.environmentId, AuthOrchestrationOperateScope)) {
-        toastManager.add(
-          stackedThreadToast({
-            type: "error",
-            title: "Cannot add project",
-            description: "This connection cannot add projects.",
-          }),
-        );
-        return;
-      }
-      const projectId = newProjectId();
-      const createResult = await createProject({
-        environmentId: input.environmentId,
-        input: {
-          projectId,
-          title: inferProjectTitleFromPath(cwd),
-          workspaceRoot: cwd,
-          createWorkspaceRootIfMissing: true,
-          defaultModelSelection: null,
-        },
-      });
-      if (createResult._tag === "Failure") {
-        if (!isAtomCommandInterrupted(createResult)) {
-          const error = squashAtomCommandFailure(createResult);
-          toastManager.add(
-            stackedThreadToast({
-              type: "error",
-              title: "Could not add project",
-              ...userErrorToastFields(error),
-            }),
-          );
-        }
-        return;
-      }
-
-      const navigationResult = await settlePromise(() =>
-        handleNewThread(scopeProjectRef(input.environmentId, projectId)),
-      );
-      if (navigationResult._tag === "Failure") {
-        const error = squashAtomCommandFailure(navigationResult);
-        toastManager.add(
-          stackedThreadToast({
-            type: "error",
-            title: "Could not add project",
-            ...userErrorToastFields(error),
-          }),
-        );
-        return;
-      }
-      setOpen(false);
-    },
-    [
-      handleNewThread,
-      createProject,
-      environments,
-      navigate,
-      primaryEnvironmentId,
-      projects,
-      providers,
-      setOpen,
-      clientSettings.sidebarThreadSortOrder,
-      threads,
-    ],
-  );
 
   const handleAddProject = useCallback(
     async (rawCwd: string) => {
@@ -3566,6 +3627,21 @@ function OpenCommandPaletteDialog(props: {
     handleAddProjectForEnvironment,
     isPickingProjectFolder,
     primaryEnvironmentId,
+  ]);
+
+  // Open a folder shows the folder step first, then asks the system dialog once it can. Where the
+  // dialog is not available (a browser, another computer), the folder step stays as the way in.
+  useEffect(() => {
+    if (!pendingNativePickRef.current || !isBrowsing || browseEnvironmentId === null) return;
+    pendingNativePickRef.current = false;
+    if (!canOpenProjectFromFileManager) return;
+    const timer = setTimeout(() => void handleOpenProjectFromFileManager(), 0);
+    return () => clearTimeout(timer);
+  }, [
+    browseEnvironmentId,
+    canOpenProjectFromFileManager,
+    handleOpenProjectFromFileManager,
+    isBrowsing,
   ]);
 
   const inputAccessory =

@@ -1,6 +1,7 @@
 import type { AiosWorkspaceSummary, EnvironmentId, ProjectId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
+import { findExistingProjectForFolder } from "../../lib/projectPaths";
 import {
   pickActiveWorkspace,
   homeRepository,
@@ -172,5 +173,41 @@ describe("uniqueWorkspaceId", () => {
   it("adds the first free number when another workspace uses the id", () => {
     expect(uniqueWorkspaceId("Trading", [])).toBe("trading");
     expect(uniqueWorkspaceId("Trading", ["trading", "trading-2"])).toBe("trading-3");
+  });
+});
+
+describe("adding a folder that another workspace owns", () => {
+  const projects = [
+    {
+      environmentId: env,
+      id: pid("p-code"),
+      workspaceRoot: "D:/Leonidas AIOS/projects/leonidas-code",
+    },
+    { environmentId: env, id: pid("p-sg"), workspaceRoot: "D:/SimplyGersi AIOS" },
+    { environmentId: remote, id: pid("remote"), workspaceRoot: "D:/SimplyGersi AIOS" },
+  ];
+
+  it("finds the owner in the full list although the active workspace hides it", () => {
+    const shown = chatProjectsForWorkspace({
+      environmentId: env,
+      workspaces: [leonidas, simplygersi],
+      active: leonidas,
+      projects,
+    });
+    expect(shown.map((project) => project.id)).not.toContain(pid("p-sg"));
+    // The list the picker shows cannot see the folder's owner: this was the bug.
+    expect(findExistingProjectForFolder(shown, env, "D:\\SimplyGersi AIOS\\")).toBeUndefined();
+    expect(findExistingProjectForFolder(projects, env, "D:\\SimplyGersi AIOS\\")?.id).toBe(
+      pid("p-sg"),
+    );
+  });
+
+  it("never reuses a project of another computer", () => {
+    expect(findExistingProjectForFolder(projects, remote, "D:/SimplyGersi AIOS")?.id).toBe(
+      pid("remote"),
+    );
+    expect(
+      findExistingProjectForFolder(projects, remote, "D:/Leonidas AIOS/projects/leonidas-code"),
+    ).toBeUndefined();
   });
 });
