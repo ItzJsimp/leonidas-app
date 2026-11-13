@@ -165,9 +165,11 @@ import {
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import { claudeContextReportFromUsage } from "../../provider/ClaudeContextReport.ts";
 import {
+  claudeRateLimitEventToChatQuota,
   claudeRateLimitEventToUpdate,
   type ClaudeScopedLimitNames,
 } from "../../provider/claudeUsageLimits.ts";
+import type { ChatQuotaReading } from "../../usage/chatQuota.ts";
 import type { ManagedServerProvider } from "@t3tools/provider-core/server/snapshot";
 import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/instanceEnvironment";
 import { LEONIDAS_ORCHESTRATION_INSTRUCTIONS } from "@t3tools/provider-core/server/orchestrationInstructions";
@@ -1580,6 +1582,7 @@ export const CLAUDE_READ_ONLY_T3_MCP_ALLOWED_TOOLS: ReadonlyArray<string> = [
   "mcp__leonidas__leo_aios_memory_search",
   "mcp__leonidas__leo_aios_memory_read",
   "mcp__leonidas__leo_usage_status",
+  "mcp__leonidas__leo_chat_quota",
   "mcp__leonidas__leo_release_status",
   "mcp__leonidas__leo_hardware_status",
   "mcp__leonidas__leo_review_diff_get",
@@ -4044,6 +4047,8 @@ export interface ClaudeAdapterV2Options {
   readonly enableAssistantTextStreaming?: boolean;
   readonly scopedLimitNames?: Ref.Ref<ClaudeScopedLimitNames>;
   readonly onUsageLimits?: ManagedServerProvider["applyUsageLimits"];
+  /** Gets each plan quota reading with the thread that made the request. */
+  readonly onChatQuota?: (reading: ChatQuotaReading) => Effect.Effect<void>;
   readonly continuationRequests?: {
     readonly offer: (
       request: ProviderContinuationRequests.ProviderContinuationRequest,
@@ -4147,6 +4152,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
     planSelectionTransition: () => Effect.succeed(turnScopedSelectionTransition()),
     openSession: Effect.fn("ClaudeAdapterV2.openSession")(
       function* (input: ProviderAdapter.ProviderAdapterV2OpenSessionInput) {
+        const sessionThreadId = input.threadId;
         const sessionScope = yield* Effect.scope;
         const now = yield* DateTime.now;
         const session = providerSession({
@@ -7747,6 +7753,16 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                 checkedAt: DateTime.formatIso(now),
               });
             }
+            const chatQuota = adapterOptions.onChatQuota
+              ? claudeRateLimitEventToChatQuota(
+                  rateLimitInfo,
+                  sessionThreadId,
+                  DateTime.toEpochMillis(now),
+                )
+              : undefined;
+            if (chatQuota && adapterOptions.onChatQuota) {
+              yield* adapterOptions.onChatQuota(chatQuota);
+            }
             const context = yield* Ref.get(activeTurn);
             if (context === null) {
               yield* bufferWakeMessage({
@@ -10922,7 +10938,7 @@ export const createClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2Driver.create")(
     input: ProviderAdapterDriverCreateInput<ClaudeSettings> & {
       readonly driver?: ProviderDriverKind | undefined;
     },
-    hooks: Pick<ClaudeAdapterV2Options, "scopedLimitNames" | "onUsageLimits"> & {
+    hooks: Pick<ClaudeAdapterV2Options, "scopedLimitNames" | "onUsageLimits" | "onChatQuota"> & {
       readonly driver?: ProviderDriverKind | undefined;
     } = {},
   ) {
