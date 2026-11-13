@@ -36,13 +36,13 @@ import {
   previewDraft,
 } from "./createAgent.logic";
 import { writeFailureMessage } from "./SubagentEditor";
+import { ModelSelect } from "./ModelSelect";
 import { modelDisplayName } from "./spawnApproval.logic";
 import {
   BUILT_IN_TOOLS,
   EFFORT_SUGGESTIONS,
   knownFreeModels,
   maxTurnsProblem,
-  MODEL_SUGGESTIONS,
   parseToolList,
   slugifySubagentName,
 } from "./subagentEdit.logic";
@@ -224,19 +224,7 @@ function CreateFlow(props: CreateProps) {
               <label htmlFor={`${ids}-model`} className="font-medium">
                 Model
               </label>
-              <Input
-                id={`${ids}-model`}
-                value={model}
-                list={`${ids}-models`}
-                onChange={(event) => setModel(event.target.value)}
-              />
-              <datalist id={`${ids}-models`}>
-                {MODEL_SUGGESTIONS.map((suggestion) => (
-                  <option key={suggestion} value={suggestion}>
-                    {modelDisplayName(suggestion)}
-                  </option>
-                ))}
-              </datalist>
+              <ModelSelect id={`${ids}-model`} value={model} onChange={setModel} />
               <p className="text-xs text-muted-foreground">
                 {model.trim() === ""
                   ? "Pick a model."

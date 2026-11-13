@@ -16,14 +16,6 @@ export const BUILT_IN_TOOLS: ReadonlyArray<string> = [
   "WebFetch",
 ];
 
-/** Models offered as suggestions in the model field. */
-export const MODEL_SUGGESTIONS: ReadonlyArray<string> = [
-  ...DEFAULT_SUBAGENT_FREE_TIER_MODELS,
-  "claude-sonnet-5-5",
-  "claude-opus-5-5",
-  "claude-fable-5-1",
-];
-
 /** Effort values the editor suggests. The field takes any value the model's engine accepts. */
 export const EFFORT_SUGGESTIONS: ReadonlyArray<string> = ["low", "medium", "high", "max"];
 
