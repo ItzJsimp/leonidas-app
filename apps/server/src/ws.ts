@@ -48,6 +48,7 @@ import {
   isPonytailPluginEnabled,
   readCodexPonytailState,
 } from "./provider/PonytailEnsure.ts";
+import { readGameModeStatus, runGameModeAction } from "./gameMode/gameMode.ts";
 import { readReleaseStatus } from "./releaseStatus/releaseStatus.ts";
 import { homeNews, homeWeather } from "./taskBoard/homeFeeds.ts";
 import { appendTradingEvents } from "./trading/appendTradingEvents.ts";
@@ -3380,6 +3381,8 @@ export const layerWsRpc = (
             Effect.flatMap(listResources),
           ),
         [WS_METHODS.releaseStatusRuns]: () => Effect.promise(() => readReleaseStatus()),
+        [WS_METHODS.gameModeStatus]: () => Effect.promise(() => readGameModeStatus()),
+        [WS_METHODS.gameModeRun]: (input) => Effect.promise(() => runGameModeAction(input.action)),
         [WS_METHODS.layaUsage]: () => Effect.promise(() => readLayaUsage()),
         [WS_METHODS.calendarEvents]: (input) => calendar.events(input),
         [WS_METHODS.calendarTestLink]: (input) => calendar.testLink(input.url),

@@ -269,6 +269,8 @@ const RPC_AGGREGATES = {
   [WS_METHODS.taskBoardHomeWeather]: "workspace",
   [WS_METHODS.taskBoardHomeNews]: "workspace",
   [WS_METHODS.releaseStatusRuns]: "workspace",
+  [WS_METHODS.gameModeStatus]: "workspace",
+  [WS_METHODS.gameModeRun]: "workspace",
   [WS_METHODS.layaUsage]: "workspace",
   [WS_METHODS.ponytailUsage]: "workspace",
   [WS_METHODS.ponytailCodexHooks]: "workspace",
