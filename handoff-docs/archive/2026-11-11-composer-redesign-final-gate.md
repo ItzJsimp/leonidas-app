@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 ---
 
 # Session Handoff: Composer redesign, final gate and landing
