@@ -44,7 +44,9 @@ export const isWindowsCommandNotFound = Effect.fn("isWindowsCommandNotFound")(fu
   return WINDOWS_COMMAND_NOT_FOUND_PATTERNS.some((pattern) => pattern.test(stderr));
 });
 
-export const DEFAULT_TIMEOUT_MS = 4_000;
+// A ceiling, not a delay: a healthy `--version` returns at once. Cold start of a large CLI on a
+// slow disk or a busy CPU took 20 seconds in traces, and a 4 s limit showed "failed to run".
+export const DEFAULT_TIMEOUT_MS = 30_000;
 export const AUTH_PROBE_TIMEOUT_MS = 10_000;
 
 export const COMPACT_SLASH_COMMAND = {

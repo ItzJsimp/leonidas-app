@@ -2384,7 +2384,18 @@ export default function ChatView(props: ChatViewProps) {
         icon: <WifiOffIcon />,
         // When this device lost its network, the computer is not the problem: say so, and offer no
         // Reconnect, because the app reconnects by itself when the network is back.
-        ...(deviceOffline ? { description: "Leonidas reconnects when the network is back." } : {}),
+        ...(deviceOffline
+          ? { description: "Leonidas reconnects when the network is back." }
+          : activeEnvironmentTurnedOff
+            ? {}
+            : {
+                description: [
+                  unavailableConnection.error
+                    ? `Reason: ${unavailableConnection.error}.`
+                    : "The Leonidas server on this computer is not answering. It may be busy or stopped.",
+                  "Select Reconnect now. If it stays stuck, close Leonidas and open it again.",
+                ].join(" "),
+              }),
         title: deviceOffline
           ? "This device is offline"
           : `${activeEnvironmentUnavailableState.label} is ${activeEnvironmentTurnedOff ? "turned off" : environmentReconnecting ? "reconnecting" : "offline"}`,
@@ -2402,7 +2413,7 @@ export default function ChatView(props: ChatViewProps) {
               >
                 Turn on
               </Button>
-            ) : !environmentReconnecting ? (
+            ) : (
               <Button
                 size="xs"
                 variant="ghost"
@@ -2412,9 +2423,9 @@ export default function ChatView(props: ChatViewProps) {
                   )
                 }
               >
-                Reconnect
+                {environmentReconnecting ? "Reconnect now" : "Reconnect"}
               </Button>
-            ) : null}
+            )}
             {disconnectAction}
           </>
         ),
