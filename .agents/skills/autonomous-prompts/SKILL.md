@@ -1,6 +1,6 @@
 ---
 name: "autonomous-prompts"
-description: "Generate ten paste-ready prompts for independent work across projects, composed and graded with prompt-composer, with active-work overlap checks, verified skills, and two model picks plus an effort level per prompt."
+description: "Generate ten paste-ready prompts for independent work, composed and graded with prompt-composer, with overlap checks, verified skills, and two model picks plus an effort level per prompt."
 category: "flow"
 scope: structural
 distribution: core
