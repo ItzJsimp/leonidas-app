@@ -24,7 +24,7 @@ import { findAiosProject, homeModelSelection, homeThreadId } from "./homeChat.lo
  */
 export function HomeChat() {
   const navigate = useNavigate();
-  const { environmentId, active } = useActiveAiosWorkspace();
+  const { environmentId, active, scopeReady } = useActiveAiosWorkspace();
   const projects = useProjects();
   const providers = useAtomValue(primaryServerProvidersAtom);
   const createThread = useOrchestrationCommand(threadEnvironment.create, { reportFailure: false });
@@ -89,7 +89,7 @@ export function HomeChat() {
 
   const message =
     error ??
-    (active && project === null
+    (scopeReady && (!active || project === null)
       ? "Add your AIOS folder as a project, then open Home again."
       : noModel
         ? "Connect an AI account in Settings, then open Home again."
