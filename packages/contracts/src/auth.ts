@@ -47,6 +47,8 @@ export const AuthRelayReadScope = "relay:read" as const;
 export const AuthRelayWriteScope = "relay:write" as const;
 /** Read the release build status. Administrative sessions only, never a default grant. */
 export const AuthReleaseReadScope = "release:read" as const;
+/** Turn Game Mode and the virtual display on or off. Administrative sessions only, never a default grant. */
+export const AuthGameModeControlScope = "game-mode:control" as const;
 export const AuthEnvironmentScope = Schema.Literals([
   AuthOrchestrationReadScope,
   AuthOrchestrationOperateScope,
@@ -66,6 +68,7 @@ export const AuthEnvironmentScope = Schema.Literals([
   AuthRelayReadScope,
   AuthRelayWriteScope,
   AuthReleaseReadScope,
+  AuthGameModeControlScope,
 ]);
 export type AuthEnvironmentScope = typeof AuthEnvironmentScope.Type;
 export const AuthEnvironmentScopes = Schema.Array(AuthEnvironmentScope);
@@ -111,6 +114,7 @@ const legacyParents: Partial<Record<AuthEnvironmentScope, AuthEnvironmentScope>>
   [AuthFilesystemWriteScope]: AuthOrchestrationOperateScope,
   [AuthTerminalReadScope]: AuthTerminalOperateScope,
   [AuthReleaseReadScope]: AuthOrchestrationOperateScope,
+  [AuthGameModeControlScope]: AuthOrchestrationOperateScope,
 };
 
 /** Keep permission denials decodable by clients with the original scope enum. */
@@ -174,6 +178,7 @@ export const AuthStandardClientScopes = [
 export const AuthAdministrativeScopes = [
   ...AuthStandardClientScopes,
   AuthReleaseReadScope,
+  AuthGameModeControlScope,
 ] as const;
 
 export const AuthTokenExchangeGrantType =

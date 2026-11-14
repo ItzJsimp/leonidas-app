@@ -89,6 +89,14 @@ describe("RPC authorization scopes", () => {
     expect(AuthAdministrativeScopes).toContain(required);
     expect(AuthStandardClientScopes).not.toContain(required);
   });
+  it("keeps Game Mode behind game-mode:control, which only administrative sessions hold", () => {
+    for (const method of [WS_METHODS.gameModeStatus, WS_METHODS.gameModeRun]) {
+      const required = requiredScopeForRpcMethod(method);
+      expect(required).toBe("game-mode:control");
+      expect(AuthAdministrativeScopes).toContain(required);
+      expect(AuthStandardClientScopes).not.toContain(required);
+    }
+  });
   it("requires read scope for Scribe status", () => {
     expect(requiredScopeForRpcMethod(WS_METHODS.scribeGetStatus)).toBe(AuthOrchestrationReadScope);
   });

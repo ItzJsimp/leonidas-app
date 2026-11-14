@@ -66,6 +66,8 @@ pub struct Bindings {
     /// Discard the current recording.
     pub cancel: Vec<String>,
     pub rewrite: Vec<String>,
+    /// Off removes the keyboard and mouse hooks, so Scribe reads no key or button.
+    pub enabled: bool,
 }
 
 impl Default for Bindings {
@@ -75,6 +77,7 @@ impl Default for Bindings {
             toggle: vec!["Mouse5".into(), "Ctrl + Shift + Space".into()],
             cancel: vec!["Escape".into()],
             rewrite: vec!["Ctrl + Shift + A".into()],
+            enabled: true,
         }
     }
 }

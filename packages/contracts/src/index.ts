@@ -71,6 +71,7 @@ export * from "./scheduledTask.ts";
 export * from "./worktreeMcp.ts";
 export * from "./resourceTelemetry.ts";
 export * from "./releaseStatus.ts";
+export * from "./gameMode.ts";
 export * from "./taskBoard.ts";
 export * from "./trading.ts";
 export * from "./areaSync.ts";

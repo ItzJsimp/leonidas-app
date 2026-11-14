@@ -240,4 +240,28 @@ mod tests {
         );
         assert!(blocked.current().hud.enabled);
     }
+
+    #[test]
+    fn hotkeys_can_be_turned_off_and_on() {
+        let dir = std::env::temp_dir().join(format!("scribe-hotkeys-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let settings = Settings::new(dir.join("config.json"), Config::default());
+        let changes = settings.subscribe();
+        assert!(settings.current().bindings.enabled);
+        let off = json!({"enabled": false});
+        settings
+            .patch("hotkeys", off.as_object().unwrap(), false)
+            .unwrap();
+        assert_eq!(changes.try_recv(), Ok("hotkeys"));
+        assert!(!settings.current().bindings.enabled);
+        assert_eq!(
+            settings.current().bindings.toggle,
+            Bindings::default().toggle
+        );
+        let on = json!({"enabled": true});
+        settings
+            .patch("hotkeys", on.as_object().unwrap(), false)
+            .unwrap();
+        assert!(settings.current().bindings.enabled);
+    }
 }

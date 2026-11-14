@@ -1,3 +1,4 @@
+import { GameModeActionInput, GameModeStatus } from "./gameMode.ts";
 import { ReleaseStatus } from "./releaseStatus.ts";
 import {
   OrchestrationV2SearchThreadError,
@@ -806,6 +807,8 @@ export const WS_METHODS = {
   tradingResourceSave: "trading.resourceSave",
   tradingResourceList: "trading.resourceList",
   releaseStatusRuns: "releaseStatus.runs",
+  gameModeStatus: "gameMode.status",
+  gameModeRun: "gameMode.run",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
   calendarEvents: "calendar.events",
@@ -2365,6 +2368,18 @@ const WsReleaseStatusRunsRpc = Rpc.make(WS_METHODS.releaseStatusRuns, {
   error: EnvironmentAuthorizationError,
 });
 
+const WsGameModeStatusRpc = Rpc.make(WS_METHODS.gameModeStatus, {
+  payload: Schema.Struct({}),
+  success: GameModeStatus,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsGameModeRunRpc = Rpc.make(WS_METHODS.gameModeRun, {
+  payload: GameModeActionInput,
+  success: GameModeStatus,
+  error: EnvironmentAuthorizationError,
+});
+
 const WsCalendarEventsRpc = Rpc.make(WS_METHODS.calendarEvents, {
   payload: CalendarEventsInput,
   success: CalendarEventsResult,
@@ -3878,6 +3893,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsTradingResourceSaveRpc,
   WsTradingResourceListRpc,
   WsReleaseStatusRunsRpc,
+  WsGameModeStatusRpc,
+  WsGameModeRunRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,
   WsCalendarEventsRpc,

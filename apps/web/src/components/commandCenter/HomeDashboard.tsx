@@ -41,6 +41,7 @@ import {
   WidgetError,
   WidgetSkeleton,
 } from "./HomeWidget";
+import { GameModeCard } from "./GameModeCard";
 import { AutomationsCard, MemoryCard, ProjectsCard, UsageCard } from "./HomeStatCards";
 import { HomeComposer } from "./HomeComposer";
 import { useNowMs, useTaskCards } from "./useHomeReads";
@@ -77,6 +78,9 @@ export function HomeDashboard() {
         <ProjectsCard />
         <MemoryCard />
         <AutomationsCard />
+        <div className="@lg:col-span-2 @5xl:col-span-4 empty:hidden">
+          <GameModeCard />
+        </div>
       </div>
       {chatBeside ? null : (
         <div className="mt-3">
