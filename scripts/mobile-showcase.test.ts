@@ -3,7 +3,8 @@ import * as NodePath from "node:path";
 import { assert, it } from "@effect/vitest";
 import { PNG } from "pngjs";
 
-import {
+import showcaseConfig, {
+  DEFAULT_SHOWCASE_THEME,
   resolveShowcaseAndroidAbi,
   SHOWCASE_THEMES,
   type ShowcaseConfig,
