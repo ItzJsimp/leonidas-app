@@ -340,6 +340,33 @@ export function buildProjectActionItems(input: {
   }));
 }
 
+/**
+ * One section per computer, so each computer lists all of its own projects. Order: the computer of
+ * the current project (Enter keeps its target), then this computer, then the rest as they come.
+ */
+export function groupProjectsByDevice<P extends { readonly environmentId: EnvironmentId }>(input: {
+  readonly projects: ReadonlyArray<P>;
+  readonly primaryEnvironmentId: EnvironmentId | null;
+  readonly leadEnvironmentId: EnvironmentId | null;
+}): Array<{ readonly environmentId: EnvironmentId; readonly projects: P[] }> {
+  const byEnvironment = new Map<EnvironmentId, P[]>();
+  for (const project of input.projects) {
+    const list = byEnvironment.get(project.environmentId);
+    if (list) list.push(project);
+    else byEnvironment.set(project.environmentId, [project]);
+  }
+  const rank = (environmentId: EnvironmentId) =>
+    environmentId === input.leadEnvironmentId
+      ? 0
+      : environmentId === input.primaryEnvironmentId
+        ? 1
+        : 2;
+  // Array.sort is stable: computers of equal rank keep the order they first appeared in.
+  return [...byEnvironment]
+    .map(([environmentId, projects]) => ({ environmentId, projects }))
+    .sort((left, right) => rank(left.environmentId) - rank(right.environmentId));
+}
+
 export type BuildThreadActionItemsThread = Pick<
   SidebarThreadSummary,
   | "archivedAt"
