@@ -41,7 +41,10 @@ export function workspaceForProject(
   );
 }
 
-/** Project candidates shared by new-chat defaults and the chat project picker. */
+/**
+ * Project candidates shared by new-chat defaults and the chat project picker. The workspace scope
+ * applies to this computer only: another computer lists all its projects.
+ */
 export function chatProjectsForWorkspace<
   P extends ScopedEntity & { readonly id: ProjectId },
 >(input: {
@@ -51,9 +54,7 @@ export function chatProjectsForWorkspace<
   readonly projects: ReadonlyArray<P>;
 }) {
   if (input.environmentId === null || input.active === undefined) return input.projects;
-  return scopeToWorkspace({ ...input, threads: [] }).projects.filter(
-    (project) => project.environmentId === input.environmentId,
-  );
+  return scopeToWorkspace({ ...input, threads: [] }).projects;
 }
 
 /**
