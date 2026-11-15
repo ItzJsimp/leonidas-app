@@ -110,7 +110,10 @@ export function PullRequestStackMenu({
     if (result._tag === "Failure") {
       toastManager.update(toastId, {
         type: "error",
-        title: action === "merge" ? "Could not merge the stack" : "Could not rebase the stack",
+        title:
+          action === "merge"
+            ? "Could not merge the linked pull requests. Try again."
+            : "Could not update the linked pull requests. Try again.",
         description: String(squashAtomCommandFailure(result)),
       });
     } else {

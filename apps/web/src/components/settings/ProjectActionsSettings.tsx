@@ -199,7 +199,7 @@ export function ProjectActionsSettings() {
       {builder && t3File.status === "invalid" ? (
         <SettingsRow
           title="t3.json is invalid"
-          description="A t3.json file exists in this folder, but Leonidas cannot read it. It ignores every action and icon in it. Check the JSON text and the icon names."
+          description="Leonidas cannot read the t3.json file in this folder, so it skips every action and icon. Fix the file text or the icon names."
           className="text-warning"
         />
       ) : null}

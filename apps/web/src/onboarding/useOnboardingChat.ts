@@ -111,13 +111,20 @@ export function useOnboardingChat(environmentId: EnvironmentId | undefined) {
           const error = squashAtomCommandFailure(result);
           return {
             ok: false,
-            message: error instanceof Error ? error.message : "Could not set up that folder.",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Leonidas could not set up that folder. Check that you can edit it, then try again.",
           };
         }
         const created = await waitForProject(scopeProjectRef(environmentId, projectId));
         return { ok: true, projectId: created.id, workspaceRoot: created.workspaceRoot };
       } catch {
-        return { ok: false, message: "Could not set up that folder." };
+        return {
+          ok: false,
+          message:
+            "Leonidas could not set up that folder. Check that you can edit it, then try again.",
+        };
       }
     },
     [canOperate, createProject, environmentId, inspectFolder],
@@ -203,10 +210,17 @@ export function useOnboardingChat(environmentId: EnvironmentId | undefined) {
         const error = squashAtomCommandFailure(failure);
         return {
           ok: false,
-          message: error instanceof Error ? error.message : "Could not start the chat.",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Leonidas could not start the chat. Check that your AI account is signed in, then try again.",
         };
       } catch {
-        return { ok: false, message: "Could not start the chat." };
+        return {
+          ok: false,
+          message:
+            "Leonidas could not start the chat. Check that your AI account is signed in, then try again.",
+        };
       }
     },
     [

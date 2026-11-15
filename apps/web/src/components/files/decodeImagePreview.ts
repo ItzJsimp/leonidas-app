@@ -16,7 +16,11 @@ export async function decodeImagePreview(src: string, heif: boolean, signal: Abo
       worker.addEventListener("error", () => fail("Could not load the image decoder."));
       worker.addEventListener("message", (event: MessageEvent<{ blob?: Blob; error?: string }>) => {
         if (event.data.blob) resolve(event.data.blob);
-        else fail(event.data.error ?? "Could not decode this image.");
+        else
+          fail(
+            event.data.error ??
+              "Leonidas cannot show this image. The file may be damaged or in a format it does not support. Open it in another app.",
+          );
       });
       void readBinaryPreview(src, controller.signal).then(
         (bytes) => worker.postMessage({ bytes, heif }, [bytes]),

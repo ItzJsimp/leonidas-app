@@ -33,7 +33,9 @@ const resolveEnvironmentPortTarget = (
   sourceUrl?: URL,
 ): PreviewUrlResolution => {
   if (!isPrivateNetworkHost(environmentUrl.hostname)) {
-    throw new Error("This port on the computer cannot be reached from here yet.");
+    throw new Error(
+      "Leonidas cannot show this page from here. It runs on a computer outside your private network. Open it on that computer.",
+    );
   }
   const protocol = target.protocol ?? "http";
   const path = target.path?.startsWith("/") ? target.path : `/${target.path ?? ""}`;

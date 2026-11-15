@@ -192,7 +192,7 @@ export function ThemeImportDialog({
     if (requestId !== importRequestRef.current) return;
     setIsReading(false);
     if (fileText._tag === "Failure") {
-      setError("Could not read that file. Paste the JSON below instead.");
+      setError("Leonidas could not read that file. Paste the theme text in the box below instead.");
       return;
     }
     setJson(fileText.value);

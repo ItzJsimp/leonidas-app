@@ -712,6 +712,9 @@ export function revokeBlobPreviewUrl(previewUrl: string | undefined): void {
   URL.revokeObjectURL(previewUrl);
 }
 
+const ATTACHMENT_URL_ERROR =
+  "Leonidas could not open this attachment. The computer sent a broken link. Try again.";
+
 /** Signs an attachment URL without reading its bytes, so video playback can request byte ranges. */
 export async function resolveFileAttachmentUrl(input: {
   attachment: ChatFileAttachment;
@@ -736,7 +739,7 @@ export async function resolveFileAttachmentUrl(input: {
   });
   if (result._tag === "Failure") throw squashAtomCommandFailure(result);
   const url = resolveAssetUrl(input.httpBaseUrl, result.value.relativeUrl);
-  if (url === null) throw new Error("The computer returned an invalid attachment URL.");
+  if (url === null) throw new Error(ATTACHMENT_URL_ERROR);
   return url;
 }
 
@@ -749,7 +752,9 @@ export async function prepareRevertedMessageAttachments(input: {
   return Promise.all(
     (input.message.attachments ?? []).map(async (attachment) => {
       if (attachment.type !== "image" && attachment.type !== "file") {
-        throw new Error("This message has an attachment that cannot be restored.");
+        throw new Error(
+          "Leonidas cannot restore this attachment. It is not an image or a file. Remove it, then try again.",
+        );
       }
       const result = await input.createAssetUrl({
         environmentId: input.environmentId,
@@ -764,7 +769,7 @@ export async function prepareRevertedMessageAttachments(input: {
       });
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
       const url = resolveAssetUrl(input.httpBaseUrl, result.value.relativeUrl);
-      if (url === null) throw new Error("The computer returned an invalid attachment URL.");
+      if (url === null) throw new Error(ATTACHMENT_URL_ERROR);
       const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
       if (!response.ok) throw new Error(`Could not restore attachment: ${attachment.name}`);
       return new File([await response.blob()], attachment.name, { type: attachment.mimeType });

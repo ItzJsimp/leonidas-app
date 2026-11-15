@@ -147,7 +147,13 @@ export async function openFileInPreview<AssetError, PreviewError>(input: {
   }
   const assetUrl = resolveAssetUrl(input.httpBaseUrl, assetResult.value.relativeUrl);
   if (assetUrl === null) {
-    return AsyncResult.failure(Cause.die(new Error("The computer returned an invalid asset URL.")));
+    return AsyncResult.failure(
+      Cause.die(
+        new Error(
+          "Leonidas could not open this file in Browser. The computer sent a broken link. Try again.",
+        ),
+      ),
+    );
   }
   return openUrlInPreview({
     threadRef: input.threadRef,
