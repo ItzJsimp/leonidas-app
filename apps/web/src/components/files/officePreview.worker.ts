@@ -46,7 +46,10 @@ self.addEventListener("message", (event: MessageEvent<OfficeWorkerRequest>) => {
   void handle(event.data).catch((cause: unknown) =>
     reply({
       type: "error",
-      message: cause instanceof Error ? cause.message : "Could not parse this file.",
+      message:
+        cause instanceof Error
+          ? cause.message
+          : "Leonidas cannot show this file. It may be damaged. Open it in another app.",
     }),
   );
 });

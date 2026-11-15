@@ -53,7 +53,11 @@ export function useAiosFileWriter(environmentId: EnvironmentId | undefined) {
         };
       }
       if (inspection._tag === "unreadable") {
-        return { ok: false, message: "Leonidas cannot read that folder." };
+        return {
+          ok: false,
+          message:
+            "Leonidas cannot read that folder. Choose a folder that you can open, then try again.",
+        };
       }
       if (!options.allowExisting && needsConfirmation(inspection)) {
         return {
@@ -80,7 +84,12 @@ export function useAiosFileWriter(environmentId: EnvironmentId | undefined) {
           },
         });
         if (result._tag !== "Success") {
-          if (isAtomCommandInterrupted(result)) return { ok: false, message: "Saving stopped." };
+          if (isAtomCommandInterrupted(result))
+            return {
+              ok: false,
+              message:
+                "Saving stopped before the end. Press the button again to save the rest. Saved files are skipped.",
+            };
           const error = squashAtomCommandFailure(result);
           return {
             ok: false,

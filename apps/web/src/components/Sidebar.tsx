@@ -3783,11 +3783,11 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
                       </button>
                     </>
                   ) : scopedProjectGroups.length > 1 ? (
-                    "No chats in these projects yet"
+                    "No chats in these projects yet. Press New chat to start one."
                   ) : scopedProjectGroups[0] ? (
-                    `No chats in ${scopedProjectGroups[0].displayName} yet`
+                    `No chats in ${scopedProjectGroups[0].displayName} yet. Press New chat to start one.`
                   ) : (
-                    "No chats yet"
+                    "No chats yet. Press New chat to start one."
                   )}
                 </div>
               ) : null}

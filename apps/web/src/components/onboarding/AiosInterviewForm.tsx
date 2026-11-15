@@ -80,7 +80,11 @@ export function AiosInterviewForm({
       return;
     }
     if (inspection._tag === "unreadable") {
-      setState({ status: "error", message: "Leonidas cannot read that folder." });
+      setState({
+        status: "error",
+        message:
+          "Leonidas cannot read that folder. Choose a folder that you can open, then try again.",
+      });
       return;
     }
     const existing = inspection._tag === "directory" ? inspection.existingFiles : [];

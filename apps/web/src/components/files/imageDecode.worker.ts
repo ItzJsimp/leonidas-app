@@ -201,7 +201,12 @@ self.addEventListener("message", (event: MessageEvent<{ bytes: ArrayBuffer; heif
     (blob) => self.postMessage({ blob }, { transfer: [] }),
     (cause: unknown) =>
       self.postMessage(
-        { error: cause instanceof Error ? cause.message : "Could not decode this image." },
+        {
+          error:
+            cause instanceof Error
+              ? cause.message
+              : "Leonidas cannot show this image. The file may be damaged or in a format it does not support. Open it in another app.",
+        },
         { transfer: [] },
       ),
   );

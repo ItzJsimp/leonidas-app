@@ -1110,8 +1110,8 @@ export default function DiffPanel({
                 <div className="flex h-full items-center justify-center px-3 py-2 text-xs text-muted-foreground/70">
                   <p>
                     {hasNoNetChanges
-                      ? "No net changes in this selection."
-                      : "No changes are available for this selection."}
+                      ? "This selection has no net changes. Choose another reply to see its changes."
+                      : "No changes to show for this selection. Choose another reply to see its changes."}
                   </p>
                 </div>
               )

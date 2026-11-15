@@ -134,7 +134,7 @@ describe("browser target resolver", () => {
         kind: "environment-port",
         port: 5173,
       }),
-    ).toThrow(/cannot be reached from here/);
+    ).toThrow(/cannot show this page from here/);
     expect(
       resolveBrowserNavigationTarget(EnvironmentId.make("environment-1"), {
         kind: "url",
