@@ -149,6 +149,7 @@ export interface EnvironmentThreadShell {
   readonly lastReplyStatus?: OrchestrationV2ThreadShell["lastReplyStatus"];
   readonly appGoal?: OrchestrationV2ThreadShell["appGoal"];
   readonly attachedSubagent?: OrchestrationV2ThreadShell["attachedSubagent"];
+  readonly role?: OrchestrationV2ThreadShell["role"];
   readonly replyStyle?: OrchestrationV2ThreadShell["replyStyle"];
   readonly deletedAt: string | null;
   readonly source: OrchestrationV2ThreadShell;
@@ -308,6 +309,7 @@ export function presentThreadShell(
           },
     ...(thread.appGoal === undefined ? {} : { appGoal: thread.appGoal }),
     ...(thread.attachedSubagent === undefined ? {} : { attachedSubagent: thread.attachedSubagent }),
+    ...(thread.role === undefined ? {} : { role: thread.role }),
     ...(thread.replyStyle === undefined ? {} : { replyStyle: thread.replyStyle }),
     deletedAt: nullableIso(thread.deletedAt),
     source: thread,

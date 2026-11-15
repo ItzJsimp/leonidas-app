@@ -38,6 +38,7 @@ function makeThread(input: {
   readonly worktreePath: string | null;
   readonly runtimeMode?: RuntimeMode;
   readonly replyStyle?: string;
+  readonly role?: "home";
 }): OrchestrationV2AppThread {
   const threadId = ThreadId.make("thread:runtime-policy");
   return {
@@ -53,6 +54,7 @@ function makeThread(input: {
     branch: null,
     worktreePath: input.worktreePath,
     ...(input.replyStyle === undefined ? {} : { replyStyle: input.replyStyle }),
+    ...(input.role === undefined ? {} : { role: input.role }),
     activeProviderThreadId: null,
     lineage: {
       parentThreadId: null,
@@ -188,6 +190,37 @@ it.layer(layerTest)("RuntimePolicyV2", (it) => {
       assert.equal(yield* styleFor("chat"), "Chat style.");
       assert.equal(yield* styleFor(), "Team style.");
       assert.equal(yield* styleFor("gone"), LEONIDAS_REPLY_STYLE);
+    }),
+  );
+
+  it.effect("gives the team list to a Home thread only", () =>
+    Effect.gen(function* () {
+      const policy = yield* RuntimePolicy.RuntimePolicyV2;
+      const now = yield* DateTime.now;
+      const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "runtime-policy-home-"));
+      const dir = NodePath.join(root, ".agents/subagents");
+      NodeFS.mkdirSync(dir, { recursive: true });
+      NodeFS.writeFileSync(
+        NodePath.join(dir, "explorer.md"),
+        [
+          "---",
+          "name: explorer",
+          "description: Finds files fast.",
+          "model: claude-haiku-5-5",
+          "---",
+          "You find files.",
+        ].join("\n"),
+      );
+      const resolve = (role?: "home") =>
+        policy.resolve({
+          thread: makeThread({ now, worktreePath: root, ...(role === undefined ? {} : { role }) }),
+          modelSelection,
+        });
+
+      const home = yield* resolve("home");
+      assert.include(home.homeAgent ?? "", "<home_agent>");
+      assert.include(home.homeAgent ?? "", "- explorer (starts at once): Finds files fast.");
+      assert.isUndefined((yield* resolve()).homeAgent);
     }),
   );
 });

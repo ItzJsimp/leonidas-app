@@ -1,4 +1,5 @@
 import {
+  DEFAULT_SUBAGENT_FREE_TIER_MODELS,
   ModelSelection,
   OrchestrationV2AppThread,
   ProjectId,
@@ -17,6 +18,8 @@ import * as ProviderInstanceRegistry from "../provider/ProviderInstanceRegistry.
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import { loadReplyStyle } from "@t3tools/provider-core/server/replyStyles";
 import * as ServerSettings from "../serverSettings.ts";
+import { homeAgentBlock } from "../subagents/homeAgentInstructions.ts";
+import { listSubagents, subagentSources } from "../subagents/subagentCatalog.ts";
 import * as ProjectStore from "./ProjectStore.ts";
 
 export class RuntimePolicyResolveError extends Schema.TaggedError<RuntimePolicyResolveError>()(
@@ -136,11 +139,31 @@ export const layerFromProjectStore: Layer.Layer<
         if (replyStyle.notice !== undefined) {
           yield* Effect.logWarning("Reply style preset fell back to Leonidas.", replyStyle.notice);
         }
+        // Only the Home chat gets its team list. A folder or file error leaves the block out, not the turn.
+        const homeAgent =
+          input.thread.role === "home"
+            ? yield* serverSettings.getSettings.pipe(
+                Effect.map((settings) => settings.subagentFreeTierModels),
+                Effect.orElseSucceed(() => DEFAULT_SUBAGENT_FREE_TIER_MODELS),
+                Effect.flatMap((appFreeModels) =>
+                  Effect.try(() =>
+                    homeAgentBlock(
+                      listSubagents({
+                        sources: subagentSources({ aiosRoot: cwd, projects: [] }),
+                        appFreeModels,
+                      }),
+                    ),
+                  ),
+                ),
+                Effect.orElseSucceed(() => undefined),
+              )
+            : undefined;
         return ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
           runtimeMode: providerRuntimeMode(input.thread.runtimeMode, supportedRuntimeModes),
           interactionMode: input.thread.interactionMode,
           cwd,
           replyStyle: replyStyle.body,
+          ...(homeAgent === undefined ? {} : { homeAgent }),
         });
       }),
     });

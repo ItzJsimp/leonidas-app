@@ -33,6 +33,7 @@ import { Route as ChatMarketingRouteImport } from './routes/_chat.marketing'
 import { Route as ChatLibraryRouteImport } from './routes/_chat.library'
 import { Route as ChatInboxRouteImport } from './routes/_chat.inbox'
 import { Route as ChatImagesRouteImport } from './routes/_chat.images'
+import { Route as ChatHomeRouteImport } from './routes/_chat.home'
 import { Route as ChatGitRouteImport } from './routes/_chat.git'
 import { Route as ChatFilesRouteImport } from './routes/_chat.files'
 import { Route as ChatDeveloperRouteImport } from './routes/_chat.developer'
@@ -194,6 +195,11 @@ const ChatInboxRoute = ChatInboxRouteImport.update({
 const ChatImagesRoute = ChatImagesRouteImport.update({
   id: '/images',
   path: '/images',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatHomeRoute = ChatHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
   getParentRoute: () => ChatRoute,
 } as any)
 const ChatGitRoute = ChatGitRouteImport.update({
@@ -430,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/developer': typeof ChatDeveloperRoute
   '/files': typeof ChatFilesRoute
   '/git': typeof ChatGitRoute
+  '/home': typeof ChatHomeRoute
   '/images': typeof ChatImagesRoute
   '/inbox': typeof ChatInboxRoute
   '/library': typeof ChatLibraryRoute
@@ -497,6 +504,7 @@ export interface FileRoutesByTo {
   '/developer': typeof ChatDeveloperRoute
   '/files': typeof ChatFilesRoute
   '/git': typeof ChatGitRoute
+  '/home': typeof ChatHomeRoute
   '/images': typeof ChatImagesRoute
   '/inbox': typeof ChatInboxRoute
   '/library': typeof ChatLibraryRoute
@@ -567,6 +575,7 @@ export interface FileRoutesById {
   '/_chat/developer': typeof ChatDeveloperRoute
   '/_chat/files': typeof ChatFilesRoute
   '/_chat/git': typeof ChatGitRoute
+  '/_chat/home': typeof ChatHomeRoute
   '/_chat/images': typeof ChatImagesRoute
   '/_chat/inbox': typeof ChatInboxRoute
   '/_chat/library': typeof ChatLibraryRoute
@@ -638,6 +647,7 @@ export interface FileRouteTypes {
     | '/developer'
     | '/files'
     | '/git'
+    | '/home'
     | '/images'
     | '/inbox'
     | '/library'
@@ -705,6 +715,7 @@ export interface FileRouteTypes {
     | '/developer'
     | '/files'
     | '/git'
+    | '/home'
     | '/images'
     | '/inbox'
     | '/library'
@@ -774,6 +785,7 @@ export interface FileRouteTypes {
     | '/_chat/developer'
     | '/_chat/files'
     | '/_chat/git'
+    | '/_chat/home'
     | '/_chat/images'
     | '/_chat/inbox'
     | '/_chat/library'
@@ -1008,6 +1020,13 @@ declare module '@tanstack/react-router' {
       path: '/images'
       fullPath: '/images'
       preLoaderRoute: typeof ChatImagesRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/home': {
+      id: '/_chat/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof ChatHomeRouteImport
       parentRoute: typeof ChatRoute
     }
     '/_chat/git': {
@@ -1386,6 +1405,7 @@ interface ChatRouteChildren {
   ChatDeveloperRoute: typeof ChatDeveloperRoute
   ChatFilesRoute: typeof ChatFilesRoute
   ChatGitRoute: typeof ChatGitRoute
+  ChatHomeRoute: typeof ChatHomeRoute
   ChatImagesRoute: typeof ChatImagesRoute
   ChatInboxRoute: typeof ChatInboxRoute
   ChatLibraryRoute: typeof ChatLibraryRoute
@@ -1424,6 +1444,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatDeveloperRoute: ChatDeveloperRoute,
   ChatFilesRoute: ChatFilesRoute,
   ChatGitRoute: ChatGitRoute,
+  ChatHomeRoute: ChatHomeRoute,
   ChatImagesRoute: ChatImagesRoute,
   ChatInboxRoute: ChatInboxRoute,
   ChatLibraryRoute: ChatLibraryRoute,
