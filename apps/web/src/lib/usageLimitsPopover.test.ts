@@ -8,11 +8,13 @@ import {
   contextWindowFigures,
   contextWindowTokensForModel,
   expireElapsedWindow,
+  extraUsageWindowRows,
   extraUsageWindows,
   formatResetCountdown,
   formatResetLabel,
   formatTokenCount,
   glanceLimitRows,
+  groupPlanWindowsByFamily,
   limitLabel,
   limitsFreshness,
   orderPlanWindows,
@@ -20,6 +22,7 @@ import {
   percentText,
   shortPlanName,
   splitAccountHeader,
+  splitFamilyWindowLabel,
   usageSeverity,
   withKnownContextWindow,
 } from "./usageLimitsPopover";
@@ -219,15 +222,116 @@ describe("glance and panel helpers", () => {
     expect(percentText(120, "left")).toBe("0% left");
   });
 
-  it("formats compact window labels and lists extra windows", () => {
+  it("formats compact window labels and lists extra windows without dropping pools", () => {
     const session = window("s", "session", "Session", { windowDurationMins: 300 });
     const weekly = window("w", "weekly", "Weekly");
     const fable = window("w_fable", "weekly", "Weekly · Fable", { usedPercent: 0 });
     expect(compactWindowLabel(session, "5-hour limit")).toBe("5-hour");
     expect(compactWindowLabel(weekly, "Weekly limit")).toBe("Weekly");
     expect(compactWindowLabel(fable, "Weekly limit")).toBe("Fable wk");
+    expect(
+      compactWindowLabel(
+        window("3p_5h", "session", "Claude & GPT (shared) · 5-hour", { windowDurationMins: 300 }),
+        "5-hour limit",
+      ),
+    ).toBe("Claude & GPT 5h");
+    expect(
+      compactWindowLabel(
+        window("3p_w", "weekly", "Claude & GPT (shared) · Weekly"),
+        "Weekly limit",
+      ),
+    ).toBe("Claude & GPT wk");
     const primary = glanceLimitRows([fable, weekly, session]);
     expect(extraUsageWindows([fable, weekly, session], primary)).toEqual([fable]);
+  });
+
+  it("splits and groups Antigravity family-prefixed windows and leaves flat windows ungrouped", () => {
+    expect(splitFamilyWindowLabel({ label: "Claude & GPT (shared) · Weekly" })).toEqual({
+      family: "Claude & GPT (shared)",
+      shortFamily: "Claude & GPT",
+      period: "Weekly",
+      isFamilyPrefixed: true,
+    });
+    expect(splitFamilyWindowLabel({ label: "Weekly · Fable" })).toEqual({
+      family: "Fable",
+      shortFamily: "Fable",
+      period: "Weekly",
+      isFamilyPrefixed: false,
+    });
+    expect(splitFamilyWindowLabel({ label: "Session" })).toBeNull();
+
+    const claudeWindows = [
+      window("s", "session", "Session", { windowDurationMins: 300 }),
+      window("w", "weekly", "Weekly"),
+      window("w_fable", "weekly", "Weekly · Fable"),
+    ];
+    expect(groupPlanWindowsByFamily(claudeWindows)).toBeNull();
+
+    const antigravityWindows = [
+      window("argon-w", "weekly", "Gemini 4 Argon · Weekly", { usedPercent: 12 }),
+      window("3p-w", "weekly", "Claude & GPT (shared) · Weekly", { usedPercent: 45 }),
+      window("gem-w", "weekly", "Gemini · Weekly", { usedPercent: 20 }),
+      window("3p-5h", "session", "Claude & GPT (shared) · 5-hour", {
+        windowDurationMins: 300,
+        usedPercent: 15,
+      }),
+      window("gem-5h", "session", "Gemini · 5-hour", {
+        windowDurationMins: 300,
+        usedPercent: 30,
+      }),
+    ];
+    const grouped = groupPlanWindowsByFamily(antigravityWindows);
+    expect(grouped?.map((group) => [group.family, group.windows.map((w) => w.id)])).toEqual([
+      ["Gemini", ["gem-5h", "gem-w"]],
+      [
+        "Claude & GPT (shared)",
+        ["3p-5h", "3p-weekly"].map((id) => (id === "3p-weekly" ? "3p-w" : id)),
+      ],
+      ["Gemini 4 Argon", ["argon-w"]],
+    ]);
+  });
+
+  it("pairs secondary family windows onto one ledger row without dropping later families", () => {
+    const antigravityWindows = [
+      window("gem-5h", "session", "Gemini · 5-hour", {
+        windowDurationMins: 300,
+        usedPercent: 50,
+      }),
+      window("gem-w", "weekly", "Gemini · Weekly", { usedPercent: 50 }),
+      window("3p-5h", "session", "Claude & GPT (shared) · 5-hour", {
+        windowDurationMins: 300,
+        usedPercent: 20,
+      }),
+      window("3p-w", "weekly", "Claude & GPT (shared) · Weekly", { usedPercent: 25 }),
+      window("argon-w", "weekly", "Gemini 4 Argon · Weekly", { usedPercent: 10 }),
+    ];
+    const primary = glanceLimitRows(antigravityWindows);
+    expect(extraUsageWindows(antigravityWindows, primary).map((w) => w.id)).toEqual([
+      "3p-5h",
+      "3p-w",
+      "argon-w",
+    ]);
+    expect(
+      extraUsageWindowRows(antigravityWindows, primary).map((row) => ({
+        label: row.label,
+        fullLabel: row.fullLabel,
+        session: row.session?.id ?? null,
+        weekly: row.weekly?.id ?? null,
+      })),
+    ).toEqual([
+      {
+        label: "Claude & GPT",
+        fullLabel: "Claude & GPT (shared)",
+        session: "3p-5h",
+        weekly: "3p-w",
+      },
+      {
+        label: "Gemini 4 Argon",
+        fullLabel: "Gemini 4 Argon",
+        session: null,
+        weekly: "argon-w",
+      },
+    ]);
   });
 
   it("counts reset time down in plain and compact form", () => {

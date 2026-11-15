@@ -119,6 +119,7 @@ import {
   cardToTask,
   findCardFile,
   isRealPathInside,
+  loadAiosCardCache,
   readAiosCardFile,
   readAiosTasks,
   resolveMember,
@@ -1473,9 +1474,39 @@ const make = Effect.gen(function* () {
       });
     });
 
-  const cardCache: AiosCardCache = new Map();
-  const cardReader = makeAiosCardReader(cardCache);
+  const cachePath = Option.isSome(config)
+    ? NodePath.join(config.value.stateDir, "task-board-cards-cache.json")
+    : undefined;
+  const cardCache: AiosCardCache = cachePath ? loadAiosCardCache(cachePath) : new Map();
+  const cardReader = makeAiosCardReader(cardCache, { ...(cachePath ? { cachePath } : {}) });
   yield* Effect.addFinalizer(() => Effect.sync(cardReader.close));
+
+  class StartupServiceTag extends Context.Service<
+    StartupServiceTag,
+    { readonly awaitCommandReady: Effect.Effect<void, unknown> }
+  >()("t3/serverRuntimeStartup") {}
+  const startup = yield* Effect.serviceOption(StartupServiceTag);
+  if (Option.isSome(startup)) {
+    yield* Effect.forkScoped(
+      startup.value.awaitCommandReady.pipe(
+        Effect.flatMap(() =>
+          Effect.promise(async () => {
+            const workspaces = listAiosWorkspaces(workspaceHints([]));
+            const roots = [
+              ...new Set(workspaces.map((w) => w.root).filter((r): r is string => r !== null)),
+            ];
+            if (confirmedRoot && !roots.includes(confirmedRoot)) roots.push(confirmedRoot);
+            for (const root of roots) {
+              await cardReader.scanInWorker(root, Date.now());
+            }
+          }),
+        ),
+        Effect.catchAllCause((cause) =>
+          Effect.logWarning("TaskBoard background worker scan failed", { cause }),
+        ),
+      ),
+    );
+  }
 
   /** Where a new card goes: the native board for the default workspace, else that workspace's AIOS. */
   const writeRootFor = (projects: ReadonlyArray<Project>, target: WorkspaceTarget = {}) => {

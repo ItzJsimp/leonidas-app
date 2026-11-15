@@ -99,6 +99,40 @@ describe("applyCatalogDefault", () => {
     );
   });
 
+  it("moves only the default alias when matching.isDefaultAlias is supplied", () => {
+    const catalog: ModelCatalog.ProviderCatalog = {
+      models: [catalogModel("gemini-3.8-flash", "current")],
+      defaultChatModel: "gemini-3.8-flash",
+    };
+    const models = [
+      model({
+        slug: "gemini-3.7-flash",
+        isDefault: true,
+        aliases: ["gemini-3.7-flash-high", "antigravity/default"],
+      }),
+      model({
+        slug: "gemini-3.8-flash",
+        aliases: ["gemini-3.8-flash-high"],
+      }),
+    ];
+    assert.deepStrictEqual(
+      ModelCatalog.applyCatalogDefault(models, catalog, {
+        isDefaultAlias: (alias) => alias === "antigravity/default",
+      }),
+      [
+        model({
+          slug: "gemini-3.7-flash",
+          aliases: ["gemini-3.7-flash-high"],
+        }),
+        model({
+          slug: "gemini-3.8-flash",
+          isDefault: true,
+          aliases: ["gemini-3.8-flash-high", "antigravity/default"],
+        }),
+      ],
+    );
+  });
+
   it("resolves the catalog default to a qualified discovered model", () => {
     const catalog: ModelCatalog.ProviderCatalog = {
       models: [],

@@ -50,15 +50,10 @@ function recommendedFailoverModel(entry: ServerProvider) {
   }
   if (entry.driver === "antigravity") {
     return (
+      entry.models.find((candidate) => candidate.slug === "gemini-3.8-flash") ??
       entry.models.find((candidate) => candidate.slug === "gemini-3.8-flash-medium") ??
       entry.models.find(
-        (candidate) =>
-          /3\.8.*flash.*medium/i.test(candidate.slug) ||
-          /3\.8.*flash.*medium/i.test(candidate.name),
-      ) ??
-      entry.models.find(
-        (candidate) =>
-          /flash.*medium/i.test(candidate.slug) || /flash.*medium/i.test(candidate.name),
+        (candidate) => /3\.8.*flash/i.test(candidate.slug) || /3\.8.*flash/i.test(candidate.name),
       ) ??
       entry.models.find(
         (candidate) => /flash/i.test(candidate.slug) || /flash/i.test(candidate.name),

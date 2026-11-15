@@ -141,10 +141,38 @@ describe("provider failover", () => {
     });
   });
 
-  it("selects Gemini 3.8 flash on medium effort for Antigravity", () => {
+  it("selects Gemini 3.8 flash on medium effort for Antigravity, with legacy fallback", () => {
     const antigravity = provider("antigravity_account", {
       driver: ProviderDriverKind.make("antigravity"),
       displayName: "Antigravity",
+      models: [
+        {
+          slug: "gemini-3.8-flash",
+          name: "Gemini 3.8 Flash",
+          isCustom: false,
+          isDefault: true,
+          aliases: ["gemini-3.8-flash-medium", "gemini-3.8-flash-high"],
+          capabilities: {},
+        },
+        {
+          slug: "gemini-3.1-pro",
+          name: "Gemini 3.1 Pro",
+          isCustom: false,
+          capabilities: {},
+        },
+      ],
+    });
+    const result = targets([antigravity]);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.modelSelection).toEqual({
+      instanceId: "antigravity_account",
+      model: "gemini-3.8-flash",
+      options: [{ id: "effort", value: "medium" }],
+    });
+
+    const legacy = provider("antigravity_legacy", {
+      driver: ProviderDriverKind.make("antigravity"),
+      displayName: "Antigravity Legacy",
       models: [
         {
           slug: "gemini-3.8-flash-high",
@@ -159,18 +187,12 @@ describe("provider failover", () => {
           isDefault: true,
           capabilities: {},
         },
-        {
-          slug: "gemini-3.8-flash-low",
-          name: "Gemini 3.8 Flash (Low)",
-          isCustom: false,
-          capabilities: {},
-        },
       ],
     });
-    const result = targets([antigravity]);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.modelSelection).toEqual({
-      instanceId: "antigravity_account",
+    const legacyResult = targets([legacy]);
+    expect(legacyResult).toHaveLength(1);
+    expect(legacyResult[0]!.modelSelection).toEqual({
+      instanceId: "antigravity_legacy",
       model: "gemini-3.8-flash-medium",
       options: [{ id: "effort", value: "medium" }],
     });

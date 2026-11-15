@@ -3107,64 +3107,63 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         yield* start("/unrestricted");
         assert.equal(harness.getOpenedOptions()?.permissionMode, "bypassPermissions");
         assert.equal(harness.getOpenedOptions()?.allowDangerouslySkipPermissions, true);
-        // Forwarded asks (including ask rules and settings fallback) still need a decision
-        // before queued init/status frames arrive.
-        for (const { phase, frame } of [
-          {
-            phase: "init",
-            frame: claudeSdkFrame({
-              type: "system",
-              subtype: "init",
-              permissionMode: "bypassPermissions",
-              uuid: "policy-cli-init",
-              session_id: WAKE_NATIVE_SESSION,
-            }),
-          },
-          {
-            phase: "status",
-            frame: claudeSdkFrame({
-              type: "system",
-              subtype: "status",
-              status: null,
-              permissionMode: "default",
-              uuid: "policy-cli-downgrade",
-              session_id: WAKE_NATIVE_SESSION,
-            }),
-          },
-        ]) {
-          const forwardedDecision = yield* Effect.promise(() =>
-            harness.getOpenedOptions()!.canUseTool!(
-              "Bash",
-              { command: "git status" },
-              {
-                signal: new AbortController().signal,
-                toolUseID: `forwarded-before-${phase}`,
-                requestId: `request-forwarded-before-${phase}`,
-              },
-            ),
-          ).pipe(Effect.forkScoped);
-          const forwardedFirst = yield* Effect.raceFirst(
-            Queue.take(harness.runtimeRequestReceipts).pipe(
-              Effect.map((event) => ({ type: "request", event }) as const),
-            ),
-            Fiber.join(forwardedDecision).pipe(
-              Effect.map((result) => ({ type: "decision", result }) as const),
-            ),
-          );
-          assert.equal(
-            forwardedFirst.type,
-            "request",
-            `CLI-forwarded Bash must ask before the queued ${phase} frame reaches the adapter`,
-          );
-          if (forwardedFirst.type !== "request") return;
-          assert.equal(forwardedFirst.event.runtimeRequest.kind, "command");
-          yield* harness.runtime.respondToRuntimeRequest({
-            requestId: forwardedFirst.event.runtimeRequest.id,
-            decision: "decline",
-          });
-          assert.equal((yield* Fiber.join(forwardedDecision))?.behavior, "deny");
-          yield* harness.offerAndWait(frame);
-        }
+        // Full access auto-allows CLI-forwarded ask rules and PreToolUse confirm hooks without asking.
+        const forwardedAskResult = yield* Effect.promise(() =>
+          harness.getOpenedOptions()!.canUseTool!(
+            "Bash",
+            {
+              command:
+                "(pwsh -NoProfile -File scripts/Invoke-MergeQueue.ps1 -Wait > tmp.log 2>&1) > /dev/null 2>&1 &",
+            },
+            {
+              signal: new AbortController().signal,
+              toolUseID: "forwarded-full-access",
+              requestId: "request-forwarded-full-access",
+              decisionReason: "PreToolUse hook requested confirmation",
+              blockedPath: "/unrestricted/tmp.log",
+            },
+          ),
+        );
+        assert.equal(forwardedAskResult?.behavior, "allow");
+        assert.equal(Queue.sizeUnsafe(harness.runtimeRequestReceipts), 0);
+        yield* harness.offerAndWait(
+          claudeSdkFrame({
+            type: "system",
+            subtype: "status",
+            status: null,
+            permissionMode: "default",
+            uuid: "policy-cli-downgrade",
+            session_id: WAKE_NATIVE_SESSION,
+          }),
+        );
+        // Once the live CLI downgrades out of bypassPermissions, forwarded tools must prompt.
+        const downgradedDecision = yield* Effect.promise(() =>
+          harness.getOpenedOptions()!.canUseTool!(
+            "Bash",
+            { command: "git status" },
+            {
+              signal: new AbortController().signal,
+              toolUseID: "forwarded-after-cli-downgrade",
+              requestId: "request-after-cli-downgrade",
+            },
+          ),
+        ).pipe(Effect.forkScoped);
+        const downgradedFirst = yield* Effect.raceFirst(
+          Queue.take(harness.runtimeRequestReceipts).pipe(
+            Effect.map((event) => ({ type: "request", event }) as const),
+          ),
+          Fiber.join(downgradedDecision).pipe(
+            Effect.map((result) => ({ type: "decision", result }) as const),
+          ),
+        );
+        assert.equal(downgradedFirst.type, "request");
+        if (downgradedFirst.type !== "request") return;
+        assert.equal(downgradedFirst.event.runtimeRequest.kind, "command");
+        yield* harness.runtime.respondToRuntimeRequest({
+          requestId: downgradedFirst.event.runtimeRequest.id,
+          decision: "decline",
+        });
+        assert.equal((yield* Fiber.join(downgradedDecision))?.behavior, "deny");
         yield* finish;
         const unrestrictedOptions = harness.getOpenedOptions();
         yield* start("/unrestricted");
@@ -3606,6 +3605,10 @@ describe("ClaudeAdapterV2 background wake turns", () => {
           attemptId: RunAttemptId.make("mcp-presentation"),
           text: "Check the weather",
           attachments: [],
+          runtimePolicy: {
+            ...CLAUDE_TEST_RUNTIME_POLICY,
+            runtimeMode: "approval-required",
+          },
         }),
       );
       const toolName = "mcp__weather__get_weather";

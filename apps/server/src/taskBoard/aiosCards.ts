@@ -791,6 +791,82 @@ export function readAiosTasks(
   });
 }
 
+/**
+ * Assembles the deduplicated task list directly from the cached tasks under `root`
+ * without making any file system calls.
+ */
+export function tasksFromCache(root: string, cache: AiosCardCache): ReadonlyArray<TaskBoardTask> {
+  const realRoot = realRootOf(root);
+  if (realRoot === null) return [];
+  const globalTasksDir = keyFor(NodePath.join(realRoot, "tasks"));
+
+  const byId = new Map<string, { task: TaskBoardTask; mtimeMs: number; global: boolean }>();
+  for (const [file, entry] of cache.entries()) {
+    if (!entry.task) continue;
+    const realFile = realRootOf(file) ?? file;
+    if (!isInsideRoot(realRoot, realFile)) continue;
+    const isGlobal = keyFor(realFile).startsWith(globalTasksDir);
+    const existing = byId.get(entry.task.id);
+    if (
+      existing &&
+      (existing.global !== isGlobal ? existing.global : existing.mtimeMs >= entry.mtimeMs)
+    ) {
+      continue;
+    }
+    byId.set(entry.task.id, { task: entry.task, mtimeMs: entry.mtimeMs, global: isGlobal });
+  }
+
+  const tasks = [...byId.values()].map((found) => found.task);
+  let done: Set<string> | undefined;
+  return tasks.map((task) => {
+    if (task.blockedBy?.length && gameTasks.has(task)) {
+      const finished = (done ??= new Set(
+        tasks.filter((other) => other.status === "done").map((other) => other.id),
+      ));
+      const open = task.blockedBy.filter((id) => !finished.has(id));
+      if (open.length !== task.blockedBy.length) return { ...task, blockedBy: open };
+    }
+    return task;
+  });
+}
+
+/** Saves the in-memory task card cache to disk as JSON (typically on C:). */
+export function saveAiosCardCache(cacheFile: string, cache: AiosCardCache): void {
+  try {
+    NodeFS.mkdirSync(NodePath.dirname(cacheFile), { recursive: true });
+    const entries: Array<[string, { mtimeMs: number; size: number; task: TaskBoardTask | null }]> =
+      [];
+    for (const [key, value] of cache.entries()) {
+      entries.push([key, value]);
+    }
+    const tempPath = `${cacheFile}.${process.pid}.${Date.now()}.tmp`;
+    NodeFS.writeFileSync(tempPath, JSON.stringify(entries), "utf8");
+    NodeFS.renameSync(tempPath, cacheFile);
+  } catch {
+    // Non-fatal cache write failure.
+  }
+}
+
+/** Loads the task card cache from disk (typically on C:). Returns targetCache populated. */
+export function loadAiosCardCache(
+  cacheFile: string,
+  targetCache: AiosCardCache = new Map(),
+): AiosCardCache {
+  try {
+    if (!NodeFS.existsSync(cacheFile)) return targetCache;
+    const raw = NodeFS.readFileSync(cacheFile, "utf8");
+    const entries = JSON.parse(raw) as Array<
+      [string, { mtimeMs: number; size: number; task: TaskBoardTask | null }]
+    >;
+    for (const [key, value] of entries) {
+      targetCache.set(key, value);
+    }
+  } catch {
+    // Corrupt or outdated cache: start clean.
+  }
+  return targetCache;
+}
+
 /** Finds a card file by its `sourceFile`: global tasks first, then project task folders. */
 export function findCardFile(root: string, sourceFile: string): string | null {
   if (sourceFile !== NodePath.basename(sourceFile)) return null;

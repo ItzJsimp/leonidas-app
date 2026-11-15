@@ -99,6 +99,97 @@ export function planWindowLabel(
   return window.label;
 }
 
+const FAMILY_PERIOD_SUFFIX = /^(?:5-hour|session|weekly|monthly|quota|reported quota)$/i;
+
+export interface FamilyWindowLabelParts {
+  readonly family: string;
+  readonly shortFamily: string;
+  readonly period: string;
+  /** True when the label uses `<Family> · <Period>` (Antigravity) rather than `<Period> · <Model>` (Claude). */
+  readonly isFamilyPrefixed: boolean;
+}
+
+export function splitFamilyWindowLabel(
+  window: Pick<ServerProviderUsageWindow, "label">,
+): FamilyWindowLabelParts | null {
+  if (!window.label.includes("·")) return null;
+  const parts = window.label
+    .split("·")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (parts.length < 2) return null;
+  const tail = parts[parts.length - 1]!;
+  if (FAMILY_PERIOD_SUFFIX.test(tail)) {
+    const family = parts.slice(0, -1).join(" · ");
+    const shortFamily = family.replace(/\s*\(shared\)\s*$/i, "").trim() || family;
+    return { family, shortFamily, period: tail, isFamilyPrefixed: true };
+  }
+  const head = parts[0]!;
+  if (FAMILY_PERIOD_SUFFIX.test(head)) {
+    const family = parts.slice(1).join(" · ");
+    const shortFamily = family.replace(/\s*\(shared\)\s*$/i, "").trim() || family;
+    return { family, shortFamily, period: head, isFamilyPrefixed: false };
+  }
+  return null;
+}
+
+export interface UsageWindowFamilyGroup {
+  readonly family: string;
+  readonly shortFamily: string;
+  readonly windows: ReadonlyArray<ServerProviderUsageWindow>;
+}
+
+function familyGroupRank(family: string): number {
+  const lower = family.toLowerCase();
+  if (lower === "gemini") return 0;
+  if (!lower.startsWith("gemini")) return 1;
+  return 2;
+}
+
+/**
+ * Groups `<Family> · <Period>` quota windows (such as Antigravity's Gemini, Claude & GPT,
+ * and Gemini 4 Argon pools) under their family headings, ordered primary Gemini first and
+ * 5-hour before Weekly within each group. Returns null for flat providers like Claude or Codex.
+ */
+export function groupPlanWindowsByFamily(
+  windows: ReadonlyArray<ServerProviderUsageWindow>,
+): ReadonlyArray<UsageWindowFamilyGroup> | null {
+  if (windows.length === 0) return null;
+  const splits = windows.map((window) => ({
+    window,
+    split: splitFamilyWindowLabel(window),
+  }));
+  if (!splits.some((item) => item.split?.isFamilyPrefixed)) {
+    return null;
+  }
+
+  const groups = new Map<
+    string,
+    { shortFamily: string; order: number; windows: ServerProviderUsageWindow[] }
+  >();
+  splits.forEach(({ window, split }, index) => {
+    const family = split?.family ?? window.label;
+    const shortFamily = split?.shortFamily ?? window.label;
+    const existing = groups.get(family);
+    if (existing) {
+      existing.windows.push(window);
+    } else {
+      groups.set(family, { shortFamily, order: index, windows: [window] });
+    }
+  });
+
+  return [...groups.entries()]
+    .toSorted(
+      ([leftFamily, left], [rightFamily, right]) =>
+        familyGroupRank(leftFamily) - familyGroupRank(rightFamily) || left.order - right.order,
+    )
+    .map(([family, group]) => ({
+      family,
+      shortFamily: group.shortFamily,
+      windows: orderPlanWindows(group.windows),
+    }));
+}
+
 const PLAN_BRAND_PREFIX = /^(?:claude|chatgpt|codex|cursor|grok|opencode|gemini)\s+/i;
 const PLAN_SUFFIX = /\s+(?:subscription|plan)$/i;
 
@@ -258,13 +349,20 @@ export function compactWindowLabel(
   if (!window) return fallback.replace(/\s+limit$/i, "");
   if (window.kind === "session") {
     const hours = sessionHours(window);
-    const group = window.label.includes("·") ? window.label.split("·")[0]?.trim() : "";
+    const split = splitFamilyWindowLabel(window);
+    const group = split
+      ? split.shortFamily
+      : window.label.includes("·")
+        ? window.label.split("·")[0]?.trim()
+        : "";
     if (group && group.toLowerCase() !== "session") {
       return `${group} ${hours ? `${hours}h` : "5h"}`;
     }
     return hours ? `${hours}-hour` : "Session";
   }
   if (window.kind === "weekly") {
+    const split = splitFamilyWindowLabel(window);
+    if (split) return `${split.shortFamily} wk`;
     const parts = window.label.split("·").map((s) => s.trim());
     if (parts.length > 1) {
       const qualifier = parts[0]?.toLowerCase() === "weekly" ? parts[1] : parts[0];
@@ -351,7 +449,7 @@ export function glanceLimitRows(
 
 /**
  * Extra quota windows not shown in the primary 2 rows (e.g. `Weekly · Fable` or secondary
- * model pools). The card draws them as normal rows so their numbers line up.
+ * model pools).
  */
 export function extraUsageWindows(
   windows: ReadonlyArray<ServerProviderUsageWindow>,
@@ -361,9 +459,82 @@ export function extraUsageWindows(
   const shownIds = new Set(primaryRows.flatMap((row) => (row.window ? [row.window.id] : [])));
   const current =
     now === undefined ? windows : windows.map((window) => expireElapsedWindow(window, now));
-  return orderPlanWindows(current)
-    .filter((window) => !shownIds.has(window.id))
-    .slice(0, 2);
+  return orderPlanWindows(current).filter((window) => !shownIds.has(window.id));
+}
+
+export interface ExtraUsageWindowRow {
+  readonly key: string;
+  readonly label: string;
+  readonly fullLabel: string;
+  readonly session: ServerProviderUsageWindow | null;
+  readonly weekly: ServerProviderUsageWindow | null;
+  readonly other: ReadonlyArray<ServerProviderUsageWindow>;
+}
+
+/**
+ * Groups secondary quota windows sharing a model family onto a single ledger row with
+ * `5-hour` and `Weekly` columns aligned, so Antigravity's `Claude & GPT (shared)` 5-hour
+ * and Weekly appear together on one row and model-specific weeklies like `Gemini 4 Argon`
+ * sit cleanly in the Weekly column without dropping later pools.
+ */
+export function extraUsageWindowRows(
+  windows: ReadonlyArray<ServerProviderUsageWindow>,
+  primaryRows: ReadonlyArray<GlanceLimitRow>,
+  now?: number,
+): ReadonlyArray<ExtraUsageWindowRow> {
+  const extras = extraUsageWindows(windows, primaryRows, now);
+  if (extras.length === 0) return [];
+
+  const rows = new Map<
+    string,
+    {
+      label: string;
+      fullLabel: string;
+      order: number;
+      session: ServerProviderUsageWindow | null;
+      weekly: ServerProviderUsageWindow | null;
+      other: ServerProviderUsageWindow[];
+    }
+  >();
+
+  extras.forEach((window, index) => {
+    const split = splitFamilyWindowLabel(window);
+    const key = split ? split.family : window.id;
+    const label = split
+      ? split.isFamilyPrefixed
+        ? split.shortFamily
+        : compactWindowLabel(window, window.label)
+      : compactWindowLabel(window, window.label);
+    const fullLabel = split ? (split.isFamilyPrefixed ? split.family : window.label) : window.label;
+
+    let row = rows.get(key);
+    if (!row) {
+      row = { label, fullLabel, order: index, session: null, weekly: null, other: [] };
+      rows.set(key, row);
+    }
+
+    if (window.kind === "session" && row.session === null) {
+      row.session = window;
+    } else if (window.kind === "weekly" && row.weekly === null) {
+      row.weekly = window;
+    } else {
+      row.other.push(window);
+    }
+  });
+
+  return [...rows.entries()]
+    .toSorted(
+      ([leftKey, left], [rightKey, right]) =>
+        familyGroupRank(leftKey) - familyGroupRank(rightKey) || left.order - right.order,
+    )
+    .map(([key, row]) => ({
+      key,
+      label: row.label,
+      fullLabel: row.fullLabel,
+      session: row.session,
+      weekly: row.weekly,
+      other: row.other,
+    }));
 }
 
 /**

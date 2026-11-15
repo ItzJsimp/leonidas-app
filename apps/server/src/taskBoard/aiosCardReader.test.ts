@@ -95,4 +95,33 @@ describe("makeAiosCardReader", () => {
     expect(watched.has(NodePath.join(root, "projects", "gamma", "tasks"))).toBe(true);
     reader.close();
   });
+
+  it("persists card cache to disk and loads it on a new reader", () => {
+    const cacheFile = NodePath.join(root, "card-cache.json");
+    const firstReader = makeAiosCardReader(new Map() as AiosCardCache, {
+      watch,
+      cachePath: cacheFile,
+    });
+    const firstTasks = firstReader.read(root, 1_000);
+    expect(firstTasks.map((t) => t.id)).toEqual(["task-a"]);
+    expect(NodeFS.existsSync(cacheFile)).toBe(true);
+    firstReader.close();
+
+    const secondReader = makeAiosCardReader(new Map() as AiosCardCache, {
+      watch,
+      cachePath: cacheFile,
+    });
+    const secondTasks = secondReader.read(root, 1_000);
+    expect(secondTasks.map((t) => t.id)).toEqual(["task-a"]);
+    secondReader.close();
+  });
+
+  it("scans task cards in a worker thread and updates the board", async () => {
+    const cacheFile = NodePath.join(root, "worker-cache.json");
+    const reader = makeAiosCardReader(new Map() as AiosCardCache, { watch, cachePath: cacheFile });
+    const tasks = await reader.scanInWorker(root, 1_000);
+    expect(tasks.map((t) => t.id)).toEqual(["task-a"]);
+    expect(reader.read(root, 1_000)).toBe(tasks);
+    reader.close();
+  });
 });

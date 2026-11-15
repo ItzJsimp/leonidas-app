@@ -35,8 +35,7 @@ session-wide choice, because Grok would remember that command for the whole proj
 ACP Registry agents run their own tools in their own mode; Leonidas answers their approval requests
 by the permission mode. See [ACP Registry permissions](./providers-acp.md#permissions-and-terminals).
 
-Claude can still ask in **Full access** when its settings disable bypass permissions or require
-approval for an action.
+Claude can still ask in **Full access** when its settings disable bypass permissions.
 
 Antigravity can still send native approval requests in **Full access**. It only offers remembered
 approvals for actions that support them.

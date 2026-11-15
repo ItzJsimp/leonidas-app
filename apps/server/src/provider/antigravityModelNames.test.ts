@@ -12,6 +12,14 @@ describe("antigravityModelNameFromLabel", () => {
       model: "gemini-3.1-pro-low",
       rateModel: "gemini-3.1-pro",
     });
+    expect(antigravityModelNameFromLabel("Gemini 4 Argon (High)")).toEqual({
+      model: "gemini-4-argon-high",
+      rateModel: "gemini-4-argon",
+    });
+    expect(antigravityModelNameFromLabel("Gemini 4 Hydrogen (Extra High)")).toEqual({
+      model: "gemini-4-hydrogen-xhigh",
+      rateModel: "gemini-4-hydrogen",
+    });
   });
 
   it("folds variant tags that are not effort tiers into the base model", () => {

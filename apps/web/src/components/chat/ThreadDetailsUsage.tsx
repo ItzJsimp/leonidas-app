@@ -20,6 +20,7 @@ import {
   accountFreshnessLabel,
   accountTitle,
   compactWindowLabel,
+  extraUsageWindowRows,
   extraUsageWindows,
   formatResetCountdown,
   type GlanceLimitRow,
@@ -158,12 +159,14 @@ function LimitCell({
   window,
   now,
   showReset = true,
+  showLabel = true,
 }: {
   readonly label: string;
   readonly column: string;
   readonly window: UsageWindow | null;
   readonly now: number;
   readonly showReset?: boolean;
+  readonly showLabel?: boolean;
 }) {
   const shortLabel = compactWindowLabel(window, label);
   if (!window) {
@@ -183,7 +186,7 @@ function LimitCell({
       <TooltipTrigger
         render={<div className="flex min-w-0 flex-col gap-0.75 whitespace-nowrap tabular-nums" />}
       >
-        {shortLabel !== column ? (
+        {showLabel && shortLabel !== column ? (
           <span className="truncate text-3xs leading-3 text-muted-foreground">{shortLabel}</span>
         ) : null}
         <span className="text-2xs font-semibold leading-3 text-foreground">{used}</span>
@@ -224,7 +227,7 @@ function AccountRows({
   const rows = glanceLimitRows(account.limits.windows, now);
   const notice = limitsNotice(account.limits);
   const age = accountFreshnessLabel(account.limits.checkedAt, now);
-  const extras = extraUsageWindows(account.limits.windows, rows, now);
+  const extraRows = extraUsageWindowRows(account.limits.windows, rows, now);
   const creditsText =
     account.limits.resetCredits && account.limits.resetCredits.availableCount > 0
       ? resetCreditsSummary(account.limits.resetCredits, now, true)
@@ -234,8 +237,10 @@ function AccountRows({
     (account.resetCreditInput !== undefined || account.instanceId !== undefined) &&
     account.id.startsWith(`${environmentId}:`);
   const title = titleOf(account);
-  // Extra windows sit in the column that matches their length.
-  const columnOf = (window: UsageWindow) => (window.kind === "session" ? 0 : 1);
+  const sameResetAsParent = (window: UsageWindow, columnIndex: 0 | 1) => {
+    const parent = rows[columnIndex]?.window ?? null;
+    return parent !== null && resetLabel(parent, now) === resetLabel(window, now);
+  };
 
   return (
     <li className="flex flex-col gap-1.5 px-2.5 py-2">
@@ -312,28 +317,61 @@ function AccountRows({
       </div>
       {notice
         ? null
-        : extras.map((extra) => {
-            const column = columnOf(extra);
-            const parent = rows[column]?.window ?? null;
-            const sameReset = parent !== null && resetLabel(parent, now) === resetLabel(extra, now);
-            const cell = (
-              <LimitCell
-                label={extra.label}
-                column={compactWindowLabel(extra, extra.label)}
-                window={extra}
-                now={now}
-                showReset={!sameReset}
-              />
-            );
-            return (
+        : extraRows.flatMap((extraRow) => {
+            const hasPair = extraRow.session !== null || extraRow.weekly !== null;
+            const pairedRow = hasPair ? (
+              <div key={extraRow.key} className={LEDGER_GRID}>
+                {extraRow.fullLabel !== extraRow.label ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={<span className="truncate ps-5 text-3xs text-muted-foreground" />}
+                    >
+                      {extraRow.label}
+                    </TooltipTrigger>
+                    <TooltipPopup side="top">{extraRow.fullLabel}</TooltipPopup>
+                  </Tooltip>
+                ) : (
+                  <span className="truncate ps-5 text-3xs text-muted-foreground">
+                    {extraRow.label}
+                  </span>
+                )}
+                <LimitCell
+                  label={`${extraRow.fullLabel} · 5-hour`}
+                  column={LEDGER_COLUMNS[0]}
+                  window={extraRow.session}
+                  now={now}
+                  showLabel={false}
+                  showReset={extraRow.session ? !sameResetAsParent(extraRow.session, 0) : false}
+                />
+                <LimitCell
+                  label={`${extraRow.fullLabel} · Weekly`}
+                  column={LEDGER_COLUMNS[1]}
+                  window={extraRow.weekly}
+                  now={now}
+                  showLabel={false}
+                  showReset={extraRow.weekly ? !sameResetAsParent(extraRow.weekly, 1) : false}
+                />
+              </div>
+            ) : null;
+
+            const extraOtherRows = extraRow.other.map((extra) => (
               <div key={extra.id} className={LEDGER_GRID}>
                 <span className="truncate ps-5 text-3xs text-muted-foreground">
                   {compactWindowLabel(extra, extra.label)}
                 </span>
-                {column === 0 ? cell : <span />}
-                {column === 1 ? cell : <span />}
+                <span />
+                <LimitCell
+                  label={extra.label}
+                  column={compactWindowLabel(extra, extra.label)}
+                  window={extra}
+                  now={now}
+                  showLabel={false}
+                  showReset={!sameResetAsParent(extra, 1)}
+                />
               </div>
-            );
+            ));
+
+            return [...(pairedRow ? [pairedRow] : []), ...extraOtherRows];
           })}
     </li>
   );

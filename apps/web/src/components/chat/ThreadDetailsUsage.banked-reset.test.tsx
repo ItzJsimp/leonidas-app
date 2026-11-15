@@ -5,29 +5,35 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 
 const settingsState = vi.hoisted(() => ({ shown: true, update: vi.fn() }));
 
-const state = vi.hoisted(() => ({ setConfirming: vi.fn() }));
+const state = vi.hoisted(() => ({
+  setConfirming: vi.fn(),
+  accounts: {
+    active: [] as Array<Record<string, unknown>>,
+    others: [] as Array<Record<string, unknown>>,
+  },
+}));
 const credits = { availableCount: 2 };
 const limits = { checkedAt: "2026-10-20T11:59:00Z", windows: [], resetCredits: credits };
+const defaultAccounts = () => ({
+  active: [{ id: "test:codex-1", driver: "codex", label: "Codex", instanceId: "codex-1", limits }],
+  // Signed in on another environment: this one cannot redeem for it.
+  others: [
+    { id: "other:codex-2", driver: "codex", label: "Codex", instanceId: "c2", limits },
+    // No banked resets: its row still keeps the empty slot, so chips line up.
+    {
+      id: "test:claude-1",
+      driver: "claudeAgent",
+      label: "Claude",
+      instanceId: "claude-1",
+      limits: { checkedAt: limits.checkedAt, windows: [] },
+    },
+  ],
+});
+
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn() }));
 vi.mock("@t3tools/client-runtime/state/usage", () => ({ refreshUsageLimits: vi.fn() }));
 vi.mock("../../hooks/useConnectedUsageAccounts", () => ({
-  useConnectedUsageAccounts: () => ({
-    active: [
-      { id: "test:codex-1", driver: "codex", label: "Codex", instanceId: "codex-1", limits },
-    ],
-    // Signed in on another environment: this one cannot redeem for it.
-    others: [
-      { id: "other:codex-2", driver: "codex", label: "Codex", instanceId: "c2", limits },
-      // No banked resets: its row still keeps the empty slot, so chips line up.
-      {
-        id: "test:claude-1",
-        driver: "claudeAgent",
-        label: "Claude",
-        instanceId: "claude-1",
-        limits: { checkedAt: limits.checkedAt, windows: [] },
-      },
-    ],
-  }),
+  useConnectedUsageAccounts: () => state.accounts,
 }));
 vi.mock("../../hooks/useSettings", () => ({
   useClientSettings: (select: (settings: { usageOverlayEnabled: boolean }) => unknown) =>
@@ -63,7 +69,9 @@ vi.mock("../ui/tooltip", async () => {
 });
 vi.mock("./DetailedContextBreakdownView", () => ({ DetailedContextBreakdownView: () => null }));
 vi.mock("./ProviderInstanceIcon", () => ({ ProviderInstanceIcon: () => null }));
-vi.mock("./PlanUsageLimits", () => ({ UsageBar: () => null }));
+vi.mock("./PlanUsageLimits", () => ({
+  UsageBar: ({ label }: { readonly label: string }) => <span data-usage-bar={label} />,
+}));
 vi.mock("./UsageBenchmarks", () => ({ UsageBenchmarks: () => null }));
 vi.mock("./ContextWindowMeter", () => ({ ContextRing: () => null }));
 
@@ -85,6 +93,7 @@ let renderer: ReactTestRenderer;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   state.setConfirming.mockReset();
+  state.accounts = defaultAccounts();
 });
 afterEach(() => {
   act(() => renderer.unmount());
@@ -113,4 +122,67 @@ it("keeps one reset slot on every account row, filled only where resets are bank
   expect(slots).toHaveLength(3);
   const filled = slots.map((slot) => slot.children.length > 0);
   expect(filled).toEqual([true, true, false]);
+});
+
+it("pairs Antigravity secondary windows onto one row per family without dropping Gemini 4 Argon", async () => {
+  state.accounts = {
+    active: [
+      {
+        id: "test:antigravity-1",
+        driver: "antigravity",
+        label: "Antigravity",
+        instanceId: "antigravity-1",
+        limits: {
+          checkedAt: "2026-10-20T11:59:00Z",
+          windows: [
+            {
+              id: "gem-5h",
+              kind: "session",
+              label: "Gemini · 5-hour",
+              windowDurationMins: 300,
+              usedPercent: 60,
+            },
+            { id: "gem-w", kind: "weekly", label: "Gemini · Weekly", usedPercent: 20 },
+            {
+              id: "3p-5h",
+              kind: "session",
+              label: "Claude & GPT (shared) · 5-hour",
+              windowDurationMins: 300,
+              usedPercent: 30,
+            },
+            {
+              id: "3p-w",
+              kind: "weekly",
+              label: "Claude & GPT (shared) · Weekly",
+              usedPercent: 40,
+            },
+            { id: "argon-w", kind: "weekly", label: "Gemini 4 Argon · Weekly", usedPercent: 50 },
+          ],
+        },
+      },
+    ],
+    others: [],
+  };
+
+  await act(async () => {
+    renderer = create(<ThreadDetailsLimits usage={usage} />);
+  });
+  const sharedLabels = renderer.root.findAll(
+    (node) => node.type === "span" && node.children.includes("Claude & GPT"),
+  );
+  const argonLabels = renderer.root.findAll(
+    (node) => node.type === "span" && node.children.includes("Gemini 4 Argon"),
+  );
+  expect(sharedLabels).toHaveLength(1);
+  expect(argonLabels).toHaveLength(1);
+  const bars = renderer.root
+    .findAll((node) => node.type === "span" && node.props["data-usage-bar"] !== undefined)
+    .map((node) => node.props["data-usage-bar"]);
+  expect(bars).toEqual([
+    "Gemini 5h: 60% used",
+    "Gemini wk: 20% used",
+    "Claude & GPT 5h: 30% used",
+    "Claude & GPT wk: 40% used",
+    "Gemini 4 Argon wk: 50% used",
+  ]);
 });

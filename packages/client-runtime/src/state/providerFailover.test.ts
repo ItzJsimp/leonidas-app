@@ -90,9 +90,36 @@ describe("selectProviderFailoverTargets", () => {
     });
   });
 
-  it("resumes Antigravity on Gemini 3.8 Flash Medium at medium effort", () => {
-    const [target] = targets([
+  it("resumes Antigravity on Gemini 3.8 Flash at medium effort, with legacy fallback", () => {
+    const [grouped] = targets([
       provider("antigravity", {
+        driver: ProviderDriverKind.make("antigravity"),
+        models: [
+          {
+            slug: "gemini-2.5-flash",
+            name: "Flash 2.5",
+            isCustom: false,
+            isDefault: true,
+            capabilities: {},
+          },
+          {
+            slug: "gemini-3.8-flash",
+            name: "Gemini 3.8 Flash",
+            isCustom: false,
+            isDefault: false,
+            capabilities: {},
+          },
+        ],
+      }),
+    ]);
+    expect(grouped?.modelSelection).toEqual({
+      instanceId: "antigravity",
+      model: "gemini-3.8-flash",
+      options: [{ id: "effort", value: "medium" }],
+    });
+
+    const [legacy] = targets([
+      provider("antigravity_legacy", {
         driver: ProviderDriverKind.make("antigravity"),
         models: [
           {
@@ -112,8 +139,8 @@ describe("selectProviderFailoverTargets", () => {
         ],
       }),
     ]);
-    expect(target?.modelSelection).toEqual({
-      instanceId: "antigravity",
+    expect(legacy?.modelSelection).toEqual({
+      instanceId: "antigravity_legacy",
       model: "gemini-3.8-flash-medium",
       options: [{ id: "effort", value: "medium" }],
     });

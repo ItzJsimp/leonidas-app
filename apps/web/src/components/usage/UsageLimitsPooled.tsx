@@ -19,7 +19,11 @@ import { Fragment, type ReactNode, useState } from "react";
 
 import { ensureLocalApi } from "../../localApi";
 import { usePrimarySettings } from "../../hooks/useSettings";
-import { percentText, usedPercentLabel } from "../../lib/usageLimitsPopover";
+import {
+  percentText,
+  splitFamilyWindowLabel,
+  usedPercentLabel,
+} from "../../lib/usageLimitsPopover";
 import { cn } from "../../lib/utils";
 import { formatDayAwareTimestamp, formatUpcomingTimestamp } from "../../timestampFormat";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
@@ -534,10 +538,23 @@ function PoolWindowCard({
   );
 }
 
+function groupPoolWindowsByFamily(windows: ReadonlyArray<LimitPoolWindow>) {
+  const groups = new Map<string, LimitPoolWindow[]>();
+  for (const window of windows) {
+    const split = splitFamilyWindowLabel(window);
+    if (!split?.isFamilyPrefixed) return null;
+    const list = groups.get(split.family);
+    if (list) list.push(window);
+    else groups.set(split.family, [window]);
+  }
+  return groups.size > 0 ? [...groups.entries()] : null;
+}
+
 function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: number }) {
   const color = barColor(pool.driver);
   const label = providerClients.get(pool.driver)?.label ?? String(pool.driver);
   const windows = displayLimitWindows(pool);
+  const familyGroups = pool.driver === "antigravity" ? groupPoolWindowsByFamily(windows) : null;
   const checkedAt = poolCheckedAt(pool);
   return (
     <section className="flex flex-col gap-3">
@@ -557,19 +574,38 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
           </span>
         ) : null}
       </h2>
-      {windows.map((window) => {
-        const details = pool.driver === "cursor" ? cursorUsageWindowDetails(window.id) : undefined;
-        return (
-          <PoolWindowCard
-            key={`${window.kind}:${window.id}`}
-            pool={window}
-            color={color}
-            now={now}
-            label={details?.label}
-            description={details?.description}
-          />
-        );
-      })}
+      {familyGroups
+        ? familyGroups.map(([family, groupWindows]) => (
+            <div key={family} className="flex flex-col gap-2">
+              <h3 className="text-xs font-medium text-muted-foreground">{family}</h3>
+              {groupWindows.map((window) => {
+                const period = splitFamilyWindowLabel(window)?.period ?? window.label;
+                return (
+                  <PoolWindowCard
+                    key={`${window.kind}:${window.id}`}
+                    pool={window}
+                    color={color}
+                    now={now}
+                    label={period}
+                  />
+                );
+              })}
+            </div>
+          ))
+        : windows.map((window) => {
+            const details =
+              pool.driver === "cursor" ? cursorUsageWindowDetails(window.id) : undefined;
+            return (
+              <PoolWindowCard
+                key={`${window.kind}:${window.id}`}
+                pool={window}
+                color={color}
+                now={now}
+                label={details?.label}
+                description={details?.description}
+              />
+            );
+          })}
     </section>
   );
 }

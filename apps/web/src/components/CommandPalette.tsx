@@ -2581,8 +2581,9 @@ function OpenCommandPaletteDialog(props: {
       const cwd = resolveProjectPathForDispatch(rawCwd, input.currentProjectCwd);
       if (cwd.length === 0) return;
 
+      // Search every project: a project in another workspace is hidden from `projects` but still owns the folder.
       const existing = findProjectByPath(
-        projects.filter((project) => project.environmentId === input.environmentId),
+        allProjects.filter((project) => project.environmentId === input.environmentId),
         cwd,
       );
       if (existing) {
@@ -2675,7 +2676,7 @@ function OpenCommandPaletteDialog(props: {
       environments,
       navigate,
       primaryEnvironmentId,
-      projects,
+      allProjects,
       providers,
       setOpen,
       clientSettings.sidebarThreadSortOrder,

@@ -150,7 +150,9 @@ export function isModelSelectionUnavailable(
       !provider.installed ||
       provider.auth.status === "unauthenticated" ||
       provider.availability === "unavailable" ||
-      !provider.models.some((model) => model.slug === selection.model))
+      !provider.models.some(
+        (model) => model.slug === selection.model || model.aliases?.includes(selection.model),
+      ))
   );
 }
 
@@ -207,7 +209,9 @@ export function resolveDefaultableModelSelection(
     return usable;
   }
   const provider = config.providers.find((candidate) => candidate.instanceId === usable.instanceId);
-  const model = provider?.models.find((candidate) => candidate.slug === usable.model);
+  const model = provider?.models.find(
+    (candidate) => candidate.slug === usable.model || candidate.aliases?.includes(usable.model),
+  );
   return provider?.driver !== "antigravity" && model?.isLegacy === true ? null : usable;
 }
 
@@ -316,7 +320,9 @@ export function buildModelOptions(
       );
       const instanceConfig = config?.settings?.providerInstances[fallbackModelSelection.instanceId];
       const model = provider?.models.find(
-        (candidate) => candidate.slug === fallbackModelSelection.model,
+        (candidate) =>
+          candidate.slug === fallbackModelSelection.model ||
+          candidate.aliases?.includes(fallbackModelSelection.model),
       );
       const providerDriver =
         provider?.driver ?? instanceConfig?.driver ?? fallbackModelSelection.instanceId;

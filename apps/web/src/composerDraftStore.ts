@@ -41,6 +41,7 @@ import { DeepMutable } from "effect/Types";
 import {
   createModelSelection,
   draftModelPickMatchesThread,
+  inferAntigravityEffortFromSlug,
   normalizeModelSlug,
 } from "@t3tools/shared/model";
 import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity";
@@ -1164,11 +1165,45 @@ export function deriveEffectiveComposerModelState(input: {
         activeSelection.model,
       ))
     : baseModel;
-  const modelOptions =
+  const rawModelOptions =
     modelSelectionByProviderToOptions(input.draft?.modelSelectionByProvider) ??
     providerSelectionsFromModelSelection(input.threadModelSelection) ??
     providerSelectionsFromModelSelection(input.projectModelSelection) ??
     null;
+  const resolvedProvider = input.providers.find((provider) =>
+    activeSelection?.model
+      ? provider.instanceId === activeSelectionInstanceId
+      : input.selectedInstanceId
+        ? provider.instanceId === input.selectedInstanceId
+        : provider.driver === input.selectedProvider,
+  );
+  const targetInstanceId = activeSelection?.model
+    ? activeSelectionInstanceId
+    : (input.selectedInstanceId ??
+      resolvedProvider?.instanceId ??
+      ProviderInstanceId.make(input.selectedProvider));
+  const targetOptions = rawModelOptions?.[targetInstanceId];
+  const rawCandidateSlug = activeSelection?.model ?? baseModelCandidate;
+  const inferredEffort =
+    input.selectedProvider === "antigravity" &&
+    rawCandidateSlug &&
+    selectedModel &&
+    rawCandidateSlug !== selectedModel &&
+    !targetOptions?.some((option) => option.id === "effort")
+      ? inferAntigravityEffortFromSlug(rawCandidateSlug)
+      : undefined;
+  const resolvedModelDescriptor = resolvedProvider?.models
+    .find((model) => model.slug === selectedModel)
+    ?.capabilities?.optionDescriptors?.find((descriptor) => descriptor.id === "effort");
+  const modelOptions: ProviderOptionSelectionsByProvider | null =
+    inferredEffort !== undefined &&
+    resolvedModelDescriptor?.type === "select" &&
+    resolvedModelDescriptor.options.some((option) => option.id === inferredEffort)
+      ? {
+          ...rawModelOptions,
+          [targetInstanceId]: [...(targetOptions ?? []), { id: "effort", value: inferredEffort }],
+        }
+      : rawModelOptions;
 
   return {
     selectedModel,

@@ -327,6 +327,128 @@ export function codexModelFamily(slug: string): string {
   return slug.startsWith("openai.gpt-") ? slug.slice("openai.".length) : slug;
 }
 
+export const ANTIGRAVITY_EFFORT_ORDER = [
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "ultra",
+  "max",
+] as const;
+export type AntigravityEffort = (typeof ANTIGRAVITY_EFFORT_ORDER)[number];
+
+const ANTIGRAVITY_EFFORT_LABELS: Record<AntigravityEffort, string> = {
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "Extra High",
+  ultra: "Ultra",
+  max: "Max",
+};
+
+const ANTIGRAVITY_EFFORT_NAME_SUFFIX =
+  /\s*\((minimal|low|medium|high|xhigh|extra[\s-]+high|ultra|max)(?:\s+effort)?\)\s*$/i;
+const ANTIGRAVITY_EFFORT_SLUG_SUFFIX = /-(minimal|low|medium|high|xhigh|ultra|max)$/i;
+const ANTIGRAVITY_EFFORT_PLAIN_NAME_SUFFIX =
+  /\s+(minimal|low|medium|high|xhigh|extra[\s-]+high|ultra|max)$/i;
+
+function normalizeAntigravityEffort(raw: string): AntigravityEffort | undefined {
+  const cleaned = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "");
+  if (cleaned === "extrahigh" || cleaned === "xhigh") return "xhigh";
+  return (ANTIGRAVITY_EFFORT_ORDER as ReadonlyArray<string>).includes(cleaned)
+    ? (cleaned as AntigravityEffort)
+    : undefined;
+}
+
+function slugifyModelName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function antigravityEffortLabel(effort: AntigravityEffort): string {
+  return ANTIGRAVITY_EFFORT_LABELS[effort];
+}
+
+export function compareAntigravityEfforts(
+  left: AntigravityEffort,
+  right: AntigravityEffort,
+): number {
+  return ANTIGRAVITY_EFFORT_ORDER.indexOf(left) - ANTIGRAVITY_EFFORT_ORDER.indexOf(right);
+}
+
+export interface ParsedAntigravityModelVariant {
+  readonly baseSlug: string;
+  readonly baseName: string;
+  readonly effort?: AntigravityEffort | undefined;
+}
+
+/**
+ * Splits an Antigravity ACP model entry (`gemini-4-argon-high` / `Gemini 4 Argon (High)`,
+ * or `gemini-pro-agent` / `Gemini 3.1 Pro (High)`) into its base model and effort tier.
+ */
+export function parseAntigravityModelVariant(
+  acpId: string,
+  displayName: string,
+): ParsedAntigravityModelVariant {
+  const trimmedId = acpId.trim();
+  const trimmedName = displayName.trim();
+
+  const parenMatch = ANTIGRAVITY_EFFORT_NAME_SUFFIX.exec(trimmedName);
+  if (parenMatch?.[1]) {
+    const effort = normalizeAntigravityEffort(parenMatch[1]);
+    if (effort) {
+      const baseName = trimmedName.slice(0, parenMatch.index).trim() || trimmedId;
+      const slugHasEffort = trimmedId.toLowerCase().endsWith(`-${effort}`);
+      const baseSlug = slugHasEffort
+        ? trimmedId.slice(0, -effort.length - 1)
+        : slugifyModelName(baseName) || trimmedId;
+      return { baseSlug, baseName, effort };
+    }
+  }
+
+  const slugMatch = ANTIGRAVITY_EFFORT_SLUG_SUFFIX.exec(trimmedId);
+  if (slugMatch?.[1]) {
+    const effort = normalizeAntigravityEffort(slugMatch[1]);
+    if (effort) {
+      const baseSlug = trimmedId.slice(0, -slugMatch[0].length);
+      const plainNameMatch = ANTIGRAVITY_EFFORT_PLAIN_NAME_SUFFIX.exec(trimmedName);
+      const plainEffort = plainNameMatch?.[1]
+        ? normalizeAntigravityEffort(plainNameMatch[1])
+        : undefined;
+      const baseName =
+        plainNameMatch && plainEffort === effort
+          ? trimmedName.slice(0, plainNameMatch.index).trim() || formatModelSlugName(baseSlug)
+          : trimmedName || formatModelSlugName(baseSlug);
+      return { baseSlug, baseName, effort };
+    }
+  }
+
+  return { baseSlug: trimmedId, baseName: trimmedName || trimmedId };
+}
+
+/** Infers the baked-in effort tier of a legacy Antigravity ACP model ID, when present. */
+export function inferAntigravityEffortFromSlug(slug: string): AntigravityEffort | undefined {
+  const trimmed = slug.trim();
+  if (trimmed === "gemini-pro-agent") return "high";
+  const match = ANTIGRAVITY_EFFORT_SLUG_SUFFIX.exec(trimmed);
+  return match?.[1] ? normalizeAntigravityEffort(match[1]) : undefined;
+}
+
+/** Normalizes both legacy tiered slugs and base slugs to the Antigravity base model family. */
+export function antigravityModelFamily(slug: string): string {
+  const trimmed = slug.trim();
+  if (trimmed === "gemini-pro-agent") return "gemini-3.1-pro";
+  return trimmed.replace(ANTIGRAVITY_EFFORT_SLUG_SUFFIX, "");
+}
+
 export function formatCodexModelName(name: string): string {
   return name.replace(/^gpt/i, "GPT").replace(/-([a-z])/g, (_, c) => "-" + c.toUpperCase());
 }

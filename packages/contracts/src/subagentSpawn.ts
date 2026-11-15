@@ -12,6 +12,7 @@ export type SubagentSpawnTier = typeof SubagentSpawnTier.Type;
 export const DEFAULT_SUBAGENT_FREE_TIER_MODELS: ReadonlyArray<string> = [
   "claude-haiku-5-5",
   "gpt-6-luna",
+  "gemini-3.8-flash",
   "gemini-3.8-flash-low",
   "gemini-3.8-flash-medium",
 ];

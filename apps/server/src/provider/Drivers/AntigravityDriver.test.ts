@@ -327,11 +327,24 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
         const snapshot = yield* h.instance.snapshot.getSnapshot;
         expect(snapshot.status).toBe("ready");
         expect(snapshot.auth.status).toBe("authenticated");
-        expect(snapshot.models.map((model) => model.slug)).toEqual([
+        expect(snapshot.models.map((model) => model.slug)).toEqual(["gemini-test"]);
+        expect(snapshot.models[0]?.aliases).toEqual([
           "gemini-test-low",
           "gemini-test-high",
+          ANTIGRAVITY_DEFAULT_MODEL,
         ]);
-        expect(snapshot.models[0]?.aliases).toContain(ANTIGRAVITY_DEFAULT_MODEL);
+        expect(snapshot.models[0]?.capabilities?.optionDescriptors).toEqual([
+          {
+            id: "effort",
+            label: "Reasoning",
+            type: "select",
+            options: [
+              { id: "low", label: "Low", isDefault: true },
+              { id: "high", label: "High" },
+            ],
+            currentValue: "low",
+          },
+        ]);
         expect(snapshot.models.every((model) => model.isLegacy !== true)).toBe(true);
         expect(snapshot.slashCommands.map((command) => command.name)).toEqual(["plan", "logout"]);
         expect(snapshot.supportsTextGeneration).toBe(true);

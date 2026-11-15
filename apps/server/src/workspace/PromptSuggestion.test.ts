@@ -206,25 +206,46 @@ describe("PromptSuggestion", () => {
   it("allows only one cloud generation at a time", async () => {
     let started!: () => void;
     let finish!: (value: { prompt: string }) => void;
-    const ready = new Promise<void>((resolve) => { started = resolve; });
-    const response = new Promise<{ prompt: string }>((resolve) => { finish = resolve; });
-    const generatePromptSuggestion = vi.fn(() => Effect.tryPromise({
-      try: () => { started(); return response; },
-      catch: () => "failed" as const,
-    }));
+    const ready = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const response = new Promise<{ prompt: string }>((resolve) => {
+      finish = resolve;
+    });
+    const generatePromptSuggestion = vi.fn(() =>
+      Effect.tryPromise({
+        try: () => {
+          started();
+          return response;
+        },
+        catch: () => "failed" as const,
+      }),
+    );
     const service = PromptSuggestion.make({ generatePromptSuggestion } as never, makeSettings());
-    const first = Effect.runPromise(service.predict({ cwd: "/p", messages, draft: "Review", sessionId: "one" }));
+    const first = Effect.runPromise(
+      service.predict({ cwd: "/p", messages, draft: "Review", sessionId: "one" }),
+    );
     await ready;
-    expect((await Effect.runPromise(service.predict({ cwd: "/p", messages, draft: "Please", sessionId: "two" }))).prompt).toBeNull();
+    expect(
+      (
+        await Effect.runPromise(
+          service.predict({ cwd: "/p", messages, draft: "Please", sessionId: "two" }),
+        )
+      ).prompt,
+    ).toBeNull();
     expect(generatePromptSuggestion).toHaveBeenCalledTimes(1);
     finish({ prompt: "Review the latest diff." });
     expect((await first).prompt).toBe("Review the latest diff.");
   });
   it.effect("rejects more than two added sentences", () =>
     Effect.gen(function* () {
-      const service = PromptSuggestion.make({
-        generatePromptSuggestion: () => Effect.succeed({ prompt: "Check one. Check two. Check three." }),
-      } as never, makeSettings());
+      const service = PromptSuggestion.make(
+        {
+          generatePromptSuggestion: () =>
+            Effect.succeed({ prompt: "Check one. Check two. Check three." }),
+        } as never,
+        makeSettings(),
+      );
       expect((yield* service.predict({ cwd: "/p", messages })).prompt).toBeNull();
     }),
   );

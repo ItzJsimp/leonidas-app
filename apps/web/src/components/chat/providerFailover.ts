@@ -114,17 +114,15 @@ function resolveRecommendedFailoverModel(
     return { modelSlug: sol.slug, effort: "medium" };
   }
   if (driverKind === "antigravity") {
-    // Antigravity: Gemini 3.8 flash on Medium
-    const flashMedium =
+    // Antigravity: Gemini 3.8 Flash on Medium effort
+    const flash =
+      models.find((m) => m.slug === "gemini-3.8-flash") ??
       models.find((m) => m.slug === "gemini-3.8-flash-medium") ??
-      models.find(
-        (m) => /3\.8.*flash.*medium/i.test(m.slug) || /3\.8.*flash.*medium/i.test(m.name),
-      ) ??
-      models.find((m) => /flash.*medium/i.test(m.slug) || /flash.*medium/i.test(m.name)) ??
+      models.find((m) => /3\.8.*flash/i.test(m.slug) || /3\.8.*flash/i.test(m.name)) ??
       models.find((m) => /flash/i.test(m.slug) || /flash/i.test(m.name)) ??
       models.find((m) => m.isDefault) ??
       models[0]!;
-    return { modelSlug: flashMedium.slug, effort: "medium" };
+    return { modelSlug: flash.slug, effort: "medium" };
   }
   const defaultModel = models.find((m) => m.isDefault) ?? models[0]!;
   return { modelSlug: defaultModel.slug };
