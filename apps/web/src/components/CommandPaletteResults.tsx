@@ -150,7 +150,7 @@ export function CommandPaletteVirtualizedResults(props: CommandPaletteVirtualize
   );
 }
 
-export function CommandPaletteTitleIcon(props: { children: ReactNode }) {
+function CommandPaletteTitleIcon(props: { children: ReactNode }) {
   return <span className="flex h-5 shrink-0 items-center self-start pt-0.5">{props.children}</span>;
 }
 

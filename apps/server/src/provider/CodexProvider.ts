@@ -178,7 +178,7 @@ function codexAccountEmail(account: CodexSchema.V2GetAccountResponse["account"])
   return account.email;
 }
 
-export function codexDefaultReasoningEffortOverride(model: string): "medium" | undefined {
+function codexDefaultReasoningEffortOverride(model: string): "medium" | undefined {
   return codexModelFamily(model) === "gpt-6-astra" ? "medium" : undefined;
 }
 

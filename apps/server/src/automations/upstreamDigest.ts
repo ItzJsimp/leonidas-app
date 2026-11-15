@@ -5,11 +5,11 @@ import * as NodePath from "node:path";
 
 import type { CheckInput, CheckOutcome, Finding } from "./check.ts";
 
-export const UPSTREAM_LEDGER = "project/upstream-review-ledger.json";
+const UPSTREAM_LEDGER = "project/upstream-review-ledger.json";
 const WEEK_MS = 7 * 24 * 3_600_000;
 
 /** Ledger keys are 10-character short SHAs of reviewed upstream commits. */
-export function readLedger(repo: string): ReadonlySet<string> | null {
+function readLedger(repo: string): ReadonlySet<string> | null {
   try {
     const ledger = JSON.parse(NodeFS.readFileSync(NodePath.join(repo, UPSTREAM_LEDGER), "utf8"));
     return new Set(Object.keys(ledger as Record<string, unknown>).map((key) => key.slice(0, 10)));

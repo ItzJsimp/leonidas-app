@@ -161,7 +161,7 @@ export type TakeKind = "all" | "dictations" | "rewrites";
 export const ANY_APP = "";
 
 /** "Leonidas Code.exe" and "leonidas code" are one app. */
-export function appKey(app: string): string {
+function appKey(app: string): string {
   return app.replaceAll(".exe", "").trim().toLowerCase();
 }
 

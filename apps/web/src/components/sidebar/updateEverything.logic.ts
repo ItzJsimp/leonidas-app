@@ -208,7 +208,7 @@ export function closeFinishedUpdateRun(run: UpdateEverythingRun): UpdateEverythi
 
 export const UPDATE_SLOW_AFTER_MS = 3 * 60 * 1000;
 
-export function formatUpdateElapsed(ms: number): string {
+function formatUpdateElapsed(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
   if (minutes < 1) return "<1m";
   if (minutes < 60) return `${minutes}m`;
@@ -282,7 +282,7 @@ export function describeUpdateCapsule(
   return { tone: "default", label: `${done} of ${machines.length} updated`, action: null };
 }
 
-export const RUN_STATUS_LABELS: Record<UpdateRunMachineStatus, string> = {
+const RUN_STATUS_LABELS: Record<UpdateRunMachineStatus, string> = {
   providers: "updating providers",
   waiting: "waiting",
   downloading: "downloading",

@@ -5,7 +5,7 @@ import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
 /** Written by `scripts/Get-AutomationSurface.ps1` from the same rows as `wiki/automation-register.md`. */
-export const REGISTER_FILE = "wiki/automation-register.json";
+const REGISTER_FILE = "wiki/automation-register.json";
 
 const isKind = Schema.is(AutomationKind);
 
@@ -26,7 +26,7 @@ export interface RegisterRow {
 const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
 
 /** One register row as a tab entry. Rows without an id, a known kind or a name are dropped. */
-export function registerEntry(row: RegisterRow): AutomationEntry | null {
+function registerEntry(row: RegisterRow): AutomationEntry | null {
   const id = text(row.id);
   const name = text(row.name);
   if (id === null || name === null || !isKind(row.kind)) return null;

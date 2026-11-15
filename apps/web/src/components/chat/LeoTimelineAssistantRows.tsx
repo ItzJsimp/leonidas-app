@@ -90,7 +90,7 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
 }
 
 /** Each choice fills the message box. The user checks it, then sends. */
-export const ADJUST_REPLIES = [
+const ADJUST_REPLIES = [
   { label: "Shorter", reply: "Say your last answer again in fewer words. Keep only what I need." },
   {
     label: "Simpler",

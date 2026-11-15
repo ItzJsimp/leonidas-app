@@ -211,7 +211,7 @@ interface GlanceAccount {
 }
 
 /** The window closest to its limit: the one that stops work first. */
-export function fullestWindow<W extends GlanceWindow>(windows: ReadonlyArray<W>): W | null {
+function fullestWindow<W extends GlanceWindow>(windows: ReadonlyArray<W>): W | null {
   return windows.reduce<W | null>(
     (best, window) => (best === null || window.usedPercent > best.usedPercent ? window : best),
     null,

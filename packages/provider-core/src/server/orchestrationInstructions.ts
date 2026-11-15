@@ -121,8 +121,6 @@ export function t3OrchestrationSystemPrompt(hasT3Mcp: boolean): string | undefin
   return hasT3Mcp ? LEONIDAS_ORCHESTRATION_INSTRUCTIONS : undefined;
 }
 
-export const T3_CODE_ORCHESTRATION_INSTRUCTIONS = LEONIDAS_ORCHESTRATION_INSTRUCTIONS;
-
 /**
  * Codex cuts the middle out of any instruction entry over 4,000 bytes, so it
  * receives the instructions one heading at a time.

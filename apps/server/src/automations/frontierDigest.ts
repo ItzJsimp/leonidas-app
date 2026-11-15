@@ -199,7 +199,7 @@ function parseJson<T>(text: string): T | null {
   }
 }
 
-export function parseGitHub(
+function parseGitHub(
   kind: "releases" | "commits",
   text: string,
   since: number,
@@ -220,7 +220,7 @@ export function parseGitHub(
     }));
 }
 
-export function pageLinks(html: string, base: string, prefix: string): string[] {
+function pageLinks(html: string, base: string, prefix: string): string[] {
   const origin = new URL(base).origin;
   const links = new Set<string>();
   const pattern = new RegExp(`href="(${prefix.replace(/[/]/g, "\\/")}[a-z0-9-]+)"`, "g");
@@ -236,10 +236,7 @@ function readSeen(root: string): Record<string, ReadonlyArray<string>> {
   }
 }
 
-export function buildPrompt(
-  items: ReadonlyArray<FrontierItem>,
-  skills: ReadonlyArray<string>,
-): string {
+function buildPrompt(items: ReadonlyArray<FrontierItem>, skills: ReadonlyArray<string>): string {
   return [
     "You maintain an AI operating system made of skills (markdown instructions for coding agents) and canon files.",
     `Its skills: ${skills.slice(0, 200).join(", ")}.`,
@@ -252,7 +249,7 @@ export function buildPrompt(
   ].join("\n");
 }
 
-export function readProposals(text: string): Proposal[] {
+function readProposals(text: string): Proposal[] {
   const json = /\{[\s\S]*\}/.exec(text)?.[0];
   const value = json ? parseJson<{ proposals?: unknown }>(json) : null;
   if (!value || !Array.isArray(value.proposals)) return [];
@@ -280,7 +277,7 @@ const slugify = (text: string) =>
     .slice(0, 60);
 
 /** One task card per proposal, `autonomous: false`, so it waits for Jake's approval. */
-export function writeProposalCard(root: string, proposal: Proposal, now: number): string | null {
+function writeProposalCard(root: string, proposal: Proposal, now: number): string | null {
   const day = new Date(now).toLocaleDateString("en-CA");
   const slug = `frontier-${slugify(proposal.title)}`;
   const file = NodePath.join(root, "tasks", `${slug}.md`);

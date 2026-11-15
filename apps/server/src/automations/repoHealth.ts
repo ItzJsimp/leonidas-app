@@ -14,7 +14,7 @@ export interface RepoHealthLimits {
   readonly ignoreBranches: ReadonlyArray<string>;
 }
 
-export const REPO_HEALTH_LIMITS: RepoHealthLimits = {
+const REPO_HEALTH_LIMITS: RepoHealthLimits = {
   unpushedAgeMs: 24 * HOUR_MS,
   lockAgeMs: 10 * 60_000,
   claimAgeMs: 24 * HOUR_MS,
@@ -27,7 +27,7 @@ interface Worktree {
   readonly prunable: string | null;
 }
 
-export function parseWorktrees(porcelain: string): ReadonlyArray<Worktree> {
+function parseWorktrees(porcelain: string): ReadonlyArray<Worktree> {
   const result: Worktree[] = [];
   for (const block of porcelain.replaceAll("\r", "").split("\n\n")) {
     const lines = block.split("\n").filter(Boolean);

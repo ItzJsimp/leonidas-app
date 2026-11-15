@@ -19,7 +19,7 @@ export type TaskAction =
  * when it has no console, so the task cmdlets run instead: they keep the stored sign-in.
  * Only a name the register lists and SAFE_NAME allows (no quotes) reaches this.
  */
-export function taskScript(name: string, action: TaskAction): string {
+function taskScript(name: string, action: TaskAction): string {
   const task = `'${name}'`;
   switch (action.kind) {
     case "enable":

@@ -6,7 +6,7 @@ import * as NodeSqlite from "node:sqlite";
 /** The index the AIOS builds (`scripts/Build-LeonidasMemoryIndex.py`): `memory_fts(path, name, desc, body)`. */
 const INDEX_FILE = NodePath.join(".leonidas", "memory.sqlite");
 export const MAX_READ_CHARS = 20_000;
-export const MAX_QUERY_CHARS = 500;
+const MAX_QUERY_CHARS = 500;
 
 export interface MemoryHit {
   readonly path: string;

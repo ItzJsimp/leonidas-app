@@ -104,7 +104,7 @@ const CONTROL_CLASS =
   "inline-flex shrink-0 touch-hit items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none [-webkit-app-region:no-drag]";
 
 /** The rail remembers whether it shows labels. Labels by default (Jake's pick, 2026-11-07). */
-export const RAIL_EXPANDED_KEY = "leonidas:rail-expanded";
+const RAIL_EXPANDED_KEY = "leonidas:rail-expanded";
 
 /** "99+" past 99, so the badge stays small. */
 export const badgeText = (count: number) => (count > 99 ? "99+" : String(count));

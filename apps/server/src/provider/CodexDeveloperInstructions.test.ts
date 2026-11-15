@@ -1,7 +1,7 @@
 import * as NodeAssert from "node:assert/strict";
 
 import {
-  T3_CODE_ORCHESTRATION_INSTRUCTIONS,
+  LEONIDAS_ORCHESTRATION_INSTRUCTIONS,
   T3_CODE_ORCHESTRATION_SECTIONS,
 } from "@t3tools/provider-core/server/orchestrationInstructions";
 import { describe, it } from "vite-plus/test";
@@ -56,7 +56,7 @@ describe("buildCodexAdditionalContext", () => {
     );
     NodeAssert.equal(
       sections.map((entry) => entry.value).join("\n\n"),
-      T3_CODE_ORCHESTRATION_INSTRUCTIONS.trim(),
+      LEONIDAS_ORCHESTRATION_INSTRUCTIONS.trim(),
     );
   });
 });

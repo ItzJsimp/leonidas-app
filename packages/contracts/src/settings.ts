@@ -354,8 +354,8 @@ export const BrowserSearchEngine = Schema.Literals([
   "custom",
 ]);
 export type BrowserSearchEngine = typeof BrowserSearchEngine.Type;
-export const DEFAULT_BROWSER_SEARCH_ENGINE: BrowserSearchEngine = "duckduckgo";
-export const BROWSER_CUSTOM_SEARCH_URL_MAX_LENGTH = 2048;
+const DEFAULT_BROWSER_SEARCH_ENGINE: BrowserSearchEngine = "duckduckgo";
+const BROWSER_CUSTOM_SEARCH_URL_MAX_LENGTH = 2048;
 export const BrowserCustomSearchUrl = Schema.String.check(
   Schema.isMaxLength(BROWSER_CUSTOM_SEARCH_URL_MAX_LENGTH),
 );

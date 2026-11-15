@@ -246,7 +246,7 @@ function MenuValue({ children }: { children: ReactNode }) {
  * Icon button with a tooltip, sized for the header. Spreads unknown props through so it can serve
  * as a popup trigger's render target, which injects its own handlers, ref and aria state.
  */
-export function SidebarHeaderIconButton({
+function SidebarHeaderIconButton({
   label,
   tooltip = label,
   className,

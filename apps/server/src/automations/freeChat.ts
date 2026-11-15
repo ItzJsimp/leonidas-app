@@ -1,7 +1,7 @@
 import type { FreeChat } from "./frontierDigest.ts";
 
 /** Same hosts as Auto-pick skills (`workspace/SkillPick.ts`). */
-export const FREE_ENDPOINTS = {
+const FREE_ENDPOINTS = {
   openrouter: "https://openrouter.ai/api/v1/chat/completions",
   groq: "https://api.groq.com/openai/v1/chat/completions",
   local: "http://127.0.0.1:11434/v1/chat/completions",

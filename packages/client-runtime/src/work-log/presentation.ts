@@ -55,7 +55,7 @@ type CompactionLabelItem = Pick<
   "status" | "beforeTokenCount" | "afterTokenCount"
 >;
 
-export function contextCompactionTokenCounts(
+function contextCompactionTokenCounts(
   item: CompactionLabelItem,
 ): { readonly before: string; readonly after: string } | null {
   if (

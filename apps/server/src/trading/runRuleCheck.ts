@@ -59,7 +59,7 @@ const isText = (v: unknown): v is string =>
   typeof v === "string" && v.trim() !== "" && v.length <= 500;
 
 /** Strict read of the child's answer. Anything unexpected is a failed check, never a grade. */
-export function readCheckOutput(stdout: string): CheckOutcome {
+function readCheckOutput(stdout: string): CheckOutcome {
   let data: unknown;
   try {
     data = JSON.parse(stdout);

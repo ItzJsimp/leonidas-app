@@ -1110,7 +1110,7 @@ export function parsePullRequestQuery(raw: string): {
   };
 }
 
-export function qualifierValue(raw: string): string {
+function qualifierValue(raw: string): string {
   return raw.replaceAll('"', "").trim();
 }
 
@@ -1118,17 +1118,17 @@ export function qualifierValue(raw: string): string {
  * A typed query is written by hand, and the contract bounds what a qualifier may carry — so what
  * is typed past those bounds is cut here rather than refused by the request that carries it.
  */
-export function boundedNames(names: ReadonlyArray<string>): string[] {
+function boundedNames(names: ReadonlyArray<string>): string[] {
   return names
     .slice(0, MAX_QUALIFIER_VALUES)
     .map((name) => name.slice(0, MAX_QUALIFIER_LENGTH).trim())
     .filter((name) => name.length > 0);
 }
 
-export const MAX_QUALIFIER_LENGTH = 200;
+const MAX_QUALIFIER_LENGTH = 200;
 
 /** What `review:` and `status:` take, in GitHub's spelling and in the contract's. */
-export const REVIEW_VALUES: Record<string, PullRequestListFilters["review"]> = {
+const REVIEW_VALUES: Record<string, PullRequestListFilters["review"]> = {
   approved: "approved",
   changes_requested: "changes-requested",
   "changes-requested": "changes-requested",
@@ -1137,7 +1137,7 @@ export const REVIEW_VALUES: Record<string, PullRequestListFilters["review"]> = {
   none: "none",
 };
 
-export const CHECKS_VALUES: Record<string, PullRequestListFilters["checks"]> = {
+const CHECKS_VALUES: Record<string, PullRequestListFilters["checks"]> = {
   success: "passing",
   passing: "passing",
   failure: "failing",
@@ -1145,7 +1145,7 @@ export const CHECKS_VALUES: Record<string, PullRequestListFilters["checks"]> = {
 };
 
 /** The contract's own ceilings on a qualifier: this many names, each this long. */
-export const MAX_QUALIFIER_VALUES = 10;
+const MAX_QUALIFIER_VALUES = 10;
 
 const QUERY_TOKEN = /(?:[^\s"]|"[^"]*")+/g;
 
