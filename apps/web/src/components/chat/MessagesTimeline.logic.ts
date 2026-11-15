@@ -487,6 +487,40 @@ function computeElapsedMs(startIso: string, endIso: string): number | null {
   return Math.max(0, end - start);
 }
 
+const USER_WAIT_ITEM_TYPES: ReadonlySet<string> = new Set([
+  "user_input_request",
+  "approval_request",
+  "secret_request",
+]);
+
+/**
+ * Time the agent sat idle waiting for the user to answer a question, approval
+ * or secret request. Turn timers subtract it so they count agent work only.
+ * shortcut: overlapping requests count twice, switch to merged intervals if
+ * parallel questions ship.
+ */
+function userWaitMs(entries: ReadonlyArray<TimelineEntry>): number {
+  let total = 0;
+  for (const entry of entries) {
+    if (entry.kind !== "work") continue;
+    const item = entry.entry.projectedItem?.item ?? entry.entry.structuredPayload;
+    if (!item || !USER_WAIT_ITEM_TYPES.has(item.type) || !item.startedAt || !item.completedAt) {
+      continue;
+    }
+    total += Math.max(
+      0,
+      DateTime.toEpochMillis(item.completedAt) - DateTime.toEpochMillis(item.startedAt),
+    );
+  }
+  return total;
+}
+
+/** Moves a live timer's start past answered waits so it skips them; no wait keeps the string. */
+function shiftPastUserWait(startIso: string | null, entries: ReadonlyArray<TimelineEntry>) {
+  const waitMs = userWaitMs(entries);
+  return startIso && waitMs > 0 ? new Date(Date.parse(startIso) + waitMs).toISOString() : startIso;
+}
+
 function maxIsoTimestamp(a: string | null, b: string | null): string | null {
   if (a === null) return b;
   if (b === null) return a;
@@ -1181,7 +1215,7 @@ function deriveTurnFolds(input: {
     // terminal message — take whichever ended last.
     const lastEntryEnd =
       lastEntry.kind === "message" ? lastEntry.message.updatedAt : lastEntry.createdAt;
-    const elapsedMs =
+    const spanMs =
       input.latestRun?.runId === runId && input.latestRun.startedAt && input.latestRun.completedAt
         ? computeElapsedMs(input.latestRun.startedAt, input.latestRun.completedAt)
         : computeElapsedMs(
@@ -1189,6 +1223,7 @@ function deriveTurnFolds(input: {
             maxIsoTimestamp(group.terminalEntry?.message.updatedAt ?? null, lastEntryEnd) ??
               lastEntryEnd,
           );
+    const elapsedMs = spanMs === null ? null : Math.max(0, spanMs - userWaitMs(group.entries));
     const duration = elapsedMs !== null ? formatDuration(elapsedMs) : null;
     const label = isLatestInterruptedTurn
       ? duration
@@ -1626,7 +1661,15 @@ export function deriveMessagesTimelineRows(input: {
     nextRows.push({
       kind: "working",
       id: "working-indicator-row",
-      createdAt: input.activeTurnStartedAt ?? null,
+      createdAt: shiftPastUserWait(
+        input.activeTurnStartedAt ?? null,
+        timelineEntries.filter(
+          (entry) =>
+            entry.kind === "work" &&
+            input.latestRun != null &&
+            entry.entry.runId === input.latestRun.runId,
+        ),
+      ),
     });
   };
   let hasActivityRow = false;
