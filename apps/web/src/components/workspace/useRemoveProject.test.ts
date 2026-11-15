@@ -74,10 +74,11 @@ const project = () => ({
   workspaceRoot: folder,
 });
 
-it("deletes only the project entry and leaves the folder on disk", async () => {
+it("deletes only the project entry at once when it has no chats, and leaves the folder", async () => {
   const remove = useRemoveProject([]);
   await remove(project());
 
+  expect(state.confirm).not.toHaveBeenCalled();
   expect(state.deleteProject).toHaveBeenCalledExactlyOnceWith({
     environmentId: "env",
     input: { projectId: "p1", force: true },
@@ -99,18 +100,23 @@ it("confirm text says files stay on disk and names the chats it deletes", async 
   expect(message).toContain("Your files stay on disk.");
   expect(message).toContain("delete its 1 thread?");
   expect(message).toContain("Computer: Laptop");
-  expect(removeProjectConfirmMessage({ project: project(), threadCount: 0 })).toContain(
-    "Your files stay on disk.",
+  expect(removeProjectConfirmMessage({ project: project(), threadCount: 2 })).toContain(
+    "delete its 2 threads?",
   );
 });
 
 it("removes nothing when the user cancels or lacks permission", async () => {
+  const thread = {
+    environmentId: asId<never>("env"),
+    id: asId<never>("t1"),
+    projectId: asId<never>("p1"),
+  };
   state.confirm.mockResolvedValue(false);
-  await useRemoveProject([])(project());
+  await useRemoveProject([thread])(project());
   expect(state.deleteProject).not.toHaveBeenCalled();
 
   state.allowed = false;
-  await useRemoveProject([])(project());
+  await useRemoveProject([thread])(project());
   expect(state.confirm).toHaveBeenCalledTimes(1);
   expect(state.toastAdd).toHaveBeenCalledTimes(1);
 });

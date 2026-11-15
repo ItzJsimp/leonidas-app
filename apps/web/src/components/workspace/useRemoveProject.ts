@@ -55,7 +55,7 @@ export function removeProjectConfirmMessage(input: {
   ].join("\n");
 }
 
-/** Removes a project entry after one confirm. Never touches files on disk. */
+/** Removes a project entry at once. A project with chats asks once first. Never touches files on disk. */
 export function useRemoveProject(threads: ReadonlyArray<ProjectThread>) {
   const deleteProject = useOrchestrationCommand(projectEnvironment.delete, {
     reportFailure: false,
@@ -86,15 +86,17 @@ export function useRemoveProject(threads: ReadonlyArray<ProjectThread>) {
         (thread) =>
           thread.environmentId === project.environmentId && thread.projectId === project.id,
       );
-      const confirmed = await api.dialogs.confirm(
-        removeProjectConfirmMessage({
-          project,
-          environmentLabel,
-          threadCount: projectThreads.length,
-        }),
-        { variant: "destructive" },
-      );
-      if (!confirmed) return;
+      if (projectThreads.length > 0) {
+        const confirmed = await api.dialogs.confirm(
+          removeProjectConfirmMessage({
+            project,
+            environmentLabel,
+            threadCount: projectThreads.length,
+          }),
+          { variant: "destructive" },
+        );
+        if (!confirmed) return;
+      }
 
       const projectRef = scopeProjectRef(project.environmentId, project.id);
       const result = await deleteProject({
