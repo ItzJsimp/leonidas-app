@@ -208,7 +208,9 @@ import {
   buildCommandPaletteRows,
   enumerateCommandPaletteItems,
   findHighlightedCommandPaletteItem,
+  groupProjectsByDevice,
   type CommandPaletteActionItem,
+  type CommandPaletteGroup,
   type CommandPaletteOpenIntent,
   type CommandPaletteProject,
   type CommandPaletteSubmenuItem,
@@ -1295,16 +1297,47 @@ function OpenCommandPaletteDialog(props: {
     ],
   );
 
-  const projectThreadItems = useMemo(() => {
+  // Every project of every computer: a repo cloned on two computers is listed under both.
+  const projectGroupByMemberKey = new Map(
+    projectPickerEntries.flatMap(({ group }) =>
+      group.memberProjects.map(
+        (member) => [`${member.environmentId}:${member.id}`, group] as const,
+      ),
+    ),
+  );
+  const deviceProjectSections = groupProjectsByDevice({
+    projects: projectPickerEntries.flatMap(({ group }) =>
+      group.memberProjects.map((member) => ({ ...member, displayName: group.displayName })),
+    ),
+    primaryEnvironmentId,
+    leadEnvironmentId: contextualProjectRef?.environmentId ?? null,
+  });
+  const deviceHeadingById = new Map(
+    environments.map((environment) => {
+      const label = projectEnvironmentLocationById.get(environment.environmentId)?.label;
+      const offline = !canCreateProjectInEnvironment(environment.connection.phase);
+      return [
+        environment.environmentId,
+        offline
+          ? `${label ?? environment.label} · ${connectionStatusText(environment.connection)}`
+          : (label ?? environment.label),
+      ] as const;
+    }),
+  );
+
+  const projectThreadGroups = useMemo((): CommandPaletteGroup[] => {
     const isScratch = (project: CommandPaletteProject) =>
       isScratchProject(project, scratchWorkspaceRootFor(project.environmentId));
+    // The no-project home shows once, as the "No project" item below.
+    const listedProjects = deviceProjectSections.flatMap((section) =>
+      section.projects.filter((project) => !isScratch(project)),
+    );
     const projectItems = enumerateCommandPaletteItems(
       buildProjectActionItems({
-        // The no-project home shows once, as the "No project" item below.
-        projects: pickerProjects.filter((project) => !isScratch(project)),
+        projects: listedProjects,
         valuePrefix: "new-thread-in",
         searchTerms: (project) => {
-          const group = projectGroupByTargetKey.get(`${project.environmentId}:${project.id}`);
+          const group = projectGroupByMemberKey.get(`${project.environmentId}:${project.id}`);
           const location = projectEnvironmentLocationById.get(project.environmentId);
           return [
             ...(group?.memberProjects.flatMap((member) => [member.title, member.workspaceRoot]) ??
@@ -1354,49 +1387,60 @@ function OpenCommandPaletteDialog(props: {
             <Trash2Icon aria-hidden className="size-3.5" />
           </Button>
         ),
+        // A row is one project on one computer: the chat starts exactly there.
         runProject: async (project) => {
-          const group = projectGroupByTargetKey.get(`${project.environmentId}:${project.id}`);
-          const contextualRefBelongsToGroup =
-            contextualProjectRef !== null &&
-            group?.memberProjectRefs.some(
-              (projectRef) =>
-                projectRef.environmentId === contextualProjectRef.environmentId &&
-                projectRef.projectId === contextualProjectRef.projectId,
-            );
-          await handleNewThread(
-            contextualRefBelongsToGroup
-              ? contextualProjectRef
-              : scopeProjectRef(project.environmentId, project.id),
-          );
+          await handleNewThread(scopeProjectRef(project.environmentId, project.id));
         },
       }),
     );
-    if (scratchTargetEnvironmentId === null) return projectItems;
+    const rows = projectItems.map((item, index) => ({
+      environmentId: listedProjects[index]!.environmentId,
+      item,
+    }));
 
-    // "No project" goes right after the current project: visible without
-    // scrolling past every project, while Enter still starts in the current
-    // one. When the current thread has no project, it is the current entry and
-    // goes first. It keeps its own shortcut, so the projects' mod+1..9 hold.
-    const noProjectIndex = pickerProjects[0] !== undefined && isScratch(pickerProjects[0]) ? 0 : 1;
-    return [
-      ...projectItems.slice(0, noProjectIndex),
-      {
-        kind: "action" as const,
-        value: "new-thread-in:no-project",
-        searchTerms: ["no project", "without project", "none"],
-        title: "No project",
-        icon: <MessageSquareDashedIcon className={ITEM_ICON_CLASS} />,
-        shortcutCommand: "chat.newWithoutProject" as const,
-        run: () => startScratchThread(scratchTargetEnvironmentId),
-      },
-      ...projectItems.slice(noProjectIndex),
-    ];
+    if (scratchTargetEnvironmentId !== null) {
+      // "No project" goes right after the current project: visible without
+      // scrolling past every project, while Enter still starts in the current
+      // one. When the current thread has no project, it is the current entry and
+      // goes first. It keeps its own shortcut, so the projects' mod+1..9 hold.
+      const lead = deviceProjectSections[0]?.projects[0];
+      const noProjectIndex = lead !== undefined && isScratch(lead) ? 0 : 1;
+      rows.splice(noProjectIndex, 0, {
+        environmentId:
+          rows[Math.max(noProjectIndex - 1, 0)]?.environmentId ?? scratchTargetEnvironmentId,
+        item: {
+          kind: "action" as const,
+          value: "new-thread-in:no-project",
+          searchTerms: ["no project", "without project", "none"],
+          title: "No project",
+          icon: <MessageSquareDashedIcon className={ITEM_ICON_CLASS} />,
+          shortcutCommand: "chat.newWithoutProject" as const,
+          run: () => startScratchThread(scratchTargetEnvironmentId),
+        },
+      });
+    }
+
+    // One group per computer, headed by its name. One computer keeps the plain "Projects" heading.
+    const itemsByEnvironment = new Map<EnvironmentId, CommandPaletteActionItem[]>();
+    for (const { environmentId, item } of rows) {
+      const list = itemsByEnvironment.get(environmentId);
+      if (list) list.push(item);
+      else itemsByEnvironment.set(environmentId, [item]);
+    }
+    const hasSeveralComputers = itemsByEnvironment.size > 1;
+    return [...itemsByEnvironment].map(([environmentId, items]) => ({
+      value: hasSeveralComputers ? `projects:${environmentId}` : "projects",
+      label: hasSeveralComputers
+        ? (deviceHeadingById.get(environmentId) ?? "Another computer")
+        : "Projects",
+      items,
+    }));
   }, [
-    contextualProjectRef,
+    deviceHeadingById,
+    deviceProjectSections,
     handleNewThread,
-    pickerProjects,
     projectEnvironmentLocationById,
-    projectGroupByTargetKey,
+    projectGroupByMemberKey,
     removeProject,
     scratchTargetEnvironmentId,
     scratchWorkspaceRootFor,
@@ -2075,7 +2119,7 @@ function OpenCommandPaletteDialog(props: {
   }, [clearOpenIntent, openAddProjectFlow, openIntent]);
 
   useLayoutEffect(() => {
-    if (openIntent?.kind !== "new-thread-in" || projectThreadItems.length === 0) {
+    if (openIntent?.kind !== "new-thread-in" || projectThreadGroups.length === 0) {
       return;
     }
     clearOpenIntent();
@@ -2084,12 +2128,12 @@ function OpenCommandPaletteDialog(props: {
     setNewProjectFlow(null);
     setViewStack([]);
     setQuery("");
-    // projectThreadItems already lists the current project first.
+    // projectThreadGroups already lists the current project first.
     pushPaletteView({
       addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
-      groups: [{ value: "projects", label: "Projects", items: projectThreadItems }],
+      groups: projectThreadGroups,
     });
-  }, [clearOpenIntent, browseNavigation, openIntent, projectThreadItems, pushPaletteView]);
+  }, [clearOpenIntent, browseNavigation, openIntent, projectThreadGroups, pushPaletteView]);
 
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
 
@@ -2128,7 +2172,7 @@ function OpenCommandPaletteDialog(props: {
       title: "New chat in...",
       icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,
       addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
-      groups: [{ value: "projects", label: "Projects", items: projectThreadItems }],
+      groups: projectThreadGroups,
     });
   }
 

@@ -13,6 +13,7 @@ import {
   filterPinnedBrowseEntries,
   filterCommandPaletteGroups,
   findHighlightedCommandPaletteItem,
+  groupProjectsByDevice,
   reduceCommandPaletteUiState,
   createCommandPaletteSearchState,
   reduceCommandPaletteSearchState,
@@ -366,6 +367,51 @@ describe("buildProjectActionItems", () => {
       expect.arrayContaining(["t3dotgg/fleet", "fleet", "/Users/theo/Code/p/fleet"]),
     );
     expect(iconTitles).toEqual(["fleet"]);
+  });
+});
+
+describe("groupProjectsByDevice", () => {
+  const laptop = EnvironmentId.make("env-laptop");
+  const desktop = EnvironmentId.make("env-desktop");
+  const phone = EnvironmentId.make("env-phone");
+  const row = (environmentId: EnvironmentId, name: string) => ({ environmentId, name });
+
+  it("lists this computer first, then each other computer with all its projects", () => {
+    const sections = groupProjectsByDevice({
+      projects: [
+        row(desktop, "a"),
+        row(laptop, "leonidas"),
+        row(desktop, "b"),
+        row(phone, "c"),
+        row(desktop, "d"),
+      ],
+      primaryEnvironmentId: laptop,
+      leadEnvironmentId: null,
+    });
+    expect(sections.map((s) => [s.environmentId, s.projects.map((p) => p.name)])).toEqual([
+      [laptop, ["leonidas"]],
+      [desktop, ["a", "b", "d"]],
+      [phone, ["c"]],
+    ]);
+  });
+
+  it("puts the computer of the current project first so Enter keeps its target", () => {
+    const sections = groupProjectsByDevice({
+      projects: [row(laptop, "x"), row(desktop, "y")],
+      primaryEnvironmentId: laptop,
+      leadEnvironmentId: desktop,
+    });
+    expect(sections.map((s) => s.environmentId)).toEqual([desktop, laptop]);
+  });
+
+  it("returns no sections for no projects", () => {
+    expect(
+      groupProjectsByDevice({
+        projects: [],
+        primaryEnvironmentId: laptop,
+        leadEnvironmentId: null,
+      }),
+    ).toEqual([]);
   });
 });
 

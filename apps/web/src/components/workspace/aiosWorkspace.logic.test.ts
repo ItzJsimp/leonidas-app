@@ -45,7 +45,7 @@ const simplygersi = summary({
 });
 const bare = summary({ root: "D:/Bare", status: "missing", id: null, projectIds: [pid("p-bare")] });
 
-it("keeps new-chat defaults and project choices inside the selected workspace", () => {
+it("scopes this computer to the selected workspace and keeps every other computer's projects", () => {
   const projects = [
     { environmentId: remote, id: pid("remote") },
     { environmentId: env, id: pid("p-code") },
@@ -58,7 +58,7 @@ it("keeps new-chat defaults and project choices inside the selected workspace", 
       active: simplygersi,
       projects,
     }).map((p) => p.id),
-  ).toEqual(["p-sg"]);
+  ).toEqual(["remote", "p-sg"]);
   expect(
     chatProjectsForWorkspace({ environmentId: env, workspaces: [], active: undefined, projects }),
   ).toBe(projects);
