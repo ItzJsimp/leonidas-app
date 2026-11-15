@@ -180,7 +180,7 @@ export function formatWhen(started: string): string {
 const WEEK_MS = 7 * 86_400_000;
 
 /** List heading for a meeting: "This week", else its month (with the year when it is not this year). */
-export function groupLabel(started: string, now: Date): string {
+function groupLabel(started: string, now: Date): string {
   const time = Date.parse(started);
   if (Number.isNaN(time)) return "Earlier";
   if (now.getTime() - time < WEEK_MS) return "This week";

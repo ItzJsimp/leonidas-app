@@ -210,7 +210,7 @@ export function groupReleaseNotes(
     .map((title) => ({ title, items: groups[title] }));
 }
 
-export const UPDATE_HIGHLIGHT_COUNT = 5;
+const UPDATE_HIGHLIGHT_COUNT = 5;
 
 export interface UpdateSummary {
   readonly version: string | null;

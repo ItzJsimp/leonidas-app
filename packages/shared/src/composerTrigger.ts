@@ -49,7 +49,7 @@ function isWhitespace(char: string): boolean {
  * A slash word with a second slash, such as `/tmp/build.sh`, is a path, not a
  * command. The whole word counts, so a caret before the second slash still sees it.
  */
-export function isPathWord(
+function isPathWord(
   text: string,
   wordStart: number,
   cursor: number,

@@ -26,7 +26,7 @@ function markdownIn(dir: string): string[] {
   }
 }
 
-export function canonFiles(root: string): string[] {
+function canonFiles(root: string): string[] {
   const files = CANON_DIRS.flatMap((dir) => markdownIn(NodePath.join(root, dir)));
   for (const name of CANON_MEMORY) files.push(NodePath.join(root, "memory", name));
   for (const skill of skillNames(root))
@@ -34,7 +34,7 @@ export function canonFiles(root: string): string[] {
   return files.filter((file) => NodeFS.existsSync(file));
 }
 
-export function skillNames(root: string): string[] {
+function skillNames(root: string): string[] {
   try {
     return NodeFS.readdirSync(NodePath.join(root, SKILLS_DIR)).filter((name) =>
       NodeFS.existsSync(NodePath.join(root, SKILLS_DIR, name, "SKILL.md")),
@@ -59,7 +59,7 @@ const exists = (path: string, cache: Map<string, Promise<boolean>>) => {
   return hit;
 };
 
-export async function brokenLinks(
+async function brokenLinks(
   root: string,
   file: string,
   text: string,
@@ -93,7 +93,7 @@ export async function brokenLinks(
 }
 
 /** Skill names that no event in the feed named as `$name` in the last 60 days. */
-export function unusedSkills(root: string, skills: ReadonlyArray<string>, now: number): string[] {
+function unusedSkills(root: string, skills: ReadonlyArray<string>, now: number): string[] {
   const used = new Set<string>();
   for (let back = 0; back < 3; back++) {
     // @effect-diagnostics-next-line globalDate:off

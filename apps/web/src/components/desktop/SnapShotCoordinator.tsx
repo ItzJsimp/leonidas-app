@@ -39,7 +39,7 @@ import { userErrorToastFields } from "~/lib/userErrorToast";
 
 type CaptureTarget = DraftId | ScopedThreadRef;
 
-export function resolveExistingSnapShotTarget(
+function resolveExistingSnapShotTarget(
   target: CaptureTarget,
   routeThreadRef: ScopedThreadRef | null,
 ): CaptureTarget | null {
@@ -62,7 +62,7 @@ export function resolveExistingSnapShotTarget(
 
 const NEXT_PAINT_FALLBACK_MS = 100;
 
-export async function beginSnapShotAnimationWhenReady(
+async function beginSnapShotAnimationWhenReady(
   id: string,
   target: Promise<CaptureTarget | null>,
   pendingStarts: Set<string>,
@@ -78,7 +78,7 @@ export async function beginSnapShotAnimationWhenReady(
   }
 }
 
-export function dismissFailedSnapShot(
+function dismissFailedSnapShot(
   id: string | undefined,
   soundedIds: Set<string>,
   pendingStarts: Set<string>,
@@ -94,7 +94,7 @@ export function dismissFailedSnapShot(
   }
 }
 
-export function resolveSnapShotTargetOnce(
+function resolveSnapShotTargetOnce(
   resolutionRef: { current: Promise<CaptureTarget | null> | null },
   resolveTarget: () => Promise<CaptureTarget | null>,
 ): Promise<CaptureTarget | null> {
@@ -107,7 +107,7 @@ export function resolveSnapShotTargetOnce(
 }
 
 // A capture keeps its destination even after its animation unmounts or the window blurs.
-export function resolveSnapShotDeliveryTarget(
+function resolveSnapShotDeliveryTarget(
   targets: Map<string, Promise<CaptureTarget | null>>,
   id: string,
   resolveTarget: () => Promise<CaptureTarget | null>,
@@ -134,7 +134,7 @@ async function afterNextPaint(): Promise<void> {
   });
 }
 
-export async function deliverSnapShot(
+async function deliverSnapShot(
   bridge: DesktopSnapShotBridge,
   item: DesktopPendingSnapShot,
   target: CaptureTarget,

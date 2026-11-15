@@ -1,11 +1,11 @@
 import type { CheckInput, CheckOutcome, Finding } from "./check.ts";
 
-export const RELEASE_WORKFLOW = "team-release.yml";
+const RELEASE_WORKFLOW = "team-release.yml";
 /** The team-release step that boots the built server on a fresh home. */
-export const BOOT_SMOKE_STEP = "Check the server boots and answers";
+const BOOT_SMOKE_STEP = "Check the server boots and answers";
 
 /** `owner/repo` from a GitHub remote URL, or null. */
-export function githubRepo(remoteUrl: string): string | null {
+function githubRepo(remoteUrl: string): string | null {
   const match = /github\.com[:/]([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/.exec(remoteUrl.trim());
   return match ? `${match[1]}/${match[2]}` : null;
 }

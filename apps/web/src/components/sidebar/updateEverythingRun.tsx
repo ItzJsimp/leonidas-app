@@ -30,7 +30,7 @@ export function useUpdateEverythingRun(): UpdateEverythingRun | null {
   return useAtomValue(updateEverythingRunAtom);
 }
 
-export function setUpdateEverythingRun(
+function setUpdateEverythingRun(
   update: (run: UpdateEverythingRun | null) => UpdateEverythingRun | null,
 ): void {
   appAtomRegistry.update(updateEverythingRunAtom, update);
@@ -42,7 +42,7 @@ function updateRunMachines(update: (machine: UpdateRunMachine) => UpdateRunMachi
   );
 }
 
-export function settleUpdateRunMachine(
+function settleUpdateRunMachine(
   environmentId: EnvironmentId,
   failure: string | null,
   {
@@ -233,7 +233,7 @@ function takeSavedUpdateEverythingResult(): typeof SavedResult.Type | null {
   }
 }
 
-export function showUpdateEverythingResult(result: UpdateEverythingResult): void {
+function showUpdateEverythingResult(result: UpdateEverythingResult): void {
   const view = getUpdateEverythingToastView(result, APP_VERSION);
   if (!view) return;
   toastManager.add(

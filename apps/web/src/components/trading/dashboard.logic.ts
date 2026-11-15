@@ -4,7 +4,7 @@ export type Range = "1M" | "3M" | "All";
 export const RANGES: readonly Range[] = ["1M", "3M", "All"];
 
 /** The Accounts preview shows this many rows, then a "See all" link. */
-export const ACCOUNT_PREVIEW_ROWS = 3;
+const ACCOUNT_PREVIEW_ROWS = 3;
 
 const WHOLE = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 

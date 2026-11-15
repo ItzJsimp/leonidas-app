@@ -45,12 +45,12 @@ import { controlWindowsTask, TASK_PREFIX, type TaskAction } from "./windowsTasks
 /** Groq model Auto-pick skills uses by default (`composerAutoPickGroqModel`). */
 const GROQ_FREE_MODEL = "qwen/qwen3.8-27b";
 /** The file the AIOS register script reads, so the tab and the register list the same app automations. */
-export const PUBLISHED_FILE = "automations/app-automations.json";
+const PUBLISHED_FILE = "automations/app-automations.json";
 /**
  * What each automation last sent, kept in the AIOS, not per install: the live app and the dev
  * copy share one AIOS, so a problem is sent once, not once per running app.
  */
-export const NOTIFIED_FILE = "automations/notified.json";
+const NOTIFIED_FILE = "automations/notified.json";
 const TICK = "1 minute";
 
 export class AutomationService extends Context.Service<
@@ -70,7 +70,7 @@ export class AutomationService extends Context.Service<
 >()("t3/automations/AutomationService") {}
 
 /** The Leonidas checkout under `<aios>/projects/` (Batch 12 renames it to leonidas-app), or null. */
-export function builderRepo(aiosRoot: string): string | null {
+function builderRepo(aiosRoot: string): string | null {
   for (const name of ["leonidas-app", "leonidas-code"]) {
     const repo = NodePath.join(aiosRoot, "projects", name);
     if (NodeFS.existsSync(NodePath.join(repo, ".git"))) return repo;
@@ -92,7 +92,7 @@ const fetchText = async (url: string): Promise<string | null> => {
   }
 };
 
-export const make = Effect.gen(function* () {
+const make = Effect.gen(function* () {
   const config = yield* ServerConfig.ServerConfig;
   const projectService = yield* ProjectService.ProjectService;
   const taskBoard = yield* TaskBoardService;

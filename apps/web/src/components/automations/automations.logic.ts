@@ -132,9 +132,9 @@ export function fromScheduledTask(task: ScheduledTask, environmentId: string): A
   };
 }
 
-export const needsYou = (row: AutomationRow) =>
+const needsYou = (row: AutomationRow) =>
   row.lastResult === "findings" || row.lastResult === "failed";
-export const isStopped = (row: AutomationRow) => row.enabled === false;
+const isStopped = (row: AutomationRow) => row.enabled === false;
 
 /** The status chip: stopped wins over the last result. */
 export function statusOf(row: AutomationRow): {
@@ -204,8 +204,8 @@ export interface Mark {
 }
 
 /** The window: 2 hours back, so the now line and the latest runs show, then 22 hours ahead. */
-export const TIMELINE_PAST_MS = 2 * 3_600_000;
-export const TIMELINE_MS = 24 * 3_600_000;
+const TIMELINE_PAST_MS = 2 * 3_600_000;
+const TIMELINE_MS = 24 * 3_600_000;
 /** Where the now line sits, 0 to 1. */
 export const NOW_X = TIMELINE_PAST_MS / TIMELINE_MS;
 const MAX_MARKS_PER_ROW = 48;

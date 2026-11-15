@@ -1,7 +1,7 @@
 // Type-to-focus: printable keys and pastes that land on no editable target go to
 // the composer, so the user can start typing anywhere in the chat.
 
-export const TYPE_TO_FOCUS_EDITABLE_SELECTOR = [
+const TYPE_TO_FOCUS_EDITABLE_SELECTOR = [
   "input",
   "textarea",
   "select",
@@ -24,7 +24,7 @@ const TYPE_TO_FOCUS_INTERACTIVE_SELECTOR = [
 ].join(",");
 // Popups match only while open or closing: some stay mounted when closed,
 // such as the chat header actions menu.
-export const TYPE_TO_FOCUS_FLOATING_LAYER_SELECTOR = [
+const TYPE_TO_FOCUS_FLOATING_LAYER_SELECTOR = [
   '[role="dialog"][aria-modal="true"]',
   '[data-slot="alert-dialog-popup"]:is([data-open],[data-ending-style])',
   '[data-slot="command-dialog-popup"]:is([data-open],[data-ending-style])',
@@ -38,7 +38,7 @@ export const TYPE_TO_FOCUS_FLOATING_LAYER_SELECTOR = [
   '[data-slot="autocomplete-popup"]:is([data-open],[data-ending-style])',
 ].join(",");
 
-export function eventPathContainsSelector(event: Event, selector: string): boolean {
+function eventPathContainsSelector(event: Event, selector: string): boolean {
   const path = event.composedPath();
   if (path.length === 0 && event.target) {
     path.push(event.target);
@@ -48,7 +48,7 @@ export function eventPathContainsSelector(event: Event, selector: string): boole
 
 const SECRET_REQUEST_SELECTOR = '[data-v2-item-type="secret_request"]';
 
-export function shouldRedirectInputToComposer(event: Event): boolean {
+function shouldRedirectInputToComposer(event: Event): boolean {
   if (event.defaultPrevented) return false;
   // Near a pending secret request, input is meant for its private field: it
   // must never land in the composer draft, which is persisted and sent.

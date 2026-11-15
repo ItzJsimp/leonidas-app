@@ -30,7 +30,7 @@ export const SKILL_MENTION_PATTERN = new RegExp(`${SKILL_MENTION_SOURCE}(?=\\s|$
  * chipped only at the very start of the text, where a provider reads them, and
  * the chip keeps the typed `/name` so the sent message is unchanged.
  */
-export const CHIPPED_SLASH_COMMANDS: ReadonlySet<string> = new Set(["goal"]);
+const CHIPPED_SLASH_COMMANDS: ReadonlySet<string> = new Set(["goal"]);
 export const SLASH_COMMAND_TOKEN_REGEX = /^\/([a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)?)(?=\s|$)/u;
 export function isChippedSlashCommand(name: string): boolean {
   return name.includes(":") || CHIPPED_SLASH_COMMANDS.has(name);

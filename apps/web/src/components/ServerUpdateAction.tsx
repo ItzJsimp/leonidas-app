@@ -68,7 +68,7 @@ export type ServerUpdateOutcome =
   | { readonly status: "failed"; readonly message: string };
 
 /** Toasts its success or failure unless `quiet`; never rejects. */
-export function useServerUpdate() {
+function useServerUpdate() {
   const updateServer = useAtomCommand(serverEnvironment.updateServer, { reportFailure: false });
   return async (
     target: ServerUpdateTarget,
@@ -168,9 +168,7 @@ export function ServerUpdatesAction({
   );
 }
 
-export function canUpdateServer(
-  result: AsyncResult.AsyncResult<AuthSessionState, unknown>,
-): boolean {
+function canUpdateServer(result: AsyncResult.AsyncResult<AuthSessionState, unknown>): boolean {
   if (result._tag !== "Success" || !result.value.authenticated) return false;
   return sessionGrantsScope(result.value, AuthEnvironmentMaintainScope);
 }
