@@ -16,7 +16,18 @@ try {
     $web = & $launcher -Mode web -Check
     if ($web.Mode -ne 'dev') { throw 'Web mode did not select single-origin dev' }
     & $launcher -Mode web -DryRun
-    Write-Output 'PASS: isolated home, profile, ports, title, environment restoration, web mode and dry-run'
+    $beforeProfile = $env:USERPROFILE
+    $sandbox = Join-Path ([IO.Path]::GetTempPath()) 'leonidas-first-run-test'
+    $first = & $launcher -Mode web -FirstRun -SandboxDir $sandbox -Check
+    if ($first.Home -ne (Join-Path $sandbox 't3')) { throw 'First-run home is not in the sandbox' }
+    if ($first.UserHome -ne (Join-Path $sandbox 'home')) { throw 'First-run user profile is not in the sandbox' }
+    if ($first.AutoBootstrapProject) { throw 'First-run still creates a project from the checkout' }
+    if ($check.UserHome -ne $beforeProfile -or -not $check.AutoBootstrapProject) { throw 'Default mode changed the user profile' }
+    if ($env:USERPROFILE -ne $beforeProfile) { throw 'First-run leaked the sandbox profile' }
+    $refused = $false
+    try { & $launcher -FirstRun -RefreshSnapshot -Check } catch { $refused = $true }
+    if (-not $refused) { throw 'First-run accepted a live snapshot' }
+    Write-Output 'PASS: isolated home, profile, ports, title, environment restoration, web mode, dry-run and first-run sandbox'
 } finally {
     $env:T3CODE_HOME = $beforeHome
     $env:T3CODE_PORT = $beforePort
