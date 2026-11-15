@@ -63,7 +63,7 @@ verifies the latest installer and installs it after you close the app normally.
 It preserves your existing projects and conversations. Run it once on each machine;
 the legacy updater cannot accept the lower development version number.
 
-Open **Settings → General → About → Update history** to browse patch notes for
+Open **Settings → About → Update history** to browse patch notes for
 current and older versions. In the desktop app, enable **Install updates when
 agents finish** to automatically restart after an update downloads and your
 agents stop working. Otherwise, choose when to install each downloaded update.
@@ -75,7 +75,7 @@ update fails. Download the new `.deb` and install it the same way.
 ### The `t3` command
 
 The desktop app includes the `t3` command-line tool. To run it from any
-terminal, open **Settings → General → About** and choose **Install** next to
+terminal, open **Settings → About → Command line (advanced)** and choose **Install** next to
 **t3 command**. On macOS and Linux it adds a `t3` link to a folder on your
 `PATH`; on Windows it adds the app's command folder to your `PATH`. Open a new
 terminal afterwards. **Remove** takes it off again. If you already have `t3`
@@ -115,7 +115,7 @@ before sharing.
 
 ## Providers
 
-Open **Settings → Providers** in the web or desktop app, select the environment,
+Open **Settings → AI services** in the web or desktop app, select the environment,
 and enable the provider you want. Installation, login, and configuration belong
 to that environment's machine, even when you connect from a phone or another
 computer.
@@ -124,19 +124,19 @@ computer.
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Codex       | [Connect with ChatGPT](./providers-codex.md#connect-with-chatgpt), or install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`. |
 | Claude      | Install [Claude Code](https://claude.com/product/claude-code), then run `claude auth login`.                                                              |
-| Cursor      | [Sign in with Cursor](./cursor.md#sign-in) in **Settings → Providers → Cursor**, or set `CURSOR_API_KEY` (requires secrets). No CLI is required.          |
+| Cursor      | [Sign in with Cursor](./cursor.md#sign-in) in **Settings → AI services → Cursor**, or set `CURSOR_API_KEY` (requires secrets). No CLI is required.        |
 | Grok Build  | Install [Grok Build CLI](https://x.ai/cli), then run `grok login`.                                                                                        |
 | OpenCode    | Install [OpenCode](https://opencode.ai), then run `opencode auth login`.                                                                                  |
 | Antigravity | Install and sign in with Google from Leonidas's provider settings.                                                                                        |
 | Pi          | Install [Pi](https://pi.dev), then run `pi` once to finish its login or API-key setup.                                                                    |
-| Muse Code   | Install [Muse Code](https://dev.meta.ai/docs/muse-code) on the server, run `muse login`, then enable it in Settings → Providers.                          |
+| Muse Code   | Install [Muse Code](https://dev.meta.ai/docs/muse-code) on the server, run `muse login`, then enable it in Settings → AI services.                        |
 
 Provider CLIs must be on the server's `PATH`. If Leonidas cannot find one, set its
 **Binary path** in provider settings, especially when using a version manager.
 Codex connected through ChatGPT, Cursor via SDK, and Antigravity use managed runtimes without a `PATH` entry.
 
 Leonidas warns when a provider version has known compatibility problems with your
-release. Check **Settings → Providers** on that environment for the recommended
+release. Check **Settings → AI services** on that environment for the recommended
 version or range. When its package manager supports installing a specific version,
 you can install the recommendation there. Otherwise use the provider's installer
 on the environment's machine. An unlisted version is unverified.

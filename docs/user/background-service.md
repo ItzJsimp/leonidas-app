@@ -122,12 +122,11 @@ For failures after signing in to T3 Connect, see
 
 ## Reclaim database space
 
-T3 Code removes superseded internal history on its own while it runs; your
+Leonidas removes superseded internal history on its own while it runs; your
 conversations are kept. Databases created before this shrank automatically
 still hold the freed space on disk until a one-time offline repair returns it
-and turns on automatic shrinking. Settings > Storage (web and desktop) or
-Settings > Maintenance (mobile) suggests the repair when at least 1 GiB can be
-reclaimed.
+and turns on automatic shrinking. Settings > Maintenance (mobile) suggests the repair when at least 1 GiB can be
+reclaimed. The web and desktop Settings pages show no such notice in this version.
 
 Run `t3 doctor` on the machine that hosts the environment. It reports the
 database size and the space it can reclaim, then asks which repairs to run;

@@ -6,11 +6,11 @@ which models and account access are available through this agent.
 
 ## Set up Antigravity
 
-On web or desktop, open **Settings > Providers**, choose the environment that runs
+On web or desktop, open **Settings > AI services**, choose the environment that runs
 your project, and enable Antigravity. Install its runtime there, then choose
 **Sign in** and complete the browser sign-in. Wait for Leonidas to confirm
 account access and load models before starting a thread. Once the runtime is installed,
-you can also sign in from **Settings > Provider accounts** in the mobile app.
+you can also sign in from **Settings > AI accounts** in the mobile app.
 
 Installation continues if you leave settings or reconnect. Setup requires
 permission to operate the environment; update an older server if it does not offer
@@ -106,7 +106,7 @@ inspect activity.
 ## Accounts and removal
 
 Add an Antigravity provider instance for each Google account in
-**Settings > Providers** on web or desktop. Each has its own sign-in; downloaded
+**Settings > AI services** on web or desktop. Each has its own sign-in; downloaded
 runtimes are shared on the environment.
 
 | Action                    | Effect                                                            |
@@ -134,7 +134,7 @@ until a session, a refresh, or a sign-out reports something new.
 
 To check access and reload models, use **Refresh provider status** in web or desktop
 provider settings, or **Refresh models** in mobile thread settings. If asked to
-sign in again, use provider settings on web or desktop, or **Provider accounts** on mobile.
+sign in again, use provider settings on web or desktop, or **AI accounts** on mobile.
 
 If Google reports `SUBSCRIPTION_REQUIRED`, an account restriction, or a usage limit,
 follow the provider's message and any retry time. See [Google's account plans][plans]

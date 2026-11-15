@@ -103,7 +103,7 @@ identify empty sections and a collapsed settled shelf.
 
 Drag within the pinned or active section to change its order. Other rows slide aside to show the
 spot where the thread will land. Drops into either section keep the position you choose. On
-mobile, open a thread's menu and choose **Arrange threads**. Drag a handle within or between
+mobile, open a thread's menu and choose **Arrange chats…**. Drag a handle within or between
 **Pinned** and **Active** to reorder, pin, or unpin. Drop onto the **Settled** divider to
 settle a thread. The dragged card shows the action before you release it. Expand **Snoozed**
 or **Settled** to drag a parked thread back into either live section. Each drop saves; close the sheet to return to the thread list.
@@ -151,7 +151,7 @@ open.
 ### Fold working threads (beta)
 
 Turn on **Settings → General → Working section (beta)** on web and desktop, or **Settings →
-Thread behavior → Working section** on iOS and Android, to move threads that are working or
+Chat behavior → Working section** on iOS and Android, to move threads that are working or
 monitoring into a collapsed **Working** section below the active list. A thread returns to the top
 of the active list when it finishes, fails, or needs an approval or answer. The Working section
 lists the thread you last sent work to first. Pinned threads stay in the pinned section. Each
@@ -187,7 +187,7 @@ threads whose pull request merged. A closed pull request can also settle an idle
 thread. An empty thread's inactivity counts from when it was created.
 Work in progress, pending questions or approvals, and live background work
 prevent automatic settlement. An open pull request does not prevent inactivity
-settlement unless you turn on **Keep threads with a PR** in **Settings → General**,
+settlement unless you turn on the `sidebarAutoSettleKeepPullRequests` setting in the server's `settings.json`,
 but an old closed or merged pull request does not settle work you
 resumed after it closed. Only your own messages count as resuming. A turn that
 finished background work or a pull request watch starts on its own does not.
@@ -197,7 +197,7 @@ choose **Auto-settle behavior**, and pick **Disabled**. The current option is ch
 **Enabled** to return to the usual rules. Manual settle, snooze, and archive still work while it
 is disabled.
 
-Change these rules in **Settings → General** on web and desktop, or **Settings → Thread behavior** on mobile.
+Change these rules in **Settings → Chats** on web and desktop, or **Settings → Chat behavior** on mobile.
 They continue to run when your apps are closed. On web and desktop, choose an environment at the
 top to change only its rules, or **All environments** to update connected environments together.
 Mixed values show where the selected environments disagree. Mobile applies these
@@ -212,7 +212,7 @@ apps are closed. Settled threads keep their saved links. Update the server if
 automatic branch links do not appear.
 
 On web and desktop, right-click a pull request link in a thread and choose
-**Link to thread** to select a different PR. Use **Unlink from thread** on the
+**Link to chat** to select a different PR. Use **Unlink from chat** on the
 same link to return to the branch PR, if one exists.
 The linked pull request participates in automatic settlement.
 
@@ -222,7 +222,7 @@ On web and desktop, open the command palette with `Cmd/Ctrl+K` to search threads
 across connected environments. Message search starts after two characters and
 includes your messages and final agent responses.
 
-Use **Settings → Keybindings** to find or customize shortcuts for searching files
+Use **Settings → Keyboard shortcuts** to find or customize shortcuts for searching files
 and copying a thread reference. A copied reference uses the thread's pull request
 link when available, otherwise its thread ID. See [keybindings](./keybindings.md)
 for custom configuration.
@@ -238,9 +238,8 @@ Queued messages stay saved while the limit blocks the thread. They run after
 the continuation finishes. If the queue was held by a restart, resume it then.
 
 When the provider reports a reset time, choose **Resume at reset** to schedule a
-continuation. You can cancel it from the thread. Enable **Auto-resume limited
-threads** in **Settings → General** on web and desktop, or **Settings → Thread
-behavior** on mobile, to schedule limit stops by default.
+continuation. You can cancel it from the thread. Enable **Continue paused chats when the limit ends** in **Settings → Chats** on web and desktop, or
+**Auto-resume limited chats** in **Settings → Chat behavior** on mobile, to schedule limit stops by default.
 The environment must be running when the reset arrives; it resumes overdue
 continuations after a restart. Stopping the thread, sending a new message,
 archiving, or settling it prevents a pending continuation from starting.
@@ -267,7 +266,7 @@ On web and desktop, the thread details card lists the web servers that the
 thread's terminals or its Claude agent started, with their ports. A server the
 agent started stays listed after the agent's turn ends.
 Select a server to open it in the browser panel. **Stop** ends the server's job
-and keeps the agent, the terminal, and T3 Code running. Stop needs terminal
+and keeps the agent, the terminal, and Leonidas running. Stop needs terminal
 access to the environment and is not available on Windows.
 
 ## Snooze until later

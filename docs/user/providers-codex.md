@@ -4,7 +4,7 @@ Use your ChatGPT plan or an existing Codex CLI login to code in Leonidas.
 
 ## Connect with ChatGPT
 
-Connect during onboarding or in **Settings → Providers**. For a remote machine,
+Connect during onboarding or in **Settings → AI services**. For a remote machine,
 select that environment first. Leonidas handles Codex installation; sign in on
 OpenAI and allow sharing of your ChatGPT plan.
 
@@ -27,7 +27,7 @@ covers installation and custom configuration.
 
 ## Use multiple accounts
 
-Add another ChatGPT account in **Settings → Providers**, then select the account
+Add another ChatGPT account in **Settings → AI services**, then select the account
 from the thread's model picker. Compatible accounts can continue the same thread.
 Connecting accounts through Leonidas leaves your CLI login unchanged.
 
@@ -45,7 +45,7 @@ mkdir -p ~/.codex_personal
 CODEX_HOME=~/.codex_personal codex login
 ```
 
-Then add a second Codex instance in **Settings > Providers**:
+Then add a second Codex instance in **Settings > AI services**:
 
 | Instance       | CODEX_HOME path | Shadow home path    |
 | -------------- | --------------- | ------------------- |

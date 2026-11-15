@@ -20,7 +20,7 @@ prompts in this thread supply completions as you type. Generic acknowledgements
 such as "yes" are excluded. If the conversation gives no relevant suggestion,
 the empty composer stays blank. Suggestions pause while the agent is working.
 Press Tab to accept or Escape to dismiss until you edit the draft.
-Suggestions never send a message. Disable Prompt prediction in Settings > General.
+Suggestions never send a message. Disable **Message prediction** in Settings > Message box.
 Suggestions currently appear only in a single plain paragraph, outside command menus.
 
 The host checks sibling LeonidasAI and leonidas-scribe folders, then leonidas-scribe
@@ -67,7 +67,7 @@ See [images and videos](#images-and-videos-in-messages) for previewing and savin
 
 ## Send while the agent is working
 
-On web and desktop, choose **Settings → General → Follow-up behavior** to queue
+On web and desktop, choose **Settings → Message box → Sending a message during a reply** to queue
 new messages for a later turn or steer the running turn immediately. The setting
 applies to this client; already queued messages keep their place. Queued messages
 are saved on the server and can be edited, reordered, or removed above the composer.
@@ -82,7 +82,7 @@ Use `Cmd+Shift+Enter` on macOS or `Ctrl+Shift+Enter` on Windows and Linux to sen
 the oldest queued message as a steer. This leaves the current draft intact and
 requires an active turn that supports steering. If that shortcut sends the opposite
 action for your draft, move focus outside the composer to steer the queued message. Change
-`thread.steerQueuedMessage` in **Settings → Keybindings** to use another shortcut.
+`thread.steerQueuedMessage` in **Settings → Keyboard shortcuts** to use another shortcut.
 
 Press `Option+Up` on macOS or `Alt+Up` on Windows and Linux with the cursor at the
 start of the composer to edit the most recently queued message. Change
@@ -102,7 +102,7 @@ device until you sign back into the same account.
 
 ## Custom models
 
-On web and desktop, use Settings → Providers → **Models** to add an unlisted model with a custom
+On web and desktop, use Settings → Models to add an unlisted model with a custom
 name and options. Only options supported by the provider integration affect turns. Antigravity
 uses its account catalog and does not support custom models.
 
@@ -259,7 +259,7 @@ Type `/` for commands or `$` to add a skill from the selected environment and
 provider. On mobile, both are also available before starting a thread on
 **New task**.
 
-The slash menu also includes skills unless you turn off **Settings → General →
+The slash menu also includes skills unless you turn off **Settings → Message box →
 Show skills in slash menu**. Only skills enabled for the provider are listed.
 
 After you add or change skills, plugins, or MCP servers, use **Restart agent
@@ -272,11 +272,11 @@ Provider commands must start the message to run. Leonidas commands such as
 Send `/compact` in an existing conversation to reduce context usage when the
 provider supports it. Web and desktop also offer compaction from the context meter.
 
-Enable **Compact idle Claude threads (beta)** in **Settings > General** to compact
+Turn on the beta `compactIdleThreads` setting in the server's `settings.json` to compact
 an idle Claude thread with at least 200,000 tokens of context shortly before its
 prompt cache expires, so coming back does not reprocess the whole conversation.
 The cache lasts 1 hour on Claude subscriptions and 5 minutes with an API key. The
-compaction appears in the thread as a `/compact` turn sent by T3 Code.
+compaction appears in the thread as a `/compact` turn sent by Leonidas.
 
 ## Goals
 

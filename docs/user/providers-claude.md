@@ -19,7 +19,7 @@ mkdir -p ~/.claude_personal
 CLAUDE_CONFIG_DIR=~/.claude_personal claude auth login
 ```
 
-Add another Claude instance in **Settings > Providers**:
+Add another Claude instance in **Settings > AI services**:
 
 | Instance        | Binary path | CLAUDE_CONFIG_DIR path |
 | --------------- | ----------- | ---------------------- |
@@ -83,12 +83,12 @@ tool, which refuses skills reserved for manual invocation.
 
 To show Claude task lists in the web and desktop apps, add
 `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` under **Variables** in the Claude instance's
-**Environment** section in **Settings > Providers**. Unfinished tasks stay visible
+**Environment** section in **Settings > AI services**. Unfinished tasks stay visible
 between turns in the same Claude session.
 
 ## OpenRouter
 
-Add an **OpenRouter** instance in **Settings > Providers**, create an API key at
+Add an **OpenRouter** instance in **Settings > AI services**, create an API key at
 [openrouter.ai/keys](https://openrouter.ai/keys), and paste it into the API key field.
 OpenRouter runs through the Claude Code runtime, so Claude Code CLI must be installed
 on the machine running the Leonidas environment; an OpenRouter key is enough for model

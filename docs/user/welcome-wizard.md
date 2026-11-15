@@ -30,7 +30,7 @@ You can add more computers before continuing:
   the pairing link. You can also run `t3 serve --host <address>` and use
   `t3 pair` when the server is already reachable on your network.
 
-A computer marked **Client not supported** runs a T3 Code version that cannot
+A computer marked **Client not supported** runs a Leonidas version that cannot
 talk to this app. The message under its name says which side to update.
 
 Saved computers and computers discovered through T3 Connect are selected by

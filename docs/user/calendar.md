@@ -5,7 +5,7 @@ never changes it. There are two ways to connect a calendar.
 
 ## Paste a calendar link (works with any app)
 
-1. Open **Settings → Integrations → Calendars**, or click **Connect a calendar** on Today.
+1. Open **Settings → Browser → Calendars**, or click **Connect a calendar** on Today.
 2. Pick your app (Google Calendar, Outlook, Apple iCloud or Other). Follow the steps on screen to
    copy your private calendar link.
 3. Paste the link. It can start with `https://` or `webcal://`.
@@ -13,7 +13,7 @@ never changes it. There are two ways to connect a calendar.
 5. Give the calendar a name and a color. Click **Save calendar**.
 
 You can connect more than one calendar. To remove one, click the bin icon next to it in
-**Settings → Integrations → Calendars**.
+**Settings → Browser → Calendars**.
 
 A calendar link is a secret. Anyone who has it can read your calendar. Leonidas keeps it on your
 computer and never shows it again after you save it. If a link leaks, make a new one in your
@@ -53,5 +53,5 @@ You can also set the two values as environment variables before you start Leonid
 3. Go back to Leonidas. Tick the calendars to show. Click **Add**.
 
 Leonidas keeps the sign-in on your computer. To sign out, remove the Google calendars in
-**Settings → Integrations → Calendars**. You can also remove the app at
+**Settings → Browser → Calendars**. You can also remove the app at
 <https://myaccount.google.com/permissions>.

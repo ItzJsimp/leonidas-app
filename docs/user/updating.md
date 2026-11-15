@@ -28,7 +28,7 @@ desktop apps do not wait for npm. The confirmation lists each machine it skips
 and why, such as a machine that is offline or needs a manual update. Use the
 notice or **Settings → Connections** for those.
 
-If a desktop app restarts on its old version, T3 Code tells you the update did
+If a desktop app restarts on its old version, Leonidas tells you the update did
 not apply. It does not install that version again on its own, even when another
 device asks. Use the update button on that machine to retry.
 
@@ -41,7 +41,7 @@ below.
 Server updates restart the connection and can interrupt active agents and
 terminal commands. Saved threads, settings, and project files remain.
 
-**Settings → General → Continue threads after restarts** is on by default.
+**Settings → Maintenance → Continue chats after restarts** is on by default.
 It resumes supported active threads after an update, crash, or machine
 restart. Changes are saved to connected environments that support this setting;
 update older servers first. If a supported environment was offline or has a
@@ -113,15 +113,15 @@ directory and pair with the running server.
 
 ## Update providers
 
-**Settings → Providers** shows provider updates for the selected environment.
+**Settings → AI services** shows provider updates for the selected environment.
 **Update all** updates every outdated provider on every connected environment
 at once. Hover it to see which providers it will update. Providers that only
 offer a manual update command are not included.
 
-After a successful provider CLI update, T3 Code refreshes model discovery for
+After a successful provider CLI update, Leonidas refreshes model discovery for
 every enabled instance of that provider using its own configuration. Connected
 clients receive the refreshed catalogs automatically. Provider update checks
-must be enabled to download the latest T3 Code model catalog.
+must be enabled to download the latest Leonidas model catalog.
 
 Provider updates do not restart running chats. An existing session can keep
 using the previous CLI until it ends. If discovery fails, check the provider
@@ -129,7 +129,7 @@ status and refresh it again.
 
 ## Mobile updates
 
-To update an environment from your phone, open **Settings → Environments** and
+To update an environment from your phone, open **Settings → Computers** and
 select it. **Check for updates** finds the latest release on that environment's
 current release channel. Keep the app open while the environment updates and
 reconnects. Hosts that cannot update remotely show instructions for updating on
@@ -140,7 +140,7 @@ These controls require a connected environment and permission to operate it.
 Provider update checks and restart continuation preferences are in
 **Settings → Maintenance**. If provider update checks are disabled, enable them
 there before refreshing to find newer versions. The same setting controls whether
-T3 Code downloads model catalog updates, so with it off new models may not appear
+Leonidas downloads model catalog updates, so with it off new models may not appear
 until you enable it and refresh provider status.
 
 Install App Store or Google Play releases as usual. The mobile app can also

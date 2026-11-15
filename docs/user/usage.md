@@ -2,7 +2,7 @@
 
 Open **Usage** from the sidebar or the command palette, or press `mod+u` on web and
 desktop when the terminal is not focused. Customize `usage.open` in
-**Settings → Keybindings**.
+**Settings → Keyboard shortcuts**.
 
 ## Understand your usage
 
@@ -25,7 +25,7 @@ This includes headless T3 sessions and desktop usage across machines; the same a
 once across connected environments. Without an accessible CLI login, Leonidas shows a
 notice instead of incomplete local totals. T3 does not estimate missing tokens from conversation text.
 On macOS, choose **Enable Cursor usage** on Usage to allow T3 to read your existing CLI login
-from Keychain. You can turn it off in **Settings → Providers → Usage providers**. macOS may ask
+from Keychain. You can turn it off in **Settings → AI services → Usage providers**. macOS may ask
 you to allow access on the server Mac.
 
 Usage includes each configured account's history, including disabled accounts. Custom homes follow
@@ -131,7 +131,7 @@ using a proxy through `ANTHROPIC_AUTH_TOKEN`.
 
 ## Connect a CLIProxyAPI hub
 
-To see pooled accounts, open **Settings → Providers → Usage providers → Add hub**. Choose the
+To see pooled accounts, open **Settings → AI services → Usage providers → Add hub**. Choose the
 environment that will connect to the hub and enter its URL and management key.
 
 The accounts appear under **Usage → Limits**. Codex accounts show banked reset credits; select an
@@ -155,4 +155,4 @@ press `C`, `T`, or `L` for Cost, Tokens, or Limits while not typing in a field.
 Use `Ctrl+Shift+1/2/3/4` (`Cmd+Shift+1/2/3/4` on macOS) for the past
 24 hours, 7 days, 30 days, or 90 days. Period shortcuts do nothing on Limits.
 Press `Escape` to return to the previous page. Customize these shortcuts in
-**Settings → Keybindings**.
+**Settings → Keyboard shortcuts**.
