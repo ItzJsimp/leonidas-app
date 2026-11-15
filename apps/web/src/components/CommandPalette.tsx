@@ -206,7 +206,6 @@ import {
   buildThreadActionItems,
   buildLinkedThreadActionItems,
   buildCommandPaletteRows,
-  enumerateCommandPaletteItems,
   findHighlightedCommandPaletteItem,
   groupProjectsByDevice,
   type CommandPaletteActionItem,
@@ -1310,7 +1309,6 @@ function OpenCommandPaletteDialog(props: {
       group.memberProjects.map((member) => ({ ...member, displayName: group.displayName })),
     ),
     primaryEnvironmentId,
-    leadEnvironmentId: contextualProjectRef?.environmentId ?? null,
   });
   const deviceHeadingById = new Map(
     environments.map((environment) => {
@@ -1332,67 +1330,65 @@ function OpenCommandPaletteDialog(props: {
     const listedProjects = deviceProjectSections.flatMap((section) =>
       section.projects.filter((project) => !isScratch(project)),
     );
-    const projectItems = enumerateCommandPaletteItems(
-      buildProjectActionItems({
-        projects: listedProjects,
-        valuePrefix: "new-thread-in",
-        searchTerms: (project) => {
-          const group = projectGroupByMemberKey.get(`${project.environmentId}:${project.id}`);
-          const location = projectEnvironmentLocationById.get(project.environmentId);
-          return [
-            ...(group?.memberProjects.flatMap((member) => [member.title, member.workspaceRoot]) ??
-              []),
-            ...(location ? [location.label] : []),
-          ];
-        },
-        renderDescription: (project) => {
-          const location = projectEnvironmentLocationById.get(project.environmentId) ?? {
-            kind: "remote",
-            label: "Another computer",
-            machine: "server" as const,
-          };
-          return (
-            <span className="flex min-w-0 items-center gap-1">
-              <span className="inline-flex min-w-0 items-center gap-1">
-                {location.kind === "remote" ? (
-                  <EnvironmentMachineIcon
-                    aria-hidden
-                    kind={location.machine}
-                    className={COMMAND_PALETTE_META_ICON_CLASS}
-                  />
-                ) : null}
-                <span className="truncate">{location.label}</span>
-              </span>
-              <CommandPaletteMetaDot />
-              <span className="truncate">{project.workspaceRoot}</span>
+    const projectItems = buildProjectActionItems({
+      projects: listedProjects,
+      valuePrefix: "new-thread-in",
+      searchTerms: (project) => {
+        const group = projectGroupByMemberKey.get(`${project.environmentId}:${project.id}`);
+        const location = projectEnvironmentLocationById.get(project.environmentId);
+        return [
+          ...(group?.memberProjects.flatMap((member) => [member.title, member.workspaceRoot]) ??
+            []),
+          ...(location ? [location.label] : []),
+        ];
+      },
+      renderDescription: (project) => {
+        const location = projectEnvironmentLocationById.get(project.environmentId) ?? {
+          kind: "remote",
+          label: "Another computer",
+          machine: "server" as const,
+        };
+        return (
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="inline-flex min-w-0 items-center gap-1">
+              {location.kind === "remote" ? (
+                <EnvironmentMachineIcon
+                  aria-hidden
+                  kind={location.machine}
+                  className={COMMAND_PALETTE_META_ICON_CLASS}
+                />
+              ) : null}
+              <span className="truncate">{location.label}</span>
             </span>
-          );
-        },
-        icon: projectFaviconIcon,
-        renderTrailingContent: (project) => (
-          <Button
-            variant="ghost-destructive"
-            size="icon-xs"
-            aria-label={`Remove project ${project.displayName}`}
-            title="Remove project (files stay on disk)"
-            className="ml-auto shrink-0"
-            onClick={(event) => {
-              event.stopPropagation();
-              void removeProject(
-                project,
-                projectEnvironmentLocationById.get(project.environmentId)?.label,
-              );
-            }}
-          >
-            <Trash2Icon aria-hidden className="size-3.5" />
-          </Button>
-        ),
-        // A row is one project on one computer: the chat starts exactly there.
-        runProject: async (project) => {
-          await handleNewThread(scopeProjectRef(project.environmentId, project.id));
-        },
-      }),
-    );
+            <CommandPaletteMetaDot />
+            <span className="truncate">{project.workspaceRoot}</span>
+          </span>
+        );
+      },
+      icon: projectFaviconIcon,
+      renderTrailingContent: (project) => (
+        <Button
+          variant="ghost-destructive"
+          size="icon-xs"
+          aria-label={`Remove project ${project.displayName}`}
+          title="Remove project (files stay on disk)"
+          className="ml-auto shrink-0 opacity-0 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 [[data-slot=command-item]:hover_&]:opacity-100 [[data-slot=command-item][data-highlighted]_&]:opacity-100"
+          onClick={(event) => {
+            event.stopPropagation();
+            void removeProject(
+              project,
+              projectEnvironmentLocationById.get(project.environmentId)?.label,
+            );
+          }}
+        >
+          <Trash2Icon aria-hidden className="size-3.5" />
+        </Button>
+      ),
+      // A row is one project on one computer: the chat starts exactly there.
+      runProject: async (project) => {
+        await handleNewThread(scopeProjectRef(project.environmentId, project.id));
+      },
+    });
     const rows = projectItems.map((item, index) => ({
       environmentId: listedProjects[index]!.environmentId,
       item,

@@ -4,7 +4,6 @@ import {
   type EnvironmentId,
   type FilesystemBrowseEntry,
   type KeybindingCommand,
-  THREAD_JUMP_KEYBINDING_COMMANDS,
 } from "@t3tools/contracts";
 import { filterFilesystemBrowseEntries } from "@t3tools/client-runtime/state/filesystem";
 import type { SidebarThreadSortOrder } from "@t3tools/contracts/settings";
@@ -276,18 +275,6 @@ export function findHighlightedCommandPaletteItem(
   return null;
 }
 
-export function enumerateCommandPaletteItems(
-  items: ReadonlyArray<CommandPaletteActionItem>,
-): CommandPaletteActionItem[] {
-  return items.map((item, index) => {
-    const shortcutCommand = THREAD_JUMP_KEYBINDING_COMMANDS[index];
-    if (shortcutCommand) return { ...item, shortcutCommand };
-
-    const { shortcutCommand: _shortcutCommand, ...itemWithoutShortcut } = item;
-    return itemWithoutShortcut;
-  });
-}
-
 export type CommandPaletteMode = "root" | "root-browse" | "submenu" | "submenu-browse";
 
 export type CommandPaletteProject = Project & { readonly displayName: string };
@@ -341,13 +328,12 @@ export function buildProjectActionItems(input: {
 }
 
 /**
- * One section per computer, so each computer lists all of its own projects. Order: the computer of
- * the current project (Enter keeps its target), then this computer, then the rest as they come.
+ * One section per computer, so each computer lists all of its own projects. This computer comes
+ * first, then the others as they come.
  */
 export function groupProjectsByDevice<P extends { readonly environmentId: EnvironmentId }>(input: {
   readonly projects: ReadonlyArray<P>;
   readonly primaryEnvironmentId: EnvironmentId | null;
-  readonly leadEnvironmentId: EnvironmentId | null;
 }): Array<{ readonly environmentId: EnvironmentId; readonly projects: P[] }> {
   const byEnvironment = new Map<EnvironmentId, P[]>();
   for (const project of input.projects) {
@@ -356,11 +342,7 @@ export function groupProjectsByDevice<P extends { readonly environmentId: Enviro
     else byEnvironment.set(project.environmentId, [project]);
   }
   const rank = (environmentId: EnvironmentId) =>
-    environmentId === input.leadEnvironmentId
-      ? 0
-      : environmentId === input.primaryEnvironmentId
-        ? 1
-        : 2;
+    environmentId === input.primaryEnvironmentId ? 0 : 1;
   // Array.sort is stable: computers of equal rank keep the order they first appeared in.
   return [...byEnvironment]
     .map(([environmentId, projects]) => ({ environmentId, projects }))
