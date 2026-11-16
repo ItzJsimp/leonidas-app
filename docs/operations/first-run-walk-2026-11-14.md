@@ -1,0 +1,54 @@
+# First-run walk as a non-coder (2026-11-14 scan, walked 2026-11-15)
+
+One walk of the first launch, done as a person who has never used a terminal. The goal was one useful guided build. Severity uses the scale in the [ux-heuristics skill](../../.agents/skills/ux-heuristics/SKILL.md): 0 none, 1 cosmetic, 2 minor, 3 major, 4 catastrophic.
+
+## Result
+
+- **Score:** 6 of 10. No severity 4 issue was seen. Two severity 3 issues block a first-time browser user at the pairing screen.
+- **Guided build:** not reached. The walk stopped at "Start my first chat". That button creates a folder in the real home folder and sends a prompt on a real AI subscription. Both are outside the rules of this walk.
+- **Best part:** the 3-step setup and the "Finish setup" list are clear. Each step has one main action and plain labels.
+
+## Setup and limits
+
+- **Server:** `scripts/dev-runner.ts dev` in web mode, `T3CODE_HOME` set to a new empty folder outside the repository, port offset 21000 (server 34773, web 26733). No other session used these ports.
+- **Browser:** the default profile first. It held old client settings for the same origin from 2026-10-15, so the walk restarted in the incognito profile.
+- **Not a clean user:** the server found the parent AIOS and the Claude and ChatGPT sign-ins of this computer. So the wizard did not open on its own, and setup step 2 showed both accounts as Ready. Finding F6 covers this.
+- **Not walked:** the packaged desktop installer, the Claude sign-in for a user with no Claude app, and the first chat itself.
+
+## Screens visited
+
+| #   | Screen                                       | Screenshot                                                                                     | What a new user sees                                                                     | Stop?             |
+| --- | -------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------- |
+| 1   | Start splash                                 | [01-splash.png](./first-run-walk-2026-11-14/01-splash.png)                                     | "Sharpening the spears", a tip about a composer the user has not seen                    | No                |
+| 2   | Pairing, idle                                | [02-pair-idle.png](./first-run-walk-2026-11-14/02-pair-idle.png)                               | "Enter a connection code". No code, and no hint where a code comes from                  | **Yes** (F1)      |
+| 3   | Pairing, wrong code                          | [03-pair-wrong-code.png](./first-run-walk-2026-11-14/03-pair-wrong-code.png)                   | "Open Settings, then Connections, and scan the new code". Settings is behind this screen | **Yes** (F2)      |
+| 4   | First screen after pairing (default profile) | [04-first-screen-consent.png](./first-run-walk-2026-11-14/04-first-screen-consent.png)         | Privacy dialog with 8 bullets and an "Update Available: Claude" toast, no welcome        | Slows (F5)        |
+| 5   | Setup step 1, You                            | [05-wizard-step1-you.png](./first-run-walk-2026-11-14/05-wizard-step1-you.png)                 | Name, AI name, AI folder. Clear                                                          | No                |
+| 6   | Setup step 2, AI account                     | [06-wizard-step2-account.png](./first-run-walk-2026-11-14/06-wizard-step2-account.png)         | Text says "ChatGPT plan", card says "Codex"                                              | Slows (F7)        |
+| 7   | Setup step 3, About you                      | [07-wizard-step3-about-you.png](./first-run-walk-2026-11-14/07-wizard-step3-about-you.png)     | "Answers become your identity file in the AIOS"                                          | Slows (F8)        |
+| 8   | Tour and Finish setup list                   | [08-tour-and-finish-setup.png](./first-run-walk-2026-11-14/08-tour-and-finish-setup.png)       | "A quick tour of the AIOS", Builder and Developer in the menu                            | Slows (F8, F10)   |
+| 9   | First chat card                              | [09-first-chat-card.png](./first-run-walk-2026-11-14/09-first-chat-card.png)                   | "Your AI asks about 8 short questions". Clear                                            | Walk stopped here |
+| 10  | Leonidas Chat link                           | [10-chat-link-reopens-wizard.png](./first-run-walk-2026-11-14/10-chat-link-reopens-wizard.png) | Setup opens again at step 1, typed name lost                                             | Slows (F9)        |
+
+The personal folder path in screenshots 5 and 10 and the account email in screenshot 6 are covered.
+
+## Findings
+
+| ID  | Finding                                                                                                                                                            | Severity                          | Heuristic | One-line fix                                                                        | Card                                                                                                                                                    |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- | --------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1  | The pairing screen asks for a code and does not say where a code comes from.                                                                                       | 3                                 | H1, H6    | Name the source of the code on the idle screen.                                     | Existing: [fix-the-pairing-screen-so-a-first-time-user-can-connect](../../../../tasks/fix-the-pairing-screen-so-a-first-time-user-can-connect.md)       |
+| F2  | The wrong-code message sends the user to Settings, which is behind the same screen, and says "scan" next to a paste field.                                         | 3                                 | H9, H4    | Point to the link that the terminal or desktop app shows at start, and say "paste". | [break-the-pairing-error-loop-for-a-first-time-web-user](../../../../tasks/break-the-pairing-error-loop-for-a-first-time-web-user.md)                   |
+| F3  | A new connection link opened in the same pairing tab does nothing until Reload app.                                                                                | 2                                 | H1        | Start the pairing exchange when the `#token=` part changes.                         | [pair-when-a-new-connection-link-opens-in-an-open-pairing-tab](../../../../tasks/pair-when-a-new-connection-link-opens-in-an-open-pairing-tab.md)       |
+| F4  | Splash tips speak to an existing user ("both machines", "the Skills button above the composer", "press Tab").                                                      | 1                                 | H2        | Show only tips that make sense before the first chat.                               | No card: cosmetic, add it to the next copy pass.                                                                                                        |
+| F5  | The first screen stacks a privacy dialog and a Claude update toast before any orientation.                                                                         | 2                                 | H8        | Hold AI-tool update toasts and the usage question until after the first chat.       | [hold-the-update-toast-and-usage-question-until-first-setup-ends](../../../../tasks/hold-the-update-toast-and-usage-question-until-first-setup-ends.md) |
+| F6  | An isolated dev server with an empty home still loads the parent AIOS and the computer's AI sign-ins, so the wizard does not open on its own.                      | 0 for users, blocks test evidence | none      | Add one command for a clean first-run state with no AIOS and no sign-in.            | [give-first-run-walks-a-clean-state-with-no-aios-or-ai-accounts](../../../../tasks/give-first-run-walks-a-clean-state-with-no-aios-or-ai-accounts.md)   |
+| F7  | Setup step 2 says "ChatGPT plan", but the account card says "Codex".                                                                                               | 2                                 | H4, H2    | Label the card "ChatGPT" in user-facing text.                                       | [use-one-name-for-the-chatgpt-account-in-first-setup](../../../../tasks/use-one-name-for-the-chatgpt-account-in-first-setup.md)                         |
+| F8  | Setup step 3 and the tour use "AIOS" and never say what it is.                                                                                                     | 2                                 | H2        | Say "your AI's folder", as step 1 does, or define AIOS once.                        | [explain-or-replace-the-word-aios-in-first-setup-and-the-tour](../../../../tasks/explain-or-replace-the-word-aios-in-first-setup-and-the-tour.md)       |
+| F9  | Setup has no close button and Escape does nothing. When the user leaves and comes back, setup restarts at step 1 and the typed name is lost.                       | 2                                 | H3        | Keep the step and typed values, and add a visible way out.                          | [keep-setup-answers-when-the-user-leaves-the-setup-window](../../../../tasks/keep-setup-answers-when-the-user-leaves-the-setup-window.md)               |
+| F10 | An installed code editor marks the user as a coder (`apps/web/src/onboarding/setupState.logic.ts:132`), so the menu adds Builder and Developer without a question. | 2                                 | H8, H2    | Show builder tools only after "I build software" or a Settings switch.              | [ask-before-the-app-shows-builder-tools-to-a-new-user](../../../../tasks/ask-before-the-app-shows-builder-tools-to-a-new-user.md)                       |
+
+## Notes for the five-user test
+
+- The packaged desktop app may pair on its own and skip F1 to F3. This walk did not check that. Confirm it with tester 1.
+- The first chat writes to `C:\Users\<user>\Leonidas AIOS` by default. Tell testers this before the session.
+- Fix F6 before the test, so a dry run on this computer shows what a tester sees.
