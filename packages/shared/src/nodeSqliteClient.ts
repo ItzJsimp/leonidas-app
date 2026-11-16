@@ -46,6 +46,7 @@ export interface SqliteClientConfig {
    * Ignored for in-memory databases.
    */
   readonly checkpointWorker?: boolean | undefined;
+  readonly checkpointBackpressureTimeout?: Duration.Input | undefined;
 }
 
 // SqlClient masks transaction acquisition, so readOnly carries the caller's interruption policy.
@@ -475,6 +476,7 @@ const makeReader = Effect.fnUntraced(function* (options: SqliteClientConfig) {
 const CHECKPOINT_FRAMES = 1000;
 const CHECKPOINT_IDLE_MS = 100;
 const CHECKPOINT_BACKPRESSURE_FRAMES = 10 * CHECKPOINT_FRAMES;
+const CHECKPOINT_BACKPRESSURE_TIMEOUT_MS = 2_500;
 
 const readSafeSqliteInteger = (value: unknown) => {
   const number = typeof value === "bigint" ? Number(value) : value;
@@ -604,7 +606,16 @@ parentPort.on("message", (request) => {
 const startCheckpointWorker = Effect.fnUntraced(function* (
   filename: string,
   writer: NodeSqlite.DatabaseSync,
+  backpressureTimeout?: Duration.Input,
 ) {
+  const backpressureTimeoutMs = Math.max(
+    1,
+    Duration.toMillis(
+      Duration.fromInputUnsafe(
+        backpressureTimeout ?? Duration.millis(CHECKPOINT_BACKPRESSURE_TIMEOUT_MS),
+      ),
+    ),
+  );
   const warn = (reason: string) =>
     Effect.logWarning(
       "SQLite checkpoint worker unavailable; checkpoints run on the main connection",
@@ -649,19 +660,73 @@ const startCheckpointWorker = Effect.fnUntraced(function* (
   let checkpointed = 0;
   let unknown = false;
   let truncate: { id: number; acknowledged: boolean } | undefined;
+  let bypassed = false;
+  let stallFiber: Fiber.Fiber<void, never> | undefined;
   type Waiter = { resume: () => void; cancelled: boolean };
   const waiters: Array<Waiter> = [];
   let elected: Waiter | undefined;
+  const backpressureBlocked = () => unknown || blocked || log >= CHECKPOINT_BACKPRESSURE_FRAMES;
   const gated = () =>
     !stopped &&
     !writer.isTransaction &&
-    (unknown || blocked || truncate !== undefined || log >= CHECKPOINT_BACKPRESSURE_FRAMES);
+    (truncate !== undefined || (!bypassed && backpressureBlocked()));
+  const clearStallTimer = () => {
+    const fiber = stallFiber;
+    if (fiber === undefined) return;
+    stallFiber = undefined;
+    runFork(Fiber.interrupt(fiber));
+  };
+  const resetBypassIfRecovered = () => {
+    if (truncate === undefined && !backpressureBlocked()) {
+      bypassed = false;
+      clearStallTimer();
+    }
+  };
+  const ensureStallTimer = () => {
+    if (
+      stallFiber !== undefined ||
+      stopped ||
+      bypassed ||
+      waiters.length === 0 ||
+      !backpressureBlocked()
+    ) {
+      return;
+    }
+    const fiber = runFork(
+      Effect.sleep(Duration.millis(backpressureTimeoutMs)).pipe(
+        Effect.andThen(
+          Effect.suspend(() => {
+            if (stallFiber !== fiber) return Effect.void;
+            stallFiber = undefined;
+            if (stopped || bypassed || waiters.length === 0) return Effect.void;
+            if (truncate !== undefined || writer.isTransaction) {
+              ensureStallTimer();
+              return Effect.void;
+            }
+            if (!backpressureBlocked()) return Effect.void;
+            bypassed = true;
+            return Effect.logWarning(
+              "SQLite WAL checkpoint backpressure timed out; admitting writes while checkpoints retry in the background",
+              { filename, log, checkpointed, blocked, unknown, timeoutMs: backpressureTimeoutMs },
+            ).pipe(Effect.andThen(Effect.sync(wake)));
+          }),
+        ),
+      ),
+    );
+    stallFiber = fiber;
+  };
   const wake = () => {
+    resetBypassIfRecovered();
     if (!gated() && elected === undefined) {
       elected = waiters.shift();
       elected?.resume();
     }
-    if (waiters.length === 0 && elected === undefined) worker.unref();
+    if (waiters.length === 0 && elected === undefined) {
+      clearStallTimer();
+      worker.unref();
+    } else if (gated()) {
+      ensureStallTimer();
+    }
   };
   const release = (waiter: Waiter) => {
     waiter.cancelled = true;
@@ -674,6 +739,8 @@ const startCheckpointWorker = Effect.fnUntraced(function* (
     if (stopped) return;
     stopped = true;
     truncate = undefined;
+    bypassed = false;
+    clearStallTimer();
     try {
       writer.exec(`PRAGMA wal_autocheckpoint = ${CHECKPOINT_FRAMES};`);
     } catch {}
@@ -783,6 +850,8 @@ const startCheckpointWorker = Effect.fnUntraced(function* (
     Effect.promise(() => {
       stopped = true;
       truncate = undefined;
+      bypassed = false;
+      clearStallTimer();
       wake();
       return worker.terminate();
     }),
@@ -870,7 +939,7 @@ const make = Effect.fn("makeWithDatabase")(function* (
     // Started after the close finalizer, so the worker stops before the writer closes.
     const checkpoint =
       options.checkpointWorker && isFileDatabase
-        ? yield* startCheckpointWorker(options.filename, db)
+        ? yield* startCheckpointWorker(options.filename, db, options.checkpointBackpressureTimeout)
         : undefined;
 
     const statementReaderCache = new WeakMap<NodeSqlite.StatementSync, boolean>();

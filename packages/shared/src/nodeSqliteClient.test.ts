@@ -3,11 +3,13 @@ import type * as NodeWorkerThreads from "node:worker_threads";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
+import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Scheduler from "effect/Scheduler";
 import type * as Scope from "effect/Scope";
@@ -798,7 +800,10 @@ const withCheckpointClient = <A, E>(
     sql: SqlClient.SqlClient,
     filename: string,
   ) => Effect.Effect<A, E, SqlClient.SqlClient | FileSystem.FileSystem | Scope.Scope>,
-  options: { readonly readerWorker?: boolean } = {},
+  options: {
+    readonly readerWorker?: boolean;
+    readonly checkpointBackpressureTimeout?: Duration.Input;
+  } = {},
 ) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -1752,4 +1757,63 @@ it.effect.each(["successful", "failed"] as const)(
       }),
     ),
   { skip: !supportsNoopCheckpoint },
+);
+
+it.live(
+  "unblocks writes when an external reader pins the WAL past backpressure",
+  () => {
+    const { warnings, layer: logs } = captureWarnings();
+    return withCheckpointClient(
+      (sql, filename) =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          const worker = startedWorkers.at(-1)!;
+          const { reader, checkpointRequests } = yield* blockCheckpointBehindReader(
+            sql,
+            filename,
+            worker,
+          );
+          checkpointRequests.release();
+
+          // Simulate startup recovery committing a transaction while another process pins an old WAL frame.
+          const firstWrite = yield* sql
+            .withTransaction(sql`INSERT INTO entries VALUES (1)`)
+            .pipe(Effect.timeoutOption(Duration.seconds(15)));
+          assert.isTrue(
+            Option.isSome(firstWrite),
+            "WAL backpressure must not deadlock transactions while an external reader pins the WAL",
+          );
+
+          const secondWrite = yield* sql
+            .withTransaction(sql`INSERT INTO entries VALUES (2)`)
+            .pipe(Effect.timeoutOption(Duration.seconds(15)));
+          assert.isTrue(Option.isSome(secondWrite));
+          assert.lengthOf(warnings, 1);
+
+          // Once the external reader releases its snapshot, background checkpoints recover and truncate the WAL.
+          const truncated = waitForTruncateCompletion(worker);
+          reader.exec("ROLLBACK");
+          yield* sql.withTransaction(sql`INSERT INTO entries VALUES (3)`);
+          yield* Effect.callback<Record<string, unknown>>((resume) => {
+            let active = true;
+            void truncated.then((message) => {
+              if (active) resume(Effect.succeed(message));
+            });
+            return Effect.sync(() => {
+              active = false;
+            });
+          }).pipe(Effect.timeout(Duration.seconds(15)));
+          yield* checkpointWorkerReply(worker);
+
+          assert.isAtMost(Number((yield* fs.stat(`${filename}-wal`)).size), 8192);
+          assert.deepEqual(yield* sql`SELECT value FROM entries ORDER BY value`, [
+            { value: 1 },
+            { value: 2 },
+            { value: 3 },
+          ]);
+        }),
+      { checkpointBackpressureTimeout: 300 },
+    ).pipe(Effect.provide(logs));
+  },
+  { skip: !supportsNoopCheckpoint, timeout: 60_000 },
 );
