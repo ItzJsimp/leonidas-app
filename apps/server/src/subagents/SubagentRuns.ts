@@ -124,6 +124,7 @@ const toSubagentRun = (
   return {
     id: row.subagent_id,
     kind,
+    agentName: row.child_persona,
     parent: {
       id: ThreadId.make(row.thread_id),
       title: row.parent_title ?? "Untitled chat",

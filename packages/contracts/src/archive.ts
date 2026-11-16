@@ -92,6 +92,8 @@ export type SubagentRunsInput = typeof SubagentRunsInput.Type;
 export const SubagentRun = Schema.Struct({
   id: TrimmedNonEmptyString,
   kind: SubagentRunKind,
+  /** The name of the agent (persona) that ran. Null for a run with no persona. */
+  agentName: Schema.NullOr(Schema.String),
   parent: Schema.Struct({ id: ThreadId, title: Schema.String }),
   /** The subagent's own chat, when it has one. */
   childThreadId: Schema.NullOr(ThreadId),

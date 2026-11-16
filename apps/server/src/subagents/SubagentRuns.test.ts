@@ -74,6 +74,7 @@ it.effect("lists live and finished runs from the stored status, with kind and re
       ["live", "persona", "running", true],
     ]);
     expect(running.runs[0]?.model).toBe("claude-haiku-5-5");
+    expect(running.runs[0]?.agentName).toBe("Reviewer");
 
     const history = yield* service.list({ scope: "history" });
     expect(history.runs.map((run) => [run.id, run.kind, run.status, run.durationMs])).toEqual([
