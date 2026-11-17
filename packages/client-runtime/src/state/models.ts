@@ -323,7 +323,8 @@ export function scopeThreadShell(
   return presentThreadShell(environmentId, thread);
 }
 
-const THREAD_PROVIDER_STACK_LIMIT = 3;
+// Four, so a chat that moved across four accounts shows all of them (Jake, 2026-11-17).
+const THREAD_PROVIDER_STACK_LIMIT = 4;
 
 export function resolveThreadProviderStack(
   thread: Pick<EnvironmentThreadShell, "providerInstanceHistory" | "modelSelection" | "runtime">,

@@ -1715,7 +1715,7 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
             ) : null}
             <div
               className={cn(
-                "mt-0.5 flex min-w-0 items-center gap-1.5 text-secondary-label text-xs",
+                "mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-secondary-label text-xs",
                 metaLineEmpty && "hidden",
               )}
             >

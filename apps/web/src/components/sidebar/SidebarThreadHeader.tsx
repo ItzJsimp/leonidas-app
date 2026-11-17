@@ -7,12 +7,16 @@
  * field through `searchFieldRef`, as the View options panel does.
  */
 import type { EnvironmentId, SidebarThreadSortOrder } from "@t3tools/contracts";
+import { Link } from "@tanstack/react-router";
 import {
   ChevronRightIcon,
   EllipsisIcon,
   FolderPlusIcon,
   HistoryIcon,
+  LayoutDashboardIcon,
   ListFilterIcon,
+  PinIcon,
+  PinOffIcon,
   SearchIcon,
   SlidersHorizontalIcon,
   SquarePenIcon,
@@ -30,9 +34,25 @@ import {
 import { cn } from "~/lib/utils";
 import { ThreadSweepDialog } from "../threadSweep/ThreadSweepDialog";
 import { Button } from "../ui/button";
-import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "../ui/menu";
+import {
+  Menu,
+  MenuCheckboxItem,
+  MenuItem,
+  MenuItemLabel,
+  MenuPopup,
+  MenuSeparator,
+  MenuSub,
+  MenuSubPopup,
+  MenuSubTrigger,
+  MenuTrigger,
+} from "../ui/menu";
 import { SidebarInput, SidebarMenuButton } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { badgeText, ICONS } from "../twoState/AppRail";
+import { railLinkLabel, type RailItem } from "../twoState/railItems";
+import { useRailItems } from "../twoState/useRailItems";
+import { useTwoStateCounts } from "../twoState/useTwoStateData";
+import { Tip } from "../twoState/Tip";
 import { SidebarViewMenu, viewOptionsLabel } from "./SidebarViewMenu";
 import { useSidebarViewStore } from "./sidebarViewStore";
 
@@ -99,6 +119,7 @@ export function SidebarThreadHeader({
     ? `New chat (${newThreadShortcutLabel})`
     : "New chat";
   const canSweep = sweep.environmentId !== null && sweep.cwd !== null;
+  const { pinned, pinnable, togglePin } = useRailItems();
 
   return (
     <div className="flex flex-col gap-2">
@@ -137,6 +158,7 @@ export function SidebarThreadHeader({
           )}
         </TooltipPopup>
       </Tooltip>
+      <PinnedTabs pinned={pinned} onUnpin={(id) => togglePin(id, false)} />
       <div className="flex items-center gap-1">
         <div
           ref={searchFieldRef}
@@ -190,6 +212,25 @@ export function SidebarThreadHeader({
               <span className="flex-1">View options</span>
               <MenuValue>{viewOptionsLabel(groupBy)}</MenuValue>
             </MenuItem>
+            {pinnable.length > 0 ? (
+              <MenuSub>
+                <MenuSubTrigger>
+                  <PinIcon />
+                  <MenuItemLabel>Pin tabs here</MenuItemLabel>
+                </MenuSubTrigger>
+                <MenuSubPopup>
+                  {pinnable.map((item) => (
+                    <MenuCheckboxItem
+                      key={item.id}
+                      checked={pinned.some((entry) => entry.id === item.id)}
+                      onCheckedChange={(on) => togglePin(item.id, on)}
+                    >
+                      {item.label}
+                    </MenuCheckboxItem>
+                  ))}
+                </MenuSubPopup>
+              </MenuSub>
+            ) : null}
             {canSweep ? (
               <MenuItem data-usage-id="thread_sweep" onClick={() => setSweepOpen(true)}>
                 <HistoryIcon />
@@ -229,6 +270,61 @@ export function SidebarThreadHeader({
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Rail tabs pinned under New chat (Jake's sidebar pick, 2026-11-17). A pinned tab leaves the rail.
+ * Counts share one fixed width so they line up. Hover shows the unpin button in the count's place.
+ */
+function PinnedTabs({
+  pinned,
+  onUnpin,
+}: {
+  pinned: readonly RailItem[];
+  onUnpin: (id: string) => void;
+}) {
+  const needsYou = useTwoStateCounts().needsYou ?? 0;
+  if (pinned.length === 0) return null;
+  return (
+    <ul aria-label="Pinned tabs" className="-mt-1 flex flex-col">
+      {pinned.map((item) => {
+        const Icon = ICONS[item.id] ?? LayoutDashboardIcon;
+        const count = item.id === "inbox" ? needsYou : 0;
+        return (
+          <li key={item.id} className="group/pin relative">
+            <Tip text={item.tooltip}>
+              <Link
+                to={item.to}
+                aria-label={railLinkLabel(item.label, count)}
+                className="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-row-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none"
+              >
+                <Icon aria-hidden className="size-4 shrink-0 text-(--sidebar-icon-color)" />
+                <span className="flex-1 truncate">{item.label}</span>
+                {count > 0 ? (
+                  <span
+                    aria-hidden
+                    className="grid h-[18px] w-7 shrink-0 place-items-center rounded-full bg-sidebar-control-surface text-2xs font-semibold tabular-nums group-hover/pin:invisible group-focus-within/pin:invisible"
+                  >
+                    {badgeText(count)}
+                  </span>
+                ) : null}
+              </Link>
+            </Tip>
+            <Tip text={`Unpin ${item.label}: it goes back to the rail`}>
+              <button
+                type="button"
+                aria-label={`Unpin ${item.label}`}
+                onClick={() => onUnpin(item.id)}
+                className="absolute top-1/2 right-1.5 grid size-6 -translate-y-1/2 place-items-center rounded-md text-sidebar-muted-foreground opacity-0 transition-opacity group-hover/pin:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none"
+              >
+                <PinOffIcon aria-hidden className="size-3.5" />
+              </button>
+            </Tip>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
