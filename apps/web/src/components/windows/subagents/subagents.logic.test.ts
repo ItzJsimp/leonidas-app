@@ -48,9 +48,9 @@ describe("subagents.logic", () => {
     expect(elapsedLabel(run({ status: "done", durationMs: 30_000 }), 0)).toBe("30 s");
   });
 
-  it("has the three Agents tabs, with Team first", () => {
-    expect(AGENT_TABS.map((tab) => tab.id)).toEqual(["team", "runs", "starters"]);
-    expect(AGENT_TABS.map((tab) => tab.label)).toEqual(["Team", "Runs", "Starters"]);
+  it("has the Agents tabs, with Profile first", () => {
+    expect(AGENT_TABS.map((tab) => tab.id)).toEqual(["profile", "team", "runs", "starters"]);
+    expect(AGENT_TABS.map((tab) => tab.label)).toEqual(["Profile", "Team", "Runs", "Starters"]);
   });
 
   it("labels a cost, and says when it is tiny or unknown", () => {

@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
-import { DEFAULT_RUNTIME_MODE } from "@t3tools/contracts";
+import { DEFAULT_RUNTIME_MODE, type ThreadId } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
@@ -20,10 +20,10 @@ import { findAiosProject, homeModelSelection, homeThreadId } from "./homeChat.lo
 /**
  * The Home chat: one permanent chat per AIOS, one click from the rail. It runs in the AIOS folder
  * and knows the team. The thread has a fixed id, so the first visit makes it and every later visit
- * only opens it. The user picks its model with the normal model picker.
+ * only opens it. The user picks its model with the normal model picker. This hook makes or opens the
+ * thread and returns its id, or a plain message when it cannot.
  */
-export function HomeChat() {
-  const navigate = useNavigate();
+export function useHomeThread() {
   const { environmentId, active, scopeReady } = useActiveAiosWorkspace();
   const projects = useProjects();
   const providers = useAtomValue(primaryServerProvidersAtom);
@@ -32,6 +32,7 @@ export function HomeChat() {
     reportFailure: false,
   });
   const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<ThreadId | null>(null);
   const started = useRef(false);
 
   const project =
@@ -46,7 +47,7 @@ export function HomeChat() {
   useEffect(() => {
     if (environmentId === null || project === null || started.current) return;
     started.current = true;
-    const threadId = homeThreadId(project.id);
+    const homeId = homeThreadId(project.id);
     void (async () => {
       // A create call for a thread that exists fails. That is the normal case after the first visit.
       const { stickyActiveProvider, stickyModelSelectionByProvider } =
@@ -62,7 +63,7 @@ export function HomeChat() {
         await createThread({
           environmentId,
           input: {
-            threadId,
+            threadId: homeId,
             projectId: project.id,
             title: "Home",
             modelSelection,
@@ -73,19 +74,18 @@ export function HomeChat() {
           },
         });
       }
-      const marked = await updateMetadata({ environmentId, input: { threadId, role: "home" } });
+      const marked = await updateMetadata({
+        environmentId,
+        input: { threadId: homeId, role: "home" },
+      });
       if (marked._tag !== "Success") {
         started.current = false;
         setError("Home could not open. Check that an AI account is connected, then try again.");
         return;
       }
-      void navigate({
-        to: "/$environmentId/$threadId",
-        params: buildThreadRouteParams(scopeThreadRef(environmentId, threadId)),
-        replace: true,
-      });
+      setThreadId(homeId);
     })();
-  }, [environmentId, project, providers, createThread, updateMetadata, navigate]);
+  }, [environmentId, project, providers, createThread, updateMetadata]);
 
   const message =
     error ??
@@ -94,6 +94,22 @@ export function HomeChat() {
       : noModel
         ? "Connect an AI account in Settings, then open Home again."
         : null);
+
+  return { environmentId, threadId, message };
+}
+
+/** The `/home` route: opens the Home chat on its own page. */
+export function HomeChat() {
+  const navigate = useNavigate();
+  const { environmentId, threadId, message } = useHomeThread();
+  useEffect(() => {
+    if (environmentId === null || threadId === null) return;
+    void navigate({
+      to: "/$environmentId/$threadId",
+      params: buildThreadRouteParams(scopeThreadRef(environmentId, threadId)),
+      replace: true,
+    });
+  }, [environmentId, threadId, navigate]);
 
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">

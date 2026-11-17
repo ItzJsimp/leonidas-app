@@ -9,7 +9,6 @@ const BASE = [
   "command-center",
   "today",
   "inbox",
-  "home",
   "chat",
   "tasks",
   "projects",
@@ -47,7 +46,7 @@ describe("railItems", () => {
   it("shows everything, Team before Developer, for business with builder mode", () => {
     const { main } = railItems({ business: true, builder: true, scribe: true });
     expect(ids(main)).toEqual([...withBusiness(BASE), "team", "developer"]);
-    expect(main).toHaveLength(19);
+    expect(main).toHaveLength(18);
   });
 
   it("brings back only the tabs chosen with show-anyway in a personal workspace", () => {
