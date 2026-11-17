@@ -49,24 +49,17 @@ import {
 import { isElectron } from "~/env";
 import { useLocalStorage } from "~/hooks/useLocalStorage";
 import { cn, isMacPlatform } from "~/lib/utils";
-import { usePrimaryEnvironment } from "~/state/environments";
-import {
-  EMPTY_SETUP_STATE,
-  SETUP_STATE_STORAGE_KEY,
-  SetupStateSchema,
-} from "~/onboarding/setupState.logic";
 import { resolveThreadRouteTarget } from "~/threadRoutes";
 
 import {
   activeRailId,
   badgeAnnouncement,
   RAIL_GROUP_LABELS,
-  railItems,
   railLinkLabel,
   type RailItem,
 } from "./railItems";
 import { Tip } from "./Tip";
-import { useRailShowAnyway } from "./useRailShowAnyway";
+import { useRailItems } from "./useRailItems";
 import { useTwoStateStore } from "./twoStateStore";
 import { useTwoStateCounts } from "./useTwoStateData";
 
@@ -112,17 +105,20 @@ export const RAIL_EXPANDED_KEY = "leonidas:rail-expanded";
 /** "99+" past 99, so the badge stays small. */
 export const badgeText = (count: number) => (count > 99 ? "99+" : String(count));
 
+/** How a rail tab draws: a row with its name beside the icon, the name under the icon, or the icon alone. */
+type RailVariant = "wide" | "stacked" | "icon";
+
 /**
- * The only app navigation, in flat groups. Expanded shows labels and group names. Collapsed shows
- * icons with thin dividers. `drawer` is the narrow-window sheet: always expanded, no toggle.
+ * The only app navigation, in flat groups. Expanded shows each icon with its name under it (Jake's
+ * sidebar pick, 2026-11-17). Collapsed shows icons alone. Both use thin dividers between groups.
+ * `drawer` is the narrow-window sheet: names beside icons with group names, no toggle.
  * Chat opens the last chat, else the chat start page.
  */
 export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
   const [stored, setStored] = useLocalStorage(RAIL_EXPANDED_KEY, true, Schema.Boolean);
   const expanded = drawer || stored;
-  const { active } = useActiveAiosWorkspace();
-  const [setup] = useLocalStorage(SETUP_STATE_STORAGE_KEY, EMPTY_SETUP_STATE, SetupStateSchema);
-  const { shown: showAnyway } = useRailShowAnyway(active?.id);
+  const variant: RailVariant = drawer ? "wide" : stored ? "stacked" : "icon";
+  const wide = variant === "wide";
   const lastThread = useTwoStateStore((state) => state.lastThread);
   // Same number as the Needs you tile and card: the badge counts what needs you.
   const unread = useTwoStateCounts().needsYou;
@@ -138,15 +134,9 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
     strict: false,
     select: (params) => resolveThreadRouteTarget(params) !== null,
   });
-  const scribeSupported =
-    usePrimaryEnvironment()?.serverConfig?.environment.platform.os === "windows";
-  const { main, bottom } = railItems({
-    business: active?.type === "business",
-    trading: active?.type === "trading",
-    builder: setup.coder === true,
-    showAnyway,
-    scribe: scribeSupported,
-  });
+  const { main, bottom, pinned } = useRailItems({ ignorePins: wide });
+  // A pinned Notifications tab leaves the rail: its badge moves to Chat, so the count stays visible.
+  const badgeId = pinned.some((item) => item.id === "inbox") ? "chat" : "inbox";
   const current = activeRailId(pathname, onChat);
   const renderItem = (item: RailItem) => (
     <RailLink
@@ -154,9 +144,23 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
       item={item}
       current={item.id === current}
       lastThread={lastThread}
-      expanded={expanded}
-      badge={item.id === "inbox" ? (unread ?? 0) : 0}
+      variant={variant}
+      badge={item.id === badgeId ? (unread ?? 0) : 0}
     />
+  );
+  const versionButton = (
+    <Tip text="Version of Leonidas. Select to see what changed in each update.">
+      <button
+        type="button"
+        onClick={openReleaseHistoryDialog}
+        className={cn(
+          "shrink-0 rounded-lg text-muted-foreground tabular-nums outline-hidden ring-ring transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset [-webkit-app-region:no-drag]",
+          "h-7 px-2.5 text-left text-xs",
+        )}
+      >
+        v{APP_VERSION_LABEL} · what changed
+      </button>
+    </Tip>
   );
   return (
     <nav
@@ -165,42 +169,43 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
         "flex h-full shrink-0 flex-col gap-1 border-r border-border bg-card pb-2",
         // Empty rail space moves the window, as a title bar does. Its links and buttons stay clickable.
         isElectron && "drag-region",
-        drawer ? "w-full px-2" : expanded ? "w-56 px-2" : "w-[52px] items-center",
+        wide
+          ? "w-full px-2"
+          : variant === "stacked"
+            ? "w-[72px] items-center px-1"
+            : "w-[52px] items-center",
         isElectron && isMacPlatform(navigator.platform) ? "pt-10" : "pt-2",
       )}
     >
       <RailHeader
-        expanded={expanded}
+        variant={variant}
         needsYou={unread}
         onToggle={drawer ? null : () => setStored(!expanded)}
       />
-      {expanded ? (
-        <button
-          type="button"
-          title="Version of Leonidas. Select to see what changed in each update."
-          onClick={openReleaseHistoryDialog}
-          className="h-7 shrink-0 rounded-lg px-2.5 text-left text-xs text-muted-foreground tabular-nums outline-hidden ring-ring transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset [-webkit-app-region:no-drag]"
-        >
-          v{APP_VERSION_LABEL} · what changed
-        </button>
-      ) : null}
+      {wide ? versionButton : null}
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>
-      {expanded ? <FinishSetupRow /> : null}
+      {variant !== "icon" ? <FinishSetupRow compact={variant === "stacked"} /> : null}
       {/* The fade shows only on the edge that has more rows. Rows are links, so the list needs no tab stop. */}
       <ScrollArea
         scrollFade
         viewportTabIndex={-1}
         // A row is 38 px high: the fade must reach into the next row, or the cue is invisible.
-        className="mt-1 flex-1 [&_[data-slot=scroll-area-viewport]]:[--fade-size:3rem]"
+        className="mt-1 w-full flex-1 [&_[data-slot=scroll-area-viewport]]:[--fade-size:3rem]"
       >
-        <div className={cn("flex flex-col gap-0.5", !expanded && "items-center")}>
+        <div
+          className={cn(
+            "flex flex-col",
+            variant === "stacked" ? "gap-0" : "gap-0.5",
+            !wide && "items-center",
+          )}
+        >
           {main.map((item, index) => {
             const first = index === 0 || main[index - 1]!.group !== item.group;
             return (
               <Fragment key={item.id}>
-                {first && expanded ? (
+                {first && wide ? (
                   <p
                     aria-hidden
                     className={cn(
@@ -211,8 +216,14 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
                     {RAIL_GROUP_LABELS[item.group]}
                   </p>
                 ) : null}
-                {first && !expanded && index > 0 ? (
-                  <span aria-hidden className="my-1.5 h-px w-6 shrink-0 bg-border" />
+                {first && !wide && index > 0 ? (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "h-px w-6 shrink-0 bg-border",
+                      variant === "stacked" ? "my-1" : "my-1.5",
+                    )}
+                  />
                 ) : null}
                 {renderItem(item)}
               </Fragment>
@@ -220,12 +231,15 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
           })}
         </div>
       </ScrollArea>
-      <div className={cn("flex flex-col gap-0.5", !expanded && "items-center")}>
+      <div className={cn("flex flex-col gap-0.5", !wide && "items-center")}>
         {bottom.map(renderItem)}
         {/* Shows only while an update is on its way, directly under Settings. */}
-        <SidebarMenu className={cn("empty:hidden", expanded ? "items-start" : "items-center")}>
-          <SidebarUpdatePill className="ml-0" expanded={expanded} />
+        <SidebarMenu className={cn("empty:hidden", wide ? "items-start" : "items-center")}>
+          <SidebarUpdatePill className="ml-0" expanded={wide} />
         </SidebarMenu>
+        {/* With names under the icons, the workspace switcher sits at the bottom left. The version
+            line stays out so every tab fits at 768 px high: Settings and the command palette open it. */}
+        {variant === "stacked" ? <WorkspacePicker expanded={false} needsYou={unread} /> : null}
       </div>
     </nav>
   );
@@ -235,13 +249,13 @@ function RailLink({
   item,
   current,
   lastThread,
-  expanded,
+  variant,
   badge,
 }: {
   readonly item: RailItem;
   readonly current: boolean;
   readonly lastThread: ReturnType<typeof useTwoStateStore.getState>["lastThread"];
-  readonly expanded: boolean;
+  readonly variant: RailVariant;
   readonly badge: number;
 }) {
   const Icon = ICONS[item.id] ?? LayoutDashboardIcon;
@@ -251,20 +265,38 @@ function RailLink({
     "aria-current": current ? ("page" as const) : undefined,
     className: cn(
       TARGET_CLASS,
-      expanded && "h-9 w-full justify-start gap-3 px-2.5 hover:bg-accent",
+      variant === "wide" && "h-9 w-full justify-start gap-3 px-2.5 hover:bg-accent",
+      variant === "stacked" && "h-10 w-16 flex-col gap-1 px-0.5 hover:bg-accent",
       current && ACTIVE_CLASS,
     ),
   };
   const content: ReactNode = (
     <>
-      <Icon aria-hidden className="size-5 shrink-0" />
-      {expanded ? <span className="truncate text-sm">{item.label}</span> : null}
+      <Icon
+        aria-hidden
+        className={cn("shrink-0", variant === "stacked" ? "size-[18px]" : "size-5")}
+      />
+      {variant === "wide" ? <span className="truncate text-sm">{item.label}</span> : null}
+      {variant === "stacked" ? (
+        <span
+          className={cn(
+            "max-w-full truncate text-3xs leading-none",
+            current ? "font-medium text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {item.short ?? item.label}
+        </span>
+      ) : null}
       {badge > 0 ? (
         <span
           aria-hidden
           className={cn(
             "min-w-4 rounded-full bg-warning px-1 text-center text-3xs leading-4 font-semibold text-background tabular-nums",
-            expanded ? "ml-auto" : "absolute -top-1 -right-1",
+            variant === "wide"
+              ? "ml-auto"
+              : variant === "stacked"
+                ? "absolute top-0.5 right-2.5"
+                : "absolute -top-1 -right-1",
           )}
         >
           {badgeText(badge)}
@@ -292,18 +324,20 @@ function RailLink({
 }
 
 /**
- * Expanded: the workspace picker with the collapse icon beside it. Collapsed: the workspace
- * picture, the expand icon under it, then a divider (Jake's "Option 1", 2026-11-07).
+ * Wide (drawer): the workspace picker with the collapse icon beside it. Stacked: the collapse icon
+ * alone, the picker sits at the bottom. Collapsed: the workspace picture, the expand icon under it,
+ * then a divider (Jake's "Option 1", 2026-11-07).
  */
 function RailHeader({
-  expanded,
+  variant,
   needsYou,
   onToggle,
 }: {
-  readonly expanded: boolean;
+  readonly variant: RailVariant;
   readonly needsYou: number | null;
   readonly onToggle: (() => void) | null;
 }) {
+  const expanded = variant !== "icon";
   const toggleLabel = expanded ? "Collapse the menu" : "Expand the menu";
   const toggle = onToggle ? (
     <Tip text={toggleLabel}>
@@ -322,6 +356,14 @@ function RailHeader({
       </button>
     </Tip>
   ) : null;
+  if (variant === "stacked") {
+    return (
+      <>
+        {toggle}
+        <span aria-hidden className="my-1 h-px w-6 shrink-0 bg-border" />
+      </>
+    );
+  }
   if (expanded) {
     return (
       // The drawer has no toggle, and its close button sits at the top right: leave it room.

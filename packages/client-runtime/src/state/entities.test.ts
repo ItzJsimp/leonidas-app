@@ -292,10 +292,10 @@ describe("V2 client presentation", () => {
       ...v2ThreadShell,
       providerInstanceId: grok,
       modelSelection: { instanceId: grok, model: "grok-4" },
-      providerInstanceHistory: [codex, claude, cursor, grok],
+      providerInstanceHistory: [ProviderInstanceId.make("opencode"), codex, claude, cursor, grok],
     });
 
-    expect(resolveThreadProviderStack(shell)).toEqual([claude, cursor, grok]);
+    expect(resolveThreadProviderStack(shell)).toEqual([codex, claude, cursor, grok]);
     expect(
       resolveThreadProviderStack({ ...shell, providerInstanceHistory: [codex, grok] }),
     ).toEqual([codex, grok]);

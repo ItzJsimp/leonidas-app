@@ -19,8 +19,14 @@ vi.mock("~/components/workspace/useActiveAiosWorkspace", () => ({
 }));
 vi.mock("~/components/workspace/WorkspaceSwitcher", () => ({ WorkspaceMenu: () => null }));
 vi.mock("~/hooks/useLocalStorage", async () => {
-  const { EMPTY_SETUP_STATE } = await import("~/onboarding/setupState.logic");
-  return { useLocalStorage: () => [EMPTY_SETUP_STATE, vi.fn()] };
+  const { EMPTY_SETUP_STATE, SETUP_STATE_STORAGE_KEY } =
+    await import("~/onboarding/setupState.logic");
+  return {
+    useLocalStorage: (key: string, initial: unknown) => [
+      key === SETUP_STATE_STORAGE_KEY ? EMPTY_SETUP_STATE : initial,
+      vi.fn(),
+    ],
+  };
 });
 vi.mock("./useTwoStateData", () => ({
   useTwoStateCounts: () => ({ needsYou: 3, running: 0, today: null }),
@@ -65,7 +71,9 @@ describe("shell frame", () => {
     const navs = host.querySelectorAll("nav");
     expect(navs).toHaveLength(1);
     expect(navs[0]?.querySelector("[aria-label='Today']")).not.toBeNull();
-    expect(navs[0]?.querySelector("[aria-label='Notifications, 3 need you']")).not.toBeNull();
+    // Notifications is pinned into the chat panel by default, so its count rides on Chat.
+    expect(navs[0]?.querySelector("[aria-label='Leonidas Chat, 3 need you']")).not.toBeNull();
+    expect(navs[0]?.querySelector("[aria-label^='Notifications']")).toBeNull();
   });
 
   it("does not ship the old stat band", () => {

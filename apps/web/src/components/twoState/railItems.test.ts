@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { activeRailId, badgeAnnouncement, railItems, railLinkLabel } from "./railItems";
+import {
+  activeRailId,
+  badgeAnnouncement,
+  pinnableItems,
+  railItems,
+  railLinkLabel,
+} from "./railItems";
 
 const ids = (items: ReadonlyArray<{ readonly id: string }>) => items.map((item) => item.id);
 
@@ -236,5 +242,40 @@ describe("railItems in a Trading workspace", () => {
     expect(library?.group).toBe("learn");
     expect(activeRailId("/trading/library", false)).toBe("trading-library");
     expect(activeRailId("/library", false)).toBe("library");
+  });
+});
+
+describe("chat panel pins", () => {
+  const personal = { business: false, builder: false, scribe: true };
+
+  it("moves a pinned tab from the rail to the panel, in pin order", () => {
+    const { main, pinned } = railItems({ ...personal, pinned: ["projects", "inbox"] });
+    expect(ids(pinned)).toEqual(["projects", "inbox"]);
+    expect(ids(main)).not.toContain("projects");
+    expect(ids(main)).not.toContain("inbox");
+  });
+
+  it("never pins Chat, and ignores tabs this workspace does not show", () => {
+    const { main, pinned } = railItems({ ...personal, pinned: ["chat", "team", "developer"] });
+    expect(pinned).toEqual([]);
+    expect(ids(main)).toContain("chat");
+  });
+
+  it("offers every visible tab except Chat, pinned or not, and none in a Trading workspace", () => {
+    const offered = ids(pinnableItems({ ...personal, pinned: ["inbox"] }));
+    expect(offered).toContain("inbox");
+    expect(offered).toContain("projects");
+    expect(offered).not.toContain("chat");
+    expect(pinnableItems({ ...personal, trading: true })).toEqual([]);
+  });
+
+  it("gives the long names a short label for under the icon", () => {
+    const { main } = railItems(personal);
+    const short = (id: string) => main.find((item) => item.id === id)?.short;
+    expect([short("command-center"), short("chat"), short("inbox")]).toEqual([
+      "Command",
+      "Chat",
+      "Alerts",
+    ]);
   });
 });
