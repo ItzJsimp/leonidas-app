@@ -4,6 +4,7 @@ import type { WindowTab } from "../../twoState/WindowHeader";
 
 /** The Agents window tabs. Team comes first, so it is the one that opens by default. */
 export const AGENT_TABS: readonly WindowTab[] = [
+  { id: "profile", label: "Profile" },
   { id: "team", label: "Team" },
   { id: "runs", label: "Runs" },
   { id: "starters", label: "Starters" },

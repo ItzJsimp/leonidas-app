@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { BotIcon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { AgentProfile } from "~/components/subagents/AgentProfile";
 import { StartersTab } from "~/components/subagents/StartersTab";
 import { SubagentStudio } from "~/components/subagents/SubagentStudio";
 import { Button } from "~/components/ui/button";
@@ -81,14 +82,22 @@ function EmptyBlock({
 }
 
 /**
- * The Agents window (route `/subagents`). Team is your agent files, Runs is every agent that a
- * chat started, and Starters is the gallery of tested agents to import.
+ * The Agents window (route `/subagents`). Profile is the lead's chat beside your team, Team is your
+ * agent files, Runs is every agent that a chat started, and Starters is the gallery of tested agents.
  */
 export function SubagentsWindow() {
   return (
-    <RailWindow title="Agents" tabs={AGENT_TABS}>
+    <RailWindow title="Agents" tabs={AGENT_TABS} flushTab="profile">
       {(tab) =>
-        tab === "runs" ? <RunsTab /> : tab === "starters" ? <StartersTab /> : <SubagentStudio />
+        tab === "profile" ? (
+          <AgentProfile />
+        ) : tab === "runs" ? (
+          <RunsTab />
+        ) : tab === "starters" ? (
+          <StartersTab />
+        ) : (
+          <SubagentStudio />
+        )
       }
     </RailWindow>
   );
