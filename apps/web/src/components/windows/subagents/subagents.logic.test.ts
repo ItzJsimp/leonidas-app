@@ -17,6 +17,7 @@ import {
 const run = (over: Partial<SubagentRun> = {}): SubagentRun => ({
   id: "r1",
   kind: "delegated",
+  agentName: null,
   parent: { id: ThreadId.make("p1"), title: "Main chat" },
   childThreadId: null,
   provider: "claude",
