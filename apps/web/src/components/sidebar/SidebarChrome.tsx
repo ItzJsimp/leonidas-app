@@ -13,6 +13,7 @@ import {
 import { Badge } from "../ui/badge";
 import { SidebarFooter, SidebarMenu, SidebarTrigger } from "../ui/sidebar";
 import { SidebarThreadUndoNotice } from "./SidebarThreadUndoNotice";
+import { SidebarGameModePill } from "./SidebarGameModePill";
 import { SidebarNoAiBanner } from "./SidebarNoAiBanner";
 import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
 import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUpdatePill";
@@ -174,6 +175,7 @@ export const SidebarChromeFooter = memo(function SidebarChromeFooter() {
       <SidebarProviderUpdatePill />
       <SidebarUpdateArchitectureWarning />
       <SidebarMenu>
+        <SidebarGameModePill />
         <SidebarUpdatePill />
       </SidebarMenu>
     </SidebarFooter>

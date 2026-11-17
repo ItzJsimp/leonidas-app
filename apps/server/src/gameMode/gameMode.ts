@@ -12,6 +12,8 @@ const ACTION_ARG: Record<GameModeAction | "status", string> = {
   on: "On",
   off: "Off",
   auto: "Auto",
+  soft: "Soft",
+  strict: "Strict",
   vddOff: "VddOff",
   vddOn: "VddOn",
   status: "Status",
@@ -32,6 +34,7 @@ const runScript: Run = (action) =>
 
 const UNKNOWN: Omit<GameModeStatus, "error"> = {
   mode: "auto",
+  level: "soft",
   watcher: false,
   throttled: 0,
   virtualDisplay: "on",
@@ -40,9 +43,13 @@ const UNKNOWN: Omit<GameModeStatus, "error"> = {
 /** The control script prints one JSON line last. Anything before it is ignored. */
 export function parseStatus(stdout: string): GameModeStatus {
   const line = stdout.trim().split(/\r?\n/).at(-1) ?? "";
-  const value = JSON.parse(line) as Omit<GameModeStatus, "error">;
+  const value = JSON.parse(line) as Omit<GameModeStatus, "error" | "level"> & {
+    readonly level?: GameModeStatus["level"];
+  };
   return {
     mode: value.mode,
+    // Scripts older than the levels print no level, and they only had the soft behavior.
+    level: value.level ?? "soft",
     watcher: value.watcher,
     throttled: value.throttled,
     virtualDisplay: value.virtualDisplay,

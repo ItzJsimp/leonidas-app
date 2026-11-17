@@ -16,6 +16,7 @@ import { scribePatchSettings, scribeSettingsQuery } from "~/state/scribe";
 import { useEnvironmentScope } from "~/state/session";
 import { useAtomCommand } from "~/state/use-atom-command";
 
+import { GameModeControls, MODES } from "./GameModeControls";
 import { BigNumber, HomeWidget, WidgetError, WidgetSkeleton } from "./HomeWidget";
 
 /**
@@ -61,12 +62,6 @@ function ScribeToggle({ environmentId }: { readonly environmentId: EnvironmentId
 }
 
 const POLL_MS = 10_000;
-
-const MODES: ReadonlyArray<{ readonly mode: GameModeMode; readonly label: string }> = [
-  { mode: "auto", label: "Auto" },
-  { mode: "on", label: "On" },
-  { mode: "off", label: "Off" },
-];
 
 const NOTE: Record<GameModeMode, string> = {
   auto: "Waits for a game, then holds back background work",
@@ -126,20 +121,7 @@ export function GameModeCard() {
             note={status.watcher ? NOTE[status.mode] : "The Game Mode watcher is not running"}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <div role="group" aria-label="Game Mode" className="flex gap-1">
-              {MODES.map(({ mode, label }) => (
-                <Button
-                  key={mode}
-                  size="xs"
-                  variant={status.mode === mode ? "default" : "outline"}
-                  aria-pressed={status.mode === mode}
-                  disabled={busy}
-                  onClick={() => void act(mode)}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
+            <GameModeControls status={status} busy={busy} onAct={(action) => void act(action)} />
             <Button
               size="xs"
               variant="outline"

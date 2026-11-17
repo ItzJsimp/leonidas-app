@@ -8,11 +8,30 @@ describe("Game Mode runner", () => {
   it("reads the last JSON line and ignores earlier output", () => {
     expect(parseStatus(`noise\r\n${LINE}\r\n`)).toEqual({
       mode: "on",
+      level: "soft",
       watcher: true,
       throttled: 12,
       virtualDisplay: "off",
       error: null,
     });
+  });
+
+  it("reads the level, and treats a script without one as soft", () => {
+    const strict =
+      '{"mode":"auto","level":"strict","watcher":true,"throttled":3,"virtualDisplay":"on"}';
+    expect(parseStatus(strict).level).toBe("strict");
+    expect(parseStatus(LINE).level).toBe("soft");
+  });
+
+  it.skipIf(process.platform !== "win32")("maps the level actions to the script", async () => {
+    const seen: string[] = [];
+    const runner = makeGameModeRunner(async (action) => {
+      seen.push(action);
+      return LINE;
+    });
+    await runner.act("strict");
+    await runner.act("soft");
+    expect(seen).toEqual(["Strict", "Soft"]);
   });
 
   it.skipIf(process.platform !== "win32")(

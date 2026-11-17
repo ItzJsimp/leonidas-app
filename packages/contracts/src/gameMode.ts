@@ -4,8 +4,23 @@ import * as Schema from "effect/Schema";
 export const GameModeMode = Schema.Literals(["auto", "on", "off"]);
 export type GameModeMode = typeof GameModeMode.Type;
 
+/**
+ * How hard Game Mode holds work back while a game runs. `soft` keeps Leonidas working on the
+ * efficiency cores. `strict` pauses agents, git, builds and AIOS tasks until the game closes.
+ */
+export const GameModeLevel = Schema.Literals(["soft", "strict"]);
+export type GameModeLevel = typeof GameModeLevel.Type;
+
 /** What the Game Mode button can ask for. The `vdd` actions turn the virtual display off or on. */
-export const GameModeAction = Schema.Literals(["on", "off", "auto", "vddOff", "vddOn"]);
+export const GameModeAction = Schema.Literals([
+  "on",
+  "off",
+  "auto",
+  "soft",
+  "strict",
+  "vddOff",
+  "vddOn",
+]);
 export type GameModeAction = typeof GameModeAction.Type;
 
 export const GameModeActionInput = Schema.Struct({ action: GameModeAction });
@@ -17,6 +32,7 @@ export type GameModeActionInput = typeof GameModeActionInput.Type;
  */
 export const GameModeStatus = Schema.Struct({
   mode: GameModeMode,
+  level: GameModeLevel,
   /** The watcher task that applies the mode is running. */
   watcher: Schema.Boolean,
   /** Background processes held back right now. */

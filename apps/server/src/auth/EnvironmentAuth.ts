@@ -5,6 +5,7 @@ import {
   AuthOrchestrationReadScope,
   AuthSettingsWriteScope,
   AuthSourceControlWriteScope,
+  AuthLocalOwnerScopes,
   AuthStandardClientScopes,
   type AuthAccessTokenResult,
   type AuthBrowserSessionResult,
@@ -1150,7 +1151,7 @@ export const make = Effect.gen(function* () {
   const issueStartupPairingCredential: EnvironmentAuth["Service"]["issueStartupPairingCredential"] =
     () => {
       const fallback = issuePairingCredentialForSubject({
-        scopes: AuthStandardClientScopes,
+        scopes: AuthLocalOwnerScopes,
         subject: INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT,
         purpose: "startup",
       });

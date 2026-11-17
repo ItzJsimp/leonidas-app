@@ -175,6 +175,15 @@ export const AuthStandardClientScopes = [
   AuthAccessWriteScope,
   AuthRelayWriteScope,
 ] as const;
+/**
+ * The person at this computer: the desktop app and the startup pairing link. They get the standard
+ * scopes plus control of this machine's Game Mode. Remote and paired devices never get it.
+ */
+export const AuthLocalOwnerScopes = [
+  ...AuthStandardClientScopes,
+  AuthGameModeControlScope,
+] as const;
+
 export const AuthAdministrativeScopes = [
   ...AuthStandardClientScopes,
   AuthReleaseReadScope,
