@@ -214,7 +214,15 @@ const bootstrap = Effect.gen(function* () {
   });
 
   // OS-wide dictation trigger: a hidden helper eats the trigger and holds F24 for Discord Push to Mute.
-  if (environment.platform === "win32" || environment.platform === "darwin") {
+  // On Windows the bundled (or dev) Scribe engine owns every dictation key, so a second hook would
+  // be a second dictation system; macOS has no engine and keeps this one.
+  const engineOwnsDictation =
+    environment.platform === "win32" &&
+    (environment.isPackaged || Boolean(process.env.LEONIDAS_SCRIBE_ENGINE_BIN?.trim()));
+  if (
+    !engineOwnsDictation &&
+    (environment.platform === "win32" || environment.platform === "darwin")
+  ) {
     yield* Effect.gen(function* () {
       const hostEnvironment = yield* HostProcess.Environment;
       const spawnHelper =
