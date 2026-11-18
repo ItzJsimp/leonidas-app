@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { resolveStorage } from "~/lib/storage";
+import type { ThreadRouteTarget } from "~/threadRoutes";
 
 import type { ThreadPlace } from "./swapKeys";
 
@@ -24,12 +25,25 @@ interface TwoStateState {
   readonly lastThread: ThreadPlace | null;
   /** The last rail page, so the left pane of the split keeps it while a chat is open. */
   readonly leftPage: LeftPage | null;
+  /** The chat route the shell showed before a Settings or Usage modal opened. Not saved. */
+  readonly chatRoute: ThreadRouteTarget | null;
   readonly setSplit: (split: boolean) => void;
   readonly setRatio: (ratio: number) => void;
   readonly setChatListOpen: (open: boolean) => void;
   readonly rememberThread: (place: ThreadPlace) => void;
   readonly rememberLeftPage: (page: LeftPage) => void;
+  readonly rememberChatRoute: (target: ThreadRouteTarget | null) => void;
 }
+
+/** The router builds a new target object on every update, so compare the chat it names. */
+export const sameChatRoute = (a: ThreadRouteTarget | null, b: ThreadRouteTarget | null) =>
+  a === null || b === null
+    ? a === b
+    : a.kind === "server"
+      ? b.kind === "server" &&
+        a.threadRef.environmentId === b.threadRef.environmentId &&
+        a.threadRef.threadId === b.threadRef.threadId
+      : b.kind === "draft" && a.draftId === b.draftId;
 
 export const useTwoStateStore = create<TwoStateState>()(
   persist(
@@ -39,6 +53,7 @@ export const useTwoStateStore = create<TwoStateState>()(
       chatListOpen: true,
       lastThread: null,
       leftPage: null,
+      chatRoute: null,
       setSplit: (split) => set({ split }),
       setRatio: (ratio) => set({ ratio }),
       setChatListOpen: (chatListOpen) => set({ chatListOpen }),
@@ -55,6 +70,8 @@ export const useTwoStateStore = create<TwoStateState>()(
             ? state
             : { leftPage: page },
         ),
+      rememberChatRoute: (chatRoute) =>
+        set((state) => (sameChatRoute(state.chatRoute, chatRoute) ? state : { chatRoute })),
     }),
     {
       name: SHELL_LAYOUT_STORAGE_KEY,
