@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
   classifyRelease,
+  existingReleaseForCommit,
   coAuthorNames,
   isNotableRelease,
   nextReleaseVersion,
@@ -238,5 +239,25 @@ describe("Leonidas release policy", () => {
       previousNotableSince('<!-- leonidas-release {"notableSince":"nope"} -->'),
     ).toBeUndefined();
     expect(previousNotableSince(null)).toBeUndefined();
+  });
+
+  it("reuses a published release already cut from the same commit for delayed Mac builds", () => {
+    const sha = "a".repeat(40);
+    const releases = [
+      { tag_name: "v0.124.143", draft: true, prerelease: false, target_commitish: sha },
+      {
+        tag_name: "v0.124.142",
+        draft: false,
+        prerelease: false,
+        body: releaseMetaComment({ commit: sha, authors: [], coAuthors: [] }),
+      },
+      { tag_name: "v1.0.0", draft: false, prerelease: false, target_commitish: "b".repeat(40) },
+    ];
+    expect(existingReleaseForCommit(releases, sha, true)?.tag_name).toBe("v0.124.142");
+    expect(existingReleaseForCommit(releases, "b".repeat(40), true, "patch")).toBeUndefined();
+    expect(existingReleaseForCommit(releases, "b".repeat(40), true, "launch")?.tag_name).toBe(
+      "v1.0.0",
+    );
+    expect(existingReleaseForCommit(releases, "c".repeat(40), true)).toBeUndefined();
   });
 });

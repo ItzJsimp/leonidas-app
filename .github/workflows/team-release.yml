@@ -283,6 +283,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_KIND: ${{ inputs.release_kind || 'auto' }}
+          REUSE_COMMIT_RELEASE: "true"
         run: node scripts/leonidas-release.ts
 
       - name: Locate dependency cache
@@ -372,11 +373,10 @@ jobs:
 
   publish:
     name: Publish complete release
-    needs: [windows, mac, checks, browser]
-    # Publish only when Windows, Mac and the checks all passed. A release without Mac files breaks
-    # every Mac app (no update feed) and the Mac download link. A cancelled Mac build means a newer
-    # push replaced this run, and that run publishes instead.
-    if: ${{ always() && !cancelled() && needs.windows.result == 'success' && needs.mac.result == 'success' && needs.checks.result == 'success' && needs.browser.result == 'success' }}
+    needs: [windows, checks, browser]
+    # Windows publishes as soon as it and the checks pass, so Windows users get the update even when
+    # GitHub has no free Mac runner. The Mac files join the same release in `mac-attach`.
+    if: ${{ always() && !cancelled() && needs.windows.result == 'success' && needs.checks.result == 'success' && needs.browser.result == 'success' }}
     outputs:
       published: ${{ steps.publish.outputs.published }}
     runs-on: ubuntu-latest
@@ -395,11 +395,6 @@ jobs:
         with:
           name: windows-release
           path: artifacts
-      - uses: actions/download-artifact@v4
-        if: ${{ needs.mac.result == 'success' }}
-        with:
-          name: mac-release
-          path: artifacts/mac
       - name: Publish if this is still the newest main commit
         id: publish
         env:
@@ -441,13 +436,43 @@ jobs:
           find artifacts -type f -name 'benchmark-*' -print0 | xargs -0 gh release upload "v$VERSION" --clobber
           cp "$(find artifacts -type f -name 'Leonidas-*-x64.exe' | head -n 1)" artifacts/Leonidas-Setup.exe
           gh release upload "v$VERSION" artifacts/Leonidas-Setup.exe --clobber
-          if [ -d artifacts/mac ]; then
-            find artifacts/mac -type f -print0 | xargs -0 gh release upload "v$VERSION" --clobber
-            cp "$(find artifacts/mac -type f -name '*-arm64.dmg' | head -n 1)" artifacts/Leonidas-Setup-mac.dmg
-            gh release upload "v$VERSION" artifacts/Leonidas-Setup-mac.dmg --clobber
-          fi
           gh release edit "v$VERSION" --draft=false --latest
           echo "published=true" >> "$GITHUB_OUTPUT"
+
+  # The Mac build can wait for a runner for a long time. Re-running the failed Mac job (the
+  # retry-mac-release workflow does this every 30 minutes) runs this job after it.
+  mac-attach:
+    name: Attach Mac files
+    needs: [windows, mac, publish]
+    if: ${{ always() && !cancelled() && needs.mac.result == 'success' && needs.publish.outputs.published == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: team-release-mac-attach
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-release
+          path: artifacts/mac
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+      - name: Upload the Mac files to the published release, then verify them
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.windows.outputs.version }}
+        run: |
+          find artifacts/mac -type f -print0 | xargs -0 gh release upload "v$VERSION" --clobber
+          cp "$(find artifacts/mac -type f -name '*-arm64.dmg' | head -n 1)" artifacts/Leonidas-Setup-mac.dmg
+          gh release upload "v$VERSION" artifacts/Leonidas-Setup-mac.dmg --clobber
+          RELEASE_MAC=true RELEASE_PUBLISHED=true RELEASE_VERSION="$VERSION" node scripts/leonidas-release-health.ts
 
   health:
     name: Verify delivery and timings

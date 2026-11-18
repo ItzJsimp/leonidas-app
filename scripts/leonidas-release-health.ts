@@ -125,22 +125,25 @@ async function main() {
       )
         throw new Error("Published installer checksum/size mismatch");
       await download(asset(`${manifest.path}.blockmap`).browser_download_url);
-      const mac = parseMacManifest(
-        await (await download(asset("latest-mac.yml").browser_download_url)).text(),
-      );
-      if (mac.version !== report.version)
-        throw new Error("Mac manifest version differs from release");
-      asset(mac.dmgUrl);
-      asset("Leonidas-Setup-mac.dmg");
-      const macZip = asset(mac.zip.url);
-      const macBytes = new Uint8Array(
-        await (await download(macZip.browser_download_url)).arrayBuffer(),
-      );
-      if (
-        macBytes.length !== mac.zip.size ||
-        NodeCrypto.createHash("sha512").update(macBytes).digest("base64") !== mac.zip.sha512
-      )
-        throw new Error("Published Mac update checksum/size mismatch");
+      // Windows publishes first; the Mac job on `mac-attach` sets RELEASE_MAC once the files are up.
+      if (process.env.RELEASE_MAC === "true") {
+        const mac = parseMacManifest(
+          await (await download(asset("latest-mac.yml").browser_download_url)).text(),
+        );
+        if (mac.version !== report.version)
+          throw new Error("Mac manifest version differs from release");
+        asset(mac.dmgUrl);
+        asset("Leonidas-Setup-mac.dmg");
+        const macZip = asset(mac.zip.url);
+        const macBytes = new Uint8Array(
+          await (await download(macZip.browser_download_url)).arrayBuffer(),
+        );
+        if (
+          macBytes.length !== mac.zip.size ||
+          NodeCrypto.createHash("sha512").update(macBytes).digest("base64") !== mac.zip.sha512
+        )
+          throw new Error("Published Mac update checksum/size mismatch");
+      }
       const latest = api(`repos/${repository}/releases/latest`) as {
         tag_name: string;
         published_at: string;
@@ -151,7 +154,11 @@ async function main() {
       )
         throw new Error("Updater latest release does not point to the published version");
       report.verified = true;
-      if (report.publishSeconds !== null && report.publishSeconds > 600)
+      if (
+        process.env.RELEASE_MAC !== "true" &&
+        report.publishSeconds !== null &&
+        report.publishSeconds > 600
+      )
         report.problems.push(`Push-to-publication took ${report.publishSeconds}s (target <=600s)`);
     }
   } catch (error) {

@@ -1,0 +1,55 @@
+name: Retry Mac release build
+
+# Windows publishes without waiting for the Mac build (team-release.yml). GitHub can lack a free Mac
+# runner for hours, so this re-runs the Mac job every 30 minutes until the Mac files are on the
+# release. It stops by itself once both the Mac build and attach job succeed.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  retry:
+    name: Retry the Mac job of the newest published release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Re-run the failed Mac job
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Newest first. Stop if a newer run is active so retrying never cancels its Mac build.
+          for ID in $(gh run list --repo "$GITHUB_REPOSITORY" --workflow team-release.yml --branch main --limit 10 --json databaseId --jq '.[].databaseId'); do
+            STATUS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ID" --jq '.status')
+            if [ "$STATUS" != "completed" ]; then
+              echo "Run $ID is $STATUS; waiting before retrying."
+              exit 0
+            fi
+            JOBS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ID/jobs?per_page=100")
+            PUBLISH=$(echo "$JOBS" | jq -r '.jobs[] | select(.name == "Publish complete release") | .conclusion // empty')
+            [ "$PUBLISH" = "success" ] || continue
+            MAC_ID=$(echo "$JOBS" | jq -r '.jobs[] | select(.name == "macOS arm64 app") | .id // empty')
+            MAC=$(echo "$JOBS" | jq -r '.jobs[] | select(.name == "macOS arm64 app") | .conclusion // empty')
+            ATTACH_ID=$(echo "$JOBS" | jq -r '.jobs[] | select(.name == "Attach Mac files") | .id // empty')
+            ATTACH=$(echo "$JOBS" | jq -r '.jobs[] | select(.name == "Attach Mac files") | .conclusion // empty')
+            echo "run $ID: status=$STATUS mac=$MAC attach=$ATTACH"
+            if [ "$MAC" = "success" ] && { [ -z "$ATTACH_ID" ] || [ "$ATTACH" = "success" ]; }; then
+              echo "Nothing to retry."
+              exit 0
+            fi
+            if [ "$MAC" != "success" ] && [ -n "$MAC_ID" ]; then
+              gh run rerun "$ID" --repo "$GITHUB_REPOSITORY" --job "$MAC_ID"
+              exit 0
+            fi
+            if [ "$ATTACH" != "success" ] && [ -n "$ATTACH_ID" ]; then
+              gh run rerun "$ID" --repo "$GITHUB_REPOSITORY" --job "$ATTACH_ID"
+              exit 0
+            fi
+            echo "No retryable Mac job found on run $ID."
+            exit 0
+          done
+          echo "No published release run found."
