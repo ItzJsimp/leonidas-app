@@ -12,6 +12,7 @@ import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useEnvironmentQuery } from "~/state/query";
 import { subagentsCatalogQuery } from "~/state/subagents";
 
+import { AgentActivity } from "./AgentActivity";
 import { AgentAvatar } from "./Avatar";
 import { entryAvatar, groupStudioEntries } from "./subagentStudio.logic";
 
@@ -67,7 +68,7 @@ function ChatRow(props: {
 /**
  * The agent profile: a chats sidebar (the lead first, then the team) next to the chosen chat. The
  * lead's chat is the Home chat. Each team agent has its own chat. The sidebar folds to an avatar
- * strip. The Activity panel joins on the right in a later slice.
+ * strip. The Activity panel sits on the right.
  */
 export function AgentProfile() {
   const environmentId = usePrimaryEnvironmentId();
@@ -134,6 +135,7 @@ export function AgentProfile() {
           </div>
         )}
       </section>
+      <AgentActivity />
     </div>
   );
 }
