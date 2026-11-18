@@ -64,13 +64,14 @@ const HELMET_STYLE: CSSProperties = {
   maskComposite: "intersect",
   WebkitMaskComposite: "source-in",
 };
+// Eased, many-stop falloff so the circle has no visible edge; every stop lands on 0 by the rim.
 const HELMET_GLOW: CSSProperties = {
   background:
-    "radial-gradient(closest-side,color-mix(in oklab,var(--primary) 30%,transparent),color-mix(in oklab,var(--primary) 14%,transparent) 35%,color-mix(in oklab,var(--primary) 4%,transparent) 68%,transparent)",
+    "radial-gradient(closest-side,color-mix(in oklab,var(--primary) 22%,transparent),color-mix(in oklab,var(--primary) 16%,transparent) 15%,color-mix(in oklab,var(--primary) 10%,transparent) 30%,color-mix(in oklab,var(--primary) 5%,transparent) 48%,color-mix(in oklab,var(--primary) 2%,transparent) 65%,color-mix(in oklab,var(--primary) .6%,transparent) 82%,transparent)",
 };
 
-/** The greeting floats this far above the low composer; a short window squeezes the gap to 1rem. */
-export const DRAFT_HERO_GREETING_GAP = "max(1rem, min(23dvh, 100dvh - 600px))";
+/** The greeting sits this far above the composer. */
+export const DRAFT_HERO_GREETING_GAP = "1.5rem";
 
 interface PickerItem {
   readonly value: string;
