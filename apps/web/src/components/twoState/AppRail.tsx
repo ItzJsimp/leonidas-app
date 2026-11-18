@@ -1,14 +1,14 @@
+import type { ContextMenuItem } from "@t3tools/contracts";
 import { Link, useLocation, useParams } from "@tanstack/react-router";
-import * as Schema from "effect/Schema";
 import {
   AudioLinesIcon,
   BellIcon,
   BotIcon,
   BrainIcon,
-  ChartNoAxesColumnIcon,
   ChevronsUpDownIcon,
   ClapperboardIcon,
   FolderKanbanIcon,
+  GaugeIcon,
   ImageIcon,
   LandmarkIcon,
   LayoutDashboardIcon,
@@ -18,8 +18,6 @@ import {
   MessageSquareIcon,
   MicIcon,
   NotebookPenIcon,
-  PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
   PaperclipIcon,
   SettingsIcon,
   ShieldAlertIcon,
@@ -30,7 +28,14 @@ import {
   ZapIcon,
   type LucideIcon,
 } from "lucide-react";
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from "react";
 
 import { APP_VERSION_LABEL } from "~/branding";
 import { openReleaseHistoryDialog } from "~/components/desktop/ReleaseHistoryDialog";
@@ -47,8 +52,8 @@ import {
   WorkspaceTypeChip,
 } from "~/components/workspace/WorkspacePicture";
 import { isElectron } from "~/env";
-import { useLocalStorage } from "~/hooks/useLocalStorage";
 import { cn, isMacPlatform } from "~/lib/utils";
+import { readLocalApi } from "~/localApi";
 import { resolveThreadRouteTarget } from "~/threadRoutes";
 
 import {
@@ -82,7 +87,7 @@ export const ICONS: Readonly<Record<string, LucideIcon>> = {
   subagents: BotIcon,
   team: UsersIcon,
   developer: TerminalSquareIcon,
-  usage: ChartNoAxesColumnIcon,
+  usage: GaugeIcon,
   settings: SettingsIcon,
   "trading-dashboard": LayoutDashboardIcon,
   "trading-journal": NotebookPenIcon,
@@ -99,9 +104,6 @@ const ACTIVE_CLASS = "border-transparent bg-primary/14 text-primary hover:text-p
 const CONTROL_CLASS =
   "inline-flex shrink-0 touch-hit items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none [-webkit-app-region:no-drag]";
 
-/** The rail remembers whether it shows labels. Labels by default (Jake's pick, 2026-11-07). */
-export const RAIL_EXPANDED_KEY = "leonidas:rail-expanded";
-
 /** "99+" past 99, so the badge stays small. */
 export const badgeText = (count: number) => (count > 99 ? "99+" : String(count));
 
@@ -109,16 +111,15 @@ export const badgeText = (count: number) => (count > 99 ? "99+" : String(count))
 type RailVariant = "wide" | "stacked" | "icon";
 
 /**
- * The only app navigation, in flat groups. Expanded shows each icon with its name under it (Jake's
- * sidebar pick, 2026-11-17). Collapsed shows icons alone. Both use thin dividers between groups.
- * `drawer` is the narrow-window sheet: names beside icons with group names, no toggle.
+ * The only app navigation, in flat groups with thin dividers between them. It has one state: each
+ * icon with its name under it (Jake's sidebar pick, 2026-11-17; no collapse, 2026-11-18). The
+ * workspace picker sits on top. Usage and Settings at the bottom show their icons alone.
+ * `drawer` is the narrow-window sheet: names beside icons with group names.
  * Chat opens the last chat, else the chat start page.
  */
 export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
-  const [stored, setStored] = useLocalStorage(RAIL_EXPANDED_KEY, true, Schema.Boolean);
-  const expanded = drawer || stored;
-  const variant: RailVariant = drawer ? "wide" : stored ? "stacked" : "icon";
-  const wide = variant === "wide";
+  const variant: RailVariant = drawer ? "wide" : "stacked";
+  const wide = drawer;
   const lastThread = useTwoStateStore((state) => state.lastThread);
   // Same number as the Needs you tile and card: the badge counts what needs you.
   const unread = useTwoStateCounts().needsYou;
@@ -134,18 +135,25 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
     strict: false,
     select: (params) => resolveThreadRouteTarget(params) !== null,
   });
-  const { main, bottom, pinned } = useRailItems({ ignorePins: wide });
-  // A pinned Notifications tab leaves the rail: its badge moves to Chat, so the count stays visible.
-  const badgeId = pinned.some((item) => item.id === "inbox") ? "chat" : "inbox";
+  const { main, bottom, pinned, pinnable, togglePin } = useRailItems();
   const current = activeRailId(pathname, onChat);
-  const renderItem = (item: RailItem) => (
+  // Right-click pins a tab to the chat panel. The drawer has no chat panel, so it has no pin menu.
+  const pinFor = (item: RailItem): RailPin | null =>
+    wide || !pinnable.some((entry) => entry.id === item.id)
+      ? null
+      : {
+          on: pinned.some((entry) => entry.id === item.id),
+          toggle: (on) => togglePin(item.id, on),
+        };
+  const renderItem = (item: RailItem, as: RailVariant = variant) => (
     <RailLink
       key={item.id}
       item={item}
       current={item.id === current}
       lastThread={lastThread}
-      variant={variant}
-      badge={item.id === badgeId ? (unread ?? 0) : 0}
+      variant={as}
+      badge={item.id === "inbox" ? (unread ?? 0) : 0}
+      pin={pinFor(item)}
     />
   );
   const versionButton = (
@@ -169,30 +177,25 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
         "flex h-full shrink-0 flex-col gap-1 border-r border-border bg-card pb-2",
         // Empty rail space moves the window, as a title bar does. Its links and buttons stay clickable.
         isElectron && "drag-region",
-        wide
-          ? "w-full px-2"
-          : variant === "stacked"
-            ? "w-[72px] items-center px-1"
-            : "w-[52px] items-center",
+        wide ? "w-full px-2" : "w-[72px] items-center px-1",
         isElectron && isMacPlatform(navigator.platform) ? "pt-10" : "pt-2",
       )}
     >
-      <RailHeader
-        variant={variant}
-        needsYou={unread}
-        onToggle={drawer ? null : () => setStored(!expanded)}
-      />
+      <RailHeader wide={wide} needsYou={unread} />
       {wide ? versionButton : null}
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>
-      {variant !== "icon" ? <FinishSetupRow compact={variant === "stacked"} /> : null}
+      <FinishSetupRow compact={!wide} />
+
       {/* The fade shows only on the edge that has more rows. Rows are links, so the list needs no tab stop. */}
       <ScrollArea
         scrollFade
+        // The fade is the cue for more rows. A scrollbar thumb here showed as a stray gray bar above Usage.
+        hideScrollbars
         viewportTabIndex={-1}
         // A row is 38 px high: the fade must reach into the next row, or the cue is invisible.
-        className="mt-1 w-full flex-1 [&_[data-slot=scroll-area-viewport]]:[--fade-size:3rem]"
+        className="mt-1 w-full flex-1 [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:[--fade-size:3rem]"
       >
         <div
           className={cn(
@@ -217,13 +220,7 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
                   </p>
                 ) : null}
                 {first && !wide && index > 0 ? (
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "h-px w-6 shrink-0 bg-border",
-                      variant === "stacked" ? "my-1" : "my-1.5",
-                    )}
-                  />
+                  <span aria-hidden className="my-1 h-px w-6 shrink-0 bg-border" />
                 ) : null}
                 {renderItem(item)}
               </Fragment>
@@ -232,17 +229,33 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
         </div>
       </ScrollArea>
       <div className={cn("flex flex-col gap-0.5", !wide && "items-center")}>
-        {bottom.map(renderItem)}
+        {/* Usage and Settings show the icon alone (names stay in the tooltip and the aria-label). */}
+        {bottom.map((item) => renderItem(item, wide ? "wide" : "icon"))}
         {/* Shows only while an update is on its way, directly under Settings. */}
         <SidebarMenu className={cn("empty:hidden", wide ? "items-start" : "items-center")}>
           <SidebarUpdatePill className="ml-0" expanded={wide} />
         </SidebarMenu>
-        {/* With names under the icons, the workspace switcher sits at the bottom left. The version
-            line stays out so every tab fits at 768 px high: Settings and the command palette open it. */}
-        {variant === "stacked" ? <WorkspacePicker expanded={false} needsYou={unread} /> : null}
       </div>
     </nav>
   );
+}
+
+interface RailPin {
+  readonly on: boolean;
+  readonly toggle: (on: boolean) => void;
+}
+
+/** Right-click a rail tab: pin it to the chat panel, or unpin it. The tab stays on the rail either way. */
+function showPinMenu(event: ReactMouseEvent, pin: RailPin) {
+  const api = readLocalApi();
+  if (!api) return;
+  event.preventDefault();
+  const items: ContextMenuItem<"toggle-pin">[] = [
+    { id: "toggle-pin", label: pin.on ? "Unpin from the chat panel" : "Pin to the chat panel" },
+  ];
+  void api.contextMenu.show(items, { x: event.clientX, y: event.clientY }).then((action) => {
+    if (action === "toggle-pin") pin.toggle(!pin.on);
+  });
 }
 
 function RailLink({
@@ -251,18 +264,21 @@ function RailLink({
   lastThread,
   variant,
   badge,
+  pin,
 }: {
   readonly item: RailItem;
   readonly current: boolean;
   readonly lastThread: ReturnType<typeof useTwoStateStore.getState>["lastThread"];
   readonly variant: RailVariant;
   readonly badge: number;
+  readonly pin: RailPin | null;
 }) {
   const Icon = ICONS[item.id] ?? LayoutDashboardIcon;
   const label = railLinkLabel(item.label, badge);
   const common = {
     "aria-label": label,
     "aria-current": current ? ("page" as const) : undefined,
+    onContextMenu: pin ? (event: ReactMouseEvent) => showPinMenu(event, pin) : undefined,
     className: cn(
       TARGET_CLASS,
       variant === "wide" && "h-9 w-full justify-start gap-3 px-2.5 hover:bg-accent",
@@ -324,59 +340,27 @@ function RailLink({
 }
 
 /**
- * Wide (drawer): the workspace picker with the collapse icon beside it. Stacked: the collapse icon
- * alone, the picker sits at the bottom. Collapsed: the workspace picture, the expand icon under it,
- * then a divider (Jake's "Option 1", 2026-11-07).
+ * The workspace picker is the top of the rail (Jake, 2026-11-18). Wide (drawer): the picture, name
+ * and type. Stacked: the picture alone, then a divider.
  */
 function RailHeader({
-  variant,
+  wide,
   needsYou,
-  onToggle,
 }: {
-  readonly variant: RailVariant;
+  readonly wide: boolean;
   readonly needsYou: number | null;
-  readonly onToggle: (() => void) | null;
 }) {
-  const expanded = variant !== "icon";
-  const toggleLabel = expanded ? "Collapse the menu" : "Expand the menu";
-  const toggle = onToggle ? (
-    <Tip text={toggleLabel}>
-      <button
-        type="button"
-        aria-label={toggleLabel}
-        aria-expanded={expanded}
-        onClick={onToggle}
-        className={cn(CONTROL_CLASS, "size-9")}
-      >
-        {expanded ? (
-          <PanelLeftCloseIcon aria-hidden className="size-5" />
-        ) : (
-          <PanelLeftOpenIcon aria-hidden className="size-5" />
-        )}
-      </button>
-    </Tip>
-  ) : null;
-  if (variant === "stacked") {
+  if (wide) {
     return (
-      <>
-        {toggle}
-        <span aria-hidden className="my-1 h-px w-6 shrink-0 bg-border" />
-      </>
-    );
-  }
-  if (expanded) {
-    return (
-      // The drawer has no toggle, and its close button sits at the top right: leave it room.
-      <div className={cn("flex items-center gap-1", !toggle && "pr-8")}>
+      // The drawer's close button sits at the top right: leave it room.
+      <div className="flex items-center gap-1 pr-8">
         <WorkspacePicker expanded needsYou={needsYou} />
-        {toggle}
       </div>
     );
   }
   return (
     <>
       <WorkspacePicker expanded={false} needsYou={needsYou} />
-      {toggle}
       <span aria-hidden className="my-1 h-px w-6 shrink-0 bg-border" />
     </>
   );

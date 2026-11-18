@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   activeRailId,
   badgeAnnouncement,
+  DEFAULT_PINS,
   pinnableItems,
   railItems,
   railLinkLabel,
@@ -10,12 +11,12 @@ import {
 
 const ids = (items: ReadonlyArray<{ readonly id: string }>) => items.map((item) => item.id);
 
-// Jake's flat groups (2026-11-07): Home, Work, Brain, Create.
+// Jake's flat groups (2026-11-18): Home (Chat, Command Center), Work, Brain, Create.
 const BASE = [
+  "chat",
   "command-center",
   "today",
   "inbox",
-  "chat",
   "tasks",
   "projects",
   "memory",
@@ -91,6 +92,13 @@ describe("railItems", () => {
     const { main } = railItems({ business: true, builder: true, scribe: true });
     const groups = main.map((item) => item.group).filter((g, i, all) => g !== all[i - 1]);
     expect(groups).toEqual(["home", "work", "brain", "create", "business", "builder"]);
+  });
+
+  it("puts Chat and Command Center alone in the first section, then Today, Tasks and Projects", () => {
+    const { main } = railItems({ business: false, builder: false, scribe: true });
+    const section = (group: string) => ids(main.filter((item) => item.group === group));
+    expect(section("home")).toEqual(["chat", "command-center"]);
+    expect(section("work")).toEqual(["today", "inbox", "tasks", "projects"]);
   });
 
   it("always has Usage then Settings at the bottom", () => {
@@ -248,11 +256,17 @@ describe("railItems in a Trading workspace", () => {
 describe("chat panel pins", () => {
   const personal = { business: false, builder: false, scribe: true };
 
-  it("moves a pinned tab from the rail to the panel, in pin order", () => {
+  it("lists a pinned tab for the panel, in pin order, and keeps it on the rail", () => {
     const { main, pinned } = railItems({ ...personal, pinned: ["projects", "inbox"] });
     expect(ids(pinned)).toEqual(["projects", "inbox"]);
-    expect(ids(main)).not.toContain("projects");
-    expect(ids(main)).not.toContain("inbox");
+    expect(ids(main)).toEqual(BASE);
+  });
+
+  it("pins Notifications, Tasks, Projects and Agents by default, all of them on the rail", () => {
+    expect(DEFAULT_PINS).toEqual(["inbox", "tasks", "projects", "subagents"]);
+    const { main, pinned } = railItems({ ...personal, pinned: DEFAULT_PINS });
+    expect(ids(pinned)).toEqual(DEFAULT_PINS);
+    for (const id of DEFAULT_PINS) expect(ids(main)).toContain(id);
   });
 
   it("never pins Chat, and ignores tabs this workspace does not show", () => {

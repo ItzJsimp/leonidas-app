@@ -86,6 +86,12 @@ const under = (pathname: string, base: string) =>
 
 /** Business tabs (Marketing, Content, Team) show for a business workspace or one switch each. */
 const MAIN: readonly RailItem[] = [
+  // Home holds the two main tabs: Chat first, then Command Center (Jake, 2026-11-18).
+  {
+    ...item("home", "chat", "Leonidas Chat", "/", "talk with Leonidas"),
+    tooltip: "Leonidas Chat: talk with Leonidas and run agents",
+    short: "Chat",
+  },
   {
     ...item(
       "home",
@@ -96,16 +102,10 @@ const MAIN: readonly RailItem[] = [
     ),
     short: "Command",
   },
-
-  item("home", "today", "Today", "/today", "your priorities, schedule and briefing"),
+  item("work", "today", "Today", "/today", "your priorities, schedule and briefing"),
   {
-    ...item("home", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
+    ...item("work", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
     short: "Alerts",
-  },
-  {
-    ...item("work", "chat", "Leonidas Chat", "/", "talk with Leonidas"),
-    tooltip: "Leonidas Chat: talk with Leonidas and run agents",
-    short: "Chat",
   },
   item("work", "tasks", "Tasks", "/tasks", "what to do and what is in progress"),
   item("work", "projects", "Projects", "/projects", "the projects you work on"),
@@ -176,7 +176,7 @@ export function railItems(input: {
   readonly scribe: boolean;
   /** A Trading workspace: its own rail replaces the personal one. */
   readonly trading?: boolean;
-  /** Tab ids pinned into the chat panel. A pinned tab leaves the rail. Chat cannot be pinned. */
+  /** Tab ids pinned into the chat panel. A pinned tab stays on the rail too. Chat cannot be pinned. */
   readonly pinned?: readonly string[];
 }): { main: readonly RailItem[]; bottom: readonly RailItem[]; pinned: readonly RailItem[] } {
   if (input.trading) return { main: TRADING, bottom: BOTTOM, pinned: [] };
@@ -187,20 +187,23 @@ export function railItems(input: {
       (entry.group !== "business" || shows(entry.id)) &&
       (entry.group !== "builder" || input.builder),
   );
-  const pins = (input.pinned ?? []).filter((id) => id !== "chat");
   return {
-    main: visible.filter((entry) => !pins.includes(entry.id)),
+    main: visible,
     bottom: BOTTOM,
     // In pin order, so the panel lists them as the person added them.
-    pinned: pins.flatMap((id) => visible.filter((entry) => entry.id === id)),
+    pinned: (input.pinned ?? [])
+      .filter((id) => id !== "chat")
+      .flatMap((id) => visible.filter((entry) => entry.id === id)),
   };
 }
+
+/** Pinned under New chat until the person changes them: what you check while a chat runs (Jake, 2026-11-18). */
+export const DEFAULT_PINS: readonly string[] = ["inbox", "tasks", "projects", "subagents"];
 
 /** Tabs a person may pin into the chat panel: every visible rail tab except Chat itself. */
 export function pinnableItems(input: Parameters<typeof railItems>[0]): readonly RailItem[] {
   if (input.trading) return [];
-  // Rail order, pinned or not, so a tab keeps its place in the menu when it is pinned.
-  return railItems({ ...input, pinned: [] }).main.filter((entry) => entry.id !== "chat");
+  return railItems(input).main.filter((entry) => entry.id !== "chat");
 }
 
 /** The icon that shows as the current page. Every chat page belongs to the Chat icon. */

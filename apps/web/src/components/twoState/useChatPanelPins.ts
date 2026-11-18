@@ -2,10 +2,10 @@ import * as Schema from "effect/Schema";
 
 import { useLocalStorage } from "~/hooks/useLocalStorage";
 
+import { DEFAULT_PINS } from "./railItems";
+
 const STORAGE_KEY = "leonidas:chat-panel-pins";
 const PinsSchema = Schema.Array(Schema.String);
-/** Notifications sits under New chat until the person unpins it (Jake's sidebar pick, 2026-11-17). */
-const DEFAULT_PINS: readonly string[] = ["inbox"];
 
 /** Rail tabs pinned into the chat panel under New chat, and a way to flip one. */
 export function useChatPanelPins() {
