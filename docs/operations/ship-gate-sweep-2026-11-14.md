@@ -39,12 +39,18 @@ Jake chose to remove the 30 exports that nothing uses. The sweep deleted each de
 - **Proof:** `knip` exports pass exits 0. Typecheck for `apps/web` and `packages/shared` exits 0. `apps/server` still shows 463 errors, the same count as before, in test files this sweep does not touch. Unit tests pass in `packages/shared` (69) and `apps/server` (44, 10 skipped). Web unit tests: 27 of 28 files pass. The one failing file is `reactCompilerCoverage.test.ts`, with 4 failures in `ThreadDetailsSection`, `ThreadDetailsUsage`, `UserMessageMoreMenu` and `DiscordNamesCard`. This sweep does not touch those 4 files.
 - **Not run:** the `*.browser.test.tsx` projects. `ChatOverlayHosts.browser.test.tsx` and `HostedEmptyState.browser.test.tsx` import only exports that remain.
 
+## Round 3, 2026-11-18
+
+Jake asked the sweep to decide the 3 files that knip still listed.
+
+- **`scripts/catchup/cli.ts`:** fixed. The root `package.json` now has the script `"catchup": "node scripts/catchup/cli.ts"`. The file header already says to run the tool this way. Knip reads the script and counts the file as an entry. `knip.jsonc` did not change. `node scripts/catchup/cli.ts` prints its command list.
+- **`MarkdownMath.tsx` and `MathTypeset.tsx`:** kept. The setting `mathRenderingEnabled` (`packages/contracts/src/settings.ts`), the user text in `docs/user/appearance.md` ("Render math") and three patches in `patches/` all exist. `ChatMarkdown.tsx` never uses the two files, and `SettingsPanels.tsx` has no toggle. A delete would break a documented feature. A wire-up is a feature port: upstream commit `cb0553ea39` touched `ChatMarkdown.tsx`, `MessagesTimeline.tsx` and the settings panel. That work is outside a ship-gate sweep.
+
 ## Findings left alone, with owner
 
-| Item                                                               | Why it stays                                                                                                                                                           | Owner path                      |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `scripts/catchup/cli.ts`                                           | The CLI entry of the documented catch-up tool. Nothing imports it. Fixing it needs a `knip.jsonc` entry, which this sweep must not change.                             | `scripts/catchup/`              |
-| `apps/web/src/components/chat/MarkdownMath.tsx`, `MathTypeset.tsx` | The LaTeX port is half wired. `markdown-clipboard.ts`, `index.css` and `markdown-clipboard.math.browser.test.ts` still refer to it. Delete or wire it as one decision. | `apps/web/src/components/chat/` |
-| 4 failures in `reactCompilerCoverage.test.ts`                      | Manual memo calls in 4 files that this sweep does not touch.                                                                                                           | Baseline-failures work          |
+| Item                                                          | Why it stays                                                                                                                                                                                      | Owner path                      |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `MarkdownMath.tsx`, `MathTypeset.tsx` (the last 2 knip files) | The LaTeX port is half wired: the setting, the doc and the patches exist, the render path does not. Port it (see upstream `cb0553ea39`) or drop the setting, the doc text and the files together. | `apps/web/src/components/chat/` |
+| 4 failures in `reactCompilerCoverage.test.ts`                 | Manual memo calls in 4 files that this sweep does not touch.                                                                                                                                      | Baseline-failures work          |
 
 Task card: not created. The `leonidas-app` project holds 221 open tasks (cap 100) and `-AllowOverCap` needs Jake's approval.
