@@ -215,6 +215,23 @@ describe("ChatMarkdown math", () => {
     expect(document.querySelector("[data-markdown-math]")).toBeNull();
     expect(document.body.textContent).toContain("$5 and then $6");
   });
+
+  it("renders inline mode in a span and keeps its formulas out of the tab order", () => {
+    settingsOverrides.mathRenderingEnabled = true;
+    try {
+      const document = new DOMParser().parseFromString(
+        renderToStaticMarkup(<ChatMarkdown inline cwd="/tmp/project" text="Use $x^2$ here." />),
+        "text/html",
+      );
+      expect(document.body.firstElementChild?.tagName).toBe("SPAN");
+      const formula = document.querySelector('[data-markdown-math="inline"]');
+      expect(formula).not.toBeNull();
+      expect(formula?.getAttribute("role")).toBeNull();
+      expect(formula?.querySelector("[tabindex]")?.getAttribute("tabindex")).toBe("-1");
+    } finally {
+      settingsOverrides.mathRenderingEnabled = false;
+    }
+  });
 });
 
 describe("ChatMarkdown context references", () => {

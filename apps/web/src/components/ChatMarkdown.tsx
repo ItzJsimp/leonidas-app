@@ -220,6 +220,8 @@ import { PullRequestLinkPreview } from "./pullRequest/PullRequestLinkPreview";
 import { userErrorToastFields } from "~/lib/userErrorToast";
 
 interface ChatMarkdownProps {
+  /** Compact markdown transforms remove blocks before rendering inside a label. */
+  inline?: boolean;
   text: string;
   cwd: string | undefined;
   threadRef?: ScopedThreadRef | undefined;
@@ -2320,6 +2322,7 @@ function areMarkdownFileLinkPropsEqual(
 
 function useChatMarkdownState({
   text,
+  inline = false,
   cwd,
   threadRef,
   pullRequestPanelRef,
@@ -2338,7 +2341,7 @@ function useChatMarkdownState({
 }: ChatMarkdownProps) {
   const { resolvedTheme } = useTheme();
   const [localMediaPreview, setLocalMediaPreview] = useState<ExpandedImagePreview | null>(null);
-  const markdownRef = useRef<HTMLDivElement>(null);
+  const markdownRef = useRef<HTMLElement>(null);
   const expandMedia = onImageExpand ?? setLocalMediaPreview;
   const mediaRequestId = useRef(0);
   useEffect(() => {
@@ -2489,7 +2492,7 @@ function useChatMarkdownState({
   }, []);
   // Re-emit highlighted content as markdown so copying out of the rendered
   // view keeps links, emphasis, lists, and code fences intact.
-  const handleCopy = useCallback((event: ReactClipboardEvent<HTMLDivElement>) => {
+  const handleCopy = useCallback((event: ReactClipboardEvent<HTMLElement>) => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !event.clipboardData) return;
     const payload = chatMarkdownClipboardPayload(selection);
@@ -2747,6 +2750,7 @@ function useChatMarkdownState({
       isStreaming,
       linkTargetPreference,
       markdownFileLinkMetaByHref,
+      inline,
       mathEnabled,
       onTaskListChange,
       onUseArtifactTemplate,
@@ -2782,6 +2786,7 @@ function useChatMarkdownState({
       isStreaming,
       linkTargetPreference,
       markdownFileLinkMetaByHref,
+      inline,
       mathEnabled,
       onTaskListChange,
       onUseArtifactTemplate,
@@ -3194,12 +3199,17 @@ const CHAT_MARKDOWN_COMPONENTS = {
     );
   },
   code: function MarkdownCode({ node, children, className, ...props }) {
-    const { cwd, imageBaseDir, inlineCodeFileLinkMetaByText, fileLinkChip, mathEnabled } = use(
-      ChatMarkdownRendererContext,
-    );
+    const { cwd, imageBaseDir, inlineCodeFileLinkMetaByText, fileLinkChip, mathEnabled, inline } =
+      use(ChatMarkdownRendererContext);
     const math = mathEnabled ? mathKind(className) : null;
     if (math) {
-      return <MarkdownMath tex={nodeToPlainText(children)} display={math === "display"} />;
+      return (
+        <MarkdownMath
+          tex={nodeToPlainText(children)}
+          display={math === "display"}
+          focusable={!inline}
+        />
+      );
     }
     if (node?.properties?.dataInlineCode != null) {
       const codeText = nodeToPlainText(children);
@@ -3400,6 +3410,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       onRunShellCommand,
       text,
       mathEnabled,
+      inline,
     } = use(ChatMarkdownRendererContext);
     const codeBlock = extractCodeBlock(children);
     if (!codeBlock) {
@@ -3412,7 +3423,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       language === "math" &&
       (!isStreaming || mathKind(codeBlock.className) === "display" || isClosedCodeFence(node, text))
     ) {
-      return <MarkdownMath tex={codeBlock.code} display />;
+      return <MarkdownMath tex={codeBlock.code} display focusable={!inline} />;
     }
     const blockType = answerBlockType(language);
     if (blockType) {
@@ -3484,6 +3495,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
 function ChatMarkdown({
   text,
   className,
+  inline = false,
   lineBreaks = false,
   parseRawHtml = true,
   extraRemarkPlugins = EMPTY_REMARK_PLUGINS,
@@ -3496,9 +3508,13 @@ function ChatMarkdown({
     markdownUrlTransform,
     localMediaPreview,
     setLocalMediaPreview,
-  } = useChatMarkdownState({ text, ...props });
+  } = useChatMarkdownState({ text, inline, ...props });
   const incrementalParsing = props.isStreaming === true && extraRemarkPlugins.length === 0;
   const mathEnabled = componentState.mathEnabled;
+  const Root = inline ? "span" : "div";
+  const bindMarkdownRef = (node: HTMLElement | null) => {
+    markdownRef.current = node;
+  };
   const remarkPlugins = useMemo(() => {
     const plugins = [
       ...(lineBreaks ? CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS : CHAT_MARKDOWN_REMARK_PLUGINS),
@@ -3513,10 +3529,12 @@ function ChatMarkdown({
   // Keep that behavior explicit because literal mode depends on escaping the
   // complete source token instead of dropping it from the rendered message.
   return (
-    <div
-      ref={markdownRef}
+    <Root
+      ref={bindMarkdownRef}
       className={cn(
-        "chat-markdown w-full min-w-0 text-sm leading-relaxed text-foreground/[calc(90%+var(--appearance-contrast-boost)/10)] [overflow-wrap:anywhere] [word-break:break-word]",
+        "chat-markdown w-full min-w-0 [overflow-wrap:anywhere] [word-break:break-word]",
+        !inline &&
+          "text-sm leading-relaxed text-foreground/[calc(90%+var(--appearance-contrast-boost)/10)]",
         className,
       )}
       // Gates the fade-in for blocks that arrive while the response streams.
@@ -3544,7 +3562,7 @@ function ChatMarkdown({
           onClose={() => setLocalMediaPreview(null)}
         />
       ) : null}
-    </div>
+    </Root>
   );
 }
 
