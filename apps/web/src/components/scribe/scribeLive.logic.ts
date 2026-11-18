@@ -100,6 +100,7 @@ export type EngineTone = "success" | "info" | "warning" | "error" | "muted";
 export function engineStrip(
   snapshot: ScribeLiveSnapshot,
   builder = false,
+  enabled = true,
 ): {
   readonly label: string;
   readonly tone: EngineTone;
@@ -116,6 +117,6 @@ export function engineStrip(
       return { label: "Microphone problem", tone: "warning" };
     case "ready":
     case null:
-      return { label: "Ready", tone: "success" };
+      return enabled ? { label: "Ready", tone: "success" } : { label: "Off", tone: "muted" };
   }
 }

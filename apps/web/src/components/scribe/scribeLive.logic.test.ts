@@ -117,6 +117,12 @@ describe("engineStrip", () => {
     expect(engineStrip({ ...INITIAL_SCRIBE_LIVE, connected: false }, true).label).toBe(
       "Engine stopped",
     );
+    expect(
+      engineStrip({ ...INITIAL_SCRIBE_LIVE, connected: true, state: "ready" }, false, false),
+    ).toEqual({
+      label: "Off",
+      tone: "muted",
+    });
     expect(engineStrip({ ...INITIAL_SCRIBE_LIVE, connected: true, state: "mic_error" })).toEqual({
       label: "Microphone problem",
       tone: "warning",

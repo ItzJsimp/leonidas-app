@@ -4,17 +4,20 @@ import { MicOffIcon } from "lucide-react";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useEnvironmentQuery } from "~/state/query";
 import { scribeLive } from "~/state/scribe";
+import { cn } from "~/lib/utils";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
+import { Switch } from "../ui/switch";
+import { Tip } from "../twoState/Tip";
+import { useBuilderMode } from "../twoState/useBuilderMode";
+import { WindowHeader } from "../twoState/WindowHeader";
 import { ScribeDictionaryTab } from "./ScribeDictionaryTab";
 import { ScribeHomeTab } from "./ScribeHomeTab";
 import { ScribeProgressTab } from "./ScribeProgressTab";
 import { ScribeRewriteTab } from "./ScribeRewriteTab";
 import { ScribeSettingsTab } from "./ScribeSettingsTab";
 import { ScribeTranscriptsTab } from "./ScribeTranscriptsTab";
-import { useBuilderMode } from "../twoState/useBuilderMode";
-import { WindowHeader } from "../twoState/WindowHeader";
-import { cn } from "~/lib/utils";
 import { INITIAL_SCRIBE_LIVE, engineStrip, type ScribeLiveSnapshot } from "./scribeLive.logic";
+import { useScribeToggle } from "./useScribeToggle";
 
 export interface ScribeTabProps {
   readonly environmentId: EnvironmentId;
@@ -90,22 +93,42 @@ function ScribeBody(props: {
   const live =
     useEnvironmentQuery(scribeLive({ environmentId: props.environmentId, input: {} })).data ??
     INITIAL_SCRIBE_LIVE;
+  const { enabled, busy, toggle } = useScribeToggle(props.environmentId);
   const builder = useBuilderMode();
-  const strip = engineStrip(live, builder);
+  const strip = engineStrip(live, builder, enabled ?? true);
   const active = TABS.find((tab) => tab.id === props.tab) ?? TABS[0];
   const Tab = active.render;
+  const switchDisabled = live.connected !== true || enabled === null || busy;
+  const switchTip =
+    live.connected !== true
+      ? "Scribe engine is not running."
+      : enabled === false
+        ? "Turn Leonidas Scribe on to enable dictation shortcuts."
+        : "Turn Leonidas Scribe off to stop all dictation shortcuts.";
+
   return (
     <>
       <WindowHeader
         title="Scribe"
         actions={
-          <span
-            aria-live="polite"
-            className="inline-flex items-center gap-2 text-xs text-muted-foreground"
-          >
-            <span aria-hidden className={cn("size-2 rounded-full", STATUS_DOT[strip.tone])} />
-            {strip.label}
-          </span>
+          <div className="flex items-center gap-3">
+            <span
+              aria-live="polite"
+              className="inline-flex items-center gap-2 text-xs text-muted-foreground"
+            >
+              <span aria-hidden className={cn("size-2 rounded-full", STATUS_DOT[strip.tone])} />
+              {strip.label}
+            </span>
+            <Tip text={switchTip}>
+              <Switch
+                size="sm"
+                aria-label="Enable Leonidas Scribe"
+                checked={enabled ?? false}
+                disabled={switchDisabled}
+                onCheckedChange={() => void toggle()}
+              />
+            </Tip>
+          </div>
         }
         tabs={TABS}
         active={active.id}

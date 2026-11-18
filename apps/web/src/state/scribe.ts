@@ -4,6 +4,7 @@ import {
   createEnvironmentRpcSubscriptionAtomFamily,
 } from "@t3tools/client-runtime/state/runtime";
 import { WS_METHODS } from "@t3tools/contracts";
+import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 
 import { INITIAL_SCRIBE_LIVE, reduceScribeLive } from "../components/scribe/scribeLive.logic";
@@ -107,6 +108,8 @@ export const scribeDevicesQuery = createEnvironmentRpcQueryAtomFamily(connection
 export const scribePatchSettings = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:scribe:patch-settings",
   tag: WS_METHODS.scribePatchSettings,
+  onSuccess: ({ environmentId }, registry) =>
+    Effect.sync(() => registry.refresh(scribeSettingsQuery({ environmentId, input: {} }))),
 });
 
 export const scribeGetGroqKey = createEnvironmentRpcCommand(connectionAtomRuntime, {
@@ -117,11 +120,15 @@ export const scribeGetGroqKey = createEnvironmentRpcCommand(connectionAtomRuntim
 export const scribeSetGroqKey = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:scribe:set-groq-key",
   tag: WS_METHODS.scribeSetGroqKey,
+  onSuccess: ({ environmentId }, registry) =>
+    Effect.sync(() => registry.refresh(scribeSettingsQuery({ environmentId, input: {} }))),
 });
 
 export const scribeClearGroqKey = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:scribe:clear-groq-key",
   tag: WS_METHODS.scribeClearGroqKey,
+  onSuccess: ({ environmentId }, registry) =>
+    Effect.sync(() => registry.refresh(scribeSettingsQuery({ environmentId, input: {} }))),
 });
 
 /** One call to the engine's meetings routes (list, read, edit, share, transcribe). */

@@ -37,6 +37,7 @@ import { toastManager } from "../ui/toast";
 import { commandErrorReason } from "./home.logic";
 import { KeyCaps } from "./ScribeParts";
 import type { ScribeTabProps } from "./ScribePage";
+import { useScribeToggle } from "./useScribeToggle";
 import {
   addBinding,
   bindingFromKey,
@@ -75,15 +76,20 @@ const HOTKEY_ROWS = [
 export function ScribeSettingsTab({ environmentId, live }: ScribeTabProps) {
   const settingsQuery = useEnvironmentQuery(scribeSettingsQuery({ environmentId, input: {} }));
   const devicesQuery = useEnvironmentQuery(scribeDevicesQuery({ environmentId, input: {} }));
+  const scribe = useScribeToggle(environmentId);
   const runPatch = useAtomCommand(scribePatchSettings, { reportFailure: false });
   const runSetKey = useAtomCommand(scribeSetGroqKey, { reportFailure: false });
   const runClearKey = useAtomCommand(scribeClearGroqKey, { reportFailure: false });
   const runGetKey = useAtomCommand(scribeGetGroqKey, { reportFailure: false });
-  const [saved, setSaved] = useState<ScribeSettings | null>(null);
+  const [override, setOverride] = useState<{
+    base: ScribeSettings | null;
+    value: ScribeSettings;
+  } | null>(null);
   // `edits` holds the page's changes; null means nothing is edited, so a refresh never wipes one.
   const [edits, setEdits] = useState<SettingsDraft | null>(null);
   const [busy, setBusy] = useState(false);
-  const settings = saved ?? settingsQuery.data;
+  const settings =
+    override !== null && override.base === settingsQuery.data ? override.value : settingsQuery.data;
   const draft = edits ?? (settings === null ? null : toDraft(settings));
 
   // A failed read tries again once when the engine comes back.
@@ -125,7 +131,7 @@ export function ScribeSettingsTab({ environmentId, live }: ScribeTabProps) {
           [patch.section]: { ...next.sections[patch.section], ...result.value.values },
         },
       } as ScribeSettings;
-      setSaved(next);
+      setOverride({ base: settingsQuery.data, value: next });
     }
     if (restart.length === patches.length) setEdits(null);
     setBusy(false);
@@ -141,10 +147,13 @@ export function ScribeSettingsTab({ environmentId, live }: ScribeTabProps) {
   const showKey = (isSet: boolean) => {
     if (settings === null) return;
     const { transcription } = settings.sections;
-    setSaved({
-      sections: {
-        ...settings.sections,
-        transcription: { ...transcription, groqKey: { set: isSet } },
+    setOverride({
+      base: settingsQuery.data,
+      value: {
+        sections: {
+          ...settings.sections,
+          transcription: { ...transcription, groqKey: { set: isSet } },
+        },
       },
     });
   };
@@ -241,6 +250,18 @@ export function ScribeSettingsTab({ environmentId, live }: ScribeTabProps) {
           {patches.length > 0 ? "Save changes to apply your settings." : "No unsaved changes"}
         </span>
       </div>
+      <Section
+        title="Scribe"
+        note="Turn Leonidas Scribe on or off right away. Changes here apply immediately."
+      >
+        <Toggler
+          label="Enable Leonidas Scribe"
+          hint="Listen for your dictation shortcuts across apps. Off removes all key and mouse hooks."
+          checked={scribe.enabled ?? true}
+          disabled={scribe.enabled === null || scribe.busy || live.connected === false}
+          onChange={() => void scribe.toggle()}
+        />
+      </Section>
       <Section
         title="Shortcuts"
         note="Each shortcut works on its own. Click Record, then press the keys or a mouse button."
@@ -419,6 +440,7 @@ function Toggler(props: {
   label: string;
   hint: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (value: boolean) => void;
 }) {
   return (
@@ -427,7 +449,12 @@ function Toggler(props: {
         <p className="text-sm font-medium">{props.label}</p>
         <p className="text-sm text-muted-foreground">{props.hint}</p>
       </div>
-      <Switch aria-label={props.label} checked={props.checked} onCheckedChange={props.onChange} />
+      <Switch
+        aria-label={props.label}
+        checked={props.checked}
+        disabled={props.disabled}
+        onCheckedChange={props.onChange}
+      />
     </div>
   );
 }

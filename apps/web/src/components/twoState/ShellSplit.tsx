@@ -84,7 +84,7 @@ export function ShellSplit({
 
   return (
     <CodeForwardContext value={value}>
-      <div ref={rowRef} className="flex h-svh min-h-0 min-w-0 flex-1 md:h-dvh">
+      <div ref={rowRef} className="flex h-full min-h-0 min-w-0 flex-1">
         {showLeft ? (
           <div
             data-pane="left"

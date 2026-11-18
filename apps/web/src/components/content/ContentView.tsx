@@ -310,7 +310,7 @@ export function ContentScreen(props: {
   );
 
   return (
-    <SidebarInset className="isolate h-dvh min-h-0 overflow-hidden overscroll-y-none">
+    <SidebarInset className="isolate h-full min-h-0 overflow-hidden overscroll-y-none">
       <WindowHeader
         title="Content"
         {...(list ? { count: rows.length } : {})}

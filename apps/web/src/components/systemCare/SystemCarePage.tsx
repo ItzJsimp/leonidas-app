@@ -682,7 +682,7 @@ function PageFrame(props: { readonly embedded: boolean; readonly children: React
   return props.embedded ? (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{props.children}</div>
   ) : (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
+    <SidebarInset className="h-full min-h-0 overflow-hidden overscroll-y-none isolate">
       {props.children}
     </SidebarInset>
   );
