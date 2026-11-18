@@ -60,11 +60,6 @@ const useRequest = create<{ request: AddProjectToMachineRequest | null }>(() => 
   request: null,
 }));
 
-/** Opens the dialog that clones a project onto another connected machine. */
-export function openAddProjectToMachine(request: AddProjectToMachineRequest) {
-  useRequest.setState({ request });
-}
-
 const close = () => useRequest.setState({ request: null });
 
 export function AddProjectToMachineDialogHost() {

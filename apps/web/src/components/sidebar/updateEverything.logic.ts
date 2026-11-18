@@ -194,10 +194,6 @@ export function resolveUpdateRunMachineStatus(
   return "waiting";
 }
 
-export function isServerUpdateHandedOff(state: ServerUpdateState): boolean {
-  return state.status === "running" && state.stage === "resuming";
-}
-
 export function closeFinishedUpdateRun(run: UpdateEverythingRun): UpdateEverythingRun | null {
   return run.phase === "servers" &&
     run.localVersion === null &&

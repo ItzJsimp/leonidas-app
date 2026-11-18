@@ -62,10 +62,6 @@ export function useMarketing(): MarketingView {
   };
 }
 
-/** True when nothing is set up yet, so the home page can hide the card. */
-export const isUnused = (list: MarketingListResult) =>
-  list.brands.length === 0 && list.posts.length === 0 && list.bad.length === 0;
-
 /** The count the header stat shows; null hides it. */
 export function useNeedsApprovalCount(): number | null {
   const { list } = useMarketing();

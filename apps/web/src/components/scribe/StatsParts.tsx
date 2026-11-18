@@ -120,22 +120,6 @@ export function useRefreshOnDictation(
   }, [key, newest, refresh]);
 }
 
-export function StatsSection(props: {
-  readonly title: string;
-  readonly aside?: ReactNode;
-  readonly children: ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold">{props.title}</h2>
-        {props.aside ? <span className="text-sm text-muted-foreground">{props.aside}</span> : null}
-      </div>
-      {props.children}
-    </section>
-  );
-}
-
 /** Shown while the first numbers load, and when they fail. Retry is always offered on failure. */
 export function StatsPlaceholder(props: {
   readonly failed: boolean;

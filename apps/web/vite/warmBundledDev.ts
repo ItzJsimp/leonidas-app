@@ -1,15 +1,7 @@
-import type { Plugin, ViteDevServer } from "vite-plus";
+import type { ViteDevServer } from "vite-plus";
 
 // What the first page load pulls in: the app, the managed-auth shell, the chat
 // layout and its landing routes, and the sidebar's project icons.
-const STARTUP_LAZY_ENTRIES = [
-  "src/main.tsx",
-  "src/components/clerk/BrowserManagedAuthShell.tsx",
-  "src/routes/_chat.tsx",
-  "src/routes/_chat.index.tsx",
-  "src/routes/_chat.$environmentId.$threadId.tsx",
-  "src/lib/lucideIconByName.ts",
-];
 
 const WARMUP_CLIENT_ID = "t3code-startup-warmup";
 
@@ -96,30 +88,3 @@ export async function warmLazyEntries(
 // time. Cold, that chain costs ~25s of serial compile before first paint
 // (`server.warmup` does nothing in bundled dev). Warming it as soon as the
 // server listens leaves the browser mostly codegen.
-export function warmBundledDevPlugin(): Plugin {
-  return {
-    name: "t3code:warm-bundled-dev",
-    apply: "serve",
-    configureServer(server) {
-      if (!server.config.experimental.bundledDev) return;
-      server.httpServer?.once("listening", () => {
-        const startedAt = performance.now();
-        warmLazyEntries(server, STARTUP_LAZY_ENTRIES).then(
-          (warmed) => {
-            if (warmed.length === 0) return;
-            const seconds = ((performance.now() - startedAt) / 1000).toFixed(1);
-            server.config.logger.info(
-              `[t3code] pre-bundled ${String(warmed.length)} startup chunks in ${seconds}s`,
-              { timestamp: true },
-            );
-          },
-          (error: unknown) => {
-            server.config.logger.warn(`[t3code] startup chunk warmup failed: ${String(error)}`, {
-              timestamp: true,
-            });
-          },
-        );
-      });
-    },
-  };
-}
