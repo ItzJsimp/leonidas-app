@@ -4,12 +4,12 @@ Method: breadth-first import walk on `upstream/main`. Start files: the 4 chat fi
 
 ## Result
 
-| Measure | Count |
-| --- | --- |
-| Files in the closure (all in `apps/web`) | 967 |
-| Closure files that do not exist in Leonidas | 250 |
-| Closure files that Leonidas changed since the base | 336 |
-| Closure files that Leonidas has unchanged | 381 |
+| Measure                                            | Count |
+| -------------------------------------------------- | ----- |
+| Files in the closure (all in `apps/web`)           | 967   |
+| Closure files that do not exist in Leonidas        | 250   |
+| Closure files that Leonidas changed since the base | 336   |
+| Closure files that Leonidas has unchanged          | 381   |
 
 Missing files by folder: `components` 186, `lib` 19, `hooks` 15, `speech` 10, `state` 7, others 13. Changed files by folder: `components` 275, `hooks` 12, `lib` 7, `state` 6, `browser` 5, `connection` 3.
 

@@ -1,67 +1,14 @@
 import { useAuth } from "@clerk/react";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { Link } from "@tanstack/react-router";
 import { CheckIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
-import { APP_DISPLAY_NAME, DESKTOP_DOWNLOAD_URL } from "~/branding";
-import { hasCloudPublicConfig } from "~/cloud/publicConfig";
-import { isElectron } from "../env";
-import { isLocalEnvironmentDisabled } from "../localEnvironment";
+import { DESKTOP_DOWNLOAD_URL } from "~/branding";
 import { useRelayEnvironmentDiscovery } from "../state/environments";
 import { CommandBlock } from "./CommandBlock";
 import { useT3ConnectAuthPrompt } from "./clerk/useT3ConnectAuthPrompt";
 import { CloudEnvironmentConnectRows } from "./cloud/CloudEnvironmentConnectList";
 import { Button } from "./ui/button";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
-import { SidebarInset } from "./ui/sidebar";
-import { WorkspacePageHeader } from "./WorkspacePageHeader";
-
-/** Home screen for the hosted app before any computer is added. */
-export function HostedEmptyState() {
-  const cloudEnabled = hasCloudPublicConfig();
-  const localEnvironmentOff = isLocalEnvironmentDisabled();
-
-  return (
-    <SidebarInset className="h-full min-h-0 overflow-hidden overscroll-y-none">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-background">
-        <WorkspacePageHeader electron={isElectron} className="border-b border-border">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground md:text-muted-foreground/60">
-              {APP_DISPLAY_NAME}
-            </span>
-          </div>
-        </WorkspacePageHeader>
-
-        <Empty className="flex-1">
-          <EmptyHeader>
-            <EmptyTitle>
-              {localEnvironmentOff ? "This computer is off" : "No computer connected"}
-            </EmptyTitle>
-            <EmptyDescription>
-              {localEnvironmentOff
-                ? "Turn it back on, or connect a different computer."
-                : cloudEnabled
-                  ? "Your agents run on your computer."
-                  : "Your agents run on your computer. Start Leonidas there first."}
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            {localEnvironmentOff ? (
-              <Button render={<Link to="/settings/connections" />} size="sm">
-                Open Connections
-              </Button>
-            ) : (
-              <ol className="w-full space-y-4 text-left">
-                {cloudEnabled ? <T3ConnectSteps /> : <PairingSteps />}
-              </ol>
-            )}
-          </EmptyContent>
-        </Empty>
-      </div>
-    </SidebarInset>
-  );
-}
 
 export function T3ConnectSteps() {
   const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
@@ -110,21 +57,6 @@ export function T3ConnectSteps() {
             />
           </div>
         ) : null}
-      </SetupStep>
-    </>
-  );
-}
-
-function PairingSteps() {
-  return (
-    <>
-      <SetupStep number={1}>
-        <RunOnComputer command="npx t3 pair" />
-      </SetupStep>
-      <SetupStep number={2}>
-        <Button render={<Link to="/settings/connections" />} size="sm">
-          Add pairing link
-        </Button>
       </SetupStep>
     </>
   );

@@ -6,6 +6,8 @@ Scope: formatting, unused code, icons, mobile static checks and the native crate
 
 Each check ran once before any edit. `pnpm` on this machine fails (the corepack shim has no `pnpm.js`). Each row therefore ran the command that the script wraps.
 
+The "after" columns describe the local checkout on 2026-11-18, before it landed on `origin/main`. The landed tree differs. See "Landed tree" below.
+
 | Check                                      | Command run                                                                               | Exit before | Failures before          | Exit after | Failures after |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------- | ----------- | ------------------------ | ---------- | -------------- |
 | `fmt:check`                                | `vp fmt --check`                                                                          | 1           | 44 files                 | 0          | 0              |
@@ -69,10 +71,23 @@ Jake asked for the upstream `MessagesTimeline` math changes. The upstream code d
 - **Proof:** both knip passes exit 0. `tsc` for `apps/web` exits 0. Lint counts match HEAD for all 4 changed files. 8 of 9 related web test files pass. The one failure is the same 4 `reactCompilerCoverage.test.ts` cases as before.
 - **Not tested:** the real KaTeX output in a collapsed reasoning row, and the review card in the app. Only the transform and the markup are tested.
 
+## Landed tree, 2026-11-18
+
+The LaTeX work and the cleanup landed on `origin/main` as `27c19da76b` through the merge queue. The 5 sweep commits were cherry-picked onto the newest `origin/main`. Three files conflicted because upstream had changed them, and each kept upstream's version: `AppRail.tsx`, `HostedEmptyState.tsx` and `packages/shared/src/model.ts`. Both knip passes and the format check ran on the landed tree.
+
+| Check                | Exit | Failures   | Cause                                                                                                                                                                       |
+| -------------------- | ---- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fmt:check`          | 1    | 8 files    | A local commit from another session swept up the formatted copies, so they never reached `main`.                                                                            |
+| `knip:check`, pass 1 | 1    | 2 files    | `ComposerSubagentsButton.tsx` and `useThreadSubagentAttach.ts`: other work (subagents).                                                                                     |
+| `knip:check`, pass 2 | 1    | 11 exports | 4 in subagents and trading server files, 5 in trading, home and subagent web files, 1 in `AiosRootTip.tsx`, and `HostedEmptyState` (kept from upstream after the conflict). |
+
+The follow-up change after this landing formats the 8 files and removes the dead `HostedEmptyState` and `PairingSteps` components. `fmt:check` then exits 0 on that branch. Knip was not run again after the follow-up. The other 10 export findings and the 2 files belong to the subagents, trading and home chat work. This sweep did not touch them.
+
 ## Findings left alone, with owner
 
-| Item                                          | Why it stays                                                 | Owner path             |
-| --------------------------------------------- | ------------------------------------------------------------ | ---------------------- |
-| 4 failures in `reactCompilerCoverage.test.ts` | Manual memo calls in 4 files that this sweep does not touch. | Baseline-failures work |
+| Item                                                                             | Why it stays                                                 | Owner path                 |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------- |
+| 2 files and 10 exports from subagents, trading and home chat work (listed above) | Other sessions own that code.                                | Subagents and trading work |
+| 4 failures in `reactCompilerCoverage.test.ts`                                    | Manual memo calls in 4 files that this sweep does not touch. | Baseline-failures work     |
 
 Task card: not created. The `leonidas-app` project holds 221 open tasks (cap 100) and `-AllowOverCap` needs Jake's approval.

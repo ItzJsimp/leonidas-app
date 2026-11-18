@@ -2366,7 +2366,9 @@ describe("pending user input answers", () => {
   it("keeps the option when a message is typed and submitted", () => {
     let draft = togglePendingUserInputOptionSelection(singleSelectQuestion, undefined, "Go");
     draft = setPendingUserInputCustomAnswer(singleSelectQuestion, draft, "A typed complaint");
-    const answers = buildPendingUserInputAnswers([singleSelectQuestion], { [singleSelectQuestion.id]: draft });
+    const answers = buildPendingUserInputAnswers([singleSelectQuestion], {
+      [singleSelectQuestion.id]: draft,
+    });
     expect(answers?.[singleSelectQuestion.id]).toBe("Go\n\nNote: A typed complaint");
   });
 
@@ -2374,8 +2376,14 @@ describe("pending user input answers", () => {
     let draft = togglePendingUserInputOptionSelection(multiSelectQuestion, undefined, "Orders");
     draft = togglePendingUserInputOptionSelection(multiSelectQuestion, draft, "Listings");
     draft = setPendingUserInputCustomAnswer(multiSelectQuestion, draft, "A typed complaint");
-    const answers = buildPendingUserInputAnswers([multiSelectQuestion], { [multiSelectQuestion.id]: draft });
-    expect(answers?.[multiSelectQuestion.id]).toEqual(["Orders", "Listings", "Note: A typed complaint"]);
+    const answers = buildPendingUserInputAnswers([multiSelectQuestion], {
+      [multiSelectQuestion.id]: draft,
+    });
+    expect(answers?.[multiSelectQuestion.id]).toEqual([
+      "Orders",
+      "Listings",
+      "Note: A typed complaint",
+    ]);
   });
 
   it("keeps the selected options when a note is typed", () => {
@@ -2390,11 +2398,7 @@ describe("pending user input answers", () => {
 
   it("keeps the typed note when an option is selected", () => {
     expect(
-      togglePendingUserInputOptionSelection(
-        singleSelectQuestion,
-        { customAnswer: "a note" },
-        "Go",
-      ),
+      togglePendingUserInputOptionSelection(singleSelectQuestion, { customAnswer: "a note" }, "Go"),
     ).toEqual({ customAnswer: "a note", selectedOptionValues: ["Go"] });
   });
 
