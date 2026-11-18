@@ -9,8 +9,8 @@ Each check ran once before any edit. `pnpm` on this machine fails (the corepack 
 | Check                                      | Command run                                                                               | Exit before | Failures before          | Exit after | Failures after |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------- | ----------- | ------------------------ | ---------- | -------------- |
 | `fmt:check`                                | `vp fmt --check`                                                                          | 1           | 44 files                 | 0          | 0              |
-| `knip:check`, pass 1 (files, dependencies) | `knip --include files,dependencies`                                                       | 1           | 17 files, 1 dependency   | 1          | 3 files        |
-| `knip:check`, pass 2 (exports)             | `knip --workspace ... --exports`                                                          | 1           | 103 exports, 1 duplicate | 1          | 31 exports     |
+| `knip:check`, pass 1 (files, dependencies) | `knip --include files,dependencies`                                                       | 1           | 17 files, 1 dependency   | 0          | 0              |
+| `knip:check`, pass 2 (exports)             | `knip --workspace ... --exports`                                                          | 1           | 103 exports, 1 duplicate | 0          | 0              |
 | `icons:check`                              | `node scripts/export-brand-icons.ts --check`                                              | 1           | Missing tool             | 1          | Missing tool   |
 | `lint:mobile`                              | `node scripts/mobile-native-static-check.ts`                                              | 0           | 0                        | 0          | 0              |
 | `test:resource-monitor`                    | `cargo test --locked --manifest-path native/resource-monitor/Cargo.toml`                  | 101         | Missing tool             | 101        | Missing tool   |
@@ -46,11 +46,22 @@ Jake asked the sweep to decide the 3 files that knip still listed.
 - **`scripts/catchup/cli.ts`:** fixed. The root `package.json` now has the script `"catchup": "node scripts/catchup/cli.ts"`. The file header already says to run the tool this way. Knip reads the script and counts the file as an entry. `knip.jsonc` did not change. `node scripts/catchup/cli.ts` prints its command list.
 - **`MarkdownMath.tsx` and `MathTypeset.tsx`:** kept. The setting `mathRenderingEnabled` (`packages/contracts/src/settings.ts`), the user text in `docs/user/appearance.md` ("Render math") and three patches in `patches/` all exist. `ChatMarkdown.tsx` never uses the two files, and `SettingsPanels.tsx` has no toggle. A delete would break a documented feature. A wire-up is a feature port: upstream commit `cb0553ea39` touched `ChatMarkdown.tsx`, `MessagesTimeline.tsx` and the settings panel. That work is outside a ship-gate sweep.
 
+## Round 4, 2026-11-18
+
+Jake chose to port LaTeX rendering from upstream commit `cb0553ea39`. The setting, the doc text, the patches, the shared parser, the clipboard code and mobile support already existed. The web render path was the missing part.
+
+- **`ChatMarkdown.tsx`:** reads `mathRenderingEnabled`. When it is on, the Markdown pipeline adds `remark-math`, and `code` and `pre` render formulas through `MarkdownMath`. When it is off, TeX stays plain text and KaTeX stays out of the render path.
+- **Settings:** a "Render math" switch in Settings, Appearance, with a reset button, a restore entry and a search item.
+- **Dependency:** `remark-math` is back in `apps/web/package.json` and its lockfile entry (round 1 had removed it). `pnpm install --frozen-lockfile --lockfile-only` passes.
+- **Tests:** 4 new tests in `ChatMarkdown.test.tsx` (off keeps text, on wraps inline and display formulas, a `math` fence renders, prices stay text). All 85 tests in that file pass.
+- **Not ported:** the upstream `inline` mode of `ChatMarkdown` and the `MessagesTimeline` changes. Formulas in your own sent messages stay as text. Replies and Markdown previews render them. The browser tests from upstream are not in our fork, and the KaTeX typesetting itself is not covered by a test here.
+- **Proof:** both knip passes exit 0. `tsc` for `apps/web` exits 0. Lint counts match HEAD for the 3 changed source files. 63 of 64 related web test files pass. The one failure is the same 4 `reactCompilerCoverage.test.ts` cases as before.
+
 ## Findings left alone, with owner
 
-| Item                                                          | Why it stays                                                                                                                                                                                      | Owner path                      |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `MarkdownMath.tsx`, `MathTypeset.tsx` (the last 2 knip files) | The LaTeX port is half wired: the setting, the doc and the patches exist, the render path does not. Port it (see upstream `cb0553ea39`) or drop the setting, the doc text and the files together. | `apps/web/src/components/chat/` |
-| 4 failures in `reactCompilerCoverage.test.ts`                 | Manual memo calls in 4 files that this sweep does not touch.                                                                                                                                      | Baseline-failures work          |
+| Item                                          | Why it stays                                                                                                 | Owner path                      |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------- |
+| Formulas in sent user messages                | Upstream converts them in `MessagesTimeline.tsx`. Our timeline is different code. Port it as its own change. | `apps/web/src/components/chat/` |
+| 4 failures in `reactCompilerCoverage.test.ts` | Manual memo calls in 4 files that this sweep does not touch.                                                 | Baseline-failures work          |
 
 Task card: not created. The `leonidas-app` project holds 221 open tasks (cap 100) and `-AllowOverCap` needs Jake's approval.
