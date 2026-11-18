@@ -10,12 +10,12 @@ import {
 
 const ids = (items: ReadonlyArray<{ readonly id: string }>) => items.map((item) => item.id);
 
-// Jake's flat groups (2026-11-07): Home, Work, Brain, Create.
+// Jake's flat groups (2026-11-18): Home (Chat, Command Center), Work, Brain, Create.
 const BASE = [
+  "chat",
   "command-center",
   "today",
   "inbox",
-  "chat",
   "tasks",
   "projects",
   "memory",
@@ -91,6 +91,13 @@ describe("railItems", () => {
     const { main } = railItems({ business: true, builder: true, scribe: true });
     const groups = main.map((item) => item.group).filter((g, i, all) => g !== all[i - 1]);
     expect(groups).toEqual(["home", "work", "brain", "create", "business", "builder"]);
+  });
+
+  it("puts Chat and Command Center alone in the first section, then Today, Tasks and Projects", () => {
+    const { main } = railItems({ business: false, builder: false, scribe: true });
+    const section = (group: string) => ids(main.filter((item) => item.group === group));
+    expect(section("home")).toEqual(["chat", "command-center"]);
+    expect(section("work")).toEqual(["today", "inbox", "tasks", "projects"]);
   });
 
   it("always has Usage then Settings at the bottom", () => {

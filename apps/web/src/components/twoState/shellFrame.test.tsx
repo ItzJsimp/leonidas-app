@@ -76,6 +76,21 @@ describe("shell frame", () => {
     expect(navs[0]?.querySelector("[aria-label^='Notifications']")).toBeNull();
   });
 
+  it("has one state: workspace picker on top, Chat first, no collapse control, icon-only Usage and Settings", () => {
+    const host = document.createElement("div");
+    host.innerHTML = html();
+    const nav = host.querySelector("nav")!;
+    expect(nav.querySelector("[aria-label$='the menu']")).toBeNull();
+    expect(nav.querySelector("button, a")?.getAttribute("aria-label")).toMatch(/^Workspace: /);
+    const labels = [...nav.querySelectorAll("a")].map((link) => link.getAttribute("aria-label"));
+    const at = (name: string) => labels.findIndex((label) => label?.startsWith(name));
+    expect(at("Leonidas Chat")).toBeLessThan(at("Command Center"));
+    expect(at("Command Center")).toBeLessThan(at("Today"));
+    for (const name of ["Usage", "Settings"]) {
+      expect(nav.querySelector(`[aria-label='${name}']`)?.textContent).toBe("");
+    }
+  });
+
   it("does not ship the old stat band", () => {
     expect(Object.keys(import.meta.glob("./TwoStateHeader.tsx"))).toEqual([]);
   });

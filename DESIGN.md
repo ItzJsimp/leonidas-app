@@ -113,10 +113,10 @@ The rail groups tabs by job. Each tab has one job. [`railItems.ts`](./apps/web/s
 
 | Group         | Tab                             | Its one job                                            |
 | ------------- | ------------------------------- | ------------------------------------------------------ |
+| Home          | Chat                            | Talk with Leonidas and run agents                      |
 | Home          | Command Center                  | See everything at a glance, jump anywhere              |
-| Home          | Today                           | Plan and run the day                                   |
-| Home          | Notifications                   | What changed or needs action, plus toasts              |
-| Work          | Chat                            | Talk with Leonidas and run agents                      |
+| Work          | Today                           | Plan and run the day                                   |
+| Work          | Notifications                   | What changed or needs action, plus toasts              |
 | Work          | Tasks                           | What to do                                             |
 | Work          | Projects                        | Projects and their files. The AIOS is the Home project |
 | Brain         | Memory                          | What Leonidas knows (Browse plus brain map)            |
@@ -133,9 +133,10 @@ The rail groups tabs by job. Each tab has one job. [`railItems.ts`](./apps/web/s
 
 Labels are one plain word. Business tabs follow the workspace template flag; Developer follows the builder flag.
 
-- **Expanded (default):** group names and labels. The header is the workspace picker (picture tile, name, Personal or Business chip) with the collapse icon beside it.
-- **Collapsed:** icons only, a thin divider between groups. The workspace picture sits on top, the expand icon under it, then a divider.
-- The app remembers the state. Every tab stays visible: a long business rail scrolls, it does not fold. The list fades at each edge that has more rows out of view (3 rem deep, so it reaches into the next row; a row is 38 px). The header and Usage and Settings stay fixed.
+- **One state, no collapse:** each tab is an icon with its name under it. The top of the rail is the workspace picker (picture tile; it opens the workspace menu). A thin divider separates the groups. Notifications moves into the chat panel by default, so the rail shows Chat and Command Center together, then Work, Brain and Create.
+- **Bottom:** Usage and Settings show the icon alone (Usage is a gauge). Their names stay in the tooltip and the `aria-label`.
+- **Narrow window (under 728 px):** the rail becomes a drawer with names beside the icons and group names. The drawer is not a user setting.
+- Every tab stays visible: a long business rail scrolls, it does not fold. The list fades at each edge that has more rows out of view (3 rem deep, so it reaches into the next row; a row is 38 px). The workspace picker and Usage and Settings stay fixed.
 
 ## Chat details panel
 

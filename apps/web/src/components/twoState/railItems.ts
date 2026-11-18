@@ -86,6 +86,12 @@ const under = (pathname: string, base: string) =>
 
 /** Business tabs (Marketing, Content, Team) show for a business workspace or one switch each. */
 const MAIN: readonly RailItem[] = [
+  // Home holds the two main tabs: Chat first, then Command Center (Jake, 2026-11-18).
+  {
+    ...item("home", "chat", "Leonidas Chat", "/", "talk with Leonidas"),
+    tooltip: "Leonidas Chat: talk with Leonidas and run agents",
+    short: "Chat",
+  },
   {
     ...item(
       "home",
@@ -96,16 +102,10 @@ const MAIN: readonly RailItem[] = [
     ),
     short: "Command",
   },
-
-  item("home", "today", "Today", "/today", "your priorities, schedule and briefing"),
+  item("work", "today", "Today", "/today", "your priorities, schedule and briefing"),
   {
-    ...item("home", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
+    ...item("work", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
     short: "Alerts",
-  },
-  {
-    ...item("work", "chat", "Leonidas Chat", "/", "talk with Leonidas"),
-    tooltip: "Leonidas Chat: talk with Leonidas and run agents",
-    short: "Chat",
   },
   item("work", "tasks", "Tasks", "/tasks", "what to do and what is in progress"),
   item("work", "projects", "Projects", "/projects", "the projects you work on"),
