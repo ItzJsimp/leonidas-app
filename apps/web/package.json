@@ -78,6 +78,7 @@
     "react-dom": "catalog:",
     "react-markdown": "^10.1.0",
     "remark-gfm": "catalog:",
+    "remark-math": "6.0.0",
     "remark-parse": "catalog:",
     "saxes": "6.0.0",
     "sql.js": "1.15.0",

@@ -24,13 +24,17 @@ vi.mock("./chat/MermaidDiagram", () => ({
   MermaidDiagram: () => <svg aria-label="Diagram" />,
 }));
 vi.mock("../hooks/useTheme", () => ({ useTheme: () => ({ resolvedTheme: "dark" }) }));
+const settingsOverrides = vi.hoisted(() => ({ mathRenderingEnabled: false }));
 vi.mock("../hooks/useSettings", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/useSettings")>();
-  const settings = actual.getClientSettings();
   return {
     ...actual,
-    useClientSettings: (select?: (value: typeof settings) => unknown) =>
-      select ? select(settings) : settings,
+    useClientSettings: (
+      select?: (value: ReturnType<typeof actual.getClientSettings>) => unknown,
+    ) => {
+      const settings = { ...actual.getClientSettings(), ...settingsOverrides };
+      return select ? select(settings) : settings;
+    },
   };
 });
 vi.mock("./ui/tooltip", async () => {
@@ -168,6 +172,48 @@ describe("ChatMarkdown bare anchor placeholders", () => {
     ]);
     expect(document.querySelector("code")?.textContent).toBe("<A>");
     expect(document.querySelector("[data-markdown-details]")?.textContent).toContain("More");
+  });
+});
+
+describe("ChatMarkdown math", () => {
+  const render = (text: string, mathRenderingEnabled: boolean) => {
+    settingsOverrides.mathRenderingEnabled = mathRenderingEnabled;
+    try {
+      return new DOMParser().parseFromString(
+        renderToStaticMarkup(<ChatMarkdown cwd="/tmp/project" text={text} />),
+        "text/html",
+      );
+    } finally {
+      settingsOverrides.mathRenderingEnabled = false;
+    }
+  };
+
+  it("keeps TeX as plain text while the setting is off", () => {
+    const document = render("Use $x^2$ here.", false);
+    expect(document.querySelector("[data-markdown-math]")).toBeNull();
+    expect(document.body.textContent).toContain("$x^2$");
+  });
+
+  it("wraps inline and display formulas when the setting is on", () => {
+    const document = render("Use $x^2$ here.\n\n$$\ny = mx + b\n$$", true);
+    const kinds = [...document.querySelectorAll("[data-markdown-math]")].map((node) =>
+      node.getAttribute("data-markdown-math"),
+    );
+    expect(kinds).toEqual(["inline", "display"]);
+    expect(
+      document.querySelector('[data-markdown-math="inline"]')?.getAttribute("data-markdown-copy"),
+    ).toBe("\\(x^2\\)");
+  });
+
+  it("renders an explicit math fence as a display formula", () => {
+    const document = render("```math\ny = mx + b\n```", true);
+    expect(document.querySelector('[data-markdown-math="display"]')).not.toBeNull();
+  });
+
+  it("leaves prices alone when the setting is on", () => {
+    const document = render("It costs $5 and then $6 more.", true);
+    expect(document.querySelector("[data-markdown-math]")).toBeNull();
+    expect(document.body.textContent).toContain("$5 and then $6");
   });
 });
 

@@ -109,6 +109,9 @@ import { parseComposerContextHref } from "@t3tools/shared/composerContextReferen
 import { parseThreadLinkHref } from "@t3tools/shared/threadLinks";
 import { AssistantCitationChip } from "./chat/AssistantCitationChip";
 import { MarkdownThreadLink } from "./chat/MarkdownThreadLink";
+import { mathKind } from "@t3tools/shared/markdownMath";
+import remarkMath from "remark-math";
+import { MarkdownMath } from "./chat/MarkdownMath";
 import { isWindowsAbsolutePath } from "@t3tools/shared/path";
 import {
   artifactTemplateFromHastProperties,
@@ -2507,6 +2510,7 @@ function useChatMarkdownState({
   // synchronously whether to intercept its `_blank`, and a subscription is what
   // makes a persisted "app" apply once settings hydrate after launch.
   const linkTargetPreference = useClientSettings((settings) => settings.browserLinkTarget);
+  const mathEnabled = useClientSettings((settings) => settings.mathRenderingEnabled);
   const resolveThreadPullRequest = useCallback(
     (href: string): (ThreadPullRequestKey & { readonly url: string }) | null => {
       if (
@@ -2743,6 +2747,7 @@ function useChatMarkdownState({
       isStreaming,
       linkTargetPreference,
       markdownFileLinkMetaByHref,
+      mathEnabled,
       onTaskListChange,
       onUseArtifactTemplate,
       onRunShellCommand,
@@ -2777,6 +2782,7 @@ function useChatMarkdownState({
       isStreaming,
       linkTargetPreference,
       markdownFileLinkMetaByHref,
+      mathEnabled,
       onTaskListChange,
       onUseArtifactTemplate,
       onRunShellCommand,
@@ -3188,9 +3194,13 @@ const CHAT_MARKDOWN_COMPONENTS = {
     );
   },
   code: function MarkdownCode({ node, children, className, ...props }) {
-    const { cwd, imageBaseDir, inlineCodeFileLinkMetaByText, fileLinkChip } = use(
+    const { cwd, imageBaseDir, inlineCodeFileLinkMetaByText, fileLinkChip, mathEnabled } = use(
       ChatMarkdownRendererContext,
     );
+    const math = mathEnabled ? mathKind(className) : null;
+    if (math) {
+      return <MarkdownMath tex={nodeToPlainText(children)} display={math === "display"} />;
+    }
     if (node?.properties?.dataInlineCode != null) {
       const codeText = nodeToPlainText(children);
       const fileLinkMeta =
@@ -3382,15 +3392,28 @@ const CHAT_MARKDOWN_COMPONENTS = {
     return <MarkdownDetails open={detailsOpen}>{children}</MarkdownDetails>;
   },
   pre: function MarkdownPre({ node, children, ...props }) {
-    const { resolvedTheme, diffThemeName, expandMedia, isStreaming, onRunShellCommand, text } = use(
-      ChatMarkdownRendererContext,
-    );
+    const {
+      resolvedTheme,
+      diffThemeName,
+      expandMedia,
+      isStreaming,
+      onRunShellCommand,
+      text,
+      mathEnabled,
+    } = use(ChatMarkdownRendererContext);
     const codeBlock = extractCodeBlock(children);
     if (!codeBlock) {
       return <pre {...props}>{children}</pre>;
     }
 
     const language = extractFenceLanguage(codeBlock.className);
+    if (
+      mathEnabled &&
+      language === "math" &&
+      (!isStreaming || mathKind(codeBlock.className) === "display" || isClosedCodeFence(node, text))
+    ) {
+      return <MarkdownMath tex={codeBlock.code} display />;
+    }
     const blockType = answerBlockType(language);
     if (blockType) {
       return (
@@ -3475,14 +3498,16 @@ function ChatMarkdown({
     setLocalMediaPreview,
   } = useChatMarkdownState({ text, ...props });
   const incrementalParsing = props.isStreaming === true && extraRemarkPlugins.length === 0;
-  const remarkPlugins = useMemo(
-    () => [
+  const mathEnabled = componentState.mathEnabled;
+  const remarkPlugins = useMemo(() => {
+    const plugins = [
       ...(lineBreaks ? CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS : CHAT_MARKDOWN_REMARK_PLUGINS),
       ...extraRemarkPlugins,
       ...(incrementalParsing ? [createIncrementalMarkdownPlugin()] : []),
-    ],
-    [extraRemarkPlugins, incrementalParsing, lineBreaks],
-  );
+    ];
+    if (mathEnabled) plugins.unshift([remarkMath, { singleDollarTextMath: true }]);
+    return plugins;
+  }, [extraRemarkPlugins, incrementalParsing, lineBreaks, mathEnabled]);
 
   // react-markdown converts unparsed HTML nodes to text when skipHtml is false.
   // Keep that behavior explicit because literal mode depends on escaping the
