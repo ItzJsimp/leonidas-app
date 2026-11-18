@@ -22,6 +22,13 @@ export function findAiosProject<
  */
 export const homeThreadId = (projectId: ProjectId): ThreadId => ThreadId.make(`home-${projectId}`);
 
+/**
+ * One fixed id for an agent's own chat in a project, so a second click opens the same chat.
+ * shortcut: two names that differ only in punctuation share one chat; add a hash if that happens.
+ */
+export const agentThreadId = (projectId: ProjectId, agentName: string): ThreadId =>
+  ThreadId.make(`agent-${projectId}-${agentName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`);
+
 interface ModelListing {
   readonly instanceId: ModelSelection["instanceId"];
   readonly enabled: boolean;
