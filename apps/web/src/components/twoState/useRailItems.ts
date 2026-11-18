@@ -12,10 +12,10 @@ import { useChatPanelPins } from "./useChatPanelPins";
 import { useRailShowAnyway } from "./useRailShowAnyway";
 
 /**
- * The rail and the chat panel read the same tabs, so a pin moves a tab from one to the other.
- * `ignorePins` keeps every tab on the rail: the narrow-window drawer shows no chat panel.
+ * The rail and the chat panel read the same tabs. The rail always shows every tab: a pin only adds
+ * the tab to the chat panel, which shows on the Chat page alone.
  */
-export function useRailItems({ ignorePins = false }: { readonly ignorePins?: boolean } = {}) {
+export function useRailItems() {
   const { active } = useActiveAiosWorkspace();
   const [setup] = useLocalStorage(SETUP_STATE_STORAGE_KEY, EMPTY_SETUP_STATE, SetupStateSchema);
   const { shown: showAnyway } = useRailShowAnyway(active?.id);
@@ -27,7 +27,7 @@ export function useRailItems({ ignorePins = false }: { readonly ignorePins?: boo
     builder: setup.coder === true,
     showAnyway,
     scribe,
-    pinned: ignorePins ? [] : pins,
+    pinned: pins,
   };
   return { ...railItems(input), pinnable: pinnableItems(input), togglePin: toggle };
 }

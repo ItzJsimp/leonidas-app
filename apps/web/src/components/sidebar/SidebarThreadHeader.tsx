@@ -15,7 +15,7 @@ import {
   HistoryIcon,
   LayoutDashboardIcon,
   ListFilterIcon,
-  PinIcon,
+  PencilIcon,
   PinOffIcon,
   SearchIcon,
   SlidersHorizontalIcon,
@@ -165,7 +165,7 @@ export function SidebarThreadHeader({
             )}
           </TooltipPopup>
         </Tooltip>
-        <PinnedTabs pinned={pinned} onUnpin={(id) => togglePin(id, false)} />
+        <PinnedTabs pinned={pinned} onToggle={togglePin} />
       </div>
       <div className="flex items-center gap-1">
         <div
@@ -223,8 +223,8 @@ export function SidebarThreadHeader({
             {pinnable.length > 0 ? (
               <MenuSub>
                 <MenuSubTrigger>
-                  <PinIcon />
-                  <MenuItemLabel>Pin tabs here</MenuItemLabel>
+                  <PencilIcon />
+                  <MenuItemLabel>Edit tabs</MenuItemLabel>
                 </MenuSubTrigger>
                 <MenuSubPopup>
                   {pinnable.map((item) => (
@@ -282,15 +282,16 @@ export function SidebarThreadHeader({
 }
 
 /**
- * Rail tabs pinned under New chat (Jake's sidebar pick, 2026-11-17). A pinned tab leaves the rail.
- * Counts share one fixed width so they line up. Hover shows the unpin button in the count's place.
+ * Rail tabs pinned under New chat (Jake's sidebar pick, 2026-11-17). A pinned tab stays on the rail
+ * too: this list shows on the Chat page alone. Counts share one fixed width so they line up. Hover
+ * shows the unpin button in the count's place. Edit tabs lives in the More menu (Jake, 2026-11-18).
  */
 function PinnedTabs({
   pinned,
-  onUnpin,
+  onToggle,
 }: {
   pinned: readonly RailItem[];
-  onUnpin: (id: string) => void;
+  onToggle: (id: string, on: boolean) => void;
 }) {
   const needsYou = useTwoStateCounts().needsYou ?? 0;
   if (pinned.length === 0) return null;
@@ -319,11 +320,11 @@ function PinnedTabs({
                 ) : null}
               </Link>
             </Tip>
-            <Tip text={`Unpin ${item.label}: it goes back to the rail`}>
+            <Tip text={`Unpin ${item.label} from this list`}>
               <button
                 type="button"
                 aria-label={`Unpin ${item.label}`}
-                onClick={() => onUnpin(item.id)}
+                onClick={() => onToggle(item.id, false)}
                 className="absolute top-1/2 right-1.5 grid size-6 -translate-y-1/2 place-items-center rounded-md text-sidebar-muted-foreground opacity-0 transition-opacity group-hover/pin:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none"
               >
                 <PinOffIcon aria-hidden className="size-3.5" />

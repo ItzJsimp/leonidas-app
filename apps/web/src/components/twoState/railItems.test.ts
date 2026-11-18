@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   activeRailId,
   badgeAnnouncement,
+  DEFAULT_PINS,
   pinnableItems,
   railItems,
   railLinkLabel,
@@ -255,11 +256,17 @@ describe("railItems in a Trading workspace", () => {
 describe("chat panel pins", () => {
   const personal = { business: false, builder: false, scribe: true };
 
-  it("moves a pinned tab from the rail to the panel, in pin order", () => {
+  it("lists a pinned tab for the panel, in pin order, and keeps it on the rail", () => {
     const { main, pinned } = railItems({ ...personal, pinned: ["projects", "inbox"] });
     expect(ids(pinned)).toEqual(["projects", "inbox"]);
-    expect(ids(main)).not.toContain("projects");
-    expect(ids(main)).not.toContain("inbox");
+    expect(ids(main)).toEqual(BASE);
+  });
+
+  it("pins Notifications, Tasks, Projects and Agents by default, all of them on the rail", () => {
+    expect(DEFAULT_PINS).toEqual(["inbox", "tasks", "projects", "subagents"]);
+    const { main, pinned } = railItems({ ...personal, pinned: DEFAULT_PINS });
+    expect(ids(pinned)).toEqual(DEFAULT_PINS);
+    for (const id of DEFAULT_PINS) expect(ids(main)).toContain(id);
   });
 
   it("never pins Chat, and ignores tabs this workspace does not show", () => {

@@ -71,9 +71,9 @@ describe("shell frame", () => {
     const navs = host.querySelectorAll("nav");
     expect(navs).toHaveLength(1);
     expect(navs[0]?.querySelector("[aria-label='Today']")).not.toBeNull();
-    // Notifications is pinned into the chat panel by default, so its count rides on Chat.
-    expect(navs[0]?.querySelector("[aria-label='Leonidas Chat, 3 need you']")).not.toBeNull();
-    expect(navs[0]?.querySelector("[aria-label^='Notifications']")).toBeNull();
+    // A pin adds a tab to the chat panel and never removes it from the rail.
+    expect(navs[0]?.querySelector("[aria-label='Notifications, 3 need you']")).not.toBeNull();
+    expect(navs[0]?.querySelector("[aria-label='Leonidas Chat']")).not.toBeNull();
   });
 
   it("has one state: workspace picker on top, Chat first, no collapse control, icon-only Usage and Settings", () => {

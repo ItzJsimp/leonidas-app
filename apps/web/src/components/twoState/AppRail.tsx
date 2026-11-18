@@ -1,3 +1,4 @@
+import type { ContextMenuItem } from "@t3tools/contracts";
 import { Link, useLocation, useParams } from "@tanstack/react-router";
 import {
   AudioLinesIcon,
@@ -27,7 +28,14 @@ import {
   ZapIcon,
   type LucideIcon,
 } from "lucide-react";
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from "react";
 
 import { APP_VERSION_LABEL } from "~/branding";
 import { openReleaseHistoryDialog } from "~/components/desktop/ReleaseHistoryDialog";
@@ -45,6 +53,7 @@ import {
 } from "~/components/workspace/WorkspacePicture";
 import { isElectron } from "~/env";
 import { cn, isMacPlatform } from "~/lib/utils";
+import { readLocalApi } from "~/localApi";
 import { resolveThreadRouteTarget } from "~/threadRoutes";
 
 import {
@@ -126,10 +135,16 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
     strict: false,
     select: (params) => resolveThreadRouteTarget(params) !== null,
   });
-  const { main, bottom, pinned } = useRailItems({ ignorePins: wide });
-  // A pinned Notifications tab leaves the rail: its badge moves to Chat, so the count stays visible.
-  const badgeId = pinned.some((item) => item.id === "inbox") ? "chat" : "inbox";
+  const { main, bottom, pinned, pinnable, togglePin } = useRailItems();
   const current = activeRailId(pathname, onChat);
+  // Right-click pins a tab to the chat panel. The drawer has no chat panel, so it has no pin menu.
+  const pinFor = (item: RailItem): RailPin | null =>
+    wide || !pinnable.some((entry) => entry.id === item.id)
+      ? null
+      : {
+          on: pinned.some((entry) => entry.id === item.id),
+          toggle: (on) => togglePin(item.id, on),
+        };
   const renderItem = (item: RailItem, as: RailVariant = variant) => (
     <RailLink
       key={item.id}
@@ -137,7 +152,8 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
       current={item.id === current}
       lastThread={lastThread}
       variant={as}
-      badge={item.id === badgeId ? (unread ?? 0) : 0}
+      badge={item.id === "inbox" ? (unread ?? 0) : 0}
+      pin={pinFor(item)}
     />
   );
   const versionButton = (
@@ -175,9 +191,11 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
       {/* The fade shows only on the edge that has more rows. Rows are links, so the list needs no tab stop. */}
       <ScrollArea
         scrollFade
+        // The fade is the cue for more rows. A scrollbar thumb here showed as a stray gray bar above Usage.
+        hideScrollbars
         viewportTabIndex={-1}
         // A row is 38 px high: the fade must reach into the next row, or the cue is invisible.
-        className="mt-1 w-full flex-1 [&_[data-slot=scroll-area-viewport]]:[--fade-size:3rem]"
+        className="mt-1 w-full flex-1 [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:[--fade-size:3rem]"
       >
         <div
           className={cn(
@@ -222,24 +240,45 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
   );
 }
 
+interface RailPin {
+  readonly on: boolean;
+  readonly toggle: (on: boolean) => void;
+}
+
+/** Right-click a rail tab: pin it to the chat panel, or unpin it. The tab stays on the rail either way. */
+function showPinMenu(event: ReactMouseEvent, pin: RailPin) {
+  const api = readLocalApi();
+  if (!api) return;
+  event.preventDefault();
+  const items: ContextMenuItem<"toggle-pin">[] = [
+    { id: "toggle-pin", label: pin.on ? "Unpin from the chat panel" : "Pin to the chat panel" },
+  ];
+  void api.contextMenu.show(items, { x: event.clientX, y: event.clientY }).then((action) => {
+    if (action === "toggle-pin") pin.toggle(!pin.on);
+  });
+}
+
 function RailLink({
   item,
   current,
   lastThread,
   variant,
   badge,
+  pin,
 }: {
   readonly item: RailItem;
   readonly current: boolean;
   readonly lastThread: ReturnType<typeof useTwoStateStore.getState>["lastThread"];
   readonly variant: RailVariant;
   readonly badge: number;
+  readonly pin: RailPin | null;
 }) {
   const Icon = ICONS[item.id] ?? LayoutDashboardIcon;
   const label = railLinkLabel(item.label, badge);
   const common = {
     "aria-label": label,
     "aria-current": current ? ("page" as const) : undefined,
+    onContextMenu: pin ? (event: ReactMouseEvent) => showPinMenu(event, pin) : undefined,
     className: cn(
       TARGET_CLASS,
       variant === "wide" && "h-9 w-full justify-start gap-3 px-2.5 hover:bg-accent",
