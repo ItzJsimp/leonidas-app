@@ -56,6 +56,11 @@ import { Tip } from "../twoState/Tip";
 import { SidebarViewMenu, viewOptionsLabel } from "./SidebarViewMenu";
 import { useSidebarViewStore } from "./sidebarViewStore";
 
+/** One row style for New chat and every pinned tab, so the top of the panel reads as one list. */
+const PANEL_ROW_CLASS =
+  "flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-row-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none";
+const PANEL_ROW_ICON_CLASS = "size-4 shrink-0 text-(--sidebar-icon-color)";
+
 export interface SidebarThreadHeaderProps {
   searchFieldRef: RefObject<HTMLDivElement | null>;
   hasProjects: boolean;
@@ -123,42 +128,45 @@ export function SidebarThreadHeader({
 
   return (
     <div className="flex flex-col gap-2">
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              type="button"
-              data-usage-id="new_thread"
-              aria-label={newThreadLabel}
-              disabled={newThreadDisabled}
-              onClick={onNewThread}
-              className="flex h-8 w-full items-center gap-2 rounded-lg border border-sidebar-border px-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-row-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-64 motion-reduce:transition-none"
-            />
-          }
-        >
-          <SquarePenIcon aria-hidden className="size-4 shrink-0 text-primary" />
-          <span className="flex-1 text-left">New chat</span>
-          {newThreadShortcutLabel ? (
-            <kbd className="font-sans text-2xs text-sidebar-muted-foreground">
-              {newThreadShortcutLabel}
-            </kbd>
-          ) : null}
-        </TooltipTrigger>
-        <TooltipPopup side="bottom">
-          {showNewThreadInProjectHint ? (
-            <span className="flex flex-col gap-0.5">
-              <span>{newThreadLabel}</span>
-              <span className="text-muted-foreground">
-                New thread in current project: Shift+click
-                {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
+      {/* New chat and the pinned tabs are one even list (Jake's sidebar pick, 2026-11-17). */}
+      <div className="flex flex-col">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                data-usage-id="new_thread"
+                aria-label={newThreadLabel}
+                disabled={newThreadDisabled}
+                onClick={onNewThread}
+                className={cn(PANEL_ROW_CLASS, "disabled:pointer-events-none disabled:opacity-64")}
+              />
+            }
+          >
+            <SquarePenIcon aria-hidden className={PANEL_ROW_ICON_CLASS} />
+            <span className="flex-1 text-left">New chat</span>
+            {newThreadShortcutLabel ? (
+              <kbd className="font-sans text-2xs text-sidebar-muted-foreground">
+                {newThreadShortcutLabel}
+              </kbd>
+            ) : null}
+          </TooltipTrigger>
+          <TooltipPopup side="bottom">
+            {showNewThreadInProjectHint ? (
+              <span className="flex flex-col gap-0.5">
+                <span>{newThreadLabel}</span>
+                <span className="text-muted-foreground">
+                  New thread in current project: Shift+click
+                  {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
+                </span>
               </span>
-            </span>
-          ) : (
-            newThreadLabel
-          )}
-        </TooltipPopup>
-      </Tooltip>
-      <PinnedTabs pinned={pinned} onUnpin={(id) => togglePin(id, false)} />
+            ) : (
+              newThreadLabel
+            )}
+          </TooltipPopup>
+        </Tooltip>
+        <PinnedTabs pinned={pinned} onUnpin={(id) => togglePin(id, false)} />
+      </div>
       <div className="flex items-center gap-1">
         <div
           ref={searchFieldRef}
@@ -287,7 +295,7 @@ function PinnedTabs({
   const needsYou = useTwoStateCounts().needsYou ?? 0;
   if (pinned.length === 0) return null;
   return (
-    <ul aria-label="Pinned tabs" className="-mt-1 flex flex-col">
+    <ul aria-label="Pinned tabs" className="flex flex-col">
       {pinned.map((item) => {
         const Icon = ICONS[item.id] ?? LayoutDashboardIcon;
         const count = item.id === "inbox" ? needsYou : 0;
@@ -297,9 +305,9 @@ function PinnedTabs({
               <Link
                 to={item.to}
                 aria-label={railLinkLabel(item.label, count)}
-                className="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-row-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none"
+                className={PANEL_ROW_CLASS}
               >
-                <Icon aria-hidden className="size-4 shrink-0 text-(--sidebar-icon-color)" />
+                <Icon aria-hidden className={PANEL_ROW_ICON_CLASS} />
                 <span className="flex-1 truncate">{item.label}</span>
                 {count > 0 ? (
                   <span
