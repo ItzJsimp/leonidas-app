@@ -35,10 +35,11 @@ import {
   resolveViewedImageAsset,
 } from "@t3tools/client-runtime/work-log/presentation";
 import { toolGroupSummaryIconName, WorkingTimer } from "./LeoTimelineWorkGroupRows";
-import { type Root, type RootContent } from "mdast";
 import { use, memo, useState, useRef, useEffect, type KeyboardEvent, useMemo } from "react";
 import { WorkLogDetails, WorkLogRow } from "./WorkLog";
 import ChatMarkdown, { ChatMarkdownAssetImage } from "../ChatMarkdown";
+import { useClientSettings } from "../../hooks/useSettings";
+import { remarkThoughtPreview } from "./remarkThoughtPreview";
 import { MESSAGE_HEADING_LEVEL, TimelineRowTimestamp } from "./LeoTimelineRowParts";
 import { notificationChildThreadId } from "@t3tools/client-runtime/state/thread-execution";
 import { SubagentNotificationLink } from "./V2LifecycleRow";
@@ -255,26 +256,26 @@ export function workEntryIconName(workEntry: TimelineWorkEntry): WorkEntryIconNa
 
 const stopRowToggle = (e: { stopPropagation: () => void }) => e.stopPropagation();
 
-export function remarkThoughtPreview(fallback: string) {
-  return (tree: Root) => {
-    const plainText = (node: Root | RootContent): string => {
-      if (node.type === "html" || node.type === "definition") return "";
-      if ("alt" in node) return node.alt ?? "";
-      if ("value" in node) return node.value;
-      if ("children" in node) {
-        const separator = ["root", "blockquote", "list", "listItem", "table", "tableRow"].includes(
-          node.type,
-        )
-          ? " "
-          : "";
-        return node.children.map(plainText).join(separator);
-      }
-      return node.type === "break" ? " " : "";
-    };
-    tree.children = [
-      { type: "text", value: plainText(tree).replace(/\s+/g, " ").trim() || fallback },
-    ];
-  };
+/** One-line reasoning preview. Formulas typeset only when Render math is on. */
+export function ThoughtPreview({ text, fallback }: { text: string; fallback: string }) {
+  const ctx = use(TimelineRowCtx);
+  const mathEnabled = useClientSettings((settings) => settings.mathRenderingEnabled);
+  if (!mathEnabled) {
+    return (
+      <ReactMarkdown remarkPlugins={[remarkGfm, [remarkThoughtPreview, fallback]]}>
+        {text}
+      </ReactMarkdown>
+    );
+  }
+  return (
+    <ChatMarkdown
+      inline
+      text={text}
+      cwd={ctx.markdownCwd}
+      parseRawHtml={false}
+      extraRemarkPlugins={[[remarkThoughtPreview, fallback]]}
+    />
+  );
 }
 
 export function ReasoningTraceContent({ entries }: { entries: ReadonlyArray<TimelineWorkEntry> }) {
@@ -640,17 +641,10 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
               className={cn(answerPreview ? "min-w-0" : "min-w-0 flex-1", "truncate", headingClass)}
             >
               {isReasoning && !expanded ? (
-                <ReactMarkdown
-                  remarkPlugins={[
-                    remarkGfm,
-                    [
-                      remarkThoughtPreview,
-                      workEntry.toolLifecycleStatus === "inProgress" ? "Thinking" : "Thought",
-                    ],
-                  ]}
-                >
-                  {workEntry.detail ?? previewText}
-                </ReactMarkdown>
+                <ThoughtPreview
+                  text={workEntry.detail ?? previewText}
+                  fallback={workEntry.toolLifecycleStatus === "inProgress" ? "Thinking" : "Thought"}
+                />
               ) : threadLabel ? (
                 <ThreadReadLabel
                   label={threadLabel}

@@ -85,6 +85,7 @@ import {
 } from "../../lib/diffRendering";
 import { formatWorkspaceRelativePath } from "../../filePathDisplay";
 import { SkillInlineText } from "./SkillInlineText";
+import { useClientSettings } from "../../hooks/useSettings";
 import { DiffWorkerPoolProvider } from "../DiffWorkerPoolProvider";
 import { FileDiff } from "@pierre/diffs/react";
 import { PREFERRED_HIGHLIGHTER } from "../../lib/syntaxHighlighting";
@@ -828,6 +829,7 @@ function UserMessageMarkdown(props: {
 
 export function UserMessageReviewCommentCard({ comment }: { comment: ReviewCommentContext }) {
   const ctx = use(TimelineRowCtx);
+  const mathEnabled = useClientSettings((settings) => settings.mathRenderingEnabled);
   const fenceLanguage = comment.fenceLanguage ?? "diff";
   const renderablePatch = getRenderablePatch(
     buildReviewCommentRenderablePatch(comment),
@@ -845,8 +847,18 @@ export function UserMessageReviewCommentCard({ comment }: { comment: ReviewComme
         </div>
       </div>
       {comment.text.length > 0 && (
-        <div className="whitespace-pre-wrap wrap-break-word text-sm">
-          <SkillInlineText text={comment.text} skills={ctx.skills} />
+        <div className={cn("wrap-break-word text-sm", !mathEnabled && "whitespace-pre-wrap")}>
+          {mathEnabled ? (
+            <ChatMarkdown
+              text={comment.text}
+              cwd={ctx.markdownCwd}
+              skills={ctx.skills}
+              parseRawHtml={false}
+              lineBreaks
+            />
+          ) : (
+            <SkillInlineText text={comment.text} skills={ctx.skills} />
+          )}
         </div>
       )}
       {fenceLanguage !== "diff" && comment.diff.trim().length > 0 && (

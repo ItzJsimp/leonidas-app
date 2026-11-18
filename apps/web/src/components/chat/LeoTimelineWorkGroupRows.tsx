@@ -31,7 +31,7 @@ import {
   SimpleWorkEntryRow,
   useThreadReadTarget,
   threadReadLabel,
-  remarkThoughtPreview,
+  ThoughtPreview,
   ThreadReadLabel,
   workEntryIconName,
 } from "./LeoTimelineWorkEntryRow";
@@ -63,8 +63,6 @@ import {
 } from "@t3tools/client-runtime/work-log/user-input";
 import { workEntryDisplayIndicatesToolFailure } from "../../session-logic";
 import { liveThoughtLine } from "@t3tools/client-runtime/work-log/presentation";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { type TimestampFormat } from "@t3tools/contracts/settings";
 
 // ---------------------------------------------------------------------------
@@ -599,7 +597,11 @@ export function LiveWorkEntryTimelineRow({
               />
             </span>
           }
-          label={<span className="line-clamp-4">{thoughtLine}</span>}
+          label={
+            <span className="line-clamp-4">
+              <ThoughtPreview text={thoughtLine} fallback="Thought" />
+            </span>
+          }
           wrapLabel
         />
       ) : null}
@@ -619,14 +621,10 @@ export function LiveWorkEntryTimelineRow({
               </span>
             </span>
           ) : row.entry.itemType === "reasoning" ? (
-            <ReactMarkdown
-              remarkPlugins={[
-                remarkGfm,
-                [remarkThoughtPreview, row.active ? "Thinking" : "Thought"],
-              ]}
-            >
-              {row.entry.detail ?? label}
-            </ReactMarkdown>
+            <ThoughtPreview
+              text={row.entry.detail ?? label}
+              fallback={row.active ? "Thinking" : "Thought"}
+            />
           ) : threadLabel ? (
             <ThreadReadLabel
               label={threadLabel}

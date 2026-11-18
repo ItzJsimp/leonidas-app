@@ -54,14 +54,25 @@ Jake chose to port LaTeX rendering from upstream commit `cb0553ea39`. The settin
 - **Settings:** a "Render math" switch in Settings, Appearance, with a reset button, a restore entry and a search item.
 - **Dependency:** `remark-math` is back in `apps/web/package.json` and its lockfile entry (round 1 had removed it). `pnpm install --frozen-lockfile --lockfile-only` passes.
 - **Tests:** 4 new tests in `ChatMarkdown.test.tsx` (off keeps text, on wraps inline and display formulas, a `math` fence renders, prices stay text). All 85 tests in that file pass.
-- **Not ported:** the upstream `inline` mode of `ChatMarkdown` and the `MessagesTimeline` changes. Formulas in your own sent messages stay as text. Replies and Markdown previews render them. The browser tests from upstream are not in our fork, and the KaTeX typesetting itself is not covered by a test here.
+- **Not ported in round 4:** the upstream `inline` mode and the reasoning and review-comment changes. Round 5 covers them. Sent user messages already render formulas, because `LeoTimelineUserMessageRow.tsx` draws them with `ChatMarkdown`.
 - **Proof:** both knip passes exit 0. `tsc` for `apps/web` exits 0. Lint counts match HEAD for the 3 changed source files. 63 of 64 related web test files pass. The one failure is the same 4 `reactCompilerCoverage.test.ts` cases as before.
+
+## Round 5, 2026-11-18
+
+Jake asked for the upstream `MessagesTimeline` math changes. The upstream code does not touch sent user messages. It covers compact reasoning previews and the review-comment card. In our fork those are `LeoTimelineWorkEntryRow.tsx`, `LeoTimelineWorkGroupRows.tsx` and `LeoTimelineUserMessageRow.tsx`.
+
+- **`ChatMarkdown` `inline` prop:** renders in a `span` with no block text styles, and its formulas are not focusable. A compact label can now hold a formula.
+- **Reasoning previews:** `ThoughtPreview` replaces three `ReactMarkdown` calls and the live thought line. With Render math off it uses the old plain-label renderer, so the default path and its cost do not change. With it on, it uses `ChatMarkdown` in `inline` mode.
+- **`remarkThoughtPreview`:** moved to `chat/remarkThoughtPreview.ts` and rewritten as upstream does. It keeps formulas and flattens everything else. `LeoTimelineWorkEntryRow.tsx` shrinks by about 25 lines.
+- **Review-comment card:** with Render math on, the comment text renders through `ChatMarkdown`. With it off, the plain text renderer stays.
+- **Tests:** 4 new tests for `remarkThoughtPreview` and 1 for `inline` mode. All 90 tests in those two files pass.
+- **Proof:** both knip passes exit 0. `tsc` for `apps/web` exits 0. Lint counts match HEAD for all 4 changed files. 8 of 9 related web test files pass. The one failure is the same 4 `reactCompilerCoverage.test.ts` cases as before.
+- **Not tested:** the real KaTeX output in a collapsed reasoning row, and the review card in the app. Only the transform and the markup are tested.
 
 ## Findings left alone, with owner
 
-| Item                                          | Why it stays                                                                                                 | Owner path                      |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------- |
-| Formulas in sent user messages                | Upstream converts them in `MessagesTimeline.tsx`. Our timeline is different code. Port it as its own change. | `apps/web/src/components/chat/` |
-| 4 failures in `reactCompilerCoverage.test.ts` | Manual memo calls in 4 files that this sweep does not touch.                                                 | Baseline-failures work          |
+| Item                                          | Why it stays                                                 | Owner path             |
+| --------------------------------------------- | ------------------------------------------------------------ | ---------------------- |
+| 4 failures in `reactCompilerCoverage.test.ts` | Manual memo calls in 4 files that this sweep does not touch. | Baseline-failures work |
 
 Task card: not created. The `leonidas-app` project holds 221 open tasks (cap 100) and `-AllowOverCap` needs Jake's approval.
