@@ -15,7 +15,7 @@ import { buildThreadRouteParams } from "~/threadRoutes";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../ui/empty";
 import { SidebarInset } from "../ui/sidebar";
 import { Spinner } from "../ui/spinner";
-import { findAiosProject, homeModelSelection, homeThreadId } from "./homeChat.logic";
+import { agentThreadId, findAiosProject, homeModelSelection, homeThreadId } from "./homeChat.logic";
 
 /**
  * The Home chat: one permanent chat per AIOS, one click from the rail. It runs in the AIOS folder
@@ -24,6 +24,14 @@ import { findAiosProject, homeModelSelection, homeThreadId } from "./homeChat.lo
  * thread and returns its id, or a plain message when it cannot.
  */
 export function useHomeThread() {
+  return useProfileThread(null);
+}
+
+/**
+ * The chat for one agent on the profile, or the Home chat when `agent` is null. An agent chat has
+ * its own fixed id and the agent attached, so a second click opens the same chat.
+ */
+export function useProfileThread(agent: string | null) {
   const { environmentId, active, scopeReady } = useActiveAiosWorkspace();
   const projects = useProjects();
   const providers = useAtomValue(primaryServerProvidersAtom);
@@ -31,9 +39,11 @@ export function useHomeThread() {
   const updateMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
     reportFailure: false,
   });
-  const [error, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<ThreadId | null>(null);
-  const started = useRef(false);
+  const key = agent ?? "home";
+  const label = agent ?? "Home";
+  const [error, setError] = useState<{ key: string; message: string } | null>(null);
+  const [ready, setReady] = useState<{ key: string; id: ThreadId } | null>(null);
+  const started = useRef<string | null>(null);
 
   const project =
     environmentId === null || !active
@@ -45,9 +55,9 @@ export function useHomeThread() {
   const noModel = project !== null && providers.length > 0 && !hasConnectedModel(providers);
 
   useEffect(() => {
-    if (environmentId === null || project === null || started.current) return;
-    started.current = true;
-    const homeId = homeThreadId(project.id);
+    if (environmentId === null || project === null || started.current === key) return;
+    started.current = key;
+    const chatId = agent === null ? homeThreadId(project.id) : agentThreadId(project.id, agent);
     void (async () => {
       // A create call for a thread that exists fails. That is the normal case after the first visit.
       const { stickyActiveProvider, stickyModelSelectionByProvider } =
@@ -63,9 +73,9 @@ export function useHomeThread() {
         await createThread({
           environmentId,
           input: {
-            threadId: homeId,
+            threadId: chatId,
             projectId: project.id,
-            title: "Home",
+            title: label,
             modelSelection,
             runtimeMode: DEFAULT_RUNTIME_MODE,
             interactionMode: "default",
@@ -76,19 +86,26 @@ export function useHomeThread() {
       }
       const marked = await updateMetadata({
         environmentId,
-        input: { threadId: homeId, role: "home" },
+        input:
+          agent === null
+            ? { threadId: chatId, role: "home" }
+            : { threadId: chatId, attachedSubagent: agent },
       });
       if (marked._tag !== "Success") {
-        started.current = false;
-        setError("Home could not open. Check that an AI account is connected, then try again.");
+        started.current = null;
+        setError({
+          key,
+          message: `${label} could not open. Check that an AI account is connected, then try again.`,
+        });
         return;
       }
-      setThreadId(homeId);
+      setReady({ key, id: chatId });
     })();
-  }, [environmentId, project, providers, createThread, updateMetadata]);
+  }, [environmentId, project, providers, createThread, updateMetadata, agent, key, label]);
 
+  const threadId = ready?.key === key ? ready.id : null;
   const message =
-    error ??
+    (error?.key === key ? error.message : null) ??
     (scopeReady && (!active || project === null)
       ? "Add your AIOS folder as a project, then open Home again."
       : noModel

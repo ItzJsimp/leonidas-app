@@ -1,7 +1,7 @@
 import { ProjectId, ProviderInstanceId, type ModelSelection } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { findAiosProject, homeModelSelection, homeThreadId } from "./homeChat.logic";
+import { agentThreadId, findAiosProject, homeModelSelection, homeThreadId } from "./homeChat.logic";
 
 describe("findAiosProject", () => {
   const project = (workspaceRoot: string, deletedAt: string | null = null) => ({
@@ -27,6 +27,25 @@ describe("homeThreadId", () => {
     const id = ProjectId.make("project:aios");
     expect(homeThreadId(id)).toBe(homeThreadId(id));
     expect(homeThreadId(id)).not.toBe(homeThreadId(ProjectId.make("project:other")));
+  });
+});
+
+describe("agentThreadId", () => {
+  const project = ProjectId.make("project:aios");
+
+  it("is the same id every time for one agent, so a second click opens the same chat", () => {
+    expect(agentThreadId(project, "Reviewer")).toBe(agentThreadId(project, "Reviewer"));
+  });
+
+  it("differs by agent, by project, and from the Home chat", () => {
+    const reviewer = agentThreadId(project, "Reviewer");
+    expect(reviewer).not.toBe(agentThreadId(project, "Scout"));
+    expect(reviewer).not.toBe(agentThreadId(ProjectId.make("project:other"), "Reviewer"));
+    expect(reviewer).not.toBe(homeThreadId(project));
+  });
+
+  it("turns spaces and symbols in a name into dashes", () => {
+    expect(agentThreadId(project, "Test Scout!")).toBe(`agent-${project}-test-scout-`);
   });
 });
 
