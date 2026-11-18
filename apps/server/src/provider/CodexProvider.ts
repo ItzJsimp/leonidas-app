@@ -475,19 +475,6 @@ const requestCodexChatGptModels = Effect.fn("requestCodexChatGptModels")(functio
   );
 });
 
-/**
- * App-server starts its catalog refresh before `initialize` names the client,
- * so that first fetch goes out as the plain CLI, misses tiers like Sol
- * Ultrafast, and overwrites the shared `models_cache.json`. Naming the
- * originator at spawn closes that race.
- */
-export const codexAppServerEnvironment = (
-  environment: NodeJS.ProcessEnv | undefined,
-): NodeJS.ProcessEnv => ({
-  CODEX_INTERNAL_ORIGINATOR_OVERRIDE: CODEX_CLIENT_NAME,
-  ...environment,
-});
-
 export function buildCodexInitializeParams(): CodexSchema.V1InitializeParams {
   return {
     clientInfo: {

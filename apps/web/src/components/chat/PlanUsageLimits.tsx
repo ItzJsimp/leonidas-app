@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 import { type UsageSeverity, usageSeverity, usedPercentLabel } from "../../lib/usageLimitsPopover";
 import { cn } from "../../lib/utils";
 
@@ -8,11 +6,6 @@ const SEVERITY_FILL: Record<UsageSeverity, string> = {
   normal: "bg-info",
   warning: "bg-warning",
   critical: "bg-destructive",
-};
-const SEVERITY_STROKE: Record<UsageSeverity, string> = {
-  normal: "stroke-info",
-  warning: "stroke-warning",
-  critical: "stroke-destructive",
 };
 
 /**
@@ -64,61 +57,5 @@ export function UsageBar({
         />
       ) : null}
     </div>
-  );
-}
-
-/** A circular quota gauge (drains like `UsageBar`); children sit in its centre. A static SVG. */
-export function UsageRing({
-  percent,
-  size,
-  strokeWidth,
-  severity,
-  className,
-  children,
-  fill: fillMode = "used",
-}: {
-  readonly fill?: "left" | "used";
-  readonly percent: number | null;
-  readonly size: number;
-  readonly strokeWidth: number;
-  readonly severity: UsageSeverity;
-  readonly className?: string;
-  readonly children?: ReactNode;
-}) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const used = percent === null ? null : Math.max(0, Math.min(100, percent));
-  const fill = used === null ? 0 : fillMode === "left" ? 100 - used : used;
-  const circle = {
-    cx: size / 2,
-    cy: size / 2,
-    r: radius,
-    fill: "none",
-    strokeWidth,
-  } as const;
-  return (
-    <span
-      className={cn("relative inline-grid shrink-0 place-items-center", className)}
-      style={{ width: size, height: size }}
-    >
-      <svg
-        aria-hidden
-        width={size}
-        height={size}
-        className="absolute inset-0 mx-0! size-full -rotate-90"
-      >
-        <circle {...circle} className="stroke-muted" />
-        {fill > 0 ? (
-          <circle
-            {...circle}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference * (1 - fill / 100)}
-            className={SEVERITY_STROKE[severity]}
-          />
-        ) : null}
-      </svg>
-      {children}
-    </span>
   );
 }

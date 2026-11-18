@@ -2,8 +2,6 @@
 export const MCP_SERVER_NAME = "leonidas";
 export const MCP_TOOL_PREFIX = "leo_";
 
-/** The names before the rename. Saved threads and saved permission rules may still use them. */
-export const LEGACY_MCP_SERVER_NAMES = ["t3-code", "t3_code", "t3code"] as const;
 /** Every tool name from before the rename. Only these are rewritten; other names pass through. */
 export const LEGACY_MCP_TOOL_NAMES: ReadonlySet<string> = new Set([
   "board_task_create",

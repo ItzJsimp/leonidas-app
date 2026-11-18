@@ -342,13 +342,6 @@ export interface HtmlRenderShortcut {
   readonly altKey: boolean;
 }
 
-export function htmlRenderShortcutsMessage(
-  shortcuts: ReadonlyArray<HtmlRenderShortcut>,
-  blocked: ReadonlyArray<HtmlRenderShortcut>,
-) {
-  return { jsonrpc: "2.0", method: SHORTCUTS_METHOD, params: { shortcuts, blocked } } as const;
-}
-
 export function htmlRenderResult(id: string | number) {
   return { jsonrpc: "2.0", id, result: {} } as const;
 }

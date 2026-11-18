@@ -1,5 +1,3 @@
-import { writeTextToClipboard } from "../../hooks/useCopyToClipboard";
-
 const GENERIC = "Something went wrong. Copy the details and try again.";
 
 const KNOWN_CAUSES: ReadonlyArray<readonly [RegExp, string]> = [
@@ -42,19 +40,4 @@ export function friendlyErrorDetails(error: unknown): string {
   } catch {
     return String(error);
   }
-}
-
-/** Spread into a toast: plain description plus a "Copy details" action. */
-export function friendlyErrorToastFields(error: unknown) {
-  return {
-    description: friendlyErrorMessage(error),
-    actionProps: {
-      children: "Copy details",
-      onClick: () => {
-        void writeTextToClipboard(friendlyErrorDetails(error), "error details").catch(
-          () => undefined,
-        );
-      },
-    },
-  } as const;
 }

@@ -14,7 +14,7 @@ import { serverEnvironment } from "~/state/server";
 import { useAtomCommand } from "~/state/use-atom-command";
 
 import { useNowMs } from "../commandCenter/useHomeReads";
-import { addDays, startOfDay, todayCountLabel } from "./calendar.logic";
+import { addDays, startOfDay } from "./calendar.logic";
 
 let version = 0;
 const listeners = new Set<() => void>();
@@ -103,10 +103,4 @@ export function useAgendaEvents(days: 1 | 7) {
   const today = startOfDay(now);
   const query = useCalendarEvents(today, addDays(now, days));
   return { ...query, now };
-}
-
-/** "3 today" for the Up next card, or nothing. */
-export function useUpNextCount(): string | undefined {
-  const { data, now } = useAgendaEvents(7);
-  return data ? todayCountLabel(data.events, now) : undefined;
 }
