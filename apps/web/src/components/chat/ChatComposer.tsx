@@ -1,4 +1,7 @@
 import { cacheActionImpact } from "@t3tools/client-runtime/cache-awareness";
+import { useModelBenchmarkIndex } from "../../hooks/useModelBenchmarkIndex";
+import { pickerModelStats } from "../../lib/pickerModelStats";
+import { estimateSwitchCost, withSwitchCost } from "../../lib/switchCost";
 import {
   CacheConfigurationNotice,
   useCacheActionWarning,
@@ -304,7 +307,7 @@ import {
   getComposerPromptInjectionState,
   getComposerProviderState,
 } from "../../composerProviderState";
-import { renderProviderReasoningColumn } from "./composerProviderState";
+import { ProviderDownshiftNotice, renderProviderReasoningColumn } from "./composerProviderState";
 
 import type { ComposerContextSlice } from "./composerContextSlice";
 import type { ComposerAttachmentSlice } from "./composerAttachments";
@@ -1386,21 +1389,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     [selectedInstanceId, selectedModel, selectedModelOptionsForDispatch],
   );
   const cacheWarning = useCacheActionWarning();
+  const benchmarkIndex = useModelBenchmarkIndex(environmentId);
   const pendingCacheNote = usePendingCacheNote(activeContextWindow, pendingUserInputs.length > 0);
-  const onProviderModelSelect: ChatComposerProps["onProviderModelSelect"] = (
-    instanceId,
-    model,
-    options,
-  ) => {
-    cacheWarning.run(
-      cacheActionImpact(
-        activeThreadModelSelection,
-        { instanceId, model, options: activeThreadModelSelection?.options },
-        (activeContextWindow?.cachedInputTokens ?? 0) > 0,
-      ),
-      () => applyProviderModelSelect(instanceId, model, options),
-    );
-  };
   const selectedModelForPicker = selectedModel;
   // Instance-keyed option list so the picker can show each configured
   // instance (built-in + custom) as a first-class sidebar entry. The
@@ -1429,6 +1419,33 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       ? selectedModelForPicker
       : (normalizeModelSlug(selectedModelForPicker, selectedProvider) ?? selectedModelForPicker);
   }, [modelOptionsByInstance, selectedInstanceId, selectedModelForPicker, selectedProvider]);
+  // What the next message costs on this model once a switch drops the cache.
+  const switchCostTo = (instanceId: ProviderInstanceId, model: string) => {
+    const name = modelOptionsByInstance
+      .get(instanceId)
+      ?.find((option) => option.slug === model)?.name;
+    const stats = benchmarkIndex
+      ? pickerModelStats(benchmarkIndex, { modelId: model, ...(name ? { displayName: name } : {}) })
+      : null;
+    return estimateSwitchCost(activeContextWindow?.usedTokens, stats?.inputPrice);
+  };
+  const onProviderModelSelect: ChatComposerProps["onProviderModelSelect"] = (
+    instanceId,
+    model,
+    options,
+  ) => {
+    cacheWarning.run(
+      withSwitchCost(
+        cacheActionImpact(
+          activeThreadModelSelection,
+          { instanceId, model, options: activeThreadModelSelection?.options },
+          (activeContextWindow?.cachedInputTokens ?? 0) > 0,
+        ),
+        switchCostTo(instanceId, model),
+      ),
+      () => applyProviderModelSelect(instanceId, model, options),
+    );
+  };
 
   // ------------------------------------------------------------------
   // Context window
@@ -2068,7 +2085,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     ],
   );
 
-  const providerReasoningColumn = renderProviderReasoningColumn({
+  const reasoningInput: Parameters<typeof renderProviderReasoningColumn>[0] = {
     provider: selectedProvider,
     instanceId: selectedInstanceId,
     ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
@@ -2080,7 +2097,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     prompt,
     onPromptChange: setPromptFromTraits,
     planModeEnabled: settings.planModeEnabled,
-  });
+  };
+  const providerReasoningColumn = renderProviderReasoningColumn(reasoningInput);
   const [inlineRestingControlsHost, setInlineRestingControlsHost] = useState<HTMLDivElement | null>(
     null,
   );
@@ -4682,10 +4700,13 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   cacheWarning.run(
                     exists
                       ? null
-                      : cacheActionImpact(
-                          activeThreadModelSelection,
-                          { instanceId, model, options: activeThreadModelSelection?.options },
-                          (activeContextWindow?.cachedInputTokens ?? 0) > 0,
+                      : withSwitchCost(
+                          cacheActionImpact(
+                            activeThreadModelSelection,
+                            { instanceId, model, options: activeThreadModelSelection?.options },
+                            (activeContextWindow?.cachedInputTokens ?? 0) > 0,
+                          ),
+                          switchCostTo(instanceId, model),
                         ),
                     () => setMultipleModelSelections(next),
                   );
@@ -5906,6 +5927,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         from={activeThreadModelSelection}
         to={selectedModelSelection}
         hasReusableContext={(activeContextWindow?.cachedInputTokens ?? 0) > 0}
+      />
+      <ProviderDownshiftNotice
+        input={reasoningInput}
+        extras={{
+          chatKey:
+            routeKind === "server" && routeThreadRef
+              ? `${routeThreadRef.environmentId}:${routeThreadRef.threadId}`
+              : (draftId ?? ""),
+          attachmentCount: composerImages.length + composerFiles.length,
+          contextTokens: activeContextWindow?.usedTokens ?? null,
+          onSwitchModel: (slug) =>
+            onProviderModelSelect(selectedInstanceId, slug, { focusComposer: false }),
+        }}
       />
       {composerControlsCollapsed && restingControlsHost
         ? createPortal(
