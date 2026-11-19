@@ -105,7 +105,9 @@ const UPDATE = makePackageManagedProviderMaintenanceResolver({
   provider: DRIVER_KIND,
   npmPackageName: "@anthropic-ai/claude-code",
   nativeUpdate: {
-    args: ["update"],
+    // `claude update` follows the user's autoUpdatesChannel ("stable" lags `latest` by
+    // weeks), but the version check compares against the npm `latest` tag.
+    args: ["install", "latest"],
     isCommandPath: isClaudeNativeCommandPath,
   },
 });

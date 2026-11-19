@@ -30,6 +30,7 @@ import {
   type ServerProviderModel,
 } from "@t3tools/contracts";
 
+import { formatProviderUpdateRequiredNotice } from "@t3tools/client-runtime/providerUpdateRequiredModels";
 import {
   type CustomModelDefinition,
   readCustomModelEntries,
@@ -608,6 +609,10 @@ export function ProviderInstanceCard({
     enabled,
   );
   const updateCommand = versionAdvisory?.updateCommand ?? null;
+  const latestLabel = getProviderVersionLabel(liveProvider?.versionAdvisory?.latestVersion);
+  const updateRequiredNotice = liveProvider
+    ? formatProviderUpdateRequiredNotice(liveProvider)
+    : null;
   const updateState = liveProvider?.updateState;
   // The server reports each update step. `isUpdating` also covers the moment
   // between the click and the server's first report.
@@ -1034,6 +1039,47 @@ export function ProviderInstanceCard({
             </div>
           }
         />
+        {enabled && versionLabel ? (
+          <SettingsRow
+            title="Version"
+            status={
+              <>
+                <code className="text-foreground">{versionLabel}</code>
+                {" · "}
+                {updateProgress ??
+                  (versionAdvisory
+                    ? `${versionAdvisory.title}${latestLabel ? `: ${latestLabel}` : ""}`
+                    : liveProvider?.versionAdvisory?.status === "current"
+                      ? "Up to date"
+                      : "Latest version not checked")}
+                {updateProblem ? (
+                  <p className="pt-1 text-xs text-warning">{updateProblem}</p>
+                ) : null}
+                {updateRequiredNotice ? (
+                  <p className="pt-1 text-xs text-warning">{updateRequiredNotice}</p>
+                ) : null}
+              </>
+            }
+            control={
+              onRunVersionAction ? (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  disabled={isUpdating}
+                  onClick={onRunVersionAction}
+                >
+                  {isUpdating ? <Spinner /> : <DownloadIcon />}
+                  {isUpdating
+                    ? "Updating"
+                    : versionAdvisory?.targetVersion
+                      ? `Install ${getProviderVersionLabel(versionAdvisory.targetVersion)}`
+                      : "Update now"}
+                </Button>
+              ) : null
+            }
+          />
+        ) : null}
         {environmentId !== undefined && liveProvider?.usageLimits?.resetCredits ? (
           <SettingsRow
             title="Reset credits"
