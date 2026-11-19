@@ -1,0 +1,4 @@
+# Link the C runtime into Windows binaries. A clean Windows has no VC++ runtime,
+# so a dynamic build fails with "MSVCP140.dll was not found" on first launch.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
