@@ -108,6 +108,7 @@ const UPDATE = makePackageManagedProviderMaintenanceResolver({
     // `claude update` follows the user's autoUpdatesChannel ("stable" lags `latest` by
     // weeks), but the version check compares against the npm `latest` tag.
     args: ["install", "latest"],
+    pinnedArgs: (version) => ["install", version],
     isCommandPath: isClaudeNativeCommandPath,
   },
 });

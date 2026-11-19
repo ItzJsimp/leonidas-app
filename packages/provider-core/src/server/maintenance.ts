@@ -36,4 +36,9 @@ export interface ProviderMaintenanceCommandAction {
    * must update that home and not the default one.
    */
   readonly env?: NodeJS.ProcessEnv;
+  /**
+   * Args that install one exact version with this native updater. The runner
+   * retries with them when the unpinned command exits 0 but the version stays old.
+   */
+  readonly pinnedArgs?: (version: string) => ReadonlyArray<string>;
 }
