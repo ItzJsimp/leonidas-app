@@ -4,8 +4,10 @@ import {
   type ProviderOptionSelection,
   type ServerProviderModel,
 } from "@t3tools/contracts";
+import { REASONING_EFFORT_OPTION_IDS } from "@t3tools/client-runtime/state/thread-execution";
 import {
   buildExplicitProviderOptionSelectionsFromDescriptors,
+  getProviderOptionCurrentLabel,
   getProviderOptionCurrentValue,
   getProviderOptionDescriptors,
   isClaudeUltrathinkPrompt,
@@ -34,6 +36,8 @@ export type ComposerProviderState = {
   modelPickerIconClassName?: string;
   /** Set only while fast mode is on, so the model chip can show a bolt. */
   speedIcon?: "fast" | "ultrafast";
+  /** The chosen effort level of the model, such as "High", for the model chip. */
+  effortLabel?: string;
 };
 
 export function getComposerPromptInjectionState(prompt: string): ComposerPromptInjectionState {
@@ -166,6 +170,13 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
   const speedIcon = descriptors
     .map((descriptor) => getTraitsSpeedDisplay(provider, descriptor)?.speedIcon)
     .find((icon) => icon != null);
+  const effortDescriptor = descriptors.find(
+    (descriptor) =>
+      descriptor.type === "select" && REASONING_EFFORT_OPTION_IDS.includes(descriptor.id),
+  );
+  const effortLabel = ultrathinkActive
+    ? "Ultrathink"
+    : getProviderOptionCurrentLabel(effortDescriptor);
 
   return {
     provider,
@@ -175,6 +186,7 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
       selections,
     ),
     ...(speedIcon ? { speedIcon } : {}),
+    ...(effortLabel ? { effortLabel } : {}),
     ...(ultrathinkActive
       ? {
           composerFrameClassName: "ultrathink-frame",

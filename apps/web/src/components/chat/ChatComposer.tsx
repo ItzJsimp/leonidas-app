@@ -4710,6 +4710,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             : selectedModelForPickerWithCustomFallback
         }
         speedIcon={composerProviderState.speedIcon}
+        effortLabel={composerProviderState.effortLabel}
         lockedProvider={lockedProvider}
         lockedContinuationGroupKey={lockedContinuationGroupKey}
         instanceEntries={providerInstanceEntries}

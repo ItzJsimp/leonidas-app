@@ -99,6 +99,7 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: "high",
       modelOptionsForDispatch: undefined,
+      effortLabel: "High",
     });
   });
 
@@ -122,6 +123,7 @@ describe("getComposerProviderState", () => {
       promptEffort: "low",
       modelOptionsForDispatch: selections(["effort", "low"], ["fastMode", true]),
       speedIcon: "fast",
+      effortLabel: "Low",
     });
   });
 
@@ -364,8 +366,44 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: "medium",
       modelOptionsForDispatch: selections(["effort", "medium"]),
+      effortLabel: "Ultrathink",
       ...ULTRATHINK_FRAME_CLASSES,
     });
+  });
+
+  it("names a saved effort the model does not offer as that model's own default", () => {
+    const state = getComposerProviderState({
+      provider: PROVIDER,
+      model: MODEL,
+      models: modelWith([
+        selectDescriptor("effort", [
+          { id: "low", label: "Low" },
+          { id: "medium", label: "Medium", isDefault: true },
+          { id: "xhigh", label: "Extra High" },
+        ]),
+      ]),
+      modelOptions: selections(["effort", "max"]),
+      planModeEnabled: true,
+    });
+
+    expect(state.effortLabel).toBe("Medium");
+  });
+
+  it("shows no effort label for a select that is not an effort level", () => {
+    const state = getComposerProviderState({
+      provider: PROVIDER,
+      model: MODEL,
+      models: modelWith([
+        selectDescriptor("agent", [
+          { id: "build", label: "Build", isDefault: true },
+          { id: "plan", label: "Plan" },
+        ]),
+      ]),
+      modelOptions: undefined,
+      planModeEnabled: true,
+    });
+
+    expect(state.effortLabel).toBeUndefined();
   });
 
   it("does not add ultrathink class names when the descriptor has no promptInjectedValues", () => {
