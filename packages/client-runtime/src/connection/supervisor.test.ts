@@ -409,6 +409,25 @@ describe("EnvironmentSupervisor", () => {
     }),
   );
 
+  it.effect("connects to a loopback primary server while the network reports offline", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness({ networkStatus: "offline" });
+      const loopback = new PrimaryConnectionTarget({
+        environmentId: TARGET.environmentId,
+        label: TARGET.label,
+        httpBaseUrl: "http://127.0.0.1:3773",
+        wsBaseUrl: "ws://127.0.0.1:3773",
+      });
+      const supervisor = yield* EnvironmentSupervisor.make(
+        { ...TARGET_ENTRY, target: loopback },
+        { initiallyDesired: true },
+      ).pipe(Effect.provide(harness.dependencies));
+
+      yield* awaitState(supervisor.state, (state) => state.phase === "connected");
+      expect(yield* Ref.get(harness.prepareCount)).toBe(1);
+    }),
+  );
+
   it.effect("resets retries when activation arrives before the network returns", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness();
