@@ -179,20 +179,52 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
 });
 
 describe("Antigravity model catalog", () => {
-  it("keeps the captured personal catalog's IDs, labels, order, and selected default", () => {
+  it("groups effort variants into base models with effort descriptors and legacy aliases", () => {
     const models = buildAntigravityModelsFromSession(sessionSetupResult);
-    expect(models.map((model) => [model.slug, model.name])).toEqual(
-      modelOptions.map((option) => [option.value, option.name]),
-    );
+    expect(models.map((model) => [model.slug, model.name])).toEqual([
+      ["gemini-3.8-flash", "Gemini 3.8 Flash"],
+      ["gemini-3.7-flash", "Gemini 3.7 Flash"],
+      ["gemini-3.6-flash", "Gemini 3.6 Flash"],
+      ["gemini-3.1-pro", "Gemini 3.1 Pro"],
+    ]);
     expect(models.filter((model) => model.isDefault).map((model) => model.slug)).toEqual([
-      "gemini-3.7-flash-high",
+      "gemini-3.7-flash",
     ]);
     expect(
       models
         .filter((model) => model.aliases?.includes(ANTIGRAVITY_DEFAULT_MODEL))
         .map((model) => model.slug),
-    ).toEqual(["gemini-3.7-flash-high"]);
-    expect(models.every((model) => model.capabilities?.optionDescriptors?.length === 0)).toBe(true);
+    ).toEqual(["gemini-3.7-flash"]);
+    expect(models[0]?.capabilities?.optionDescriptors).toEqual([
+      {
+        id: "effort",
+        label: "Reasoning",
+        type: "select",
+        options: [
+          { id: "low", label: "Low" },
+          { id: "medium", label: "Medium", isDefault: true },
+          { id: "high", label: "High" },
+        ],
+        currentValue: "medium",
+      },
+    ]);
+    expect(models[1]?.capabilities?.optionDescriptors?.[0]).toMatchObject({
+      id: "effort",
+      currentValue: "high",
+    });
+    expect(models[3]?.aliases).toEqual(["gemini-pro-agent", "gemini-3.1-pro-low"]);
+    expect(models[3]?.capabilities?.optionDescriptors).toEqual([
+      {
+        id: "effort",
+        label: "Reasoning",
+        type: "select",
+        options: [
+          { id: "low", label: "Low" },
+          { id: "high", label: "High", isDefault: true },
+        ],
+        currentValue: "high",
+      },
+    ]);
     expect(models.every((model) => !model.isCustom)).toBe(true);
   });
 
@@ -209,7 +241,7 @@ describe("Antigravity model catalog", () => {
     ).toEqual([]);
   });
 
-  it("flattens native option groups without combining distinct model IDs", () => {
+  it("flattens native option groups and preserves base-model grouping", () => {
     const models = buildAntigravityModelsFromSession({
       configOptions: [
         {
@@ -222,15 +254,47 @@ describe("Antigravity model catalog", () => {
         },
       ],
     });
-    expect(models.map((model) => model.slug)).toEqual([
-      "gemini-3.7-flash-high",
-      "gemini-3.7-flash-medium",
-      "gemini-pro-agent",
-    ]);
-    expect(models.find((model) => model.isDefault)?.slug).toBe("gemini-pro-agent");
+    expect(models.map((model) => model.slug)).toEqual(["gemini-3.7-flash", "gemini-3.1-pro"]);
+    expect(models.find((model) => model.isDefault)?.slug).toBe("gemini-3.1-pro");
     expect(models.find((model) => model.aliases?.includes(ANTIGRAVITY_DEFAULT_MODEL))?.slug).toBe(
-      "gemini-pro-agent",
+      "gemini-3.1-pro",
     );
+    expect(models[0]?.aliases).toEqual(["gemini-3.7-flash-high", "gemini-3.7-flash-medium"]);
+  });
+
+  it("orders Gemini 4 and Extra High variants canonically and omits descriptors for untiered models", () => {
+    const models = buildAntigravityModelsFromSession({
+      configOptions: [
+        {
+          ...modelConfig,
+          currentValue: "gemini-4-hydrogen-high",
+          options: [
+            { value: "gemini-4-hydrogen-xhigh", name: "Gemini 4 Hydrogen (Extra High)" },
+            { value: "gemini-4-hydrogen-low", name: "Gemini 4 Hydrogen (Low)" },
+            { value: "gemini-4-hydrogen-high", name: "Gemini 4 Hydrogen (High)" },
+            { value: "gemini-saved", name: "Gemini saved" },
+          ],
+        },
+      ],
+    });
+    expect(models[0]?.slug).toBe("gemini-4-hydrogen");
+    expect(models[0]?.capabilities?.optionDescriptors?.[0]).toEqual({
+      id: "effort",
+      label: "Reasoning",
+      type: "select",
+      options: [
+        { id: "low", label: "Low" },
+        { id: "high", label: "High", isDefault: true },
+        { id: "xhigh", label: "Extra High" },
+      ],
+      currentValue: "high",
+    });
+    expect(models[1]).toEqual({
+      slug: "gemini-saved",
+      name: "Gemini saved",
+      isCustom: false,
+      capabilities: { optionDescriptors: [] },
+    });
   });
 });
 
@@ -359,7 +423,7 @@ it.layer(layerTest)("Antigravity provider snapshots", (it) => {
         yield* harness.provider.onSessionStarted(started);
         yield* harness.provider.onAvailableCommands(commands);
         const snapshot = yield* harness.provider.snapshot.getSnapshot;
-        expect(snapshot.models).toHaveLength(11);
+        expect(snapshot.models).toHaveLength(4);
         expect(snapshot.slashCommands).toEqual(expectedCommands);
         expect(snapshot.workspaceSnapshots).toEqual([]);
       }),
@@ -414,7 +478,7 @@ it.layer(layerTest)("Antigravity provider snapshots", (it) => {
         ];
         const nextSnapshot = yield* Stream.toPull(
           harness.provider.snapshot.streamChanges.pipe(
-            Stream.filter((snapshot) => snapshot.models.length === 3),
+            Stream.filter((snapshot) => snapshot.models.length === 1),
           ),
         );
         yield* harness.provider.onConfigOptionsUpdated(configOptions);
@@ -510,7 +574,7 @@ it.layer(layerTest)("Antigravity provider snapshots", (it) => {
         });
         expect(
           (yield* harness.provider.snapshot.getSnapshot).models.map((model) => model.slug),
-        ).toEqual(["gemini-pro-agent"]);
+        ).toEqual(["gemini-3.1-pro"]);
       }),
     ),
   );
@@ -624,7 +688,7 @@ it.layer(layerTest)("Antigravity provider snapshots", (it) => {
             status: "error",
             auth: { status: "authenticated" },
           });
-          expect(snapshot.models).toHaveLength(installed ? 11 : 0);
+          expect(snapshot.models).toHaveLength(installed ? 4 : 0);
           expect(snapshot.slashCommands).toHaveLength(installed ? 2 : 0);
           expect(snapshot.workspaceSnapshots).toHaveLength(installed ? 1 : 0);
           expect(snapshot.supportsTextGeneration).toBe(installed);

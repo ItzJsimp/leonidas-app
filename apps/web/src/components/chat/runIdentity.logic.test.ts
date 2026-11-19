@@ -31,6 +31,34 @@ const claudeJake = {
   ],
 } as unknown as ServerProvider;
 
+const antigravity = {
+  instanceId: "antigravity",
+  driver: "antigravity",
+  displayName: "Antigravity",
+  models: [
+    {
+      slug: "gemini-4-argon",
+      name: "Gemini 4 Argon",
+      aliases: ["gemini-4-argon-high", "gemini-4-argon-medium"],
+      isCustom: false,
+      capabilities: {
+        optionDescriptors: [
+          {
+            id: "effort",
+            label: "Reasoning",
+            type: "select",
+            options: [
+              { id: "medium", label: "Medium", isDefault: true },
+              { id: "high", label: "High" },
+            ],
+            currentValue: "medium",
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as ServerProvider;
+
 const selection = (options: ReadonlyArray<{ id: string; value: string | boolean }>) =>
   ({ instanceId: "claude_jake", model: "claude-sonnet-5-5", options }) as never;
 
@@ -65,5 +93,17 @@ describe("resolveRunIdentity", () => {
     expect(identity.effortLabel).toBe("Medium");
     expect(identity.accountLabel).toBeUndefined();
     expect(identity.fastMode).toBe(true);
+  });
+
+  it("infers effort from legacy tiered Antigravity slugs when options were omitted", () => {
+    const identity = resolveRunIdentity(
+      {
+        providerInstanceId: "antigravity",
+        modelSelection: { instanceId: "antigravity", model: "gemini-4-argon-high" } as never,
+      },
+      [antigravity],
+    );
+    expect(identity.modelLabel).toBe("Gemini 4 Argon");
+    expect(identity.effortLabel).toBe("High");
   });
 });

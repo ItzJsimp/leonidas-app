@@ -55,6 +55,8 @@ export const catalogServerModel = (
 
 export interface CatalogMatching {
   readonly family?: (slug: string) => string;
+  /** Restricts which aliases transfer when the catalog moves the default model (defaults to all). */
+  readonly isDefaultAlias?: (alias: string) => boolean;
 }
 
 const familyOf = (matching: CatalogMatching | undefined, slug: string) =>
@@ -95,11 +97,14 @@ export function applyCatalogDefault(
   if (slug === undefined) return models;
   const previous = models.find((model) => model.isDefault && model.slug !== slug);
   if (!previous) return models;
-  const movedAliases = previous.aliases ?? [];
+  const shouldMoveAlias = matching?.isDefaultAlias ?? (() => true);
+  const previousAliases = previous.aliases ?? [];
+  const movedAliases = previousAliases.filter(shouldMoveAlias);
+  const keptAliases = previousAliases.filter((alias) => !shouldMoveAlias(alias));
   return models.map((model) => {
     if (model.slug === previous.slug) {
       const { isDefault: _isDefault, aliases: _aliases, ...rest } = model;
-      return rest;
+      return keptAliases.length > 0 ? { ...rest, aliases: keptAliases } : rest;
     }
     if (model.slug === slug) {
       const aliases = [...new Set([...(model.aliases ?? []), ...movedAliases])];

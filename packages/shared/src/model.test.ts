@@ -2,9 +2,12 @@ import { describe, expect, it } from "vite-plus/test";
 import { ProviderDriverKind, ProviderInstanceId, type ModelCapabilities } from "@t3tools/contracts";
 
 import {
+  antigravityEffortLabel,
+  antigravityModelFamily,
   applyClaudePromptEffortPrefix,
   buildExplicitProviderOptionSelectionsFromDescriptors,
   buildProviderOptionSelectionsFromDescriptors,
+  compareAntigravityEfforts,
   createModelCapabilities,
   createModelSelection,
   formatCodexModelName,
@@ -13,6 +16,8 @@ import {
   getModelSelectionBooleanOptionValue,
   getModelSelectionStringOptionValue,
   getProviderOptionDescriptors,
+  inferAntigravityEffortFromSlug,
+  parseAntigravityModelVariant,
   readCustomModelEntries,
   toCustomModelSetting,
   getProviderOptionBooleanSelectionValue,
@@ -343,5 +348,61 @@ describe("provider-reported option display", () => {
     { ...selection, options: [{ id: "variant", value: "none" }] },
   ])("ignores reports after changing the model, instance, or option: %j", (selected) => {
     expect(getProviderOptionCurrentLabel(descriptor, selected, reported)).toBe("Unknown");
+  });
+});
+
+describe("Antigravity variant parsing and family helpers", () => {
+  it("parses effort suffixes from parenthesized display names and slugs", () => {
+    expect(parseAntigravityModelVariant("gemini-4-argon-high", "Gemini 4 Argon (High)")).toEqual({
+      baseSlug: "gemini-4-argon",
+      baseName: "Gemini 4 Argon",
+      effort: "high",
+    });
+    expect(
+      parseAntigravityModelVariant("gemini-4-hydrogen-xhigh", "Gemini 4 Hydrogen (Extra High)"),
+    ).toEqual({
+      baseSlug: "gemini-4-hydrogen",
+      baseName: "Gemini 4 Hydrogen",
+      effort: "xhigh",
+    });
+    expect(parseAntigravityModelVariant("gemini-pro-agent", "Gemini 3.1 Pro (High)")).toEqual({
+      baseSlug: "gemini-3.1-pro",
+      baseName: "Gemini 3.1 Pro",
+      effort: "high",
+    });
+    expect(parseAntigravityModelVariant("gemini-3.1-pro-low", "Gemini 3.1 Pro (Low)")).toEqual({
+      baseSlug: "gemini-3.1-pro",
+      baseName: "Gemini 3.1 Pro",
+      effort: "low",
+    });
+    expect(parseAntigravityModelVariant("gemini-test-low", "Gemini Test Low")).toEqual({
+      baseSlug: "gemini-test",
+      baseName: "Gemini Test",
+      effort: "low",
+    });
+    expect(parseAntigravityModelVariant("gemini-saved", "Gemini saved")).toEqual({
+      baseSlug: "gemini-saved",
+      baseName: "Gemini saved",
+    });
+  });
+
+  it("infers effort and normalizes legacy Antigravity slugs to base families", () => {
+    expect(inferAntigravityEffortFromSlug("gemini-pro-agent")).toBe("high");
+    expect(inferAntigravityEffortFromSlug("gemini-4-argon-medium")).toBe("medium");
+    expect(inferAntigravityEffortFromSlug("gemini-4-argon")).toBeUndefined();
+
+    expect(antigravityModelFamily("gemini-pro-agent")).toBe("gemini-3.1-pro");
+    expect(antigravityModelFamily("gemini-4-argon-high")).toBe("gemini-4-argon");
+    expect(antigravityModelFamily("gemini-4-argon")).toBe("gemini-4-argon");
+  });
+
+  it("sorts Antigravity efforts in canonical order and formats labels", () => {
+    expect(
+      ["max", "high", "xhigh", "low", "minimal", "medium", "ultra"].toSorted(
+        compareAntigravityEfforts as (a: string, b: string) => number,
+      ),
+    ).toEqual(["minimal", "low", "medium", "high", "xhigh", "ultra", "max"]);
+    expect(antigravityEffortLabel("xhigh")).toBe("Extra High");
+    expect(antigravityEffortLabel("medium")).toBe("Medium");
   });
 });

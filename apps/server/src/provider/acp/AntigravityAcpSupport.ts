@@ -1,11 +1,16 @@
 import {
   ANTIGRAVITY_DEFAULT_MODEL,
   type AntigravityAuthMethod,
+  type ModelSelection,
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
   type ProviderSendTurnInput,
   type RuntimeMode,
 } from "@t3tools/contracts";
+import {
+  getProviderOptionStringSelectionValue,
+  parseAntigravityModelVariant,
+} from "@t3tools/shared/model";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -100,18 +105,95 @@ function antigravityModelOptions(
   return model.options.flatMap((entry) => ("value" in entry ? [entry] : entry.options));
 }
 
+function resolveAcpVariant(input: {
+  readonly options: ReadonlyArray<{ readonly value: string; readonly name: string }>;
+  readonly targetSlug: string;
+  readonly effort: string | undefined;
+  readonly current: string | undefined;
+}): { readonly resolved: string | undefined; readonly baseKnown: boolean } {
+  const exactMatch = input.options.find((option) => option.value === input.targetSlug);
+  const groupSlug = exactMatch
+    ? parseAntigravityModelVariant(exactMatch.value, exactMatch.name).baseSlug
+    : input.targetSlug;
+  const groupVariants = input.options
+    .map((option) => ({
+      option,
+      parsed: parseAntigravityModelVariant(option.value, option.name),
+    }))
+    .filter(({ parsed }) => parsed.baseSlug === groupSlug && parsed.effort !== undefined);
+
+  if (input.effort !== undefined && groupVariants.length > 0) {
+    const matched = groupVariants.find((variant) => variant.parsed.effort === input.effort);
+    return { resolved: matched?.option.value, baseKnown: true };
+  }
+  if (exactMatch) {
+    return { resolved: exactMatch.value, baseKnown: true };
+  }
+  if (groupVariants.length > 0) {
+    const fallback =
+      groupVariants.find((variant) => variant.option.value === input.current) ??
+      groupVariants.find((variant) => variant.parsed.effort === "medium") ??
+      groupVariants.find((variant) => variant.parsed.effort === "high") ??
+      groupVariants[0];
+    return { resolved: fallback?.option.value, baseKnown: true };
+  }
+  return { resolved: undefined, baseKnown: false };
+}
+
 function resolveAntigravityModel(input: {
   readonly configOptions: ReadonlyArray<EffectAcpSchema.SessionConfigOption>;
   readonly model: string | null | undefined;
+  readonly effort: string | undefined;
   readonly defaultModel?: string | undefined;
-}): string | undefined {
+}): { readonly resolved: string | undefined; readonly unavailableLabel: string | undefined } {
   const modelConfig = input.configOptions.find((option) => option.id === "model");
   const current = modelConfig?.type === "select" ? modelConfig.currentValue : undefined;
-  if (input.model && input.model !== ANTIGRAVITY_DEFAULT_MODEL) return input.model;
   const options = antigravityModelOptions(input.configOptions);
-  return input.defaultModel && options.some((option) => option.value === input.defaultModel)
-    ? input.defaultModel
-    : current;
+
+  if (input.model && input.model !== ANTIGRAVITY_DEFAULT_MODEL) {
+    const match = resolveAcpVariant({
+      options,
+      targetSlug: input.model,
+      effort: input.effort,
+      current,
+    });
+    if (match.resolved !== undefined) {
+      return { resolved: match.resolved, unavailableLabel: undefined };
+    }
+    return {
+      resolved: undefined,
+      unavailableLabel:
+        match.baseKnown && input.effort !== undefined
+          ? `${input.model} (${input.effort})`
+          : input.model,
+    };
+  }
+
+  if (input.defaultModel) {
+    const defaultMatch = resolveAcpVariant({
+      options,
+      targetSlug: input.defaultModel,
+      effort: input.effort,
+      current,
+    });
+    if (defaultMatch.resolved !== undefined) {
+      return { resolved: defaultMatch.resolved, unavailableLabel: undefined };
+    }
+  }
+
+  if (input.effort !== undefined && current) {
+    const currentVariant = resolveAcpVariant({
+      options,
+      targetSlug: current,
+      effort: input.effort,
+      current,
+    });
+    if (currentVariant.resolved !== undefined) {
+      return { resolved: currentVariant.resolved, unavailableLabel: undefined };
+    }
+  }
+
+  return { resolved: current, unavailableLabel: undefined };
 }
 
 /** Never replace a saved selection with the default returned by a cold resume. */
@@ -122,18 +204,30 @@ export const applyAntigravityAcpModelSelection = Effect.fn("applyAntigravityAcpM
       "getConfigOptions" | "setModel"
     >;
     readonly model: string | null | undefined;
+    readonly options?: ModelSelection["options"] | undefined;
     readonly defaultModel?: string | undefined;
     readonly mapError: (cause: EffectAcpErrors.AcpError) => E;
   }): Effect.fn.Return<string | undefined, E> {
     const configOptions = yield* input.runtime.getConfigOptions;
     const modelConfig = configOptions.find((option) => option.id === "model");
     const current = modelConfig?.type === "select" ? modelConfig.currentValue : undefined;
-    const resolved = resolveAntigravityModel({
+    const effort = getProviderOptionStringSelectionValue(input.options, "effort");
+    const { resolved, unavailableLabel } = resolveAntigravityModel({
       configOptions,
       model: input.model,
+      effort,
       defaultModel: input.defaultModel,
     });
     const explicit = Boolean(input.model) && input.model !== ANTIGRAVITY_DEFAULT_MODEL;
+    if (unavailableLabel !== undefined) {
+      return yield* Effect.fail(
+        input.mapError(
+          EffectAcpErrors.AcpRequestError.invalidParams(
+            `Antigravity model '${unavailableLabel}' is unavailable for this Google account. Select an available model.`,
+          ),
+        ),
+      );
+    }
     if (resolved === undefined || (!explicit && resolved === current)) return current;
     const options = antigravityModelOptions(configOptions);
     if (!options.some((option) => option.value === resolved)) {

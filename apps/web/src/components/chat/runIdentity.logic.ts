@@ -2,6 +2,7 @@ import type { ModelSelection, ServerProvider } from "@t3tools/contracts";
 import {
   getModelSelectionBooleanOptionValue,
   getModelSelectionStringOptionValue,
+  inferAntigravityEffortFromSlug,
 } from "@t3tools/shared/model";
 
 import { normalizeProviderAccentColor } from "../../providerInstances";
@@ -46,11 +47,13 @@ export function resolveRunIdentity(
   const effortId = EFFORT_OPTION_IDS.find(
     (id) => getModelSelectionStringOptionValue(run.modelSelection, id) !== undefined,
   );
-  const effortValue = effortId
-    ? getModelSelectionStringOptionValue(run.modelSelection, effortId)
-    : undefined;
+  const effortValue =
+    (effortId ? getModelSelectionStringOptionValue(run.modelSelection, effortId) : undefined) ??
+    (provider?.driver === "antigravity" || slug.startsWith("gemini-")
+      ? inferAntigravityEffortFromSlug(slug)
+      : undefined);
   const descriptor = model?.capabilities?.optionDescriptors?.find(
-    (candidate) => candidate.id === effortId,
+    (candidate) => candidate.id === (effortId ?? "effort"),
   );
   const effortLabel =
     effortValue === undefined

@@ -8,7 +8,13 @@ import {
   type ServerProviderSlashCommand,
   type ServerProviderUsageLimits,
 } from "@t3tools/contracts";
-import { createModelCapabilities } from "@t3tools/shared/model";
+import {
+  type AntigravityEffort,
+  antigravityEffortLabel,
+  compareAntigravityEfforts,
+  createModelCapabilities,
+  parseAntigravityModelVariant,
+} from "@t3tools/shared/model";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -44,6 +50,12 @@ type SessionSetupResult = Pick<
   "configOptions" | "models"
 >;
 
+interface AntigravityVariantEntry {
+  readonly acpId: string;
+  readonly baseName: string;
+  readonly effort?: AntigravityEffort | undefined;
+}
+
 export function buildAntigravityModelsFromSession(
   setup: SessionSetupResult,
 ): ReadonlyArray<ServerProviderModel> {
@@ -62,20 +74,82 @@ export function buildAntigravityModelsFromSession(
           })) ?? [])
         : [];
   const seen = new Set<string>();
-  return entries.flatMap((entry): ServerProviderModel[] => {
-    if (!entry.value.trim() || seen.has(entry.value)) return [];
-    seen.add(entry.value);
-    return [
-      {
-        slug: entry.value,
-        name: entry.name.trim() ? entry.name : entry.value,
+  const groups = new Map<string, AntigravityVariantEntry[]>();
+
+  for (const entry of entries) {
+    const acpId = entry.value.trim();
+    if (!acpId || seen.has(acpId)) continue;
+    seen.add(acpId);
+    const parsed = parseAntigravityModelVariant(acpId, entry.name);
+    const list = groups.get(parsed.baseSlug);
+    const variant: AntigravityVariantEntry = {
+      acpId,
+      baseName: parsed.baseName,
+      ...(parsed.effort !== undefined ? { effort: parsed.effort } : {}),
+    };
+    if (list) list.push(variant);
+    else groups.set(parsed.baseSlug, [variant]);
+  }
+
+  return [...groups.entries()].map(([baseSlug, variants]): ServerProviderModel => {
+    const name = variants[0]!.baseName;
+    const isDefault = variants.some((variant) => variant.acpId === currentValue);
+    const effortMap = new Map<AntigravityEffort, string>();
+    for (const variant of variants) {
+      if (variant.effort !== undefined && !effortMap.has(variant.effort)) {
+        effortMap.set(variant.effort, variant.acpId);
+      }
+    }
+    const sortedEfforts = [...effortMap.keys()].toSorted(compareAntigravityEfforts);
+    if (sortedEfforts.length === 0) {
+      return {
+        slug: baseSlug,
+        name,
         isCustom: false,
-        ...(entry.value === currentValue
-          ? { isDefault: true, aliases: [ANTIGRAVITY_DEFAULT_MODEL] }
-          : {}),
+        ...(isDefault ? { isDefault: true, aliases: [ANTIGRAVITY_DEFAULT_MODEL] } : {}),
         capabilities: EMPTY_MODEL_CAPABILITIES,
-      },
+      };
+    }
+
+    const currentVariant = variants.find(
+      (variant) => variant.acpId === currentValue && variant.effort !== undefined,
+    );
+    const defaultEffort =
+      currentVariant?.effort ??
+      (sortedEfforts.includes("medium")
+        ? "medium"
+        : sortedEfforts.includes("high")
+          ? "high"
+          : sortedEfforts[0]!);
+    const legacyAliases = variants
+      .map((variant) => variant.acpId)
+      .filter((acpId) => acpId !== baseSlug);
+    const aliases = [
+      ...new Set([...legacyAliases, ...(isDefault ? [ANTIGRAVITY_DEFAULT_MODEL] : [])]),
     ];
+
+    return {
+      slug: baseSlug,
+      name,
+      isCustom: false,
+      ...(isDefault ? { isDefault: true } : {}),
+      ...(aliases.length > 0 ? { aliases } : {}),
+      capabilities: createModelCapabilities({
+        optionDescriptors: [
+          {
+            id: "effort",
+            label: "Reasoning",
+            type: "select",
+            options: sortedEfforts.map((effort) => ({
+              id: effort,
+              label: antigravityEffortLabel(effort),
+              ...(effort === defaultEffort ? { isDefault: true } : {}),
+            })),
+            currentValue: defaultEffort,
+          },
+        ],
+      }),
+    };
   });
 }
 

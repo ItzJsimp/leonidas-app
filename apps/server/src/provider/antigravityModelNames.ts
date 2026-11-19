@@ -14,7 +14,7 @@ export interface AntigravityModelName {
   readonly rateModel?: string;
 }
 
-const EFFORT_TIERS = new Set(["minimal", "low", "medium", "high"]);
+const EFFORT_TIERS = new Set(["minimal", "low", "medium", "high", "xhigh", "ultra", "max"]);
 
 /**
  * Normalizes an Antigravity model label or slug (`Gemini 3.8 Flash (High)`) to a
@@ -24,7 +24,8 @@ const EFFORT_TIERS = new Set(["minimal", "low", "medium", "high"]);
  */
 export function antigravityModelNameFromLabel(label: string): AntigravityModelName {
   const lower = label.toLowerCase().trim();
-  const tag = lower.match(/\s*\(([^)]*)\)\s*$/)?.[1]?.trim();
+  const rawTag = lower.match(/\s*\(([^)]*)\)\s*$/)?.[1]?.trim();
+  const tag = rawTag === "extra high" ? "xhigh" : rawTag;
   const stem = lower.replace(/\s*\([^)]*\)\s*$/, "").replaceAll(" ", "-");
   if (stem.startsWith("claude-")) {
     return {
@@ -35,10 +36,13 @@ export function antigravityModelNameFromLabel(label: string): AntigravityModelNa
   }
   const slug = tag !== undefined && EFFORT_TIERS.has(tag) ? `${stem}-${tag}` : stem;
   const tiered = slug.match(
-    /^(gemini-[\d.]+-(?:pro|flash(?:-lite)?))-(?:minimal|low|medium|high)$/,
+    /^(gemini-[\d.]+-(?:pro|flash(?:-lite)?|argon|hydrogen|helium|lithium|neon))-(?:minimal|low|medium|high|xhigh|ultra|max)$/,
   );
   if (tiered?.[1] !== undefined) return { model: slug, rateModel: tiered[1] };
   return {
-    model: slug.replace(/^(gemini-[\d.]+-(?:pro|flash(?:-lite)?))-(?:thinking|[a-z])$/, "$1"),
+    model: slug.replace(
+      /^(gemini-[\d.]+-(?:pro|flash(?:-lite)?|argon|hydrogen|helium|lithium|neon))-(?:thinking|[a-z])$/,
+      "$1",
+    ),
   };
 }

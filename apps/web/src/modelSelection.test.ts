@@ -1021,3 +1021,49 @@ describe("default model settings and new-thread composer parity", () => {
     },
   );
 });
+
+describe("Antigravity legacy slug migration in composer state", () => {
+  it("resolves legacy tiered Antigravity slugs to base models while preserving effort", () => {
+    const instanceId = ProviderInstanceId.make("antigravity");
+    const driver = ProviderDriverKind.make("antigravity");
+    const groupedProvider: ServerProvider = {
+      ...provider({ provider: driver, instanceId }),
+      models: [
+        {
+          slug: "gemini-4-argon",
+          name: "Gemini 4 Argon",
+          aliases: ["gemini-4-argon-low", "gemini-4-argon-medium", "gemini-4-argon-high"],
+          isCustom: false,
+          isDefault: true,
+          capabilities: {
+            optionDescriptors: [
+              {
+                id: "effort",
+                label: "Reasoning",
+                type: "select",
+                options: [
+                  { id: "low", label: "Low" },
+                  { id: "medium", label: "Medium", isDefault: true },
+                  { id: "high", label: "High" },
+                ],
+                currentValue: "medium",
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const saved = createModelSelection(instanceId, "gemini-4-argon-high");
+    const state = deriveEffectiveComposerModelState({
+      draft: null,
+      providers: [groupedProvider],
+      selectedProvider: driver,
+      selectedInstanceId: instanceId,
+      threadModelSelection: saved,
+      projectModelSelection: null,
+      settings: settingsWithProviderInstances(),
+    });
+    expect(state.selectedModel).toBe("gemini-4-argon");
+    expect(state.modelOptions?.[instanceId]).toEqual([{ id: "effort", value: "high" }]);
+  });
+});

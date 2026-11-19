@@ -27,6 +27,9 @@ const modelConfig = {
   options: [
     { value: "gemini-default", name: "Gemini default" },
     { value: "gemini-saved", name: "Gemini saved" },
+    { value: "gemini-4-argon-low", name: "Gemini 4 Argon (Low)" },
+    { value: "gemini-4-argon-high", name: "Gemini 4 Argon (High)" },
+    { value: "gemini-pro-agent", name: "Gemini 3.1 Pro (High)" },
   ],
 } satisfies EffectAcpSchema.SessionConfigOption;
 
@@ -57,6 +60,54 @@ describe("applyAntigravityAcpModelSelection", () => {
 
       expect(model).toBe("gemini-saved");
       expect(selections).toEqual(["gemini-saved"]);
+    }),
+  );
+
+  it.effect("resolves base model slug plus effort option to the matching ACP variant ID", () =>
+    Effect.gen(function* () {
+      const { runtime, selections } = makeModelRuntime();
+      const argon = yield* applyAntigravityAcpModelSelection({
+        runtime,
+        model: "gemini-4-argon",
+        options: [{ id: "effort", value: "high" }],
+        mapError: (cause) => cause,
+      });
+      const pro = yield* applyAntigravityAcpModelSelection({
+        runtime,
+        model: "gemini-3.1-pro",
+        options: [{ id: "effort", value: "high" }],
+        mapError: (cause) => cause,
+      });
+      const overriddenLegacy = yield* applyAntigravityAcpModelSelection({
+        runtime,
+        model: "gemini-4-argon-high",
+        options: [{ id: "effort", value: "low" }],
+        mapError: (cause) => cause,
+      });
+
+      expect(argon).toBe("gemini-4-argon-high");
+      expect(pro).toBe("gemini-pro-agent");
+      expect(overriddenLegacy).toBe("gemini-4-argon-low");
+      expect(selections).toEqual(["gemini-4-argon-high", "gemini-pro-agent", "gemini-4-argon-low"]);
+    }),
+  );
+
+  it.effect("rejects an unavailable effort tier for a known Antigravity base model", () =>
+    Effect.gen(function* () {
+      const { runtime, selections } = makeModelRuntime();
+      const error = yield* applyAntigravityAcpModelSelection({
+        runtime,
+        model: "gemini-4-argon",
+        options: [{ id: "effort", value: "max" }],
+        mapError: (cause) => cause,
+      }).pipe(Effect.flip);
+
+      expect(error).toMatchObject({
+        _tag: "AcpRequestError",
+        code: -32602,
+        errorMessage: expect.stringContaining("'gemini-4-argon (max)' is unavailable"),
+      });
+      expect(selections).toEqual([]);
     }),
   );
 
@@ -255,7 +306,7 @@ it.layer(NodeServices.layer)("buildAntigravityPrompt", (it) => {
     Effect.gen(function* () {
       const selectedEnvironment = yield* makeAttachmentFixture();
       const otherEnvironment = yield* makeAttachmentFixture();
-      const source = '  const name = "caf\u00e9";\n';
+      const source = '  const name = "caf\\u00e9";\n';
       const upload = yield* selectedEnvironment.write(textAttachment, source);
       yield* otherEnvironment.write(textAttachment, "Different environment.");
       const prompt = yield* buildAntigravityPrompt({

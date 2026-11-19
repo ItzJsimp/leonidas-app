@@ -1,7 +1,13 @@
 import { withAgentDeviceEnvironment } from "@t3tools/provider-core/server/mcpSession";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
-import { AntigravitySettings, ProviderDriverKind, ProviderSetupError } from "@t3tools/contracts";
+import {
+  ANTIGRAVITY_DEFAULT_MODEL,
+  AntigravitySettings,
+  ProviderDriverKind,
+  ProviderSetupError,
+} from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import { antigravityModelFamily } from "@t3tools/shared/model";
 import { resolveSelfInvocation } from "@t3tools/shared/nodeRuntime";
 import {
   NodeRuntimeUnavailableError,
@@ -166,7 +172,14 @@ export const AntigravityDriver: ProviderDriver<
     });
     const classifyModels = (draft: ServerProviderDraft) =>
       currentCatalog.pipe(
-        Effect.map((catalog) => stampIdentity(ModelCatalog.applyModelCatalog(draft, catalog))),
+        Effect.map((catalog) =>
+          stampIdentity(
+            ModelCatalog.applyModelCatalog(draft, catalog, {
+              family: antigravityModelFamily,
+              isDefaultAlias: (alias) => alias === ANTIGRAVITY_DEFAULT_MODEL,
+            }),
+          ),
+        ),
       );
 
     const makeRuntime = Effect.fn("AntigravityDriver.makeRuntime")(function* (
