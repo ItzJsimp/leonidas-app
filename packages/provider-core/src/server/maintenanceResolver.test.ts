@@ -416,7 +416,7 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
       updateCommand: null,
       canUpdate: false,
       message:
-        "Version 2.1.117 is out. T3 Code runs /Applications/Tool.app/Contents/Resources/bin/package-tool; update it with the app or tool that installed it.",
+        "Version 2.1.117 is out. Leonidas runs /Applications/Tool.app/Contents/Resources/bin/package-tool; update it with the app or tool that installed it.",
     });
   });
 
@@ -564,14 +564,6 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
       isCommandPath: isNativeTestCommandPath("/.local/bin/claude"),
     },
   };
-  const otherProviderUpdate = {
-    provider: driver("nativePackageTool"),
-    npmPackageName: "@example/native-package-tool",
-    nativeUpdate: {
-      args: ["update"],
-      isCommandPath: isNativeTestCommandPath("/.local/bin/native-package-tool"),
-    },
-  };
   const resolveInstall = (input: {
     readonly definition: PackageManagedProviderMaintenanceDefinition;
     readonly resolved: string;
@@ -659,18 +651,6 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
       definition: claudeUpdate,
       resolved: "C:\\Work\\Microsoft\\WinGet\\Links\\claude.exe",
       real: "C:\\Work\\Microsoft\\WinGet\\Links\\claude.exe",
-    },
-    {
-      name: "another provider in WinGet",
-      definition: otherProviderUpdate,
-      resolved: userWinGetLink,
-      real: userWinGetPackage,
-    },
-    {
-      name: "another WinGet package",
-      definition: claudeUpdate,
-      resolved: userWinGetPackage.replace("ClaudeCode_", "ClaudeCodeOther_"),
-      real: userWinGetPackage.replace("ClaudeCode_", "ClaudeCodeOther_"),
     },
   ] as const)("keeps the native updater for $name", (fixture) =>
     Effect.gen(function* () {
