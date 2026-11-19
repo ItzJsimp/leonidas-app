@@ -7,5 +7,5 @@ GGML_AVX2 = "ON"
 GGML_FMA = "ON"
 GGML_F16C = "ON"
 # The cmake crate drops /O2 here, so ggml would build unoptimized. Set it explicitly.
-CMAKE_C_FLAGS_RELEASE = "/O2 /Ob2 /DNDEBUG -MD"
-CMAKE_CXX_FLAGS_RELEASE = "/O2 /Ob2 /DNDEBUG -MD"
+CMAKE_C_FLAGS_RELEASE = "/O2 /Ob2 /DNDEBUG -MT"
+CMAKE_CXX_FLAGS_RELEASE = "/O2 /Ob2 /DNDEBUG -MT"
