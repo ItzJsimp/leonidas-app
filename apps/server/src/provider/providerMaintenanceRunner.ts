@@ -485,52 +485,87 @@ export const make = Effect.fn("ProviderMaintenanceRunner.make")(function* () {
               );
             }
 
-            yield* setRunningMessage("Verifying the installed version");
-            const verified = yield* providerRegistry.getProviderMaintenanceCapabilitiesForInstance(
-              instanceId,
-              provider,
-              { fresh: true },
-            );
-            yield* invalidateLatestProviderVersion(verified).pipe(
-              Effect.provideService(ProviderLatestVersions.ProviderLatestVersions, latestVersions),
-            );
-            const { verifiedProviders } = yield* verifyRefreshedProvider(
-              provider,
-              verified,
-              instanceId,
-            );
-            // A missing version alone is not held against it, since Cursor's `about` probe can
-            // fail transiently on a healthy binary.
-            const couldNotVerify =
-              verifiedProviders.length === 0 ||
-              verifiedProviders.some((verifiedProvider) => {
-                const installedVersion =
-                  verifiedProvider.installedVersion !== undefined
-                    ? verifiedProvider.installedVersion
-                    : verifiedProvider.version;
-                return (
-                  !isStillInstalled(verifiedProvider) ||
-                  (verifiedProvider.status === "error" &&
-                    (verifiedProvider.auth.status !== "unauthenticated" ||
-                      !verifiedProvider.version)) ||
-                  (targetVersion !== undefined &&
-                    installedVersion?.replace(/^v/, "") !== targetVersion)
+            const verifyUpdate = Effect.fn("ProviderMaintenanceRunner.verifyUpdate")(function* () {
+              yield* setRunningMessage("Verifying the installed version");
+              const verified =
+                yield* providerRegistry.getProviderMaintenanceCapabilitiesForInstance(
+                  instanceId,
+                  provider,
+                  { fresh: true },
                 );
-              });
-            const stillOutdated =
-              targetVersion === undefined &&
-              verifiedProviders.some((verifiedProvider) => isOutdatedProvider(verifiedProvider));
+              yield* invalidateLatestProviderVersion(verified).pipe(
+                Effect.provideService(
+                  ProviderLatestVersions.ProviderLatestVersions,
+                  latestVersions,
+                ),
+              );
+              const { verifiedProviders } = yield* verifyRefreshedProvider(
+                provider,
+                verified,
+                instanceId,
+              );
+              // A missing version alone is not held against it, since Cursor's `about` probe can
+              // fail transiently on a healthy binary.
+              const couldNotVerify =
+                verifiedProviders.length === 0 ||
+                verifiedProviders.some((verifiedProvider) => {
+                  const installedVersion =
+                    verifiedProvider.installedVersion !== undefined
+                      ? verifiedProvider.installedVersion
+                      : verifiedProvider.version;
+                  return (
+                    !isStillInstalled(verifiedProvider) ||
+                    (verifiedProvider.status === "error" &&
+                      (verifiedProvider.auth.status !== "unauthenticated" ||
+                        !verifiedProvider.version)) ||
+                    (targetVersion !== undefined &&
+                      installedVersion?.replace(/^v/, "") !== targetVersion)
+                  );
+                });
+              const stillOutdated =
+                targetVersion === undefined &&
+                verifiedProviders.some((verifiedProvider) => isOutdatedProvider(verifiedProvider));
+              return { couldNotVerify, stillOutdated };
+            });
+
+            let verdict = yield* verifyUpdate();
+            let output = commandOutput(result);
+            // Self-heal: the command exited 0 but the version did not move (a stable
+            // channel pin, a stale tag). Retry once with the exact version.
+            const pinned =
+              verdict.stillOutdated && !verdict.couldNotVerify && candidateVersion !== null
+                ? makeTargetedProviderUpdateAction(fresh, candidateVersion)
+                : null;
+            const healCommand =
+              pinned && pinned.args.join(" ") !== command.args.join(" ") ? pinned : null;
+            let healFailed = false;
+            if (healCommand) {
+              yield* setRunningMessage(
+                `Still on the old version. Retrying with ${describeCommand(healCommand)}`,
+              );
+              const healResult = yield* runMaintenanceCommand(healCommand, setRunningMessage);
+              output = commandOutput(healResult) ?? output;
+              healFailed = healResult.timedOut || healResult.exitCode !== 0;
+              if (!healFailed) verdict = yield* verifyUpdate();
+            }
+            const { couldNotVerify, stillOutdated } = verdict;
             return yield* finish(
               makeUpdateState({
                 status: couldNotVerify || stillOutdated ? "unchanged" : "succeeded",
                 startedAt,
-                finishedAt,
+                finishedAt: yield* nowIso,
                 message: couldNotVerify
                   ? "Update command completed, but Leonidas could not verify the provider version."
                   : stillOutdated
-                    ? "Update command completed, but Leonidas still detects an outdated provider version."
-                    : "Provider updated.",
-                output: commandOutput(result),
+                    ? `Update command completed, but Leonidas still detects an outdated provider version.${
+                        healCommand
+                          ? ` Retrying with ${describeCommand(healCommand)} ${healFailed ? "failed" : "did not help"}.`
+                          : ""
+                      }`
+                    : healCommand
+                      ? `Provider updated. The first update left the old version, so Leonidas ran ${describeCommand(healCommand)}.`
+                      : "Provider updated.",
+                output,
               }),
             );
           },
