@@ -4,15 +4,15 @@ import { describe, expect, it } from "vite-plus/test";
 import { AccountLoadBadge, accountLoadLabel } from "./AccountLoadBadge";
 
 describe("accountLoadLabel", () => {
-  it("names open chats and how many run", () => {
-    expect(accountLoadLabel({ chats: 5, running: 2 })).toBe("5 open chats, 2 running");
-    expect(accountLoadLabel({ chats: 1, running: 0 })).toBe("1 open chat");
+  it("names active chats and how many run", () => {
+    expect(accountLoadLabel({ chats: 5, running: 2 })).toBe("5 active chats, 2 running");
+    expect(accountLoadLabel({ chats: 1, running: 0 })).toBe("1 active chat");
     expect(accountLoadLabel({ chats: 0, running: 0 })).toBe("");
   });
 });
 
 describe("AccountLoadBadge", () => {
-  it("shows nothing when the account has no open chats", () => {
+  it("shows nothing when the account has no active chats", () => {
     expect(renderToStaticMarkup(<AccountLoadBadge chats={0} running={0} />)).toBe("");
   });
 
