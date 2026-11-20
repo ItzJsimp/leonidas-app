@@ -1,4 +1,5 @@
-// @effect-diagnostics nodeBuiltinImport:off preferSchemaOverJson:off instanceOfSchema:off - Board files are parsed from external JSON and gh output with tolerant checks.
+// @effect-diagnostics nodeBuiltinImport:off preferSchemaOverJson:off instanceOfSchema:off globalDateInEffect:off - Board files are parsed from external JSON and gh output with tolerant checks. The card cache scan stamps wall-clock time.
+import { ServerRuntimeStartup } from "../serverRuntimeStartup.ts";
 import {
   TaskBoardIssue,
   TaskBoardOperationError,
@@ -1489,11 +1490,7 @@ const make = Effect.gen(function* () {
   const cardReader = makeAiosCardReader(cardCache, { ...(cachePath ? { cachePath } : {}) });
   yield* Effect.addFinalizer(() => Effect.sync(cardReader.close));
 
-  class StartupServiceTag extends Context.Service<
-    StartupServiceTag,
-    { readonly awaitCommandReady: Effect.Effect<void, unknown> }
-  >()("t3/serverRuntimeStartup") {}
-  const startup = yield* Effect.serviceOption(StartupServiceTag);
+  const startup = yield* Effect.serviceOption(ServerRuntimeStartup);
   if (Option.isSome(startup)) {
     yield* Effect.forkScoped(
       startup.value.awaitCommandReady.pipe(
@@ -1509,7 +1506,7 @@ const make = Effect.gen(function* () {
             }
           }),
         ),
-        Effect.catchAllCause((cause) =>
+        Effect.catchCause((cause) =>
           Effect.logWarning("TaskBoard background worker scan failed", { cause }),
         ),
       ),
