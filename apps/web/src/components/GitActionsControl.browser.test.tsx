@@ -83,7 +83,7 @@ vi.mock(import("~/state/use-atom-command"), async (original) => {
     ...(await original()),
     // Only the thread's branch metadata update and editor opens are observed here.
     useAtomCommand: ((command: unknown, options: unknown) =>
-      options === "thread branch metadata update"
+      options === "chat branch metadata update"
         ? async ({
             environmentId,
             input,
@@ -388,7 +388,7 @@ describe("Default branch prompt", () => {
     await using _screen = await render(control());
     await userEvent.click(button(/^Commit & push/));
     await expect
-      .element(page.getByRole("dialog", { name: "Commit & push to default ref?" }))
+      .element(page.getByRole("dialog", { name: "Commit & push to default branch?" }))
       .toBeVisible();
     expect(commits()).toBe(0);
 
@@ -403,7 +403,7 @@ describe("Default branch prompt", () => {
     await using _screen = await render(control());
     await userEvent.click(button(/^Commit & push/));
     await expect
-      .element(page.getByRole("dialog", { name: "Commit & push to default ref?" }))
+      .element(page.getByRole("dialog", { name: "Commit & push to default branch?" }))
       .toBeVisible();
     state.scopes.delete(AuthOrchestrationOperateScope);
 

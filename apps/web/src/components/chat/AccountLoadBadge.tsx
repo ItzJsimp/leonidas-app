@@ -7,15 +7,15 @@ interface AccountLoadProps {
   readonly running: number;
 }
 
-/** "5 open chats, 2 running". Empty when the account has no chats. */
+/** "5 active chats, 2 running". Empty when the account has no active chats. */
 export function accountLoadLabel({ chats, running }: AccountLoadProps): string {
   if (chats <= 0) return "";
-  const open = `${chats} open ${chats === 1 ? "chat" : "chats"}`;
-  return running > 0 ? `${open}, ${running} running` : open;
+  const active = `${chats} active ${chats === 1 ? "chat" : "chats"}`;
+  return running > 0 ? `${active}, ${running} running` : active;
 }
 
 /**
- * Corner badge for a provider rail icon: how many chats are open on the account.
+ * Corner badge for a provider rail icon: how many chats worked on the account in the last hour.
  * Green while an agent runs, grey when all are quiet. Renders nothing at zero.
  * Place inside a `relative` wrapper. Screen readers get the text from the button label.
  */

@@ -44,6 +44,7 @@ import {
 } from "./threadSidebarWidth";
 import { SidebarProvider } from "./ui/sidebar";
 import { openCapture } from "./capture/captureStore";
+import { BottomStatusRail } from "./statusRail/BottomStatusRail";
 
 // The icon rail is the only app navigation.
 const RAIL_WIDTH_PX = 52;
@@ -246,7 +247,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   return (
     <PanelAnimationSuppressionProvider value={panelAnimationsSuppressed}>
       <SidebarProvider
-        className="h-dvh! min-h-0!"
+        className="h-dvh! min-h-0! flex-col"
         data-panel-animations={routePanelAnimationsActive ? "true" : "false"}
         defaultOpen
         style={sidebarProviderStyle}
@@ -254,8 +255,11 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         <SkipToContent />
         <SidebarBrandWidthProbe onWidthChange={setBrandWidth} />
         <ProjectProjectionRetention />
-        {railVisible ? <AppRail /> : <RailDrawer />}
-        {children}
+        <div className="flex min-h-0 w-full flex-1">
+          {railVisible ? <AppRail /> : <RailDrawer />}
+          {children}
+        </div>
+        {pathname === "/welcome" ? null : <BottomStatusRail />}
         <ShellCornerFallback />
         <NavigationHistoryShortcuts />
         <MainAppLocationTracker />

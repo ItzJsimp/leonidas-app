@@ -23,6 +23,14 @@ Test with meaningful project and thread data. Read
 [references/sqlite-fixtures.md](references/sqlite-fixtures.md) only when
 inspecting or seeding SQLite. Stop the test server before direct fixture writes.
 
+## First-run walks
+
+To test what a new user sees, start with
+`pwsh -NoProfile -File scripts/dev-isolated.ps1 -Mode web -FirstRun`. It hides
+the parent AIOS and this computer's AI sign-ins. Open the pairing URL with
+`preview_open` and `profileId: "incognito"`, because the default profile keeps
+old settings for the same origin.
+
 ## Use the Browser panel
 
 Call `preview_status`, then `preview_open` if the Browser panel is

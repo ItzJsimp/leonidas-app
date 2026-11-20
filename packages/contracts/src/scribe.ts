@@ -264,6 +264,8 @@ export const ScribeSettings = Schema.Struct({
       hold: Schema.Array(Schema.String),
       toggle: Schema.Array(Schema.String),
       cancel: Schema.Array(Schema.String),
+      /** Off removes Scribe's key hooks. Missing means on, for an engine from before this key. */
+      enabled: Schema.optionalKey(Schema.Boolean),
     }),
     audio: Schema.Struct({
       device: Schema.NullOr(Schema.String),

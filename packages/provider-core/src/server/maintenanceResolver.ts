@@ -84,6 +84,7 @@ export interface PackageManagedProviderMaintenanceDefinition {
   readonly npmPackageName: string;
   readonly nativeUpdate: {
     readonly args: ReadonlyArray<string>;
+    readonly pinnedArgs?: (version: string) => ReadonlyArray<string>;
     readonly isCommandPath?: (commandPath: string) => boolean;
     readonly env?: NodeJS.ProcessEnv;
   } | null;
@@ -120,6 +121,7 @@ export function makeProviderMaintenanceCapabilities(input: {
   readonly updateCommand?: string;
   readonly platform?: NodeJS.Platform;
   readonly env?: NodeJS.ProcessEnv;
+  readonly pinnedArgs?: (version: string) => ReadonlyArray<string>;
   readonly latestVersion?: string | null;
   readonly lookupLatestVersion?: Effect.Effect<string | null>;
 }): ProviderMaintenanceCapabilities {
@@ -138,6 +140,7 @@ export function makeProviderMaintenanceCapabilities(input: {
           args: input.updateArgs,
           lockKey: input.updateLockKey,
           ...(input.env ? { env: input.env } : {}),
+          ...(input.pinnedArgs ? { pinnedArgs: input.pinnedArgs } : {}),
         };
   return {
     provider: input.provider,
@@ -156,6 +159,15 @@ export function makeTargetedProviderUpdateAction(
   const update = capabilities.update;
   const packageName = capabilities.packageName;
   if (!update || !packageName) return null;
+  if (update.pinnedArgs) {
+    const args = update.pinnedArgs(version);
+    const platform = HostProcess.Platform.defaultValue();
+    const command = [
+      quoteUpdateExecutable(update.executable, platform),
+      ...args.map((arg) => quoteShellWord(arg, platform)),
+    ].join(" ");
+    return { ...update, args, command };
+  }
   if (
     !/^(?:npm-global:|bun-global$|pnpm-global$|vite-plus-global$|yarn-global$|volta$)/.test(
       update.lockKey,
@@ -503,6 +515,7 @@ export const resolvePackageManagedProviderMaintenance = Effect.fn(
         updateLockKey: `${definition.provider}-native`,
         platform: context.platform,
         ...(nativeUpdate.env ? { env: nativeUpdate.env } : {}),
+        ...(nativeUpdate.pinnedArgs ? { pinnedArgs: nativeUpdate.pinnedArgs } : {}),
       })
     : manual;
   // A native-looking launcher can still delegate to a mise-owned install.

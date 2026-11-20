@@ -45,9 +45,6 @@ const usage: ThreadDetailsUsageProps = {
   modelLabel: "Model",
   effortLabel: null,
   contextWindow: null,
-  providerEntries: [],
-  onStartChat: null,
-  onStartArena: null,
 };
 
 const SECOND = 1000;

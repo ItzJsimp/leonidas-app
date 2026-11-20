@@ -5,7 +5,9 @@ export type RailTo =
   | "/trading/risk"
   | "/trading/money"
   | "/trading/crew"
+  | "/trading/library"
   | "/command-center"
+  | "/home"
   | "/"
   | "/scribe"
   | "/meetings"
@@ -54,6 +56,8 @@ export interface RailItem {
   readonly id: string;
   readonly group: RailGroup;
   readonly label: string;
+  /** A shorter name for the label under the icon, when the full name does not fit. */
+  readonly short?: string;
   /** The name, a colon, and one plain line of what the icon opens. */
   readonly tooltip: string;
   readonly to: RailTo;
@@ -82,24 +86,32 @@ const under = (pathname: string, base: string) =>
 
 /** Business tabs (Marketing, Content, Team) show for a business workspace or one switch each. */
 const MAIN: readonly RailItem[] = [
-  item(
-    "home",
-    "command-center",
-    "Command Center",
-    "/command-center",
-    "your work and what needs you",
-  ),
-  item("home", "today", "Today", "/today", "your priorities, schedule and briefing"),
-  item("home", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
+  // Home holds the two main tabs: Chat first, then Command Center (Jake, 2026-11-18).
   {
-    ...item("work", "chat", "Leonidas Chat", "/", "talk with Leonidas"),
+    ...item("home", "chat", "Leonidas Chat", "/", "talk with Leonidas"),
     tooltip: "Leonidas Chat: talk with Leonidas and run agents",
+    short: "Chat",
+  },
+  {
+    ...item(
+      "home",
+      "command-center",
+      "Command Center",
+      "/command-center",
+      "your work and what needs you",
+    ),
+    short: "Command",
+  },
+  item("work", "today", "Today", "/today", "your priorities, schedule and briefing"),
+  {
+    ...item("work", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
+    short: "Alerts",
   },
   item("work", "tasks", "Tasks", "/tasks", "what to do and what is in progress"),
   item("work", "projects", "Projects", "/projects", "the projects you work on"),
   item("brain", "memory", "Memory", "/memory", "what Leonidas knows and remembers", ["/brain"]),
-  item("brain", "library", "Library", "/library", "skills, helpers, reply styles and rules"),
-  item("brain", "subagents", "Subagents", "/subagents", "helpers your chats run, live and past"),
+  item("brain", "library", "Library", "/library", "skills, reply styles and rules"),
+  item("brain", "subagents", "Agents", "/subagents", "your agent team, what it ran and starters"),
   item("brain", "automations", "Automations", "/automations", "everything that runs by itself", [
     "/system-care",
   ]),
@@ -134,6 +146,14 @@ const TRADING_ONLY: readonly RailItem[] = [
   item("trade", "trading-money", "Money", "/trading/money", "Firm fees, Payouts and Total cost"),
   item("crew", "trading-crew", "Crew", "/trading/crew", "your Crew board"),
 ];
+/** The Trading Library: the course, pages and cards of the linked pack, and saved resources. */
+const TRADING_LIBRARY = item(
+  "learn",
+  "trading-library",
+  "Library",
+  "/trading/library",
+  "your course, firm pages, cards and saved resources",
+);
 const regroup = (id: string, group: RailGroup): RailItem => ({
   ...MAIN.find((entry) => entry.id === id)!,
   group,
@@ -141,7 +161,7 @@ const regroup = (id: string, group: RailGroup): RailItem => ({
 /** A Trading workspace shows its own tabs and none of the personal ones. */
 const TRADING: readonly RailItem[] = [
   ...TRADING_ONLY.slice(0, 5),
-  regroup("library", "learn"),
+  TRADING_LIBRARY,
   regroup("chat", "learn"),
   ...TRADING_ONLY.slice(5),
 ];
@@ -156,25 +176,41 @@ export function railItems(input: {
   readonly scribe: boolean;
   /** A Trading workspace: its own rail replaces the personal one. */
   readonly trading?: boolean;
-}) {
-  if (input.trading) return { main: TRADING, bottom: BOTTOM };
+  /** Tab ids pinned into the chat panel. A pinned tab stays on the rail too. Chat cannot be pinned. */
+  readonly pinned?: readonly string[];
+}): { main: readonly RailItem[]; bottom: readonly RailItem[]; pinned: readonly RailItem[] } {
+  if (input.trading) return { main: TRADING, bottom: BOTTOM, pinned: [] };
   const shows = (id: string) => input.business || input.showAnyway?.includes(id) === true;
+  const visible = MAIN.filter(
+    (entry) =>
+      (input.scribe || (entry.id !== "scribe" && entry.id !== "meetings")) &&
+      (entry.group !== "business" || shows(entry.id)) &&
+      (entry.group !== "builder" || input.builder),
+  );
   return {
-    main: MAIN.filter(
-      (entry) =>
-        (input.scribe || (entry.id !== "scribe" && entry.id !== "meetings")) &&
-        (entry.group !== "business" || shows(entry.id)) &&
-        (entry.group !== "builder" || input.builder),
-    ),
+    main: visible,
     bottom: BOTTOM,
+    // In pin order, so the panel lists them as the person added them.
+    pinned: (input.pinned ?? [])
+      .filter((id) => id !== "chat")
+      .flatMap((id) => visible.filter((entry) => entry.id === id)),
   };
+}
+
+/** Pinned under New chat until the person changes them: what you check while a chat runs (Jake, 2026-11-18). */
+export const DEFAULT_PINS: readonly string[] = ["inbox", "tasks", "projects", "subagents"];
+
+/** Tabs a person may pin into the chat panel: every visible rail tab except Chat itself. */
+export function pinnableItems(input: Parameters<typeof railItems>[0]): readonly RailItem[] {
+  if (input.trading) return [];
+  return railItems(input).main.filter((entry) => entry.id !== "chat");
 }
 
 /** The icon that shows as the current page. Every chat page belongs to the Chat icon. */
 export function activeRailId(pathname: string, onChat: boolean): string | null {
   if (onChat || pathname === "/") return "chat";
   const all = railItems({ business: true, builder: true, scribe: true });
-  const match = [...TRADING_ONLY, ...all.main, ...all.bottom].find(
+  const match = [...TRADING_ONLY, TRADING_LIBRARY, ...all.main, ...all.bottom].find(
     (entry) =>
       (entry.to !== "/" && under(pathname, entry.to)) ||
       entry.alsoActiveOn?.some((base) => under(pathname, base)) === true,

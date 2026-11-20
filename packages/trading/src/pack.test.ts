@@ -86,4 +86,26 @@ describe("trading pack", () => {
     const twice = [PACK.firms[0], PACK.firms[0]];
     assert.throws(() => parseTradingPackJson(withKey("firms", twice)), /repeated id/);
   });
+
+  it("reads an optional firstDay rule and rejects a bad one", () => {
+    const firstDay = { floor: 600, cap: 3300, defaultPassRate: 0.07 };
+    assert.deepStrictEqual(parseTradingPackJson(withKey("firstDay", firstDay)).firstDay, firstDay);
+    assert.isUndefined(parseTradingPackJson(text(PACK)).firstDay);
+    assert.throws(
+      () => parseTradingPackJson(withKey("firstDay", { ...firstDay, extra: 1 })),
+      /firstDay.extra: unknown key/,
+    );
+    assert.throws(
+      () => parseTradingPackJson(withKey("firstDay", { ...firstDay, cap: 500 })),
+      /firstDay.cap/,
+    );
+    assert.throws(
+      () => parseTradingPackJson(withKey("firstDay", { ...firstDay, defaultPassRate: 1.5 })),
+      /firstDay.defaultPassRate/,
+    );
+    assert.throws(
+      () => parseTradingPackJson(withKey("firstDay", { ...firstDay, defaultPassRate: 0 })),
+      /firstDay.defaultPassRate/,
+    );
+  });
 });

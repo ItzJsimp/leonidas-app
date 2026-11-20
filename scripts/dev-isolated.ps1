@@ -6,12 +6,24 @@ param(
     [int]$PortOffset = 10000,
     [switch]$RefreshSnapshot,
     [switch]$Check,
-    [switch]$DryRun
+    [switch]$DryRun,
+    # A new user's state: empty sandbox home, no AIOS, no AI sign-ins.
+    [switch]$FirstRun,
+    [string]$SandboxDir
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $devHome = Join-Path $repoRoot '.t3'
+if ($FirstRun) {
+    if ($RefreshSnapshot) { throw '-FirstRun starts from empty state; do not combine it with -RefreshSnapshot.' }
+    if (-not $SandboxDir) {
+        $SandboxDir = Join-Path ([IO.Path]::GetTempPath()) "leonidas-first-run-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+    }
+    $SandboxDir = [IO.Path]::GetFullPath($SandboxDir)
+    $devHome = Join-Path $SandboxDir 't3'
+    $userHome = Join-Path $SandboxDir 'home'
+}
 $runner = Join-Path $PSScriptRoot 'dev-runner.ts'
 $vp = Join-Path $repoRoot 'node_modules/.bin/vp.cmd'
 $node = (Get-Command node -ErrorAction Stop).Source
@@ -32,6 +44,16 @@ $isolatedEnv = @{
     VITE_WS_URL = $null
     PATH = "$(Join-Path $repoRoot 'node_modules/.bin');$env:PATH"
 }
+if ($FirstRun) {
+    # The cwd project would lead the server to a parent AIOS. The real profile holds AI sign-ins.
+    $isolatedEnv.T3CODE_AUTO_BOOTSTRAP_PROJECT_FROM_CWD = 'false'
+    $isolatedEnv.LEONIDAS_AIOS_ROOT = $null
+    $isolatedEnv.AIOS_ROOT = $null
+    $isolatedEnv.USERPROFILE = $userHome
+    $isolatedEnv.HOME = $userHome
+    $isolatedEnv.CLAUDE_CONFIG_DIR = Join-Path $userHome '.claude'
+    $isolatedEnv.CODEX_HOME = Join-Path $userHome '.codex'
+}
 $savedEnv = @{}
 foreach ($key in $isolatedEnv.Keys) {
     $savedEnv[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
@@ -48,8 +70,14 @@ try {
             ServerPortStart = 13773 + $PortOffset
             WebPortStart = 5733 + $PortOffset
             Title = 'Leonidas (Dev)'
+            UserHome = $env:USERPROFILE
+            AutoBootstrapProject = $env:T3CODE_AUTO_BOOTSTRAP_PROJECT_FROM_CWD -ne 'false'
         }
         return
+    }
+    if ($FirstRun) {
+        New-Item -ItemType Directory -Force -Path $devHome, $userHome | Out-Null
+        Write-Host "First-run sandbox: $SandboxDir. Open the pairing link in a private browser window; the first chat writes only here."
     }
     Push-Location -LiteralPath $repoRoot
     try {

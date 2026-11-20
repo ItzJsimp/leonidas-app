@@ -18,7 +18,8 @@ import { resolveSubagentSpec } from "./subagentPersona.ts";
 
 /** About 4 characters per token, the same rule the confirm card uses. */
 const tokensForBytes = (bytes: number) => Math.round(bytes / 4);
-const LEGACY_FIELD = /^(models|permissions|effort|omit_claude_md):/m;
+// `effort` is a format v1 key (Agents tab), so it is not a sign of the old format.
+const LEGACY_FIELD = /^(models|permissions|omit_claude_md):/m;
 
 export interface SubagentSource {
   readonly folder: string;
@@ -74,6 +75,11 @@ export function catalogEntry(
     never: [],
     context: [],
     estimatedStartTokens: null,
+    avatar: null,
+    effort: null,
+    skills: [],
+    canSpawn: false,
+    maxTurns: null,
   };
   const raw = NodeFs.readFileSync(specPath, "utf8");
   if (LEGACY_FIELD.test(raw.slice(0, 2_000))) {
@@ -113,6 +119,14 @@ export function catalogEntry(
       tools: spec.tools,
       never: spec.never,
       context,
+      avatar: spec.avatar,
+      effort: spec.effort,
+      skills: spec.skills,
+      canSpawn: spec.canSpawn,
+      maxTurns: spec.maxTurns,
+      // shortcut: cut at 20,000 characters so the polled list stays small. Raise it with a
+      // separate read call if agents need longer instructions in the editor.
+      instructions: spec.body.trim().slice(0, 20_000),
       estimatedStartTokens: estimatePersonaStartTokens({
         systemPromptChars: promptChars,
         tools: spec.tools,

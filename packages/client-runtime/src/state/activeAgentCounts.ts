@@ -33,24 +33,31 @@ function isAgentActive(runtime: ThreadRuntimeSummary | null | undefined): boolea
   return runtime?.status === "running" || runtime?.status === "waiting";
 }
 
+/** A chat that did no work for this long no longer counts toward its account's load. */
+export const ACCOUNT_LOAD_WINDOW_MS = 60 * 60 * 1000;
+
 export interface AccountLoad {
-  /** Chats the user has open on the account: not archived, and no idle subagent. */
+  /** Chats that worked in the last hour on the account: not archived, and no idle subagent. */
   readonly chats: number;
   /** Agents running or waiting on the user, a subset of `chats`. */
   readonly running: number;
 }
 
 /**
- * Open chats and running agents per account key, to balance work across accounts.
- * A subagent thread is no chat the user opened, so it counts only while it runs.
- * Threads from every environment count, so delegated tasks are included.
+ * Active chats and running agents per account key, to balance work across accounts.
+ * A chat counts while an agent runs in it, or when it did work (a tool call, a message)
+ * in the last hour. A subagent thread is no chat the user opened, so it counts only
+ * while it runs. Threads from every environment count, so delegated tasks are included.
  */
 export function countAccountLoad(input: {
   readonly providers: ReadonlyArray<AccountIdentity>;
+  readonly nowMs: number;
   readonly threads: Iterable<{
     readonly modelSelection: { readonly instanceId: ProviderInstanceId };
     readonly runtime: ThreadRuntimeSummary | null;
     readonly archivedAt?: string | null;
+    readonly lastActivityAt?: string | null;
+    readonly updatedAt?: string;
     readonly lineage?: { readonly relationshipToParent?: string | null };
     readonly environmentId?: string;
   }>;
@@ -67,6 +74,10 @@ export function countAccountLoad(input: {
     if (thread.archivedAt) continue;
     const running = isAgentActive(thread.runtime);
     if (!running && thread.lineage?.relationshipToParent === "subagent") continue;
+    // A server older than `lastActivityAt` sends no value: fall back to the last update.
+    const lastWorkMs = Date.parse(thread.lastActivityAt ?? thread.updatedAt ?? "");
+    const stale = !(input.nowMs - lastWorkMs < ACCOUNT_LOAD_WINDOW_MS);
+    if (stale && thread.runtime?.status !== "running") continue;
     const instanceId = thread.runtime?.providerInstanceId ?? thread.modelSelection.instanceId;
     const scopedId = scoped(thread.environmentId, instanceId);
     const key = keyByInstance.get(scopedId) ?? `instance:${scopedId}`;

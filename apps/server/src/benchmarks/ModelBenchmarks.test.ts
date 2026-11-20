@@ -240,10 +240,36 @@ describe("Artificial Analysis source", () => {
         "aa:coding": 49.5,
         "aa:speed": 150,
         "aa:ttft": 1.2,
+        "aa:first-answer": 9,
         "aa:price:input": 3,
         "aa:price:output": 15,
         "aa:cost-per-task": 2.1,
       },
+    });
+  });
+
+  it("reads speed and latency from performance_v3 when the old block is null", () => {
+    const parsed = parseArtificialAnalysis([
+      {
+        data: [
+          {
+            name: "Some Model (High)",
+            slug: "some-model-high",
+            evaluations: { artificial_analysis_intelligence_index: 40 },
+            performance: { median_output_tokens_per_second: null },
+            performance_v3: {
+              mean_output_tokens_per_second: 62.4,
+              mean_time_to_first_token_seconds: 3.5,
+              mean_time_to_first_answer_token_seconds: 79.1,
+            },
+          },
+        ],
+      },
+    ]);
+    expect(parsed.entries[0]?.values).toMatchObject({
+      "aa:speed": 62.4,
+      "aa:ttft": 3.5,
+      "aa:first-answer": 79.1,
     });
   });
 });

@@ -77,6 +77,13 @@ export class GitWorkflowService extends Context.Service<
       input: VcsCreateWorktreeInput,
       options?: GitVcsDriver.CreateWorktreeOptions,
     ) => Effect.Effect<VcsCreateWorktreeResult, GitCommandError>;
+    /**
+     * Runs one Git command in a folder. For callers that clone, commit and push outside the
+     * checkout flows above, such as the Trading Crew sync. Same process limits as every Git call.
+     */
+    readonly runGit: (
+      input: GitVcsDriver.ExecuteGitInput,
+    ) => Effect.Effect<GitVcsDriver.ExecuteGitResult, GitCommandError>;
     readonly listLocalBranchNames: (cwd: string) => Effect.Effect<string[], GitCommandError>;
     readonly fetchRemote: (input: {
       readonly cwd: string;
@@ -406,6 +413,7 @@ export const make = Effect.gen(function* () {
       ensureGitCommand("GitWorkflowService.createWorktree", input.cwd).pipe(
         Effect.andThen(gitManager.createWorktree(input, options)),
       ),
+    runGit: (input) => git.execute(input),
     listLocalBranchNames: (cwd) =>
       ensureGitCommand("GitWorkflowService.listLocalBranchNames", cwd).pipe(
         Effect.andThen(git.listLocalBranchNames(cwd)),

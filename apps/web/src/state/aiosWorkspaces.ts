@@ -34,6 +34,12 @@ export const aiosWorkspaceInit = createEnvironmentRpcCommand(connectionAtomRunti
   tag: WS_METHODS.aiosWorkspacesInit,
 });
 
+/** One-click new project: copies the project template into `<AIOS>/projects/<slug>`. */
+export const aiosProjectScaffold = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:aios-projects:scaffold",
+  tag: WS_METHODS.aiosProjectsScaffold,
+});
+
 /** Saves the projects the Tasks rail folds into "More" in the workspace's workspace.json. */
 export const aiosWorkspaceHiddenProjectsSet = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:aios-workspaces:hidden-projects",

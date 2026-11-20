@@ -112,15 +112,39 @@ it.live("backs off after repeated fast crashes", () =>
   }).pipe(Effect.scoped),
 );
 
-it.live("kills and restarts an engine that stops answering", () =>
+it.live("starts no second engine while one we did not start already answers", () =>
   Effect.gen(function* () {
     const children: FakeChild[] = [];
     let answering = true;
     const supervisor = yield* withFake(children, {
       healthy: Effect.sync(() => answering),
       healthEvery: "10 millis",
+    });
+    yield* Effect.sleep("150 millis");
+    expect(children).toHaveLength(0);
+    expect((yield* supervisor.current).status).toBe("running");
+    answering = false;
+    yield* waitFor(
+      Effect.sync(() => children.length),
+      (n) => n === 1,
+    );
+  }).pipe(Effect.scoped),
+);
+
+it.live("kills and restarts an engine that stops answering", () =>
+  Effect.gen(function* () {
+    const children: FakeChild[] = [];
+    let answering = false;
+    const supervisor = yield* withFake(children, {
+      healthy: Effect.sync(() => answering),
+      healthEvery: "10 millis",
       healthMisses: 3,
     });
+    yield* waitFor(
+      Effect.sync(() => children.length),
+      (n) => n === 1,
+    );
+    answering = true;
     yield* waitFor(supervisor.current, (p) => p.status === "running");
     answering = false;
     yield* waitFor(
@@ -177,7 +201,10 @@ it.live(
 it("passes LEONIDAS_SCRIBE_ENGINE_CONFIG to the engine as --config", () => {
   expect(
     ScribeSupervisor.engineArgs({ LEONIDAS_SCRIBE_ENGINE_CONFIG: " C:/dev/config.json " }),
-  ).toEqual(["--config", "C:/dev/config.json"]);
-  expect(ScribeSupervisor.engineArgs({ LEONIDAS_SCRIBE_ENGINE_CONFIG: "  " })).toEqual([]);
-  expect(ScribeSupervisor.engineArgs({})).toEqual([]);
+  ).toEqual(["--config", "C:/dev/config.json", "--parent-pid", String(process.pid)]);
+  expect(ScribeSupervisor.engineArgs({ LEONIDAS_SCRIBE_ENGINE_CONFIG: "  " }, 7)).toEqual([
+    "--parent-pid",
+    "7",
+  ]);
+  expect(ScribeSupervisor.engineArgs({}, 7)).toEqual(["--parent-pid", "7"]);
 });

@@ -351,7 +351,8 @@ const make = Effect.gen(function* () {
           let id = input.id ?? SavedItemId.make(`saved:${input.commandId}`);
           // With an AIOS prompts folder, a new prompt is a file there; the projection follows it.
           if (dir !== null && NodeFS.existsSync(dir)) {
-            const file = freeFileName(dir, input.title);
+            // The prefix is what puts a prompt saved in the app under Saved in the library.
+            const file = freeFileName(dir, `saved-prompt-${input.title}`);
             yield* Effect.try({
               try: () => writeFolderPrompt(dir, { file, title: input.title, body: input.body }),
               catch: fsError,

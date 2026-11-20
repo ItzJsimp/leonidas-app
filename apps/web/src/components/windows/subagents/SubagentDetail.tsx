@@ -10,6 +10,7 @@ import { TruncatedText } from "../shared/TruncatedText";
 import { formatFileDate } from "../files/files.logic";
 import { StatusBadge } from "./SubagentRows";
 import {
+  costLabel,
   elapsedLabel,
   isLive,
   KIND_HELP,
@@ -32,17 +33,23 @@ export function SubagentDetail({
   run,
   now,
   stopping,
+  parentRun,
   onBack,
   onOpenParent,
+  onOpenParentRun,
   onOpenChild,
   onStop,
 }: {
   readonly run: SubagentRun;
   readonly now: number;
   readonly stopping: boolean;
+  /** The run that started this run's parent chat, when it is in the list. */
+  readonly parentRun: SubagentRun | null;
   /** Set when the panel replaces the list (a narrow window). */
   readonly onBack: (() => void) | null;
   readonly onOpenParent: () => void;
+  /** Null when the parent run is not in the list. */
+  readonly onOpenParentRun: (() => void) | null;
   readonly onOpenChild: () => void;
   readonly onStop: () => void;
 }) {
@@ -102,6 +109,27 @@ export function SubagentDetail({
         <Fact label="Model">
           <TruncatedText text={modelLine(run)} />
         </Fact>
+        <Fact label="Cost">{costLabel(run.costUsd)}</Fact>
+        {run.account === null ? null : (
+          <Fact label="Account">
+            <TruncatedText text={run.account} />
+          </Fact>
+        )}
+        {run.parentRunId === null ? null : (
+          <Fact label="Started by run">
+            {onOpenParentRun === null || parentRun === null ? (
+              <span className="text-muted-foreground">Not in this list</span>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenParentRun}
+                className="max-w-full truncate text-left underline underline-offset-2 hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              >
+                {parentRun.summary}
+              </button>
+            )}
+          </Fact>
+        )}
         <Fact label="Started">{run.startedAt ? formatFileDate(run.startedAt) : "Not started"}</Fact>
         <Fact label={live ? "Running for" : "Ended"}>
           {live ? elapsedLabel(run, now) : run.endedAt ? formatFileDate(run.endedAt) : "Unknown"}

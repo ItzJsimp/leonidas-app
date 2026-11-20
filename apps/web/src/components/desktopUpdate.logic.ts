@@ -179,9 +179,9 @@ export function shouldInstallAutomatically(input: {
   );
 }
 
-export type UpdatePillKind = "ready" | "paused";
+export type UpdatePillKind = "ready" | "paused" | "downloading";
 
-/** What the rail pill shows. Small fixes install without any mark unless the person asked to hear about all updates. */
+/** What the rail pill shows. Every update shows a mark by default. "Notable only" hides small fixes. */
 export function resolveUpdatePill(
   state: DesktopUpdateState | null,
   level: UpdateNoticeLevel,
@@ -190,7 +190,8 @@ export function resolveUpdatePill(
   if (level === "notable" && !state.releaseNotes.some((note) => note.notable === true)) return null;
   const failed = state.errorContext === "download" || state.errorContext === "install";
   if (failed && state.canRetry) return "paused";
-  return state.status === "downloaded" ? "ready" : null;
+  if (state.status === "downloaded") return "ready";
+  return state.status === "available" || state.status === "downloading" ? "downloading" : null;
 }
 
 export type NoteGroupTitle = "New" | "Improvements" | "Fixes";

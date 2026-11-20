@@ -185,4 +185,145 @@ describe("server subscription tracking", () => {
       );
     }).pipe(Effect.scoped),
   );
+
+  it.live("compacts oversized observation logs on startup and keeps recent history", () =>
+    Effect.gen(function* () {
+      const dir = yield* Effect.acquireRelease(
+        Effect.promise(() =>
+          NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "subscription compact fixture ")),
+        ),
+        (dir) => Effect.promise(() => NodeFSP.rm(dir, { recursive: true, force: true })),
+      );
+      const obsPath = NodePath.join(dir, "subscription-observations.jsonl");
+      const mockUsage = UsageService.of({
+        readSummary: () => Effect.die("unused"),
+        refreshRates: Effect.die("unused"),
+        readSubscriptionTokens: (_id, since, until) =>
+          Effect.succeed({
+            sourceKey: "fixture source",
+            totals: { ...emptyTotals(), outputTokens: ((until - since) / 60_000) * 50_000 },
+          }),
+      });
+      yield* Effect.gen(function* () {
+        const track = yield* makeSubscriptionTracker(dir);
+        yield* track(provider(20, 0));
+        yield* track(provider(30, 1));
+        // Prepend old entries so the file exceeds maxObservationBytes before restart.
+        const seedLines = Array.from({ length: 30 }, (_, idx) =>
+          JSON.stringify({
+            instanceId: "codex",
+            accountKey: "old_account_key",
+            checkedAt: DateTime.formatIso(DateTime.makeUnsafe(start - (idx + 1) * 60_000)),
+            windows: [{ id: "primary", usedPercent: 11 + idx, resetsAt: "2026-10-11T05:00:00Z" }],
+          }),
+        );
+        const existing = yield* Effect.promise(() => NodeFSP.readFile(obsPath, "utf8"));
+        yield* Effect.promise(() =>
+          NodeFSP.writeFile(obsPath, `${seedLines.join("\n")}\n${existing}`, "utf8"),
+        );
+        const sizeBefore = (yield* Effect.promise(() => NodeFSP.stat(obsPath))).size;
+        expect(sizeBefore).toBeGreaterThan(2_000);
+
+        const restart = yield* makeSubscriptionTracker(dir, { maxObservationBytes: 2_000 });
+        const sizeAfter = (yield* Effect.promise(() => NodeFSP.stat(obsPath))).size;
+        expect(sizeAfter).toBeLessThanOrEqual(1_500);
+
+        const next = yield* restart(provider(40, 2));
+        expect(capacity(next)).toBe(500_000);
+      }).pipe(Effect.provide(NodeServices.layer), Effect.provideService(UsageService, mockUsage));
+    }).pipe(Effect.scoped),
+  );
+
+  it.live(
+    "filters OpenRouter summary reads, deduplicates window token reads, and keeps calibration on timeout",
+    () =>
+      Effect.gen(function* () {
+        const dir = yield* Effect.acquireRelease(
+          Effect.promise(() =>
+            NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "subscription timeout fixture ")),
+          ),
+          (dir) => Effect.promise(() => NodeFSP.rm(dir, { recursive: true, force: true })),
+        );
+        const summaryCalls: Array<{ readonly onlyProvider: string | undefined }> = [];
+        let tokenReadCalls = 0;
+        let stallTokenReads = false;
+
+        yield* Effect.gen(function* () {
+          const track = yield* makeSubscriptionTracker(dir, { usageReadTimeoutMs: 25 });
+          const openRouter: ServerProvider = {
+            ...provider(25, 10),
+            instanceId: ProviderInstanceId.make("openrouter"),
+            driver: ProviderDriverKind.make("openrouter"),
+            usageLimits: {
+              checkedAt: DateTime.formatIso(DateTime.makeUnsafe(start + 10 * 60_000)),
+              windows: [
+                { id: "openrouter_credits", kind: "other", label: "Credits", usedPercent: 25 },
+              ],
+            },
+          };
+          const openRouterResult = yield* track(openRouter);
+          expect(summaryCalls).toEqual([{ onlyProvider: "openrouter" }]);
+          expect(openRouterResult.usageLimits?.windows[0]?.label).toContain("42K tokens (30d)");
+
+          yield* track(provider(20, 0));
+          expect(capacity(yield* track(provider(30, 1)))).toBe(500_000);
+          // Primary and secondary share the same previous checkedAt, so reader runs once.
+          expect(tokenReadCalls).toBe(1);
+
+          stallTokenReads = true;
+          const stalled = yield* track(provider(40, 2));
+          expect(capacity(stalled)).toBe(500_000);
+          expect(stalled.usageLimits?.windows[0]?.tokenEstimate?.status).toBe("estimated");
+        }).pipe(
+          Effect.provide(NodeServices.layer),
+          Effect.provideService(
+            UsageService,
+            UsageService.of({
+              readSummary: (input, options) => {
+                summaryCalls.push({ onlyProvider: options?.onlyProvider });
+                return Effect.succeed({
+                  contractVersion: 2,
+                  readAt: "2026-10-11T00:10:00Z",
+                  timeZone: input.timeZone,
+                  sinceDay: input.sinceDay,
+                  untilDay: input.untilDay,
+                  buckets: [
+                    {
+                      day: input.untilDay,
+                      provider: "openrouter",
+                      model: "openrouter/test",
+                      sourcePath: "/tmp/openrouter",
+                      totals: { ...emptyTotals(), outputTokens: 42_000 },
+                      costUsd: 0,
+                      cacheSavingsUsd: 0,
+                      costSource: "unpriced",
+                      records: 1,
+                      unpricedRecords: 1,
+                      sessions: 1,
+                    },
+                  ],
+                  sources: [],
+                  pricing: {
+                    status: "unavailable",
+                    source: "fixture",
+                    fetchedAt: null,
+                    knownModels: 0,
+                  },
+                  scanDurationMs: 1,
+                });
+              },
+              refreshRates: Effect.die("unused"),
+              readSubscriptionTokens: () => {
+                tokenReadCalls += 1;
+                if (stallTokenReads) return Effect.never;
+                return Effect.succeed({
+                  sourceKey: "fixture source",
+                  totals: { ...emptyTotals(), outputTokens: 50_000 },
+                });
+              },
+            }),
+          ),
+        );
+      }).pipe(Effect.scoped),
+  );
 });

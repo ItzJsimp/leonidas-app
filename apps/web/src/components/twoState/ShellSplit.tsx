@@ -34,7 +34,7 @@ export function ShellSplit({
   modalOpen = false,
 }: {
   readonly threadTarget: ThreadRouteTarget | null;
-  /** A Settings or Usage modal is open: keep the last panes behind it and render it from the outlet. */
+  /** A Settings or Usage modal is open: keep the last panes and chat behind it and render it from the outlet. */
   readonly modalOpen?: boolean;
 }) {
   const width = useViewportWidth();
@@ -64,7 +64,15 @@ export function ShellSplit({
       rememberLeftPage({ path: windowPath, tab: windowTab });
     }
   }, [windowPath, windowTab, rememberLeftPage]);
-  const layout = paneLayout({ width, split, routeKind: threadTarget ? "thread" : "window" });
+  // A modal's URL (/settings) names no chat. Keep the chat route the shell showed before the modal
+  // opened, so the same pane stays behind it instead of the Command Center.
+  const chatRoute = useTwoStateStore((state) => state.chatRoute);
+  const rememberChatRoute = useTwoStateStore((state) => state.rememberChatRoute);
+  useEffect(() => {
+    if (!modalOpen) rememberChatRoute(threadTarget);
+  }, [modalOpen, threadTarget, rememberChatRoute]);
+  const shownTarget = modalOpen ? chatRoute : threadTarget;
+  const layout = paneLayout({ width, split, routeKind: shownTarget ? "thread" : "window" });
   const chatBeside = layout.mode === "split";
   // Only the split view uses the row width. Outside it, a rail toggle must not re-render the pane.
   useLayoutEffect(() => {
@@ -84,7 +92,7 @@ export function ShellSplit({
 
   return (
     <CodeForwardContext value={value}>
-      <div ref={rowRef} className="flex h-svh min-h-0 min-w-0 flex-1 md:h-dvh">
+      <div ref={rowRef} className="flex h-full min-h-0 min-w-0 flex-1">
         {showLeft ? (
           <div
             data-pane="left"
@@ -120,7 +128,7 @@ export function ShellSplit({
         ) : null}
         {showChat ? (
           <ChatPane
-            urlTarget={threadTarget}
+            urlTarget={shownTarget}
             reserveTop={width < DRAWER_BELOW_WIDTH || isShortTouchScreen}
           />
         ) : null}

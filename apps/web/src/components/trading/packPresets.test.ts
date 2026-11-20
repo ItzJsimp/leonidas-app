@@ -7,6 +7,7 @@ import { accountFee, findProduct, presetFirms, sizeLabel } from "./packPresets";
 const PACK: TradingPackView = {
   status: "ready",
   folder: "C:/packs/test",
+  setups: [],
   firms: [
     {
       id: "firm-a",
@@ -44,6 +45,7 @@ const account = (product: string) =>
     profitTarget: null,
     winningDays: null,
     bestDayPercent: null,
+    consistencyPercent: null,
   }) satisfies TradingState["accounts"][number];
 
 describe("pack presets", () => {

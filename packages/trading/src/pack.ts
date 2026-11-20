@@ -53,11 +53,19 @@ export interface PackRiskState {
   readonly source: string;
 }
 
+/** The first funded day rule. The rule itself is set by the pack, not by the app. */
+export interface PackFirstDay {
+  readonly floor: number;
+  readonly cap: number;
+  readonly defaultPassRate: number;
+}
+
 export interface TradingPack {
   readonly version: 1;
   readonly firms: readonly PackFirm[];
   readonly setups: readonly PackSetup[];
   readonly riskStates: readonly PackRiskState[];
+  readonly firstDay?: PackFirstDay;
   readonly sessions: {
     readonly timeZone: string;
     readonly list: readonly { readonly id: string; readonly name: string; readonly open: string }[];
@@ -225,6 +233,18 @@ function parseRiskState(v: unknown, path: string): PackRiskState {
   };
 }
 
+function parseFirstDay(v: unknown, path: string): PackFirstDay {
+  const f = obj(v, path, ["floor", "cap", "defaultPassRate"]);
+  const floor = num(f.floor, `${path}.floor`);
+  const cap = num(f.cap, `${path}.cap`);
+  if (cap < floor) throw new TradingPackError(`${path}.cap`, "needs a cap at or above floor");
+  const defaultPassRate = num(f.defaultPassRate, `${path}.defaultPassRate`, 0, 1);
+  if (defaultPassRate === 0) {
+    throw new TradingPackError(`${path}.defaultPassRate`, "needs a rate above 0");
+  }
+  return { floor, cap, defaultPassRate };
+}
+
 /** Validates untrusted pack data. Throws `TradingPackError` naming the first bad path. */
 export function parseTradingPack(input: unknown): TradingPack {
   const p = obj(input, "pack", [
@@ -232,6 +252,7 @@ export function parseTradingPack(input: unknown): TradingPack {
     "firms",
     "setups",
     "riskStates",
+    "firstDay",
     "sessions",
     "library",
     "checkModule",
@@ -278,11 +299,13 @@ export function parseTradingPack(input: unknown): TradingPack {
       throw new TradingPackError("checkModule", "needs a .mjs or .js file");
     }
   }
+  const firstDay = p.firstDay === undefined ? undefined : parseFirstDay(p.firstDay, "firstDay");
   return {
     version: 1,
     firms: uniqueIds(firms, "firms"),
     setups: uniqueIds(setups, "setups"),
     riskStates: uniqueIds(riskStates, "riskStates"),
+    ...(firstDay === undefined ? {} : { firstDay }),
     sessions,
     library,
     ...(checkModule === undefined ? {} : { checkModule }),

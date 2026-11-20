@@ -6,12 +6,17 @@ import {
   type ScopedThreadRef,
   type ServerProviderModel,
 } from "@t3tools/contracts";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { DraftId } from "../../composerDraftStore";
 import { resolveComposerOptionSelections } from "../../composerProviderState";
 import type { ComposerControlSize } from "./ComposerControl";
-import { PickerReasoningColumn } from "./PickerReasoningColumn";
-import { shouldRenderTraitsControls } from "./TraitsPicker";
+import { DownshiftNotice, type DownshiftExtras } from "./DownshiftNotice";
+import { PickerReasoningColumn, type PickerColumnExtras } from "./PickerReasoningColumn";
+import {
+  shouldRenderTraitsControls,
+  type TraitsMenuContentProps,
+  type TraitsPersistence,
+} from "./TraitsPicker";
 
 type TraitsRenderInput = {
   provider: ProviderDriverKind;
@@ -31,9 +36,11 @@ type TraitsRenderInput = {
   isComposerOwned?: boolean;
 };
 
-function renderTraitsControl(
-  Component: typeof PickerReasoningColumn,
+function renderTraitsControl<Extra extends object>(
+  Component: ComponentType<TraitsMenuContentProps & TraitsPersistence & Extra>,
   input: TraitsRenderInput,
+  extra: Extra,
+  mountWithoutControls = false,
 ): ReactNode {
   const {
     provider,
@@ -62,14 +69,15 @@ function renderTraitsControl(
   );
   if (
     !hasTarget ||
-    !shouldRenderTraitsControls({
-      provider,
-      models,
-      model,
-      modelOptions: resolvedModelOptions,
-      prompt,
-      planModeEnabled,
-    })
+    (!mountWithoutControls &&
+      !shouldRenderTraitsControls({
+        provider,
+        models,
+        model,
+        modelOptions: resolvedModelOptions,
+        prompt,
+        planModeEnabled,
+      }))
   ) {
     return null;
   }
@@ -90,10 +98,25 @@ function renderTraitsControl(
       {...(hidden !== undefined ? { hidden } : {})}
       {...(triggerClassName !== undefined ? { triggerClassName } : {})}
       {...(isComposerOwned ? { isComposerOwned } : {})}
+      {...extra}
     />
   );
 }
 
-export function renderProviderReasoningColumn(input: TraitsRenderInput): ReactNode {
-  return renderTraitsControl(PickerReasoningColumn, input);
+export function renderProviderReasoningColumn(
+  input: TraitsRenderInput,
+  extras: PickerColumnExtras = {},
+): ReactNode {
+  return renderTraitsControl(PickerReasoningColumn, input, extras);
+}
+
+/**
+ * Stays mounted when the model has no controls, so a switch to a plain model keeps its way back.
+ * A component and not a render call, so the composer passes its prompt handler as a prop.
+ */
+export function ProviderDownshiftNotice(props: {
+  input: TraitsRenderInput;
+  extras: DownshiftExtras;
+}): ReactNode {
+  return renderTraitsControl(DownshiftNotice, props.input, props.extras, true);
 }

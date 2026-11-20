@@ -2849,4 +2849,66 @@ describe("UsageService", () => {
       );
     }).pipe(Effect.scoped),
   );
+
+  it.effect("filters readSummary to a single provider without aliasing full scans", () =>
+    Effect.gen(function* () {
+      const env = yield* setup;
+      yield* Effect.promise(() =>
+        NodeFSP.writeFile(env.transcript, claudeLine(1, 250, "claude-opus-4-6"), "utf8"),
+      );
+      const codexDir = NodePath.join(env.home, "codex", "sessions", "2026", "08", "01");
+      const codexRollout =
+        [
+          {
+            timestamp: "2026-08-01T12:00:00.000Z",
+            type: "session_meta",
+            payload: { id: "codex-session-1" },
+          },
+          {
+            timestamp: "2026-08-01T12:00:05.000Z",
+            type: "response_item",
+            payload: { type: "message", role: "assistant" },
+          },
+          {
+            timestamp: "2026-08-01T12:00:05.000Z",
+            type: "event_msg",
+            payload: {
+              type: "token_count",
+              info: {
+                total_token_usage: {
+                  input_tokens: 100,
+                  cached_input_tokens: 0,
+                  output_tokens: 400,
+                  reasoning_output_tokens: 0,
+                },
+              },
+            },
+          },
+        ]
+          .map((row) => JSON.stringify(row))
+          .join("\n") + "\n";
+      yield* Effect.promise(() => NodeFSP.mkdir(codexDir, { recursive: true }));
+      yield* Effect.promise(() =>
+        NodeFSP.writeFile(NodePath.join(codexDir, "rollout.jsonl"), codexRollout, "utf8"),
+      );
+
+      const service = yield* UsageService.make.pipe(
+        Effect.provide(
+          layerService({ prefix: "only-provider", home: env.home, settings: env.settings }),
+        ),
+      );
+      const [claudeOnly, allProviders] = yield* Effect.all(
+        [service.readSummary(WINDOW, { onlyProvider: "claude" }), service.readSummary(WINDOW)],
+        { concurrency: 2 },
+      );
+      assert.deepStrictEqual(
+        claudeOnly.sources.map((s) => s.fingerprint.provider),
+        ["claude"],
+      );
+      assert.strictEqual(claudeOnly.buckets.length, 1);
+      assert.strictEqual(claudeOnly.buckets[0]?.provider, "claude");
+      assert.isTrue(allProviders.sources.some((s) => s.fingerprint.provider === "codex"));
+      assert.isTrue(allProviders.sources.some((s) => s.fingerprint.provider === "claude"));
+    }).pipe(Effect.scoped),
+  );
 });

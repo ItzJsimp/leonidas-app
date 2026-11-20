@@ -1,4 +1,4 @@
-// @effect-diagnostics nodeBuiltinImport:off - The test reads repository instruction files.
+// @effect-diagnostics nodeBuiltinImport:off - This test reads repository files with Node APIs.
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import { describe, expect, it } from "vite-plus/test";

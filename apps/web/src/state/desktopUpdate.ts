@@ -104,13 +104,16 @@ export const useUpdatePreferencesStore = create<{
     (set) => ({
       autoUpdateWhenSafe: true,
       setAutoUpdateWhenSafe: (autoUpdateWhenSafe) => set({ autoUpdateWhenSafe }),
-      updateNotice: "notable",
+      updateNotice: "all",
       setUpdateNotice: (updateNotice) => set({ updateNotice }),
       lastRunVersion: null,
       setLastRunVersion: (lastRunVersion) => set({ lastRunVersion }),
     }),
     {
       name: "leonidas-safe-updates",
+      // Version 0 stored "notable" as the untouched default, which hid every small update.
+      version: 1,
+      migrate: (stored) => ({ ...(stored as object), updateNotice: "all" }) as never,
       partialize: ({ autoUpdateWhenSafe, updateNotice, lastRunVersion }) => ({
         autoUpdateWhenSafe,
         updateNotice,

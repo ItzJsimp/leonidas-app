@@ -124,6 +124,15 @@ export function openSetupItems(state: SetupState): readonly SetupItem[] {
   return SETUP_ITEMS.filter((item) => !isDone(state, item.id));
 }
 
+/** What the rail's Finish-setup row shows, or null when it stays hidden. */
+export function setupResumeSummary(
+  state: SetupState,
+): { readonly done: number; readonly total: number } | null {
+  const open = openSetupItems(state).length;
+  if (state.startedAt === null || open === 0) return null;
+  return { done: SETUP_ITEMS.length - open, total: SETUP_ITEMS.length };
+}
+
 export function markDone(state: SetupState, id: SetupItemId): SetupState {
   return state.done.includes(id) ? state : { ...state, done: [...state.done, id] };
 }

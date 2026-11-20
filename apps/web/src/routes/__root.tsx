@@ -30,6 +30,7 @@ import { AppSidebarLayout } from "../components/AppSidebarLayout";
 import { CommandPalette } from "../components/CommandPalette";
 import { CaptureDialogHost } from "../components/capture/CaptureDialog";
 import { CommunityCoordinator } from "../components/community/CommunityCoordinator";
+import { ArtificialAnalysisKeyDialogHost } from "../components/chat/ArtificialAnalysisKeyDialog";
 import { StuckDialogHost } from "../components/community/StuckDialog";
 import { FeedbackDialogHost } from "../components/feedback/FeedbackDialog";
 import { CustomSnoozeDialogHost } from "../components/CustomSnoozeDialog";
@@ -296,6 +297,7 @@ function RootRouteView() {
           <CaptureDialogHost />
           <FeedbackDialogHost />
           <StuckDialogHost />
+          <ArtificialAnalysisKeyDialogHost />
           <CommunityCoordinator />
           <SlowRpcRequestToastCoordinator />
           <HostFreezeToastCoordinator />

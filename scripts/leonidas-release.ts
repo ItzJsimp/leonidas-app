@@ -37,6 +37,7 @@ interface PublishedRelease {
   draft: boolean;
   prerelease: boolean;
   body?: string | null;
+  target_commitish?: string | null;
 }
 
 /** The highest published plain version; GitHub lists releases by creation, not by version. */
@@ -113,16 +114,40 @@ export function isNotableRelease(
   return kind !== "patch" || commits.some(({ body }) => NOTABLE_TRAILER.test(body));
 }
 
-/** Reads `notableSince` from the metadata comment of an earlier release body. */
-export function previousNotableSince(body: string | null | undefined): string | undefined {
+function readReleaseMeta(
+  body: string | null | undefined,
+): { commit?: unknown; notableSince?: unknown } | undefined {
   const match = /<!--\s*leonidas-release\s+({.*?})\s*-->/.exec(body ?? "");
   if (!match?.[1]) return undefined;
   try {
-    const value = (JSON.parse(match[1]) as { notableSince?: unknown }).notableSince;
-    return typeof value === "string" && /^\d+\.\d+\.\d+$/.test(value) ? value : undefined;
+    return JSON.parse(match[1]) as { commit?: unknown; notableSince?: unknown };
   } catch {
     return undefined;
   }
+}
+
+/** Reuses a published release already cut from `commit` so a delayed Mac build matches its tag. */
+export function existingReleaseForCommit<T extends PublishedRelease>(
+  releases: ReadonlyArray<T>,
+  commit: string,
+  development: boolean,
+  kind: ReleaseKind | "auto" = "auto",
+): T | undefined {
+  if (!commit) return undefined;
+  const allowPublic = !development || kind === "launch";
+  return releases.find((release) => {
+    if (release.draft || release.prerelease) return false;
+    if (!/^v\d+\.\d+\.\d+$/.test(release.tag_name)) return false;
+    if (!allowPublic && !release.tag_name.startsWith("v0.")) return false;
+    const metaCommit = readReleaseMeta(release.body)?.commit;
+    return metaCommit === commit || release.target_commitish === commit;
+  });
+}
+
+/** Reads `notableSince` from the metadata comment of an earlier release body. */
+export function previousNotableSince(body: string | null | undefined): string | undefined {
+  const value = readReleaseMeta(body)?.notableSince;
+  return typeof value === "string" && /^\d+\.\d+\.\d+$/.test(value) ? value : undefined;
 }
 
 function aliasName(name: string): string {
@@ -283,6 +308,28 @@ function main() {
   ).flat();
   // Legacy 1.0.x builds predate the development policy. Never use those as the 0.x baseline.
   const previous = previousRelease(releases, development);
+  const override = process.env.RELEASE_KIND;
+  if (override && !["auto", "patch", "minor", "major", "launch"].includes(override))
+    throw new Error("Unknown release kind");
+  const sourceCommit = process.env.GITHUB_SHA ?? run("git", ["rev-parse", "HEAD"]);
+  if (process.env.REUSE_COMMIT_RELEASE === "true") {
+    const existing = existingReleaseForCommit(
+      releases,
+      sourceCommit,
+      development,
+      (override as ReleaseKind | "auto" | undefined) ?? "auto",
+    );
+    if (existing) {
+      const version = existing.tag_name.slice(1);
+      if (process.env.GITHUB_OUTPUT)
+        NodeFS.appendFileSync(
+          process.env.GITHUB_OUTPUT,
+          `version=${version}\nprevious=${previous?.tag_name ?? ""}\n`,
+        );
+      console.log(`Reusing published release ${version} for commit ${sourceCommit}`);
+      return;
+    }
+  }
   // The first 0.x release still describes changes since the last legacy install.
   const notesBaseline = previous ?? previousRelease(releases, false);
   let range = "-1";
@@ -304,9 +351,6 @@ function main() {
     range = `${notesBaseline.tag_name}..HEAD`;
   }
   const commits = readCommits(range);
-  const override = process.env.RELEASE_KIND;
-  if (override && !["auto", "patch", "minor", "major", "launch"].includes(override))
-    throw new Error("Unknown release kind");
   const kind =
     override && override !== "auto"
       ? (override as ReleaseKind)
@@ -316,7 +360,6 @@ function main() {
     kind,
     development,
   );
-  const sourceCommit = process.env.GITHUB_SHA ?? run("git", ["rev-parse", "HEAD"]);
   const postFile = commits
     .flatMap(({ body }) =>
       [...body.matchAll(/^Release-Post:\s*(.+)$/gim)].map((match) => match[1]!.trim()),

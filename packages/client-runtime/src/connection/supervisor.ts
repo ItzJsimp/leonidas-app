@@ -1,3 +1,4 @@
+import { isLocalLoopbackHost } from "@t3tools/shared/hostClassification";
 import { withRelayClientTracing } from "@t3tools/shared/relayTracing";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
@@ -255,9 +256,17 @@ export const make = Effect.fn("EnvironmentSupervisor.make")(function* (
   const connectivity = yield* Connectivity.Connectivity;
   const driver = yield* ConnectionDriver.ConnectionDriver;
   const wakeups = yield* ConnectionWakeups.ConnectionWakeups;
+  // The OS offline report says nothing about a server on this computer, so a
+  // loopback primary server still connects with the network adapter off.
+  const loopbackPrimary =
+    target._tag === "PrimaryConnectionTarget" &&
+    URL.canParse(target.httpBaseUrl) &&
+    isLocalLoopbackHost(new URL(target.httpBaseUrl).hostname);
+  const networkFor = (network: NetworkStatus): NetworkStatus =>
+    loopbackPrimary && network === "offline" ? "unknown" : network;
   const initialIntent: SupervisorIntent = {
     desired: options?.initiallyDesired ?? false,
-    network: yield* connectivity.status,
+    network: networkFor(yield* connectivity.status),
   };
   const intent = yield* Ref.make(initialIntent);
   const signals = yield* Queue.unbounded<SupervisorSignal>();
@@ -990,6 +999,7 @@ export const make = Effect.fn("EnvironmentSupervisor.make")(function* (
   });
 
   yield* connectivity.changes.pipe(
+    Stream.map(networkFor),
     Stream.runForEach((network) =>
       Ref.modify(intent, (current) =>
         current.network === network ? [false, current] : ([true, { ...current, network }] as const),

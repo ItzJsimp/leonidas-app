@@ -116,6 +116,8 @@ export const OrchestrationV2ThreadPersona = Schema.Struct({
   name: TrimmedNonEmptyString,
   systemPrompt: TrimmedNonEmptyString,
   tools: Schema.Array(TrimmedNonEmptyString),
+  /** The agent file's `canSpawn`. Only an orchestrator child may start subagents (ADR-0098). */
+  canSpawn: Schema.optional(Schema.Boolean),
 });
 export type OrchestrationV2ThreadPersona = typeof OrchestrationV2ThreadPersona.Type;
 
@@ -444,6 +446,8 @@ export const OrchestrationV2AppThread = Schema.Struct({
   appGoal: Schema.optional(Schema.NullOr(ThreadGoal)),
   /** Subagent the user attached to this chat; each message routes to it until detached. */
   attachedSubagent: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+  /** `home` marks the permanent Home chat, which gets the team list. Absent or null is a plain chat. */
+  role: Schema.optional(Schema.NullOr(Schema.Literal("home"))),
   /** Reply style slug chosen for this chat; null or absent uses the project choice. */
   replyStyle: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   /** The first title ran out of retries; the next message asks for a new one. */
@@ -1972,6 +1976,8 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
   appGoal: Schema.optional(Schema.NullOr(ThreadGoal)),
   /** Subagent the user attached to this chat; each message routes to it until detached. */
   attachedSubagent: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+  /** `home` marks the permanent Home chat, which gets the team list. Absent or null is a plain chat. */
+  role: Schema.optional(Schema.NullOr(Schema.Literal("home"))),
   /** Reply style slug chosen for this chat; null or absent uses the project choice. */
   replyStyle: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   /** The first title ran out of retries; the next message asks for a new one. */
@@ -2813,6 +2819,8 @@ export const OrchestrationV2Command = Schema.Union([
     linkedPullRequest: Schema.optional(Schema.NullOr(ThreadLinkedPullRequest)),
     /** Attach (name) or detach (null) a subagent for this chat; absent leaves it unchanged. */
     attachedSubagent: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+    /** Mark (home) or clear (null) this chat's role; absent leaves it unchanged. */
+    role: Schema.optional(Schema.NullOr(Schema.Literal("home"))),
     /** Choose (slug) or clear (null) this chat's reply style; absent leaves it unchanged. */
     replyStyle: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   }),

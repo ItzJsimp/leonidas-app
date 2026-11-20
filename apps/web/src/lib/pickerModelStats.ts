@@ -79,12 +79,15 @@ function effortStats(entry: ModelBenchmarkEntry): PickerEffortStats {
 }
 
 /** The effort whose numbers the row shows: the model's usual default, else the best available. */
-export function defaultEffortOf(efforts: ReadonlyArray<PickerEffortStats>): string | null {
+export function defaultEffortKey(efforts: ReadonlyArray<string>): string | null {
   for (const effort of DEFAULT_EFFORT_PREFERENCE) {
-    if (efforts.some((item) => item.effort === effort)) return effort;
+    if (efforts.includes(effort)) return effort;
   }
-  return efforts[0]?.effort ?? null;
+  return efforts[0] ?? null;
 }
+
+export const defaultEffortOf = (efforts: ReadonlyArray<PickerEffortStats>): string | null =>
+  defaultEffortKey(efforts.map((item) => item.effort));
 
 const numberOrNull = (value: number | undefined) => value ?? null;
 
@@ -144,12 +147,34 @@ export const hasPickerStats = (stats: PickerModelStats) =>
   stats.inputPrice !== null ||
   stats.outputPrice !== null;
 
-const dollars = (value: number) => `$${value >= 10 ? Math.round(value) : Number(value.toFixed(2))}`;
+/** A price per million tokens: "$5", "$0.25". */
+export const dollars = (value: number) =>
+  `$${value >= 10 ? Math.round(value) : Number(value.toFixed(2))}`;
+
+/** The cost of one benchmark task keeps both decimals: "$0.80", "$10.04". */
+export const formatCostPerTask = (value: number) => `$${value.toFixed(2)}`;
 
 /** "$2 / $10" per million tokens; null when the source has no price. */
 export function formatPickerCost(stats: PickerModelStats): string | null {
   if (stats.inputPrice === null || stats.outputPrice === null) return null;
   return `${dollars(stats.inputPrice)} / ${dollars(stats.outputPrice)}`;
+}
+
+/**
+ * The numbers for one effort option of the picker. `undefined` means the source splits no efforts,
+ * so the row shows no numbers. `null` means the source measured other efforts but not this one:
+ * the row says "Not benchmarked" and never borrows a number from another effort.
+ */
+export function effortRowStats(
+  stats: PickerModelStats | null | undefined,
+  optionId: string,
+): PickerEffortStats | null | undefined {
+  if (!stats || stats.source !== "artificialAnalysis" || stats.efforts.length === 0) {
+    return undefined;
+  }
+  // AA lists the run with no reasoning as "default"; the provider calls that option "none".
+  const key = optionId === "none" ? "default" : optionId;
+  return stats.efforts.find((item) => item.effort === key) ?? null;
 }
 
 export const formatPickerSpeed = (stats: PickerModelStats): string | null =>

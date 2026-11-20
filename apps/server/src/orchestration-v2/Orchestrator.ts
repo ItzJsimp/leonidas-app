@@ -3332,6 +3332,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
             ...(command.attachedSubagent === undefined
               ? {}
               : { attachedSubagent: command.attachedSubagent }),
+            ...(command.role === undefined ? {} : { role: command.role }),
             ...(command.replyStyle === undefined ? {} : { replyStyle: command.replyStyle }),
             ...(command.linkedPullRequest === undefined
               ? {}

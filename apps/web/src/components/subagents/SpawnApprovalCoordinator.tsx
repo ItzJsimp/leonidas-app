@@ -141,6 +141,12 @@ function SpawnApprovalCard(props: {
           {formatStartCost(approval.estimatedStartTokens)} · {approval.toolCount}{" "}
           {approval.toolCount === 1 ? "tool" : "tools"}
         </dd>
+        {approval.roughCost === undefined ? null : (
+          <>
+            <dt className="text-muted-foreground">Rough cost</dt>
+            <dd className="tabular-nums">{approval.roughCost}</dd>
+          </>
+        )}
         <dt className="text-muted-foreground">Files</dt>
         <dd className="min-w-0">
           {approval.filesInScope.length === 0 ? (
@@ -169,6 +175,12 @@ function SpawnApprovalCard(props: {
           </>
         )}
       </dl>
+
+      {approval.capWarning === true ? (
+        <p role="status" className="rounded-md bg-warning/10 px-2 py-1.5 text-xs">
+          You have used 80 percent of today's agent cap. Change it in Settings.
+        </p>
+      ) : null}
 
       <p className="text-xs text-muted-foreground">
         Confirm tier ({TIER_SOURCE_LABEL[approval.tierSource]}): {approval.goodFor}

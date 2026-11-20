@@ -517,7 +517,9 @@ function AboutVersionSection() {
   const description =
     action === "download" || action === "install"
       ? "Update available."
-      : "This is the current version of Leonidas.";
+      : updateState?.checkedAt
+        ? `Up to date. Last checked ${new Date(updateState.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
+        : "This is the current version of Leonidas.";
 
   return (
     <>
@@ -3692,6 +3694,7 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
             <AdvancedSettings
               targetIds={[
                 searchableSetting("subagent-free-tier-models").id,
+                searchableSetting("subagent-daily-cap").id,
                 searchableSetting("response-streaming").id,
               ]}
             >
@@ -3707,6 +3710,34 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
                     onChange={(next) => updateSettings({ subagentFreeTierModels: next })}
                     aria-label="Helper models that start without asking"
                   />
+                }
+              />
+              <SettingsRow
+                serverScoped
+                {...searchableSetting("subagent-daily-cap")}
+                description="Agents that a chat starts stop when their cost today reaches this amount for one account. You get a warning at 80 percent."
+                settingKeys={["subagentDailyCapUsd"]}
+                control={
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">US dollars per day</span>
+                    <NumberField
+                      value={settings.subagentDailyCapUsd}
+                      min={0.5}
+                      step={0.5}
+                      size="sm"
+                      className="w-32"
+                      onValueChange={(value) => {
+                        if (value !== null && value > 0)
+                          updateSettings({ subagentDailyCapUsd: value });
+                      }}
+                    >
+                      <NumberFieldGroup>
+                        <NumberFieldDecrement aria-label="Decrease the daily cap" />
+                        <NumberFieldInput aria-label="Daily spend cap for agents in US dollars" />
+                        <NumberFieldIncrement aria-label="Increase the daily cap" />
+                      </NumberFieldGroup>
+                    </NumberField>
+                  </div>
                 }
               />
               <SettingsRow

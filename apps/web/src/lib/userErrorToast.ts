@@ -12,6 +12,8 @@ import { ensureLocalApi } from "../localApi";
 export interface UserErrorToastOptions extends Omit<DescribeUserErrorOptions, "platform"> {
   /** Runs the failed step again; turns a retryable error's action into "Try again". */
   readonly onRetry?: () => void;
+  /** Shows the error's own message when the cause is not a known kind, so the toast names it. */
+  readonly showCause?: boolean;
 }
 
 export interface UserErrorToastFields {
@@ -67,6 +69,21 @@ export function runUserErrorAction(userError: UserError, onRetry?: () => void): 
   }
 }
 
+const MAX_CAUSE_LENGTH = 200;
+
+/** The error's own one-line message, or null when it has none. */
+function readableCause(error: unknown): string | null {
+  const message =
+    typeof error === "string"
+      ? error
+      : typeof (error as { message?: unknown } | null)?.message === "string"
+        ? (error as { message: string }).message
+        : "";
+  const line = message.trim().split("\n")[0]?.trim() ?? "";
+  if (line.length === 0) return null;
+  return line.length > MAX_CAUSE_LENGTH ? `${line.slice(0, MAX_CAUSE_LENGTH)}...` : line;
+}
+
 /**
  * Toast fields for a failed step: the reason as the description, one action
  * button, and the full detail behind the copy button. Logs the full error.
@@ -75,7 +92,7 @@ export function userErrorToastFields(
   error: unknown,
   options: UserErrorToastOptions = {},
 ): UserErrorToastFields {
-  const { onRetry, ...describeOptions } = options;
+  const { onRetry, showCause, ...describeOptions } = options;
   const platform = detectPlatform();
   const userError = describeUserError(error, {
     ...describeOptions,
@@ -85,7 +102,8 @@ export function userErrorToastFields(
   console.error(`[user-error:${userError.kind}]`, error);
   recordFeedbackError(userError.detail);
   return {
-    description: userError.reason,
+    description:
+      (showCause && userError.kind === "unknown" ? readableCause(error) : null) ?? userError.reason,
     actionProps: {
       children: userError.action.label,
       onClick: () => runUserErrorAction(userError, onRetry),

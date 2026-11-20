@@ -65,6 +65,8 @@ export function buildRuntimeInstructions(runtime: {
   readonly aiLevel?: AiLevel | undefined;
   /** Reply style body from `runtimePolicy.replyStyle`; defaults to the shipped Leonidas style. */
   readonly replyStyle?: string | undefined;
+  /** The Home chat's `<home_agent>` block, from `runtimePolicy.homeAgent`. */
+  readonly homeAgent?: string | undefined;
 }): string {
   const level = runtime.aiLevel ?? activeAiLevel();
   const builder = level === "builder";
@@ -84,7 +86,13 @@ export function buildRuntimeInstructions(runtime: {
 ${PONYTAIL_RULES}`
   }
 
-${builder ? USER_QUESTION_INSTRUCTIONS : actFirstQuestionInstructions(level === "comfortable")}${sharedBrowserAccess ? `\n\n${SHARED_BROWSER_INSTRUCTIONS}` : ""}`;
+${builder ? USER_QUESTION_INSTRUCTIONS : actFirstQuestionInstructions(level === "comfortable")}${sharedBrowserAccess ? `\n\n${SHARED_BROWSER_INSTRUCTIONS}` : ""}${
+    runtime.homeAgent
+      ? `
+
+${runtime.homeAgent}`
+      : ""
+  }`;
 }
 
 function toSingleLine(value: string): string {

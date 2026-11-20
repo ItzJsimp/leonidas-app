@@ -1,12 +1,20 @@
 import { useAtomValue } from "@effect/atom-react";
-import { executeAtomQuery, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import {
+  executeAtomQuery,
+  isAtomCommandInterrupted,
+  squashAtomCommandFailure,
+} from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { MicIcon, SquareIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
+import { useEnvironmentQuery } from "../../state/query";
+import { scribeLive, scribeStart, scribeStop } from "../../state/scribe";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useSplitPane } from "../split/splitPaneContext";
+import { commandErrorMessage, dictateButton } from "../scribe/home.logic";
+import { INITIAL_SCRIBE_LIVE } from "../scribe/scribeLive.logic";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -19,8 +27,10 @@ import {
 } from "../ui/dialog";
 import { DiscordTip, shouldShowDiscordTip } from "./DiscordTip";
 import { DiscordWalkthrough } from "./DiscordWalkthrough";
+import { stepEngineTake, type EngineTake } from "./engineDictation";
 import { VoiceSetup } from "./VoiceSetup";
 import { recordVoice, voiceAudioBase64 } from "./recordVoice";
+import { ScribePill } from "./ScribePill";
 import { describeVoiceFailure } from "./voiceErrors";
 
 export function ComposerVoiceButton({
@@ -35,7 +45,9 @@ export function ComposerVoiceButton({
   /** Answer the OS-wide dictation trigger (desktop) when this composer's pane is active. */
   globalTrigger?: boolean;
 }) {
-  const [state, setState] = useState<"idle" | "starting" | "listening" | "writing">("idle");
+  const [state, setState] = useState<"idle" | "starting" | "listening" | "writing" | "done">(
+    "idle",
+  );
   const [setup, setSetup] = useState(false);
   const [discordTip, setDiscordTip] = useState(false);
   const [discordSteps, setDiscordSteps] = useState(false);
@@ -53,6 +65,35 @@ export function ComposerVoiceButton({
   useEffect(() => {
     insert.current = onText;
   }, [onText]);
+  // One dictation system: on the desktop app the Scribe engine records, polishes and rewrites, the
+  // same as Mouse 5. The in-app recorder below stays for browsers, where the engine's mic is not theirs.
+  const live =
+    useEnvironmentQuery(scribeLive({ environmentId, input: {} })).data ?? INITIAL_SCRIBE_LIVE;
+  const viaEngine = Boolean(window.desktopBridge) && live.connected === true;
+  const engineButton = dictateButton(live.connected, live.state);
+  const take = useRef<EngineTake>("idle");
+  const runStart = useAtomCommand(scribeStart, { reportFailure: false });
+  const runStop = useAtomCommand(scribeStop, { reportFailure: false });
+  const canEngine = useAtomValue(scribeStart.permissionAtom(environmentId));
+  useEffect(() => {
+    if (!viaEngine) return;
+    const step = stepEngineTake(take.current, live.state, live.lastTranscript);
+    take.current = step.take;
+    if (step.insert !== null && !insert.current(`${step.insert} `)) setRetainedText(step.insert);
+  }, [viaEngine, live.state, live.lastTranscript]);
+  const pressEngine = async () => {
+    if (engineButton.action === "none") return;
+    setError("");
+    // A take the composer did not start (a hotkey) is pasted by the engine; ours goes to onText.
+    const result =
+      engineButton.action === "start"
+        ? await runStart({ environmentId, input: { mode: "toggle" } })
+        : await runStop({ environmentId, input: { paste: take.current === "idle" } });
+    if (engineButton.action === "start" && result._tag === "Success") take.current = "started";
+    if (result._tag !== "Success" && !isAtomCommandInterrupted(result)) {
+      setError(commandErrorMessage(squashAtomCommandFailure(result)));
+    }
+  };
   const transcribe = useAtomCommand(serverEnvironment.transcribeVoice, { reportFailure: false });
   const clear = useAtomCommand(serverEnvironment.clearVoiceKey, { reportFailure: false });
   const allowed = useAtomValue(serverEnvironment.transcribeVoice.permissionAtom(environmentId));
@@ -78,6 +119,7 @@ export function ComposerVoiceButton({
     if (viaGlobal) void window.desktopBridge?.dictationStarted?.();
     busy.current = true;
     opening.current = true;
+    let pasted = false;
     setError("");
     setState("starting");
     try {
@@ -120,7 +162,8 @@ export function ComposerVoiceButton({
       });
       if (!active.current) return;
       if (result._tag === "Success") {
-        if (!insert.current(`${result.value.text} `)) setRetainedText(result.value.text);
+        if (insert.current(`${result.value.text} `)) pasted = true;
+        else setRetainedText(result.value.text);
       } else if (result._tag === "Failure") throw squashAtomCommandFailure(result);
     } catch (failure) {
       if (active.current) setError(describeVoiceFailure(failure));
@@ -128,11 +171,28 @@ export function ComposerVoiceButton({
       busy.current = false;
       opening.current = false;
       pendingEnd.current = null;
-      if (active.current) setState("idle");
+      if (active.current) {
+        setState(pasted ? "done" : "idle");
+        // The pill says Pasted for a moment; a new take in that time keeps its own state.
+        if (pasted)
+          setTimeout(
+            () => active.current && setState((now) => (now === "done" ? "idle" : now)),
+            1100,
+          );
+      }
       // Releases the Discord mute key at once when setup, the mic or the transcription failed.
       if (viaGlobal) void window.desktopBridge?.dictationEnded?.();
     }
   };
+  // The engine shows its own pill, so the button only mirrors its state.
+  const shown = viaEngine
+    ? live.state === "listening"
+      ? "listening"
+      : live.state === "processing"
+        ? "writing"
+        : "idle"
+    : state;
+  const levelOfTake = useCallback(() => recording.current?.level() ?? 0, []);
   const startRef = useRef(start);
   useEffect(() => {
     startRef.current = start;
@@ -153,38 +213,55 @@ export function ComposerVoiceButton({
       <div className="relative flex items-center gap-1">
         <Button
           type="button"
-          variant={state === "listening" ? "destructive" : "ghost"}
+          variant={shown === "listening" ? "destructive" : "ghost"}
           size="icon"
           disabled={
-            state === "starting" ||
-            state === "writing" ||
-            (state === "idle" && (disabled || !allowed))
+            shown === "starting" ||
+            shown === "writing" ||
+            ((shown === "idle" || shown === "done") &&
+              (disabled || !(viaEngine ? canEngine : allowed)))
           }
           aria-label={
-            state === "listening"
+            shown === "listening"
               ? "Stop dictation"
-              : state === "writing"
+              : shown === "writing"
                 ? "Writing dictation"
                 : "Dictate a prompt"
           }
-          title={state === "listening" ? `Stop dictation (${seconds}s)` : "Dictate a prompt"}
+          title={
+            shown === "listening"
+              ? viaEngine
+                ? "Stop dictation"
+                : `Stop dictation (${seconds}s)`
+              : "Dictate a prompt"
+          }
           onPointerDown={(event) => event.preventDefault()}
-          onClick={() => (state === "listening" ? recording.current?.stop() : void start())}
+          onClick={() =>
+            viaEngine
+              ? void pressEngine()
+              : shown === "listening"
+                ? recording.current?.stop()
+                : void start()
+          }
         >
-          {state === "listening" ? (
+          {shown === "listening" ? (
             <SquareIcon aria-hidden className="size-4" />
           ) : (
             <MicIcon aria-hidden className="size-4" />
           )}
         </Button>
-        {state !== "idle" && (
+        {shown === "starting" && (
           <span role="status" className="text-xs text-muted-foreground">
-            {state === "listening"
-              ? `${seconds}s`
-              : state === "writing"
-                ? "Writing..."
-                : "Opening mic..."}
+            Opening mic...
           </span>
+        )}
+        {!viaEngine && (state === "listening" || state === "writing" || state === "done") && (
+          <ScribePill
+            phase={state}
+            seconds={seconds}
+            level={levelOfTake}
+            onStop={() => recording.current?.stop()}
+          />
         )}
         {discordTip && (
           <DiscordTip

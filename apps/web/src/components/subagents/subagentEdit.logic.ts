@@ -16,19 +16,23 @@ export const BUILT_IN_TOOLS: ReadonlyArray<string> = [
   "WebFetch",
 ];
 
-/** Models offered as suggestions in the model field. */
-export const MODEL_SUGGESTIONS: ReadonlyArray<string> = [
-  ...DEFAULT_SUBAGENT_FREE_TIER_MODELS,
-  "claude-sonnet-5-5",
-  "claude-opus-5-5",
-  "claude-fable-5-1",
-];
+/** Effort values the editor suggests. The field takes any value the model's engine accepts. */
+export const EFFORT_SUGGESTIONS: ReadonlyArray<string> = ["low", "medium", "high", "max"];
 
 export interface SubagentDraft {
   readonly description: string;
   readonly model: string;
   readonly tools: ReadonlyArray<string>;
   readonly context: ReadonlyArray<string>;
+  /** A library id such as `felt/researcher`, or an empty string for none. */
+  readonly avatar: string;
+  readonly effort: string;
+  readonly skills: ReadonlyArray<string>;
+  /** True for the orchestrator: it may start other team agents. */
+  readonly canSpawn: boolean;
+  /** Text, so a half-typed number is not lost. Empty means no limit. */
+  readonly maxTurns: string;
+  readonly instructions: string;
 }
 
 export function draftFromEntry(entry: SubagentCatalogEntry): SubagentDraft {
@@ -37,11 +41,25 @@ export function draftFromEntry(entry: SubagentCatalogEntry): SubagentDraft {
     model: entry.model ?? "",
     tools: entry.tools,
     context: entry.context.map((item) => item.path),
+    avatar: entry.avatar ?? "",
+    effort: entry.effort ?? "",
+    skills: entry.skills ?? [],
+    canSpawn: entry.canSpawn ?? false,
+    maxTurns: entry.maxTurns == null ? "" : String(entry.maxTurns),
+    instructions: entry.instructions ?? "",
   };
 }
 
 const sameList = (left: ReadonlyArray<string>, right: ReadonlyArray<string>) =>
   left.length === right.length && left.every((item, index) => item === right[index]);
+
+/** A message when the turn limit is not a whole number of 1 or more, else null. Empty is fine. */
+export function maxTurnsProblem(text: string): string | null {
+  const value = text.trim();
+  return value === "" || /^[1-9][0-9]{0,5}$/u.test(value)
+    ? null
+    : "Use a whole number of 1 or more, or leave it empty.";
+}
 
 /** Only the fields the user changed, so an inherited value stays inherited. */
 export function patchFromDraft(
@@ -50,6 +68,9 @@ export function patchFromDraft(
 ): SubagentSpecPatch {
   const before = draftFromEntry(entry);
   const model = draft.model.trim();
+  const avatar = draft.avatar.trim();
+  const effort = draft.effort.trim();
+  const turns = draft.maxTurns.trim();
   return {
     ...(draft.description.trim() === before.description.trim()
       ? {}
@@ -57,6 +78,16 @@ export function patchFromDraft(
     ...(model === before.model ? {} : { model: model === "" ? null : model }),
     ...(sameList(draft.tools, before.tools) ? {} : { tools: draft.tools }),
     ...(sameList(draft.context, before.context) ? {} : { context: draft.context }),
+    ...(avatar === before.avatar ? {} : { avatar: avatar === "" ? null : avatar }),
+    ...(effort === before.effort ? {} : { effort: effort === "" ? null : effort }),
+    ...(sameList(draft.skills, before.skills) ? {} : { skills: draft.skills }),
+    ...(draft.canSpawn === before.canSpawn ? {} : { canSpawn: draft.canSpawn ? true : null }),
+    ...(turns === before.maxTurns.trim() || maxTurnsProblem(turns) !== null
+      ? {}
+      : { maxTurns: turns === "" ? null : Number(turns) }),
+    ...(draft.instructions.trim() === before.instructions.trim()
+      ? {}
+      : { body: draft.instructions.trim() }),
   };
 }
 

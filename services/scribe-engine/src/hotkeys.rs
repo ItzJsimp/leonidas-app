@@ -318,10 +318,131 @@ mod platform {
         sync::{atomic::Ordering, mpsc},
     };
     use windows_sys::Win32::{
-        Foundation::{LPARAM, LRESULT, WPARAM},
+        Foundation::{LPARAM, LRESULT, RECT, WPARAM},
+        Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+        },
         System::{LibraryLoader::GetModuleHandleW, Threading::GetCurrentThreadId},
-        UI::WindowsAndMessaging::*,
+        UI::{
+            HiDpi::{SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2},
+            Shell::{SHQueryUserNotificationState, QUNS_BUSY, QUNS_RUNNING_D3D_FULL_SCREEN},
+            WindowsAndMessaging::*,
+        },
     };
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Rect {
+        left: i32,
+        top: i32,
+        right: i32,
+        bottom: i32,
+    }
+
+    impl Rect {
+        fn covers(self, other: Self) -> bool {
+            self.left <= other.left
+                && self.top <= other.top
+                && self.right >= other.right
+                && self.bottom >= other.bottom
+        }
+    }
+
+    impl From<RECT> for Rect {
+        fn from(r: RECT) -> Self {
+            Self {
+                left: r.left,
+                top: r.top,
+                right: r.right,
+                bottom: r.bottom,
+            }
+        }
+    }
+
+    struct ForegroundWindow {
+        rect: Rect,
+        monitor: Rect,
+        has_caption: bool,
+        is_desktop: bool,
+        is_leonidas: bool,
+    }
+
+    /// Suppresses hotkeys only when a fullscreen app actually has foreground focus, so a
+    /// background or secondary-monitor game reporting QUNS_BUSY never blocks dictation.
+    fn is_fullscreen_foreground(state: i32, fg: Option<&ForegroundWindow>) -> bool {
+        if !matches!(state, QUNS_BUSY | QUNS_RUNNING_D3D_FULL_SCREEN) {
+            return false;
+        }
+        let Some(fg) = fg else {
+            return false;
+        };
+        if fg.is_desktop || fg.is_leonidas || !fg.rect.covers(fg.monitor) {
+            return false;
+        }
+        state == QUNS_RUNNING_D3D_FULL_SCREEN || !fg.has_caption
+    }
+
+    fn foreground_window_info() -> Option<ForegroundWindow> {
+        // SAFETY: read-only Win32 window/monitor metadata queries with stack-allocated structs.
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd.is_null() {
+                return None;
+            }
+            let mut win_rect = RECT::default();
+            if GetWindowRect(hwnd, &mut win_rect) == 0 {
+                return None;
+            }
+            let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            let mut info: MONITORINFO = std::mem::zeroed();
+            info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+            if GetMonitorInfoW(monitor, &mut info) == 0 {
+                return None;
+            }
+            let mut class_buf = [0u16; 64];
+            let class_len = GetClassNameW(hwnd, class_buf.as_mut_ptr(), class_buf.len() as i32);
+            let class_name = if class_len > 0 {
+                String::from_utf16_lossy(&class_buf[..class_len as usize])
+            } else {
+                String::new()
+            };
+            let style = GetWindowLongW(hwnd, GWL_STYLE) as u32;
+            let app = crate::foreground::foreground_app();
+            Some(ForegroundWindow {
+                rect: win_rect.into(),
+                monitor: info.rcMonitor.into(),
+                has_caption: (style & WS_CAPTION) == WS_CAPTION,
+                is_desktop: matches!(class_name.as_str(), "Progman" | "WorkerW"),
+                is_leonidas: app.eq_ignore_ascii_case("Leonidas Code.exe"),
+            })
+        }
+    }
+
+    /// True while a full screen app (a game) owns the screen. A poller sets it, so a hook
+    /// callback never waits on the shell.
+    static FULLSCREEN: AtomicBool = AtomicBool::new(false);
+
+    /// Starts the one poller of this process. Hotkey restarts do not start another.
+    fn watch_fullscreen() {
+        static START: std::sync::Once = std::sync::Once::new();
+        START.call_once(|| {
+            let _ = std::thread::Builder::new()
+                .name("scribe-fullscreen".into())
+                .spawn(|| {
+                    // Sharp monitor/window rects on scaled setups; this thread only.
+                    unsafe {
+                        SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+                    }
+                    loop {
+                        let mut state = 0;
+                        // shortcut: a failed query counts as not full screen, so keys keep working.
+                        let busy = unsafe { SHQueryUserNotificationState(&mut state) } == 0
+                            && is_fullscreen_foreground(state, foreground_window_info().as_ref());
+                        FULLSCREEN.store(busy, Ordering::Relaxed);
+                        std::thread::sleep(std::time::Duration::from_millis(250));
+                    }
+                });
+        });
+    }
 
     struct HookState {
         matcher: Matcher,
@@ -339,6 +460,10 @@ mod platform {
             let Some(state) = state.as_mut() else {
                 return false;
             };
+            // Releases still reach the matcher, so a key held when the game opens is let go.
+            if down && FULLSCREEN.load(Ordering::Relaxed) {
+                return false;
+            }
             if down && input.modifier() == 0 {
                 // GetAsyncKeyState here reflects the state before this event, which is
                 // correct for modifiers other than the current input.
@@ -427,6 +552,7 @@ mod platform {
         tx: Sender<HotkeyEvent>,
     ) -> Result<HotkeyHandle, String> {
         let matcher = Matcher::new(bindings, accept_injected)?;
+        watch_fullscreen();
         let (ready_tx, ready_rx) = mpsc::channel();
         let thread = std::thread::Builder::new()
             .name("scribe-hotkeys".into())
@@ -485,6 +611,111 @@ mod platform {
             }
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn a_full_screen_app_gets_every_press() {
+            let bindings = Bindings {
+                hold: vec![],
+                toggle: vec!["F8".into()],
+                cancel: vec![],
+                rewrite: vec![],
+                enabled: true,
+            };
+            let (tx, rx) = mpsc::channel();
+            STATE.with(|s| {
+                *s.borrow_mut() = Some(HookState {
+                    matcher: Matcher::new(&bindings, true).unwrap(),
+                    active: Arc::new(AtomicBool::new(false)),
+                    tx,
+                })
+            });
+            let f8 = Input::Key(0x77);
+            FULLSCREEN.store(true, Ordering::Relaxed);
+            assert!(!dispatch(f8, true, false, Instant::now()));
+            assert!(rx.try_recv().is_err());
+            FULLSCREEN.store(false, Ordering::Relaxed);
+            assert!(dispatch(f8, true, false, Instant::now()));
+            assert!(matches!(rx.try_recv(), Ok(HotkeyEvent::Toggle(_))));
+            STATE.with(|s| *s.borrow_mut() = None);
+        }
+
+        #[test]
+        fn quns_busy_only_suppresses_when_foreground_is_fullscreen_non_leonidas() {
+            use windows_sys::Win32::UI::Shell::QUNS_ACCEPTS_NOTIFICATIONS;
+            let monitor = Rect {
+                left: 0,
+                top: 0,
+                right: 2560,
+                bottom: 1440,
+            };
+            let windowed = ForegroundWindow {
+                rect: Rect {
+                    left: 100,
+                    top: 100,
+                    right: 1600,
+                    bottom: 1000,
+                },
+                monitor,
+                has_caption: true,
+                is_desktop: false,
+                is_leonidas: false,
+            };
+            let borderless_game = ForegroundWindow {
+                rect: monitor,
+                monitor,
+                has_caption: false,
+                is_desktop: false,
+                is_leonidas: false,
+            };
+            let maximized_app = ForegroundWindow {
+                rect: monitor,
+                monitor,
+                has_caption: true,
+                is_desktop: false,
+                is_leonidas: false,
+            };
+            let desktop = ForegroundWindow {
+                rect: monitor,
+                monitor,
+                has_caption: false,
+                is_desktop: true,
+                is_leonidas: false,
+            };
+            let leonidas_fullscreen = ForegroundWindow {
+                rect: monitor,
+                monitor,
+                has_caption: false,
+                is_desktop: false,
+                is_leonidas: true,
+            };
+
+            assert!(!is_fullscreen_foreground(QUNS_BUSY, None));
+            assert!(!is_fullscreen_foreground(QUNS_BUSY, Some(&windowed)));
+            assert!(!is_fullscreen_foreground(QUNS_BUSY, Some(&maximized_app)));
+            assert!(!is_fullscreen_foreground(QUNS_BUSY, Some(&desktop)));
+            assert!(!is_fullscreen_foreground(
+                QUNS_BUSY,
+                Some(&leonidas_fullscreen)
+            ));
+            assert!(is_fullscreen_foreground(QUNS_BUSY, Some(&borderless_game)));
+            assert!(is_fullscreen_foreground(
+                QUNS_RUNNING_D3D_FULL_SCREEN,
+                Some(&maximized_app)
+            ));
+            assert!(!is_fullscreen_foreground(
+                QUNS_RUNNING_D3D_FULL_SCREEN,
+                Some(&windowed)
+            ));
+            assert!(!is_fullscreen_foreground(
+                QUNS_ACCEPTS_NOTIFICATIONS,
+                Some(&borderless_game)
+            ));
+        }
+    }
 }
 
 #[cfg(test)]
@@ -529,6 +760,7 @@ mod tests {
                 toggle: toggle.iter().map(|s| (*s).into()).collect(),
                 cancel: vec!["Escape".into()],
                 rewrite: vec![],
+                enabled: true,
             },
             false,
         )
@@ -785,6 +1017,7 @@ mod tests {
                 toggle: vec![],
                 cancel: vec![],
                 rewrite: vec![],
+                enabled: true,
             },
             false
         )
@@ -804,6 +1037,7 @@ mod tests {
                 toggle: vec!["Ctrl+Alt+F9".into()],
                 cancel: vec![],
                 rewrite: vec![],
+                enabled: true,
             },
             Arc::new(AtomicBool::new(false)),
             true,

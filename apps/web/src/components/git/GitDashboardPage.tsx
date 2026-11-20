@@ -44,7 +44,7 @@ export function GitDashboardPage() {
   const mode = resolveWordsMode(level, override);
 
   return (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
+    <SidebarInset className="h-full min-h-0 overflow-hidden overscroll-y-none isolate">
       <DeveloperStrip />
       <div className="scrollbar-gutter-both flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-4 sm:p-6">

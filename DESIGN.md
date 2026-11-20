@@ -113,10 +113,10 @@ The rail groups tabs by job. Each tab has one job. [`railItems.ts`](./apps/web/s
 
 | Group         | Tab                             | Its one job                                            |
 | ------------- | ------------------------------- | ------------------------------------------------------ |
+| Home          | Chat                            | Talk with Leonidas and run agents                      |
 | Home          | Command Center                  | See everything at a glance, jump anywhere              |
-| Home          | Today                           | Plan and run the day                                   |
-| Home          | Notifications                   | What changed or needs action, plus toasts              |
-| Work          | Chat                            | Talk with Leonidas and run agents                      |
+| Work          | Today                           | Plan and run the day                                   |
+| Work          | Notifications                   | What changed or needs action, plus toasts              |
 | Work          | Tasks                           | What to do                                             |
 | Work          | Projects                        | Projects and their files. The AIOS is the Home project |
 | Brain         | Memory                          | What Leonidas knows (Browse plus brain map)            |
@@ -133,9 +133,11 @@ The rail groups tabs by job. Each tab has one job. [`railItems.ts`](./apps/web/s
 
 Labels are one plain word. Business tabs follow the workspace template flag; Developer follows the builder flag.
 
-- **Expanded (default):** group names and labels. The header is the workspace picker (picture tile, name, Personal or Business chip) with the collapse icon beside it.
-- **Collapsed:** icons only, a thin divider between groups. The workspace picture sits on top, the expand icon under it, then a divider.
-- The app remembers the state. Every tab stays visible: a long business rail scrolls, it does not fold. The list fades at each edge that has more rows out of view (3 rem deep, so it reaches into the next row; a row is 38 px). The header and Usage and Settings stay fixed.
+- **One state, no collapse:** each tab is an icon with its name under it. The top of the rail is the workspace picker (picture tile; it opens the workspace menu). A thin divider separates the groups. The rail always shows every tab, Notifications included, with its count.
+- **Chat panel pins:** the Chat page shows New chat, then the pinned tabs. Defaults: Notifications, Tasks, Projects, Agents. A pin adds a tab to this list and never removes it from the rail. Pin or unpin by right-click on a rail tab, by the checkboxes in Edit tabs (in the More menu), or by the unpin button on a row. Chat cannot be pinned.
+- **Bottom:** Usage and Settings show the icon alone (Usage is a gauge). Their names stay in the tooltip and the `aria-label`.
+- **Narrow window (under 728 px):** the rail becomes a drawer with names beside the icons and group names. The drawer is not a user setting.
+- Every tab stays visible: a long business rail scrolls, it does not fold. The list fades at each edge that has more rows out of view (3 rem deep, so it reaches into the next row; a row is 38 px). The workspace picker and Usage and Settings stay fixed.
 
 ## Chat details panel
 
@@ -145,9 +147,21 @@ One card holds **Run**, **Context** and **Limits**, in that order. `Ctrl+Shift+B
 - **One chat axis:** the header title, the timeline and the composer share one centre line, in the space left of the card (`chatCanvasLayout.ts`). At 1024 px with both sidebars open, the header buttons need 224 px, so the title may shift 24 px. That is the designed fallback.
 - **Density:** a short card folds Context to one line first, then trims Run. Limits never folds by itself. The user folds it with the chevron, and the choice is saved (`usageOverlayEnabled`). Do not add an automatic Limits fold.
 - **Limits ledger:** columns are Account, 5-hour and Weekly. Extra windows are sub-rows under their account. Each row keeps a 24 px slot for the reset chip on the name line, so chips line up in one column. A blue dot marks the account this chat uses, with the text "Active" for screen readers.
+- **This chat line:** under the ledger, one muted line reads "This chat used 38% of 5-hour · 4% of weekly" for the account the chat runs on. "up to" shows when another chat or device may share the points. It is hidden when the chat has no readings, and it never folds on its own. It reads the server log in `ChatQuotaLog.ts` through `server.getChatQuota`.
 - **Context:** the card shows the model, its effort, a ring and a segmented bar. On a new chat it shows the model the composer will send with, not the project default.
 - **Targets and tokens:** icon buttons are at least 24 by 24 px. Status chips use a solid fill. No colored `border-left` thicker than 1 px. No hex in components.
 - **New chat hero:** the red helmet at 60 percent, a time-of-day greeting with the project picker, and slow red dots. Jake's pick (Doop `MJ2ukUgbs-`) is dots only, with no haze. The dots have soft edges, show behind every chat (half strength behind an active chat) and always drift: Jake chose that they ignore `prefers-reduced-motion`, the one exception to the motion rule above. The helmet glow is 406 px wide and fades out from the helmet. The question line sits 24 px above the composer.
+
+## Usage Quota tab
+
+Jake's pick: Doop `9S7bhAMQ5E` (A, one ranked table of chats). The **Quota** tab sits after Cost, Text used and Limits on the Usage page. It has no shortcut key.
+
+- **Table:** columns are Chat (title, project), Account (name, plan chip), 5-hour, Weekly and Last active. Rows are sorted by weekly points, then 5-hour points. Eight rows show first, then "Show all".
+- **Units:** both columns are percent of one limit, so a chat that used two 5-hour windows reads 200%. Bars scale to the largest row on screen. Points of different accounts do not add up, so the footnote says so.
+- **Shared mark:** a hollow `warning-foreground` ring before the figure means another chat or device may share the points. Screen readers get "Up to".
+- **Range:** only 24h, 7d and 30d work, because readings are kept 30 days. The other presets are disabled. A saved 90d or short range falls back to 7d.
+- **Empty and error:** "No quota readings in this period" teaches what creates readings. A failed read says to try Refresh. A chat the app no longer lists keeps its row as "Chat no longer in the list".
+- **Narrow windows:** the table scrolls sideways inside its card from 44 rem down. The page itself never scrolls sideways.
 
 ## Doop workflow
 

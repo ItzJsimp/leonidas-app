@@ -61,7 +61,13 @@ import type {
   UsageRecord,
 } from "@t3tools/provider-core/server/usage";
 import { resolveModelAliases, UsageAggregator } from "./usageAggregation.ts";
-import { createOverrideRateTable, parseRateTable, type RateTable } from "./usagePricing.ts";
+import {
+  createOverrideRateTable,
+  lookupRate,
+  parseRateTable,
+  type ModelRate,
+  type RateTable,
+} from "./usagePricing.ts";
 import {
   listTranscriptFiles,
   readDirectoryVolumeId,
@@ -182,8 +188,13 @@ export class UsageService extends Context.Service<
       { sourceKey: string; totals: import("@t3tools/contracts").UsageTokenTotals } | null,
       UsageReadError
     >;
-    readonly readSummary: (input: UsageSummaryInput) => Effect.Effect<UsageSummary, UsageReadError>;
+    readonly readSummary: (
+      input: UsageSummaryInput,
+      options?: { readonly onlyProvider?: UsageProviderKind },
+    ) => Effect.Effect<UsageSummary, UsageReadError>;
     readonly refreshRates: Effect.Effect<UsagePricing>;
+    /** One model's price, or null when the price table does not know it. Rough, for cost labels. */
+    readonly rateFor?: (model: string) => Effect.Effect<ModelRate | null>;
   }
 >()("t3/usage/UsageService") {}
 
@@ -958,7 +969,11 @@ export const make = Effect.gen(function* () {
 
   const inflightScans = new Map<string, Deferred.Deferred<UsageSummary, UsageReadError>>();
 
-  const scanKey = (input: UsageSummaryInput, settings: ServerSettingsValue): string =>
+  const scanKey = (
+    input: UsageSummaryInput,
+    settings: ServerSettingsValue,
+    onlyProvider?: UsageProviderKind,
+  ): string =>
     JSON.stringify([
       input.timeZone,
       input.sinceDay,
@@ -967,13 +982,18 @@ export const make = Effect.gen(function* () {
       input.sinceTime ?? null,
       input.untilTime ?? null,
       input.bucketMinutes ?? null,
+      onlyProvider ?? null,
       settings,
       input.awaitRefresh === true,
     ]);
 
-  const readSummary = Effect.fn("UsageService.readSummary")(function* (input: UsageSummaryInput) {
+  const readSummary = Effect.fn("UsageService.readSummary")(function* (
+    input: UsageSummaryInput,
+    options?: { readonly onlyProvider?: UsageProviderKind },
+  ) {
+    const onlyProvider = options?.onlyProvider;
     const settings = yield* readSettings;
-    const key = scanKey(input, settings);
+    const key = scanKey(input, settings, onlyProvider);
     const deferred = yield* Effect.uninterruptible(
       Effect.gen(function* () {
         const existing = inflightScans.get(key);
@@ -987,7 +1007,7 @@ export const make = Effect.gen(function* () {
         // the fibers awaiting it; a finished scan warms the cache either way.
         // The cache write is registered before the waiters resume, so they
         // can await it, but its fiber starts after they have the summary.
-        yield* scanSummary(input, settings).pipe(
+        yield* scanSummary(input, settings, onlyProvider).pipe(
           Effect.onExit((exit) =>
             Effect.sync(() => inflightScans.delete(key)).pipe(
               Effect.andThen(Exit.isSuccess(exit) ? schedulePersist : Effect.void),
@@ -1085,7 +1105,14 @@ export const make = Effect.gen(function* () {
     }
     return { sourceKey: [...dirs].sort().join("\0"), totals };
   });
-  return { readSummary, readSubscriptionTokens, refreshRates, awaitPersisted } as const;
+  // A short wait for the table, then whatever is loaded: a label must not stall on the network.
+  const rateFor = (model: string) =>
+    ensureRates(false).pipe(
+      Effect.timeout(2_000),
+      Effect.ignoreCause,
+      Effect.map(() => lookupRate(rates, model)),
+    );
+  return { readSummary, readSubscriptionTokens, refreshRates, rateFor, awaitPersisted } as const;
 });
 
 export const layer = Layer.effect(UsageService, make);

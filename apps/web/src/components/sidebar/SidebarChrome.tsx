@@ -11,11 +11,11 @@ import {
   useEnvironmentStageLabel,
 } from "../SidebarStageBackdrop";
 import { Badge } from "../ui/badge";
-import { SidebarFooter, SidebarMenu, SidebarTrigger } from "../ui/sidebar";
+import { SidebarFooter, SidebarTrigger } from "../ui/sidebar";
 import { SidebarThreadUndoNotice } from "./SidebarThreadUndoNotice";
 import { SidebarNoAiBanner } from "./SidebarNoAiBanner";
 import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
-import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUpdatePill";
+import { SidebarUpdateArchitectureWarning } from "./SidebarUpdatePill";
 import { openReleaseHistoryDialog } from "../desktop/ReleaseHistoryDialog";
 import { observeResize } from "~/lib/observeResize";
 
@@ -173,9 +173,6 @@ export const SidebarChromeFooter = memo(function SidebarChromeFooter() {
       <SidebarNoAiBanner />
       <SidebarProviderUpdatePill />
       <SidebarUpdateArchitectureWarning />
-      <SidebarMenu>
-        <SidebarUpdatePill />
-      </SidebarMenu>
     </SidebarFooter>
   );
 });

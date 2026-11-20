@@ -1,95 +1,91 @@
-import type { TradingAccountView, TradingTradeView } from "@t3tools/contracts";
-import { useMemo } from "react";
+import type { TradingTradeView } from "@t3tools/contracts";
 
 import { cn } from "~/lib/utils";
 
 import { formatSigned } from "./dashboard.logic";
-import { accountLabel } from "./addMenu.logic";
-import {
-  RULE_CHECK_WAITING,
-  TOPSTEPX_EXPORT_STEPS,
-  formatDay,
-  gradeLine,
-  tradeTime,
-  tradesByDay,
-} from "./journal.logic";
+import { ExportGuide } from "./ExportGuide";
+import { JournalDay, signClass, type JournalDayProps } from "./JournalDay";
+import { dayRows, formatDay, tradesByDay } from "./journal.logic";
 
-/** The 5 TopstepX export steps as an ordered list. */
-export function ExportGuide({ className }: { readonly className?: string }) {
-  return (
-    <ol className={cn("list-decimal space-y-1 ps-5 text-sm text-muted-foreground", className)}>
-      {TOPSTEPX_EXPORT_STEPS.map((step) => (
-        <li key={step}>{step}</li>
-      ))}
-    </ol>
-  );
+export interface JournalViewProps extends Omit<JournalDayProps, "day" | "trades" | "totalTrades"> {
+  /** Every trade in the workspace. The list and the day detail both read it. */
+  readonly trades: readonly TradingTradeView[];
+  /** Today as `YYYY-MM-DD`. Today always has a row, even with no trades. */
+  readonly today: string;
+  readonly selectedDay: string;
+  readonly onSelectDay: (day: string) => void;
 }
 
-const signClass = (amount: number) =>
-  amount > 0 ? "text-success-foreground" : amount < 0 ? "text-destructive-foreground" : "";
-
-/** Imported trades by day, newest day first, with each day's net dollars. */
+/** Days on the left, the picked day on the right. Stacked on a narrow screen. */
 export function JournalView({
   trades,
-  accounts,
-}: {
-  readonly trades: readonly TradingTradeView[];
-  readonly accounts: readonly TradingAccountView[];
-}) {
-  const days = useMemo(() => tradesByDay(trades), [trades]);
-  const names = useMemo(
-    () => new Map(accounts.map((account) => [account.id, accountLabel(account)])),
-    [accounts],
-  );
+  today,
+  selectedDay,
+  onSelectDay,
+  note,
+  ...dayProps
+}: JournalViewProps) {
+  const rows = dayRows(trades, today);
+  const detail = tradesByDay(trades).find((day) => day.day === selectedDay);
+
   return (
     <div className="flex flex-col gap-4">
-      {days.map((day) => (
-        <section key={day.day} className="rounded-xl border border-border bg-card">
-          <h2 className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 text-sm font-medium">
-            {formatDay(day.day)}
-            <span className={cn("tabular-nums", signClass(day.pnl))}>{formatSigned(day.pnl)}</span>
-          </h2>
-          {day.trades.some((trade) => trade.check === "waiting") ? (
-            <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
-              {RULE_CHECK_WAITING}
-            </p>
-          ) : null}
-          <ul className="divide-y divide-border">
-            {day.trades.map((trade) => (
-              <li key={trade.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <span className="w-12 shrink-0 tabular-nums text-muted-foreground">
-                  {tradeTime(trade.at)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate">
-                    {[trade.side === "short" ? "Short" : "Long", trade.size, trade.contract]
-                      .filter((part) => part !== undefined)
-                      .join(" ")}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {names.get(trade.accountId) ?? "Unknown account"}
-                  </span>
-                  {gradeLine(trade) ? (
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {gradeLine(trade)}
+      <div className="flex flex-col gap-4 md:flex-row md:items-start">
+        <nav aria-label="Days" className="md:w-56 md:shrink-0">
+          <ul className="flex flex-col gap-1">
+            {rows.map((row) => {
+              const selected = row.day === selectedDay;
+              return (
+                <li key={row.day}>
+                  <button
+                    type="button"
+                    aria-current={selected ? "true" : undefined}
+                    onClick={() => onSelectDay(row.day)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-start text-sm",
+                      selected
+                        ? "border-border bg-accent"
+                        : "border-transparent hover:bg-accent/50",
+                    )}
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-medium">
+                        {formatDay(row.day)}
+                        {row.day === today ? " · Today" : ""}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {row.count === 0
+                          ? "No trades"
+                          : `${row.count} ${row.count === 1 ? "trade" : "trades"}`}
+                        {row.breaks > 0
+                          ? ` · ${row.breaks} rule ${row.breaks === 1 ? "break" : "breaks"}`
+                          : ""}
+                      </span>
                     </span>
-                  ) : null}
-                </span>
-                {trade.points === undefined ? null : (
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    {trade.points > 0 ? "+" : ""}
-                    {trade.points} pts
-                  </span>
-                )}
-                <span className={cn("w-20 shrink-0 text-end tabular-nums", signClass(trade.pnl))}>
-                  {formatSigned(trade.pnl)}
-                </span>
-              </li>
-            ))}
+                    <span className={cn("shrink-0 tabular-nums", signClass(row.pnl))}>
+                      {formatSigned(row.pnl)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
-        </section>
-      ))}
-      <details className="rounded-xl border border-border bg-card px-4 py-3">
+        </nav>
+        <div className="min-w-0 flex-1">
+          <JournalDay
+            {...dayProps}
+            key={selectedDay}
+            day={selectedDay}
+            trades={detail?.trades ?? []}
+            totalTrades={trades.length}
+            note={note}
+          />
+        </div>
+      </div>
+      <details
+        id="topstepx-export-guide"
+        className="rounded-xl border border-border bg-card px-4 py-3"
+      >
         <summary className="cursor-pointer text-sm font-medium">
           How to export from TopstepX
         </summary>

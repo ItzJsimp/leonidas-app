@@ -1,5 +1,7 @@
 import type { SubagentRunKind, SubagentRunStatus } from "@t3tools/contracts";
 
+import type { TokenRates } from "../usage/usagePricing.ts";
+
 /** Stored statuses that mean the subagent still holds a live run. */
 export const ACTIVE_RAW_STATUSES = ["pending", "running", "waiting"];
 
@@ -77,4 +79,29 @@ export function decodeRunCursor(cursor: string | undefined) {
   if (cursor === undefined) return null;
   const cut = cursor.indexOf("|");
   return cut <= 0 ? null : { sortKey: cursor.slice(0, cut), id: cursor.slice(cut + 1) };
+}
+
+export interface RunTokens {
+  readonly input: number | null;
+  readonly cachedInput: number | null;
+  readonly cacheCreation: number | null;
+  readonly output: number | null;
+}
+
+/**
+ * Dollars for the tokens a run's chat reported. Input already includes the cached and
+ * cache-creation tokens, so those are priced at their own rates and taken out of plain input.
+ * Null when no tokens were reported or the price table has no rate: never a false zero.
+ */
+export function runCostUsd(tokens: RunTokens, rate: TokenRates | null): number | null {
+  if (rate === null || (tokens.input === null && tokens.output === null)) return null;
+  const cached = tokens.cachedInput ?? 0;
+  const created = tokens.cacheCreation ?? 0;
+  const plain = Math.max(0, (tokens.input ?? 0) - cached - created);
+  return (
+    plain * rate.inputCostPerToken +
+    cached * rate.cacheReadCostPerToken +
+    created * rate.cacheCreationCostPerToken +
+    (tokens.output ?? 0) * rate.outputCostPerToken
+  );
 }

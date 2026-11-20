@@ -1521,6 +1521,69 @@ describe("deriveMessagesTimelineRows", () => {
     ).toBeDefined();
   });
 
+  it("leaves the time spent waiting for the user out of the Worked for label", () => {
+    const at = (second: number) => `2026-01-01T00:00:${String(second).padStart(2, "0")}Z`;
+    const waitItem = {
+      type: "user_input_request",
+      runId: "turn-1",
+      startedAt: DateTime.makeUnsafe(at(10)),
+      completedAt: DateTime.makeUnsafe(at(40)),
+    };
+    const timelineEntries = [
+      {
+        id: "user-entry",
+        kind: "message" as const,
+        createdAt: at(0),
+        message: {
+          id: "user-1" as never,
+          role: "user" as const,
+          text: "Build it",
+          runId: null,
+          createdAt: at(0),
+          updatedAt: at(0),
+          streaming: false,
+        },
+      },
+      {
+        id: "question-entry",
+        kind: "work" as const,
+        createdAt: at(10),
+        entry: {
+          id: "question-1",
+          createdAt: at(10),
+          runId: "turn-1" as never,
+          label: "Asked a question",
+          tone: "info" as const,
+          itemType: "user_input_request" as const,
+          structuredPayload: waitItem as never,
+        },
+      },
+      {
+        id: "assistant-final-entry",
+        kind: "message" as const,
+        createdAt: at(50),
+        message: {
+          id: "assistant-final" as never,
+          role: "assistant" as const,
+          text: "Done",
+          runId: "turn-1" as never,
+          createdAt: at(50),
+          updatedAt: at(50),
+          streaming: false,
+        },
+      },
+    ];
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries,
+      isWorking: false,
+      activeTurnStartedAt: null,
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    });
+    // 50s on the clock minus the 30s the user took to answer.
+    expect(rows.find((row) => row.kind === "turn-fold")).toMatchObject({ label: "Worked for 20s" });
+  });
+
   it.each([1, 2, 3])("folds %i completed activities after the terminal response", (count) => {
     const runId = RunId.make("turn-1");
     const timelineEntries = [

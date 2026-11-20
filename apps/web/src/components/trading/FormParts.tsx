@@ -117,7 +117,7 @@ export function TextField<V extends Record<string, string>>(props: {
   readonly form: TradingForm<V>;
   readonly name: keyof V & string;
   readonly label: string;
-  readonly kind?: "text" | "amount" | "date";
+  readonly kind?: "text" | "amount" | "signed" | "date";
   readonly maxLength?: number;
   readonly max?: string;
 }) {
@@ -128,7 +128,7 @@ export function TextField<V extends Record<string, string>>(props: {
         <Input
           {...control}
           type={kind === "date" ? "date" : "text"}
-          inputMode={kind === "amount" ? "decimal" : undefined}
+          inputMode={kind === "amount" || kind === "signed" ? "decimal" : undefined}
           maxLength={props.maxLength}
           max={props.max}
           value={form.values[name]}

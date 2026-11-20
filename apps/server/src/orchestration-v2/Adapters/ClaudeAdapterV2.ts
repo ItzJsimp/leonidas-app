@@ -165,12 +165,15 @@ import {
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import { claudeContextReportFromUsage } from "../../provider/ClaudeContextReport.ts";
 import {
+  claudeRateLimitEventToChatQuota,
   claudeRateLimitEventToUpdate,
   type ClaudeScopedLimitNames,
 } from "../../provider/claudeUsageLimits.ts";
+import type { ChatQuotaReading } from "../../usage/chatQuota.ts";
 import type { ManagedServerProvider } from "@t3tools/provider-core/server/snapshot";
 import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/instanceEnvironment";
 import { LEONIDAS_ORCHESTRATION_INSTRUCTIONS } from "@t3tools/provider-core/server/orchestrationInstructions";
+import { leonidasOutputStandard } from "@t3tools/provider-core/server/outputStandard";
 import {
   activeAiLevel,
   buildRuntimeInstructions,
@@ -178,6 +181,7 @@ import {
   questionBudgetAllows,
 } from "@t3tools/provider-core/server/runtimeInstructions";
 import { isPonytailPluginEnabled } from "../../provider/PonytailEnsure.ts";
+import { NativeSpawnGate } from "../../subagents/nativeSpawnGate.ts";
 import {
   mcpToolPresentation,
   normalizeMcpText,
@@ -1369,6 +1373,8 @@ export function makeClaudeQueryOptions(input: {
   readonly cwd: string | null;
   /** Reply style body from the runtime policy; absent means Leonidas. */
   readonly replyStyle?: string | undefined;
+  /** The Home chat's `<home_agent>` block; absent for every other chat. */
+  readonly homeAgent?: string | undefined;
   /**
    * The attachments dir grant lets the agent Read/copy pasted images at the
    * paths appended to the turn text, without an approval prompt. It is a leaf
@@ -1493,12 +1499,16 @@ export function makeClaudeQueryOptions(input: {
                 harness: "Claude Code",
                 ponytailPlugin: isPonytailPluginEnabled(input.environment),
                 replyStyle: input.replyStyle,
+                homeAgent: input.homeAgent,
               }) + (input.mcpServers === undefined ? "" : LEONIDAS_ORCHESTRATION_INSTRUCTIONS),
               ...launchAppendSystemPrompt,
             ].join("\n\n"),
           },
         }
-      : { systemPrompt: input.persona.systemPrompt, settingSources: [] }),
+      : {
+          systemPrompt: `${input.persona.systemPrompt}\n\n${leonidasOutputStandard(input.replyStyle)}`,
+          settingSources: [],
+        }),
     ...(Object.keys(extraArgs).length === 0 ? {} : { extraArgs }),
   };
   const additionalDirectories = [
@@ -1575,6 +1585,7 @@ export const CLAUDE_READ_ONLY_T3_MCP_ALLOWED_TOOLS: ReadonlyArray<string> = [
   "mcp__leonidas__leo_aios_memory_search",
   "mcp__leonidas__leo_aios_memory_read",
   "mcp__leonidas__leo_usage_status",
+  "mcp__leonidas__leo_chat_quota",
   "mcp__leonidas__leo_release_status",
   "mcp__leonidas__leo_hardware_status",
   "mcp__leonidas__leo_review_diff_get",
@@ -2331,6 +2342,8 @@ export function claudeEffectiveQueryPolicyKey(
     readonly allowedTools?: ReadonlyArray<string>;
     readonly mcpServers?: ClaudeQueryOptions["mcpServers"];
   },
+  replyStyle?: string,
+  homeAgent?: string,
 ): string {
   return JSON.stringify({
     runtimePolicy: claudeRuntimeQueryPolicyKey({
@@ -2340,6 +2353,8 @@ export function claudeEffectiveQueryPolicyKey(
         : { allowedTools: mcpOverrides.allowedTools }),
     }),
     mcpServers: mcpOverrides.mcpServers,
+    replyStyle,
+    homeAgent,
   });
 }
 
@@ -4045,11 +4060,18 @@ export interface ClaudeAdapterV2Options {
   readonly enableAssistantTextStreaming?: boolean;
   readonly scopedLimitNames?: Ref.Ref<ClaudeScopedLimitNames>;
   readonly onUsageLimits?: ManagedServerProvider["applyUsageLimits"];
+  /** Gets each plan quota reading with the thread that made the request. */
+  readonly onChatQuota?: (reading: ChatQuotaReading) => Effect.Effect<void>;
   readonly continuationRequests?: {
     readonly offer: (
       request: ProviderContinuationRequests.ProviderContinuationRequest,
     ) => Effect.Effect<void>;
   };
+  /**
+   * The spawn gate for native Agent tool calls (ADR-0098). The app always provides it. A caller
+   * that builds the adapter by hand, such as a test, may leave it out: every spawn then starts.
+   */
+  readonly nativeSpawnGate?: NativeSpawnGate["Service"];
 }
 
 export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
@@ -4143,6 +4165,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
     planSelectionTransition: () => Effect.succeed(turnScopedSelectionTransition()),
     openSession: Effect.fn("ClaudeAdapterV2.openSession")(
       function* (input: ProviderAdapter.ProviderAdapterV2OpenSessionInput) {
+        const sessionThreadId = input.threadId;
         const sessionScope = yield* Effect.scope;
         const now = yield* DateTime.now;
         const session = providerSession({
@@ -7743,6 +7766,16 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                 checkedAt: DateTime.formatIso(now),
               });
             }
+            const chatQuota = adapterOptions.onChatQuota
+              ? claudeRateLimitEventToChatQuota(
+                  rateLimitInfo,
+                  sessionThreadId,
+                  DateTime.toEpochMillis(now),
+                )
+              : undefined;
+            if (chatQuota && adapterOptions.onChatQuota) {
+              yield* adapterOptions.onChatQuota(chatQuota);
+            }
             const context = yield* Ref.get(activeTurn);
             if (context === null) {
               yield* bufferWakeMessage({
@@ -9166,6 +9199,35 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           const heldForEcho = context.heldRootFrames.length > 0;
           const startToolCall = toolName !== "Agent" && options?.startToolCall !== false;
           if (toolName === "Agent") {
+            const nativeSpawnGate = adapterOptions.nativeSpawnGate;
+            if (nativeSpawnGate !== undefined) {
+              // The child's model: the call's own, else the chat's ("inherit" is the chat's too).
+              const requested = firstStringInputField(nativeToolInput, ["model"]);
+              const verdict = yield* nativeSpawnGate.check({
+                threadId: context.input.threadId,
+                threadTitle: context.input.appThread.title,
+                cwd: context.input.runtimePolicy.cwd ?? null,
+                instanceId: adapterOptions.instanceId,
+                account: adapterOptions.instanceId,
+                model:
+                  requested === undefined || requested === "inherit"
+                    ? context.input.modelSelection.model
+                    : canonicalClaudeSubagentModel(subagentModelCatalog, requested),
+                callerIsSubagent: callbackOptions.agentID !== undefined,
+                label: firstStringInputField(nativeToolInput, ["subagent_type"]) ?? "subagent",
+                task: firstStringInputField(nativeToolInput, ["prompt"]) ?? "",
+                reason: firstStringInputField(nativeToolInput, ["description"]) ?? "",
+                toolUseId: nativeRequestId,
+              });
+              // A refusal comes back to the model as the tool's error text; no child starts.
+              if (!verdict.allow) {
+                return {
+                  behavior: "deny",
+                  message: verdict.message,
+                  toolUseID: callbackOptions.toolUseID,
+                } satisfies PermissionResult;
+              }
+            }
             rememberClaudeSubagentLaunch(
               subagentModelCatalog,
               context,
@@ -9544,7 +9606,12 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               ? {}
               : { allowedTools: queryPolicy.allowedTools }),
           });
-          const queryPolicyKey = claudeEffectiveQueryPolicyKey(queryPolicy, mcpOverrides);
+          const queryPolicyKey = claudeEffectiveQueryPolicyKey(
+            queryPolicy,
+            mcpOverrides,
+            turnInput.runtimePolicy.replyStyle,
+            turnInput.runtimePolicy.homeAgent,
+          );
           const compiledSelection = compileClaudeModelSelection(turnInput.modelSelection);
           const resumeSessionAt = yield* getNativeConversationHeadId(turnInput.providerThread);
           const existing = yield* Ref.get(queryContext);
@@ -9663,6 +9730,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             ...(resumeSessionAt === undefined ? {} : { resumeSessionAt }),
             cwd: turnInput.runtimePolicy.cwd,
             replyStyle: turnInput.runtimePolicy.replyStyle,
+            homeAgent: turnInput.runtimePolicy.homeAgent,
             attachmentsDir,
             settings: adapterOptions.settings,
             environment: claudeTurnEnvironment(adapterOptions.environment, {
@@ -10876,6 +10944,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
 });
 
 export type ClaudeAdapterV2DriverEnv =
+  | NativeSpawnGate
   | ClaudeAgentSdkQueryRunner
   | Crypto.Crypto
   | FileSystem.FileSystem
@@ -10889,7 +10958,7 @@ export const createClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2Driver.create")(
     input: ProviderAdapterDriverCreateInput<ClaudeSettings> & {
       readonly driver?: ProviderDriverKind | undefined;
     },
-    hooks: Pick<ClaudeAdapterV2Options, "scopedLimitNames" | "onUsageLimits"> & {
+    hooks: Pick<ClaudeAdapterV2Options, "scopedLimitNames" | "onUsageLimits" | "onChatQuota"> & {
       readonly driver?: ProviderDriverKind | undefined;
     } = {},
   ) {
@@ -10901,6 +10970,7 @@ export const createClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2Driver.create")(
     const queryRunner = yield* ClaudeAgentSdkQueryRunner;
     const serverConfig = yield* ServerConfig.ServerConfig;
     const continuationRequests = yield* ProviderContinuationRequests.ProviderContinuationRequests;
+    const nativeSpawnGate = yield* NativeSpawnGate;
     const baseEnvironment = yield* mergeProviderInstanceEnvironment(environment, hostEnvironment);
     const claudeEnvironment = yield* makeClaudeEnvironment(config, baseEnvironment);
     const path = yield* Path.Path;
@@ -10921,6 +10991,7 @@ export const createClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2Driver.create")(
       idAllocator,
       queryRunner,
       continuationRequests,
+      nativeSpawnGate,
       ...hooks,
     });
   },
@@ -10957,6 +11028,7 @@ const makeDefaultClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2.layer")(function* 
   const queryRunner = yield* ClaudeAgentSdkQueryRunner;
   const serverConfig = yield* ServerConfig.ServerConfig;
   const continuationRequests = yield* ProviderContinuationRequests.ProviderContinuationRequests;
+  const nativeSpawnGate = yield* NativeSpawnGate;
 
   return yield* makeClaudeAdapterV2({
     instanceId: CLAUDE_DEFAULT_INSTANCE_ID,
@@ -10969,6 +11041,7 @@ const makeDefaultClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2.layer")(function* 
     idAllocator,
     queryRunner,
     continuationRequests,
+    nativeSpawnGate,
   });
 });
 
@@ -10980,6 +11053,7 @@ const layer: Layer.Layer<
   | FileSystem.FileSystem
   | IdAllocator.IdAllocatorV2
   | McpProviderSessions.McpProviderSessions
+  | NativeSpawnGate
   | Path.Path
   | ServerConfig.ServerConfig
 > = Layer.effect(ProviderAdapter.ProviderAdapterV2, makeDefaultClaudeAdapterV2());

@@ -9,8 +9,10 @@ import { useNowMinute } from "../../hooks/useNowMinute";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { SparklesIcon, StarIcon } from "lucide-react";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
+import { AccountHeadroomRing } from "./AccountHeadroomRing";
 import { AccountLoadBadge, accountLoadLabel } from "./AccountLoadBadge";
 import { useAccountLoad } from "../../hooks/useAccountLoad";
+import { accountHeadroom, accountHeadroomLabel } from "../../lib/accountHeadroom";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { ProviderLimitTooltip } from "./ProviderLimitTooltip";
@@ -157,9 +159,10 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
               ? accountLoad(`${props.environmentId}:${entry.instanceId}`)
               : { chats: 0, running: 0 };
             const loadLabel = accountLoadLabel(load);
-            const readiness = getProviderReadiness(entry.snapshot, {
-              nowMs: Date.parse(`${nowMinute}:00Z`),
-            });
+            const nowMs = Date.parse(`${nowMinute}:00Z`);
+            const readiness = getProviderReadiness(entry.snapshot, { nowMs });
+            const headroom = accountHeadroom(entry.snapshot?.usageLimits, nowMs);
+            const headroomLabel = headroom ? accountHeadroomLabel(headroom) : "";
 
             const tooltip = isUnavailable
               ? describeUnavailableInstance(entry)
@@ -195,7 +198,9 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                     ? tooltip
                     : showNewBadge
                       ? `${entry.displayName}, new`
-                      : entry.displayName) + (loadLabel ? `, ${loadLabel}` : "")
+                      : entry.displayName) +
+                  (loadLabel ? `, ${loadLabel}` : "") +
+                  (headroomLabel ? `, ${headroomLabel}` : "")
                 }
               >
                 <ProviderInstanceIcon
@@ -216,6 +221,12 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                   }
                   {...(entry.accentColor ? { badgeClassName: "h-3 min-w-3 px-0.5 text-5xs" } : {})}
                 />
+                {headroom ? (
+                  <AccountHeadroomRing
+                    leftPercent={headroom.leftPercent}
+                    severity={headroom.severity}
+                  />
+                ) : null}
                 {showNewBadge ? (
                   <span className={NEW_BADGE_CLASS} aria-hidden>
                     <SparklesIcon className="size-2" />
@@ -260,6 +271,9 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                       </span>
                       {loadLabel ? (
                         <span className="text-muted-foreground">{loadLabel}</span>
+                      ) : null}
+                      {headroomLabel ? (
+                        <span className="text-muted-foreground">{headroomLabel}</span>
                       ) : null}
                       <ProviderLimitTooltip provider={entry.snapshot} now={tooltipOpenedAt} />
                     </div>

@@ -41,7 +41,7 @@ export function useApiKeyField(environmentId: EnvironmentId, provider: ApiKeyPro
     }
   };
 
-  const test = async () => {
+  const test = async (): Promise<{ ok: boolean; message: string }> => {
     setBusy(true);
     setTestResult(null);
     try {
@@ -49,11 +49,12 @@ export function useApiKeyField(environmentId: EnvironmentId, provider: ApiKeyPro
         environmentId,
         input: { providerId: provider.id, ...(draft.trim() ? { key: draft.trim() } : {}) },
       });
-      setTestResult(
+      const outcome =
         result._tag === "Success"
           ? result.value
-          : { ok: false, message: "The test did not run. Try again." },
-      );
+          : { ok: false, message: "The test did not run. Try again." };
+      setTestResult(outcome);
+      return outcome;
     } finally {
       setBusy(false);
     }

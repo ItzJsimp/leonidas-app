@@ -9,13 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as PairRouteImport } from './routes/pair'
 import { Route as ConnectAgentRouteImport } from './routes/connect-agent'
 import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as ChatIndexRouteImport } from './routes/_chat.index'
 import { Route as ProjectsProjectKeyRouteImport } from './routes/projects.$projectKey'
+import { Route as ChatWelcomeRouteImport } from './routes/_chat.welcome'
 import { Route as ChatUsageRouteImport } from './routes/_chat.usage'
 import { Route as ChatTodayRouteImport } from './routes/_chat.today'
 import { Route as ChatTeamRouteImport } from './routes/_chat.team'
@@ -33,6 +33,7 @@ import { Route as ChatMarketingRouteImport } from './routes/_chat.marketing'
 import { Route as ChatLibraryRouteImport } from './routes/_chat.library'
 import { Route as ChatInboxRouteImport } from './routes/_chat.inbox'
 import { Route as ChatImagesRouteImport } from './routes/_chat.images'
+import { Route as ChatHomeRouteImport } from './routes/_chat.home'
 import { Route as ChatGitRouteImport } from './routes/_chat.git'
 import { Route as ChatFilesRouteImport } from './routes/_chat.files'
 import { Route as ChatDeveloperRouteImport } from './routes/_chat.developer'
@@ -42,6 +43,7 @@ import { Route as ChatBrainRouteImport } from './routes/_chat.brain'
 import { Route as ChatAutomationsRouteImport } from './routes/_chat.automations'
 import { Route as ChatTradingRiskRouteImport } from './routes/_chat.trading.risk'
 import { Route as ChatTradingMoneyRouteImport } from './routes/_chat.trading.money'
+import { Route as ChatTradingLibraryRouteImport } from './routes/_chat.trading.library'
 import { Route as ChatTradingJournalRouteImport } from './routes/_chat.trading.journal'
 import { Route as ChatTradingDashboardRouteImport } from './routes/_chat.trading.dashboard'
 import { Route as ChatTradingCrewRouteImport } from './routes/_chat.trading.crew'
@@ -76,11 +78,6 @@ import { Route as ChatSettingsAboutRouteImport } from './routes/_chat.settings.a
 import { Route as ChatDraftDraftIdRouteImport } from './routes/_chat.draft.$draftId'
 import { Route as ChatEnvironmentIdThreadIdRouteImport } from './routes/_chat.$environmentId.$threadId'
 
-const WelcomeRoute = WelcomeRouteImport.update({
-  id: '/welcome',
-  path: '/welcome',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PairRoute = PairRouteImport.update({
   id: '/pair',
   path: '/pair',
@@ -109,6 +106,11 @@ const ProjectsProjectKeyRoute = ProjectsProjectKeyRouteImport.update({
   id: '/projects/$projectKey',
   path: '/projects/$projectKey',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ChatWelcomeRoute = ChatWelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => ChatRoute,
 } as any)
 const ChatUsageRoute = ChatUsageRouteImport.update({
   id: '/usage',
@@ -195,6 +197,11 @@ const ChatImagesRoute = ChatImagesRouteImport.update({
   path: '/images',
   getParentRoute: () => ChatRoute,
 } as any)
+const ChatHomeRoute = ChatHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ChatGitRoute = ChatGitRouteImport.update({
   id: '/git',
   path: '/git',
@@ -238,6 +245,11 @@ const ChatTradingRiskRoute = ChatTradingRiskRouteImport.update({
 const ChatTradingMoneyRoute = ChatTradingMoneyRouteImport.update({
   id: '/trading/money',
   path: '/trading/money',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatTradingLibraryRoute = ChatTradingLibraryRouteImport.update({
+  id: '/trading/library',
+  path: '/trading/library',
   getParentRoute: () => ChatRoute,
 } as any)
 const ChatTradingJournalRoute = ChatTradingJournalRouteImport.update({
@@ -417,7 +429,6 @@ export interface FileRoutesByFullPath {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
-  '/welcome': typeof WelcomeRoute
   '/automations': typeof ChatAutomationsRoute
   '/brain': typeof ChatBrainRoute
   '/command-center': typeof ChatCommandCenterRoute
@@ -425,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/developer': typeof ChatDeveloperRoute
   '/files': typeof ChatFilesRoute
   '/git': typeof ChatGitRoute
+  '/home': typeof ChatHomeRoute
   '/images': typeof ChatImagesRoute
   '/inbox': typeof ChatInboxRoute
   '/library': typeof ChatLibraryRoute
@@ -442,6 +454,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof ChatTeamRoute
   '/today': typeof ChatTodayRoute
   '/usage': typeof ChatUsageRoute
+  '/welcome': typeof ChatWelcomeRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
@@ -476,6 +489,7 @@ export interface FileRoutesByFullPath {
   '/trading/crew': typeof ChatTradingCrewRoute
   '/trading/dashboard': typeof ChatTradingDashboardRoute
   '/trading/journal': typeof ChatTradingJournalRoute
+  '/trading/library': typeof ChatTradingLibraryRoute
   '/trading/money': typeof ChatTradingMoneyRoute
   '/trading/risk': typeof ChatTradingRiskRoute
 }
@@ -483,7 +497,6 @@ export interface FileRoutesByTo {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
-  '/welcome': typeof WelcomeRoute
   '/automations': typeof ChatAutomationsRoute
   '/brain': typeof ChatBrainRoute
   '/command-center': typeof ChatCommandCenterRoute
@@ -491,6 +504,7 @@ export interface FileRoutesByTo {
   '/developer': typeof ChatDeveloperRoute
   '/files': typeof ChatFilesRoute
   '/git': typeof ChatGitRoute
+  '/home': typeof ChatHomeRoute
   '/images': typeof ChatImagesRoute
   '/inbox': typeof ChatInboxRoute
   '/library': typeof ChatLibraryRoute
@@ -508,6 +522,7 @@ export interface FileRoutesByTo {
   '/team': typeof ChatTeamRoute
   '/today': typeof ChatTodayRoute
   '/usage': typeof ChatUsageRoute
+  '/welcome': typeof ChatWelcomeRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
   '/': typeof ChatIndexRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
@@ -543,6 +558,7 @@ export interface FileRoutesByTo {
   '/trading/crew': typeof ChatTradingCrewRoute
   '/trading/dashboard': typeof ChatTradingDashboardRoute
   '/trading/journal': typeof ChatTradingJournalRoute
+  '/trading/library': typeof ChatTradingLibraryRoute
   '/trading/money': typeof ChatTradingMoneyRoute
   '/trading/risk': typeof ChatTradingRiskRoute
 }
@@ -552,7 +568,6 @@ export interface FileRoutesById {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
-  '/welcome': typeof WelcomeRoute
   '/_chat/automations': typeof ChatAutomationsRoute
   '/_chat/brain': typeof ChatBrainRoute
   '/_chat/command-center': typeof ChatCommandCenterRoute
@@ -560,6 +575,7 @@ export interface FileRoutesById {
   '/_chat/developer': typeof ChatDeveloperRoute
   '/_chat/files': typeof ChatFilesRoute
   '/_chat/git': typeof ChatGitRoute
+  '/_chat/home': typeof ChatHomeRoute
   '/_chat/images': typeof ChatImagesRoute
   '/_chat/inbox': typeof ChatInboxRoute
   '/_chat/library': typeof ChatLibraryRoute
@@ -577,6 +593,7 @@ export interface FileRoutesById {
   '/_chat/team': typeof ChatTeamRoute
   '/_chat/today': typeof ChatTodayRoute
   '/_chat/usage': typeof ChatUsageRoute
+  '/_chat/welcome': typeof ChatWelcomeRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
@@ -612,6 +629,7 @@ export interface FileRoutesById {
   '/_chat/trading/crew': typeof ChatTradingCrewRoute
   '/_chat/trading/dashboard': typeof ChatTradingDashboardRoute
   '/_chat/trading/journal': typeof ChatTradingJournalRoute
+  '/_chat/trading/library': typeof ChatTradingLibraryRoute
   '/_chat/trading/money': typeof ChatTradingMoneyRoute
   '/_chat/trading/risk': typeof ChatTradingRiskRoute
 }
@@ -622,7 +640,6 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/pair'
-    | '/welcome'
     | '/automations'
     | '/brain'
     | '/command-center'
@@ -630,6 +647,7 @@ export interface FileRouteTypes {
     | '/developer'
     | '/files'
     | '/git'
+    | '/home'
     | '/images'
     | '/inbox'
     | '/library'
@@ -647,6 +665,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/today'
     | '/usage'
+    | '/welcome'
     | '/projects/$projectKey'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
@@ -681,6 +700,7 @@ export interface FileRouteTypes {
     | '/trading/crew'
     | '/trading/dashboard'
     | '/trading/journal'
+    | '/trading/library'
     | '/trading/money'
     | '/trading/risk'
   fileRoutesByTo: FileRoutesByTo
@@ -688,7 +708,6 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/pair'
-    | '/welcome'
     | '/automations'
     | '/brain'
     | '/command-center'
@@ -696,6 +715,7 @@ export interface FileRouteTypes {
     | '/developer'
     | '/files'
     | '/git'
+    | '/home'
     | '/images'
     | '/inbox'
     | '/library'
@@ -713,6 +733,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/today'
     | '/usage'
+    | '/welcome'
     | '/projects/$projectKey'
     | '/'
     | '/$environmentId/$threadId'
@@ -748,6 +769,7 @@ export interface FileRouteTypes {
     | '/trading/crew'
     | '/trading/dashboard'
     | '/trading/journal'
+    | '/trading/library'
     | '/trading/money'
     | '/trading/risk'
   id:
@@ -756,7 +778,6 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/pair'
-    | '/welcome'
     | '/_chat/automations'
     | '/_chat/brain'
     | '/_chat/command-center'
@@ -764,6 +785,7 @@ export interface FileRouteTypes {
     | '/_chat/developer'
     | '/_chat/files'
     | '/_chat/git'
+    | '/_chat/home'
     | '/_chat/images'
     | '/_chat/inbox'
     | '/_chat/library'
@@ -781,6 +803,7 @@ export interface FileRouteTypes {
     | '/_chat/team'
     | '/_chat/today'
     | '/_chat/usage'
+    | '/_chat/welcome'
     | '/projects/$projectKey'
     | '/_chat/'
     | '/_chat/$environmentId/$threadId'
@@ -816,6 +839,7 @@ export interface FileRouteTypes {
     | '/_chat/trading/crew'
     | '/_chat/trading/dashboard'
     | '/_chat/trading/journal'
+    | '/_chat/trading/library'
     | '/_chat/trading/money'
     | '/_chat/trading/risk'
   fileRoutesById: FileRoutesById
@@ -825,19 +849,11 @@ export interface RootRouteChildren {
   ConnectRoute: typeof ConnectRoute
   ConnectAgentRoute: typeof ConnectAgentRoute
   PairRoute: typeof PairRoute
-  WelcomeRoute: typeof WelcomeRoute
   ProjectsProjectKeyRoute: typeof ProjectsProjectKeyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/welcome': {
-      id: '/welcome'
-      path: '/welcome'
-      fullPath: '/welcome'
-      preLoaderRoute: typeof WelcomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/pair': {
       id: '/pair'
       path: '/pair'
@@ -879,6 +895,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/projects/$projectKey'
       preLoaderRoute: typeof ProjectsProjectKeyRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_chat/welcome': {
+      id: '/_chat/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof ChatWelcomeRouteImport
+      parentRoute: typeof ChatRoute
     }
     '/_chat/usage': {
       id: '/_chat/usage'
@@ -999,6 +1022,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatImagesRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/_chat/home': {
+      id: '/_chat/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof ChatHomeRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/_chat/git': {
       id: '/_chat/git'
       path: '/git'
@@ -1060,6 +1090,13 @@ declare module '@tanstack/react-router' {
       path: '/trading/money'
       fullPath: '/trading/money'
       preLoaderRoute: typeof ChatTradingMoneyRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/trading/library': {
+      id: '/_chat/trading/library'
+      path: '/trading/library'
+      fullPath: '/trading/library'
+      preLoaderRoute: typeof ChatTradingLibraryRouteImport
       parentRoute: typeof ChatRoute
     }
     '/_chat/trading/journal': {
@@ -1368,6 +1405,7 @@ interface ChatRouteChildren {
   ChatDeveloperRoute: typeof ChatDeveloperRoute
   ChatFilesRoute: typeof ChatFilesRoute
   ChatGitRoute: typeof ChatGitRoute
+  ChatHomeRoute: typeof ChatHomeRoute
   ChatImagesRoute: typeof ChatImagesRoute
   ChatInboxRoute: typeof ChatInboxRoute
   ChatLibraryRoute: typeof ChatLibraryRoute
@@ -1385,6 +1423,7 @@ interface ChatRouteChildren {
   ChatTeamRoute: typeof ChatTeamRoute
   ChatTodayRoute: typeof ChatTodayRoute
   ChatUsageRoute: typeof ChatUsageRoute
+  ChatWelcomeRoute: typeof ChatWelcomeRoute
   ChatIndexRoute: typeof ChatIndexRoute
   ChatEnvironmentIdThreadIdRoute: typeof ChatEnvironmentIdThreadIdRoute
   ChatDraftDraftIdRoute: typeof ChatDraftDraftIdRoute
@@ -1392,6 +1431,7 @@ interface ChatRouteChildren {
   ChatTradingCrewRoute: typeof ChatTradingCrewRoute
   ChatTradingDashboardRoute: typeof ChatTradingDashboardRoute
   ChatTradingJournalRoute: typeof ChatTradingJournalRoute
+  ChatTradingLibraryRoute: typeof ChatTradingLibraryRoute
   ChatTradingMoneyRoute: typeof ChatTradingMoneyRoute
   ChatTradingRiskRoute: typeof ChatTradingRiskRoute
 }
@@ -1404,6 +1444,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatDeveloperRoute: ChatDeveloperRoute,
   ChatFilesRoute: ChatFilesRoute,
   ChatGitRoute: ChatGitRoute,
+  ChatHomeRoute: ChatHomeRoute,
   ChatImagesRoute: ChatImagesRoute,
   ChatInboxRoute: ChatInboxRoute,
   ChatLibraryRoute: ChatLibraryRoute,
@@ -1421,6 +1462,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatTeamRoute: ChatTeamRoute,
   ChatTodayRoute: ChatTodayRoute,
   ChatUsageRoute: ChatUsageRoute,
+  ChatWelcomeRoute: ChatWelcomeRoute,
   ChatIndexRoute: ChatIndexRoute,
   ChatEnvironmentIdThreadIdRoute: ChatEnvironmentIdThreadIdRoute,
   ChatDraftDraftIdRoute: ChatDraftDraftIdRoute,
@@ -1428,6 +1470,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatTradingCrewRoute: ChatTradingCrewRoute,
   ChatTradingDashboardRoute: ChatTradingDashboardRoute,
   ChatTradingJournalRoute: ChatTradingJournalRoute,
+  ChatTradingLibraryRoute: ChatTradingLibraryRoute,
   ChatTradingMoneyRoute: ChatTradingMoneyRoute,
   ChatTradingRiskRoute: ChatTradingRiskRoute,
 }
@@ -1439,7 +1482,6 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectRoute: ConnectRoute,
   ConnectAgentRoute: ConnectAgentRoute,
   PairRoute: PairRoute,
-  WelcomeRoute: WelcomeRoute,
   ProjectsProjectKeyRoute: ProjectsProjectKeyRoute,
 }
 export const routeTree = rootRouteImport

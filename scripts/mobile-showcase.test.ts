@@ -4,7 +4,6 @@ import { assert, it } from "@effect/vitest";
 import { PNG } from "pngjs";
 
 import showcaseConfig, {
-  DEFAULT_SHOWCASE_THEME,
   resolveShowcaseAndroidAbi,
   SHOWCASE_THEMES,
   type ShowcaseConfig,
@@ -264,9 +263,8 @@ it("enforces store screenshot count limits", () => {
 });
 
 it("defaults every device to the app's own palette", () => {
-  assert.equal(DEFAULT_SHOWCASE_THEME, "leonidas");
   assert.equal(
-    showcaseConfig.devices.every((device) => device.theme === DEFAULT_SHOWCASE_THEME),
+    showcaseConfig.devices.every((device) => device.theme === "leonidas"),
     true,
   );
 });

@@ -1,0 +1,246 @@
+{
+  "model": {
+    "checkpoint": "z_image_turbo_bf16.safetensors",
+    "text_encoder": "qwen_3_4b_fp8_mixed.safetensors",
+    "vae": "ae.safetensors",
+    "license": "Apache-2.0 (Hugging Face model card front matter, checked 2026-11-10; the repo has no separate LICENSE file)"
+  },
+  "settings": {
+    "size": 1024,
+    "steps": 8,
+    "cfg": 1.0,
+    "sampler": "res_multistep",
+    "scheduler": "simple",
+    "shift": 3.0,
+    "output_size": 256
+  },
+  "template": "Close-up portrait of a cute felted wool {species} toy mascot, the head fills most of the frame, front view. The surface is smooth, dense, matte {color} wool felt like a wet-felted Waldorf toy: tightly packed and even, with a very short light fuzz and a crisp clean outline, no loops, no yarn, no stitches, no knit pattern. Simple glossy black bead eyes. {prop} Any prop is a real, realistic object, not felt. Soft studio lighting, shallow depth of field, {background}, no text, no logo.",
+  "roster": [
+    {
+      "id": "team-lead",
+      "color": "red",
+      "species": "bear",
+      "prop": "It wears a large real polished gold Spartan helmet with a tall red crest, lit by warm orange ember rim light that glows along the edge of the felt.",
+      "seed": 5001,
+      "background": "dark charcoal background with a golden aura and a warm orange ember glow behind the head"
+    },
+    {
+      "id": "planner",
+      "color": "sky blue",
+      "species": "mouse",
+      "prop": "It wears a small flat cap and holds a real rolled paper blueprint.",
+      "seed": 2005
+    },
+    {
+      "id": "architect",
+      "color": "tan",
+      "species": "bear",
+      "prop": "It holds a real tiny wooden model house and a real steel set square.",
+      "seed": 3003
+    },
+    {
+      "id": "researcher",
+      "color": "teal",
+      "species": "bear",
+      "prop": "It holds a real brass-framed magnifying glass with clear glass up to one eye.",
+      "seed": 1002
+    },
+    {
+      "id": "reviewer",
+      "color": "violet",
+      "species": "bear",
+      "prop": "It wears real round brass glasses and holds a real wooden clipboard with paper.",
+      "seed": 1003
+    },
+    {
+      "id": "coder",
+      "color": "green",
+      "species": "frog",
+      "prop": "It wears real black over-ear headphones and holds a real small silver laptop.",
+      "seed": 2001
+    },
+    {
+      "id": "frontend-designer",
+      "color": "hot pink",
+      "species": "bunny",
+      "prop": "It wears a small felt beret and holds a real paintbrush with a wooden handle and a drop of bright paint.",
+      "seed": 1004
+    },
+    {
+      "id": "tester",
+      "color": "orange",
+      "species": "fox",
+      "prop": "It wears a real yellow plastic hard hat and holds a real steel wrench.",
+      "seed": 2003
+    },
+    {
+      "id": "debugger",
+      "color": "cream white",
+      "species": "bear",
+      "prop": "It wears a real silver head mirror on a headband and holds a real glass jar with a real beetle inside.",
+      "seed": 3006
+    },
+    {
+      "id": "security",
+      "color": "dark navy blue",
+      "species": "bear",
+      "prop": "It wears a real polished silver shield badge on a strap and has a stern watchful look.",
+      "seed": 2004
+    },
+    {
+      "id": "compliance",
+      "color": "charcoal gray",
+      "species": "cat",
+      "prop": "It wears a small blue felt bow tie and holds a real small wooden gavel.",
+      "seed": 3009
+    },
+    {
+      "id": "devops",
+      "color": "slate gray",
+      "species": "mouse",
+      "prop": "It holds a real small white and red metal toy rocket.",
+      "seed": 3008
+    },
+    {
+      "id": "automation",
+      "color": "silver gray",
+      "species": "cat",
+      "prop": "It holds a real large brass gear.",
+      "seed": 3004
+    },
+    {
+      "id": "datakeeper",
+      "color": "brown",
+      "species": "bear",
+      "prop": "It hugs a real small wooden filing box.",
+      "seed": 3006
+    },
+    {
+      "id": "analyst",
+      "color": "mint green",
+      "species": "bunny",
+      "prop": "It holds a real small card with a printed pie chart.",
+      "seed": 3001
+    },
+    {
+      "id": "accountant",
+      "color": "forest green",
+      "species": "bear",
+      "prop": "It wears a small green visor cap and holds a real small calculator.",
+      "seed": 3008
+    },
+    {
+      "id": "writer",
+      "color": "yellow",
+      "species": "cat",
+      "prop": "It holds a real large white feather quill pen and wears a small scarf.",
+      "seed": 2002
+    },
+    {
+      "id": "translator",
+      "color": "coral",
+      "species": "bunny",
+      "prop": "It holds a real small painted wooden speech bubble sign.",
+      "seed": 3004
+    },
+    {
+      "id": "marketer",
+      "color": "magenta",
+      "species": "bear",
+      "prop": "It holds a real red and white megaphone up in one paw, away from its face.",
+      "seed": 3111
+    },
+    {
+      "id": "support",
+      "color": "peach",
+      "species": "bear",
+      "prop": "It wears a real black headset with a microphone and a warm smile.",
+      "seed": 3010
+    },
+    {
+      "id": "teacher",
+      "color": "dusty blue gray",
+      "species": "owl",
+      "prop": "It wears a small graduation cap and holds a real small chalkboard with a wooden frame.",
+      "seed": 3105
+    },
+    {
+      "id": "librarian",
+      "color": "burgundy",
+      "species": "bear",
+      "prop": "It wears real round glasses and holds a real stack of small books.",
+      "seed": 3013
+    },
+    {
+      "id": "scout",
+      "color": "lime green",
+      "species": "mouse",
+      "prop": "It holds a real pair of black binoculars.",
+      "seed": 3012
+    },
+    {
+      "id": "investigator",
+      "color": "olive brown",
+      "species": "fox",
+      "prop": "It wears a small felt trench coat with the collar up and holds a real small brass flashlight.",
+      "seed": 3017
+    },
+    {
+      "id": "scientist",
+      "color": "white",
+      "species": "mouse",
+      "prop": "It wears real clear safety goggles and holds a real glass flask with green liquid.",
+      "seed": 3019
+    },
+    {
+      "id": "navigator",
+      "color": "sky blue",
+      "species": "cat",
+      "prop": "It wears a real leather aviator cap and real flight goggles.",
+      "seed": 3014
+    },
+    {
+      "id": "photographer",
+      "color": "black",
+      "species": "bear",
+      "prop": "It holds a real silver retro film camera.",
+      "seed": 3016
+    },
+    {
+      "id": "musician",
+      "color": "indigo",
+      "species": "bear",
+      "prop": "It holds a real small wooden ukulele.",
+      "seed": 3015
+    },
+    {
+      "id": "gardener",
+      "color": "olive green",
+      "species": "bear",
+      "prop": "It holds a real small tin watering can.",
+      "seed": 3018
+    },
+    {
+      "id": "wizard",
+      "color": "deep purple",
+      "species": "cat",
+      "prop": "It wears a small felt pointy hat with stars.",
+      "seed": 3020
+    },
+    {
+      "id": "helper",
+      "color": "light gray",
+      "species": "robot",
+      "prop": "It has a real tiny metal antenna on its head and a friendly look.",
+      "seed": 3021
+    },
+    {
+      "id": "leonidas",
+      "color": "golden yellow",
+      "species": "lion",
+      "prop": "It wears a real golden laurel wreath made of metal leaves and has a proud look.",
+      "seed": 3022
+    }
+  ],
+  "background_default": "plain dark charcoal background"
+}

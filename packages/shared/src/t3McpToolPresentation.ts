@@ -429,6 +429,7 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   leo_aios_memory_search: tool(["Search", "Searching", "Searched", "your memory"], "memory-search"),
   leo_aios_memory_read: tool(["Read", "Reading", "Read", "a memory entry"], "memory-search"),
   leo_usage_status: tool(["Check", "Checking", "Checked", "account usage"], "usage-status"),
+  leo_chat_quota: tool(["Check", "Checking", "Checked", "quota per chat"], "usage-status"),
   leo_release_status: tool(["Check", "Checking", "Checked", "the release"], "release-status"),
   leo_hardware_status: tool(["Check", "Checking", "Checked", "computer health"], "hardware-status"),
   leo_review_diff_get: tool(["Read", "Reading", "Read", "code changes"], "review-diff"),

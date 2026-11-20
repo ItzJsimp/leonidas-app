@@ -7,12 +7,16 @@
  * field through `searchFieldRef`, as the View options panel does.
  */
 import type { EnvironmentId, SidebarThreadSortOrder } from "@t3tools/contracts";
+import { Link } from "@tanstack/react-router";
 import {
   ChevronRightIcon,
   EllipsisIcon,
   FolderPlusIcon,
   HistoryIcon,
+  LayoutDashboardIcon,
   ListFilterIcon,
+  PencilIcon,
+  PinOffIcon,
   SearchIcon,
   SlidersHorizontalIcon,
   SquarePenIcon,
@@ -30,11 +34,32 @@ import {
 import { cn } from "~/lib/utils";
 import { ThreadSweepDialog } from "../threadSweep/ThreadSweepDialog";
 import { Button } from "../ui/button";
-import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "../ui/menu";
+import {
+  Menu,
+  MenuCheckboxItem,
+  MenuItem,
+  MenuItemLabel,
+  MenuPopup,
+  MenuSeparator,
+  MenuSub,
+  MenuSubPopup,
+  MenuSubTrigger,
+  MenuTrigger,
+} from "../ui/menu";
 import { SidebarInput, SidebarMenuButton } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { badgeText, ICONS } from "../twoState/AppRail";
+import { railLinkLabel, type RailItem } from "../twoState/railItems";
+import { useRailItems } from "../twoState/useRailItems";
+import { useTwoStateCounts } from "../twoState/useTwoStateData";
+import { Tip } from "../twoState/Tip";
 import { SidebarViewMenu, viewOptionsLabel } from "./SidebarViewMenu";
 import { useSidebarViewStore } from "./sidebarViewStore";
+
+/** One row style for New chat and every pinned tab, so the top of the panel reads as one list. */
+const PANEL_ROW_CLASS =
+  "flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-row-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none";
+const PANEL_ROW_ICON_CLASS = "size-4 shrink-0 text-(--sidebar-icon-color)";
 
 export interface SidebarThreadHeaderProps {
   searchFieldRef: RefObject<HTMLDivElement | null>;
@@ -99,44 +124,49 @@ export function SidebarThreadHeader({
     ? `New chat (${newThreadShortcutLabel})`
     : "New chat";
   const canSweep = sweep.environmentId !== null && sweep.cwd !== null;
+  const { pinned, pinnable, togglePin } = useRailItems();
 
   return (
     <div className="flex flex-col gap-2">
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              type="button"
-              data-usage-id="new_thread"
-              aria-label={newThreadLabel}
-              disabled={newThreadDisabled}
-              onClick={onNewThread}
-              className="flex h-8 w-full items-center gap-2 rounded-lg border border-sidebar-border px-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-row-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-64 motion-reduce:transition-none"
-            />
-          }
-        >
-          <SquarePenIcon aria-hidden className="size-4 shrink-0 text-primary" />
-          <span className="flex-1 text-left">New chat</span>
-          {newThreadShortcutLabel ? (
-            <kbd className="font-sans text-2xs text-sidebar-muted-foreground">
-              {newThreadShortcutLabel}
-            </kbd>
-          ) : null}
-        </TooltipTrigger>
-        <TooltipPopup side="bottom">
-          {showNewThreadInProjectHint ? (
-            <span className="flex flex-col gap-0.5">
-              <span>{newThreadLabel}</span>
-              <span className="text-muted-foreground">
-                New thread in current project: Shift+click
-                {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
+      {/* New chat and the pinned tabs are one even list (Jake's sidebar pick, 2026-11-17). */}
+      <div className="flex flex-col">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                data-usage-id="new_thread"
+                aria-label={newThreadLabel}
+                disabled={newThreadDisabled}
+                onClick={onNewThread}
+                className={cn(PANEL_ROW_CLASS, "disabled:pointer-events-none disabled:opacity-64")}
+              />
+            }
+          >
+            <SquarePenIcon aria-hidden className={PANEL_ROW_ICON_CLASS} />
+            <span className="flex-1 text-left">New chat</span>
+            {newThreadShortcutLabel ? (
+              <kbd className="font-sans text-2xs text-sidebar-muted-foreground">
+                {newThreadShortcutLabel}
+              </kbd>
+            ) : null}
+          </TooltipTrigger>
+          <TooltipPopup side="bottom">
+            {showNewThreadInProjectHint ? (
+              <span className="flex flex-col gap-0.5">
+                <span>{newThreadLabel}</span>
+                <span className="text-muted-foreground">
+                  New thread in current project: Shift+click
+                  {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
+                </span>
               </span>
-            </span>
-          ) : (
-            newThreadLabel
-          )}
-        </TooltipPopup>
-      </Tooltip>
+            ) : (
+              newThreadLabel
+            )}
+          </TooltipPopup>
+        </Tooltip>
+        <PinnedTabs pinned={pinned} onToggle={togglePin} />
+      </div>
       <div className="flex items-center gap-1">
         <div
           ref={searchFieldRef}
@@ -190,6 +220,25 @@ export function SidebarThreadHeader({
               <span className="flex-1">View options</span>
               <MenuValue>{viewOptionsLabel(groupBy)}</MenuValue>
             </MenuItem>
+            {pinnable.length > 0 ? (
+              <MenuSub>
+                <MenuSubTrigger>
+                  <PencilIcon />
+                  <MenuItemLabel>Edit tabs</MenuItemLabel>
+                </MenuSubTrigger>
+                <MenuSubPopup>
+                  {pinnable.map((item) => (
+                    <MenuCheckboxItem
+                      key={item.id}
+                      checked={pinned.some((entry) => entry.id === item.id)}
+                      onCheckedChange={(on) => togglePin(item.id, on)}
+                    >
+                      {item.label}
+                    </MenuCheckboxItem>
+                  ))}
+                </MenuSubPopup>
+              </MenuSub>
+            ) : null}
             {canSweep ? (
               <MenuItem data-usage-id="thread_sweep" onClick={() => setSweepOpen(true)}>
                 <HistoryIcon />
@@ -229,6 +278,62 @@ export function SidebarThreadHeader({
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Rail tabs pinned under New chat (Jake's sidebar pick, 2026-11-17). A pinned tab stays on the rail
+ * too: this list shows on the Chat page alone. Counts share one fixed width so they line up. Hover
+ * shows the unpin button in the count's place. Edit tabs lives in the More menu (Jake, 2026-11-18).
+ */
+function PinnedTabs({
+  pinned,
+  onToggle,
+}: {
+  pinned: readonly RailItem[];
+  onToggle: (id: string, on: boolean) => void;
+}) {
+  const needsYou = useTwoStateCounts().needsYou ?? 0;
+  if (pinned.length === 0) return null;
+  return (
+    <ul aria-label="Pinned tabs" className="flex flex-col">
+      {pinned.map((item) => {
+        const Icon = ICONS[item.id] ?? LayoutDashboardIcon;
+        const count = item.id === "inbox" ? needsYou : 0;
+        return (
+          <li key={item.id} className="group/pin relative">
+            <Tip text={item.tooltip}>
+              <Link
+                to={item.to}
+                aria-label={railLinkLabel(item.label, count)}
+                className={PANEL_ROW_CLASS}
+              >
+                <Icon aria-hidden className={PANEL_ROW_ICON_CLASS} />
+                <span className="flex-1 truncate">{item.label}</span>
+                {count > 0 ? (
+                  <span
+                    aria-hidden
+                    className="grid h-[18px] w-7 shrink-0 place-items-center rounded-full bg-sidebar-control-surface text-2xs font-semibold tabular-nums group-hover/pin:invisible group-focus-within/pin:invisible"
+                  >
+                    {badgeText(count)}
+                  </span>
+                ) : null}
+              </Link>
+            </Tip>
+            <Tip text={`Unpin ${item.label} from this list`}>
+              <button
+                type="button"
+                aria-label={`Unpin ${item.label}`}
+                onClick={() => onToggle(item.id, false)}
+                className="absolute top-1/2 right-1.5 grid size-6 -translate-y-1/2 place-items-center rounded-md text-sidebar-muted-foreground opacity-0 transition-opacity group-hover/pin:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none"
+              >
+                <PinOffIcon aria-hidden className="size-3.5" />
+              </button>
+            </Tip>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

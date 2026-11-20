@@ -195,7 +195,7 @@ export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
   // view, kept exactly as it was so split view costs nothing until it is used.
   const splitActive = useSplitLayoutStore((state) => selectPaneCount(state) > 1);
   return (
-    <SidebarInset className="h-svh min-h-0 overflow-hidden overscroll-y-none md:h-dvh">
+    <SidebarInset className="h-full min-h-0 overflow-hidden overscroll-y-none">
       {splitActive ? (
         <SplitWorkspace routeTarget={target} />
       ) : (

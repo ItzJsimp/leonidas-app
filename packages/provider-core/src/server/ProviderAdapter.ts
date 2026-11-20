@@ -54,6 +54,8 @@ export const ProviderAdapterV2RuntimePolicy = Schema.Struct({
   reasoningEffort: Schema.optional(Schema.String),
   /** Reply style body for `buildRuntimeInstructions`; absent means the shipped Leonidas style. */
   replyStyle: Schema.optional(Schema.String),
+  /** The `<home_agent>` block for the Home chat only: its team and delegate rules. */
+  homeAgent: Schema.optional(Schema.String),
 });
 export type ProviderAdapterV2RuntimePolicy = typeof ProviderAdapterV2RuntimePolicy.Type;
 

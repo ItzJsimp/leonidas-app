@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   countReady,
+  entryAvatar,
   formatTokensShort,
   groupStudioEntries,
   personaEngineHint,
@@ -37,14 +38,39 @@ const entries = [
 ];
 
 describe("groupStudioEntries", () => {
-  it("splits on, catalog, projects and needs fixing", () => {
+  it("splits lead, on, catalog, projects and needs fixing", () => {
     const groups = groupStudioEntries(entries, "");
     expect(groups.map((group) => [group.key, group.entries.map((item) => item.name)])).toEqual([
+      ["lead", []],
       ["on", ["explorer"]],
       ["catalog", ["summarizer"]],
       ["projects", ["roblox"]],
       ["fix", ["old", "broken"]],
     ]);
+  });
+
+  it("puts the orchestrator (canSpawn) in the Lead group, from the AIOS or a project", () => {
+    const withLead = [
+      ...entries,
+      entry({ name: "team-lead", canSpawn: true }),
+      entry({ name: "game-lead", canSpawn: true, source: "project", projectName: "game" }),
+      entry({ name: "broken-lead", canSpawn: true, error: "No base." }),
+    ];
+    const groups = groupStudioEntries(withLead, "");
+    const names = (key: string) =>
+      groups.find((group) => group.key === key)?.entries.map((item) => item.name);
+    expect(names("lead")).toEqual(["team-lead", "game-lead"]);
+    expect(names("on")).toEqual(["explorer"]);
+    expect(names("projects")).toEqual(["roblox"]);
+    expect(names("fix")).toContain("broken-lead");
+  });
+
+  it("shows the team lead character for a lead with no avatar of its own", () => {
+    expect(entryAvatar(entry({ name: "test-lead", canSpawn: true }))).toBe("felt/team-lead");
+    expect(entryAvatar(entry({ name: "scout", avatar: "felt/scout", canSpawn: true }))).toBe(
+      "felt/scout",
+    );
+    expect(entryAvatar(entry({ name: "explorer" }))).toBeNull();
   });
 
   it("searches name, description and project", () => {

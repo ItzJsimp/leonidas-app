@@ -1231,3 +1231,38 @@ it.effect("explicit settle clears snooze atomically and stays idempotent after r
     assert.deepInclude((yield* projections.getThreadProjection(threadId)).thread, active);
   }).pipe(Effect.provide(layerTest)),
 );
+
+it.effect("keeps the Home role on the thread record and the shell until it is cleared", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const threadId = ThreadId.make("thread:home-role");
+    yield* orchestrator.dispatch({
+      type: "thread.create",
+      commandId: CommandId.make("create-home-role"),
+      threadId,
+      projectId: ProjectId.make("project:home-role"),
+      title: "Home",
+      modelSelection,
+      runtimeMode: "full-access",
+      interactionMode: "default",
+      branch: null,
+      worktreePath: null,
+      createdBy: "user",
+      creationSource: "web",
+    });
+    assert.isNull((yield* projections.getThreadShell(threadId))?.role);
+    const setRole = (id: string, role: "home" | null) =>
+      orchestrator.dispatch({
+        type: "thread.metadata.update",
+        commandId: CommandId.make(id),
+        threadId,
+        role,
+      });
+    yield* setRole("mark-home-role", "home");
+    assert.equal((yield* projections.getThreadShell(threadId))?.role, "home");
+    assert.equal((yield* projections.getThreadProjection(threadId)).thread.role, "home");
+    yield* setRole("clear-home-role", null);
+    assert.isNull((yield* projections.getThreadShell(threadId))?.role);
+  }).pipe(Effect.provide(layerTest)),
+);

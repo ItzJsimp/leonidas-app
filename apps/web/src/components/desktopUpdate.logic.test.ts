@@ -332,11 +332,14 @@ describe("resolveUpdatePill", () => {
     };
     expect(resolveUpdatePill(failedInstall, "notable")).toBe("paused");
   });
-  it("shows nothing while an update is only downloading, or without state", () => {
+  it("shows Downloading while an update comes in, and nothing without state", () => {
     expect(
-      resolveUpdatePill({ ...baseState, status: "downloading", releaseNotes: notable }, "notable"),
+      resolveUpdatePill({ ...baseState, status: "downloading", releaseNotes: notable }, "all"),
+    ).toBe("downloading");
+    expect(
+      resolveUpdatePill({ ...baseState, status: "downloading", releaseNotes: small }, "notable"),
     ).toBeNull();
-    expect(resolveUpdatePill(null, "notable")).toBeNull();
+    expect(resolveUpdatePill(null, "all")).toBeNull();
   });
 });
 

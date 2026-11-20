@@ -192,6 +192,7 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
         operation === "generateThreadTitle" ||
         operation === "generatePromptSuggestion" ||
         operation === "pickSkills" ||
+        operation === "draftAgent" ||
         operation === "generateVoiceLogDraft"
           ? yield* fileSystem
               .makeTempDirectoryScoped({ prefix: "t3code-claude-title-" })

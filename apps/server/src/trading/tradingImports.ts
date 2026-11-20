@@ -169,7 +169,7 @@ export function makeTradingImportWatch(
 
 const readFailed = () => new TradingStateError({ reason: "read_failed" });
 
-const readTradeIds = Effect.fn("trading.readTradeIds")(function* (root: string) {
+export const readTradeIds = Effect.fn("trading.readTradeIds")(function* (root: string) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const file = path.join(root, "trading", "trades.jsonl");

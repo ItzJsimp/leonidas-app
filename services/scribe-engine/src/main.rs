@@ -5,7 +5,9 @@
 //!
 //! Flags: `--config <path>` (default `%APPDATA%\Leonidas\scribe-engine\config.json`),
 //! `--accept-injected` (the latency bench sends synthetic hotkeys),
-//! `--null-audio` (the CI bench has no microphone).
+//! `--null-audio` (the CI bench has no microphone),
+//! `--parent-pid <pid>` (exit when that process ends, so an update or crash of the app
+//! never leaves an engine running without it).
 
 use scribe_engine::audio::{CpalRecorder, NullRecorder};
 use scribe_engine::config::Config;
@@ -35,19 +37,55 @@ fn main() {
     }
 }
 
+/// Ends this process when process `pid` ends. A parent that is already gone ends it at once.
+#[cfg(windows)]
+fn exit_with_parent(pid: u32) {
+    use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, ERROR_INVALID_PARAMETER};
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, WaitForSingleObject, INFINITE, PROCESS_SYNCHRONIZE,
+    };
+    std::thread::spawn(move || unsafe {
+        let parent = OpenProcess(PROCESS_SYNCHRONIZE, 0, pid);
+        if parent.is_null() {
+            // Only "no such process" means the parent is gone; any other error keeps the engine up.
+            if GetLastError() == ERROR_INVALID_PARAMETER {
+                std::process::exit(0);
+            }
+            return;
+        }
+        WaitForSingleObject(parent, INFINITE);
+        CloseHandle(parent);
+        std::process::exit(0);
+    });
+}
+
+#[cfg(not(windows))]
+fn exit_with_parent(_: u32) {}
+
 fn run() -> Result<(), String> {
     let started = Instant::now();
     let mut args = std::env::args().skip(1);
     let mut config_path: Option<PathBuf> = None;
     let mut accept_injected = false;
     let mut null_audio = false;
+    let mut parent_pid: Option<u32> = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--config" => config_path = Some(args.next().ok_or("--config needs a path")?.into()),
             "--accept-injected" => accept_injected = true,
             "--null-audio" => null_audio = true,
+            "--parent-pid" => {
+                parent_pid = Some(
+                    args.next()
+                        .and_then(|pid| pid.parse().ok())
+                        .ok_or("--parent-pid needs a process id")?,
+                )
+            }
             other => return Err(format!("unknown argument {other}")),
         }
+    }
+    if let Some(pid) = parent_pid {
+        exit_with_parent(pid);
     }
     let config_path = config_path.unwrap_or_else(|| Config::default_dir().join("config.json"));
     let config_dir = config_path
@@ -140,12 +178,16 @@ fn run() -> Result<(), String> {
     #[cfg(windows)]
     let rewrite_active = active.clone();
     let (hotkey_tx, hotkey_rx) = mpsc::channel();
-    let hooks = hotkeys::spawn(
-        &cfg.bindings,
-        active.clone(),
-        accept_injected,
-        hotkey_tx.clone(),
-    )?;
+    let hooks = if cfg.bindings.enabled {
+        Some(hotkeys::spawn(
+            &cfg.bindings,
+            active.clone(),
+            accept_injected,
+            hotkey_tx.clone(),
+        )?)
+    } else {
+        None
+    };
 
     // v1.2: apply each saved settings section that can change without a restart.
     {
@@ -153,7 +195,7 @@ fn run() -> Result<(), String> {
         let settings = settings.clone();
         let engine = engine.clone();
         let active = active.clone();
-        let mut hooks = Some(hooks);
+        let mut hooks = hooks;
         std::thread::Builder::new()
             .name("scribe-settings".into())
             .spawn(move || {
@@ -171,14 +213,18 @@ fn run() -> Result<(), String> {
                         "hotkeys" => {
                             // Stop the old hooks first, so a key is never bound twice.
                             drop(hooks.take());
-                            hooks = hotkeys::spawn(
-                                &cfg.bindings,
-                                active.clone(),
-                                accept_injected,
-                                hotkey_tx.clone(),
-                            )
-                            .inspect_err(|e| eprintln!("hotkeys: {e}"))
-                            .ok();
+                            hooks = if cfg.bindings.enabled {
+                                hotkeys::spawn(
+                                    &cfg.bindings,
+                                    active.clone(),
+                                    accept_injected,
+                                    hotkey_tx.clone(),
+                                )
+                                .inspect_err(|e| eprintln!("hotkeys: {e}"))
+                                .ok()
+                            } else {
+                                None
+                            };
                         }
                         _ => {}
                     }

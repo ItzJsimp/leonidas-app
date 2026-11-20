@@ -10,14 +10,21 @@ import * as ImageService from "./images/ImageService.ts";
 import * as LocalModelsService from "./localModels/LocalModelsService.ts";
 import * as AttachmentArchive from "./files/AttachmentArchive.ts";
 import * as SubagentRuns from "./subagents/SubagentRuns.ts";
+import * as SubagentDraftLive from "./subagents/subagentDraftLive.ts";
 import { isPathInRoot } from "./taskBoard/aiosWorkspaces.ts";
 import * as WorkspacePictures from "./taskBoard/workspacePictures.ts";
 import * as TaskBoardService from "./taskBoard/TaskBoardService.ts";
 import * as AreaSyncService from "./areaSync/AreaSyncService.ts";
 import { SpawnApprovals } from "./subagents/SpawnApprovals.ts";
+import { readAiosModelTiersNear } from "./subagents/spawnTiers.ts";
 import { listSubagents, subagentSources } from "./subagents/subagentCatalog.ts";
 import { subagentWorkspaceProjects } from "./subagents/workspaceProjects.ts";
-import { createStudioSubagent, updateStudioSubagent } from "./subagents/subagentStudioWrites.ts";
+import {
+  createStudioSubagent,
+  deleteStudioSubagent,
+  duplicateStudioSubagent,
+  updateStudioSubagent,
+} from "./subagents/subagentStudioWrites.ts";
 import { appendDraft, feedStream } from "./events/eventsRpc.ts";
 import * as AutomationService from "./automations/AutomationService.ts";
 import * as MarketingRpc from "./marketing/marketingRpc.ts";
@@ -41,16 +48,30 @@ import {
   isPonytailPluginEnabled,
   readCodexPonytailState,
 } from "./provider/PonytailEnsure.ts";
+import { readGameModeStatus, runGameModeAction } from "./gameMode/gameMode.ts";
 import { readReleaseStatus } from "./releaseStatus/releaseStatus.ts";
 import { homeNews, homeWeather } from "./taskBoard/homeFeeds.ts";
 import { appendTradingEvents } from "./trading/appendTradingEvents.ts";
+import { crewResult, makeCrewRunner } from "./trading/crewRunner.ts";
+import { saveTradingSettings } from "./trading/tradingSettings.ts";
 import { readTradingState, requireTradingRoot } from "./trading/readTradingState.ts";
+import { readTradingRiskRules } from "./trading/tradingRiskRules.ts";
 import { savePackConsent } from "./trading/tradingPack.ts";
 import {
   importTradingExport,
   listTradingImports,
   makeTradingImportWatch,
 } from "./trading/tradingImports.ts";
+import { addManualTrade } from "./trading/tradingManualTrade.ts";
+import { readDayNote, saveDayNote } from "./trading/tradingDays.ts";
+import { readScreenshot, saveScreenshot } from "./trading/tradingScreenshots.ts";
+import {
+  listResources,
+  readLibraryIndex,
+  readLibraryPage,
+  saveResource,
+  searchLibrary,
+} from "./trading/tradingLibrary.ts";
 import * as PromptSuggestion from "./workspace/PromptSuggestion.ts";
 import * as SkillPick from "./workspace/SkillPick.ts";
 import * as TextGeneration from "./textGeneration/TextGeneration.ts";
@@ -303,6 +324,7 @@ import * as HostResources from "./resourceTelemetry/HostResources.ts";
 import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
 import { featureUsage } from "./telemetry/FeatureUsage.ts";
 import type { TelemetryOwner } from "./telemetry/Identify.ts";
+import { readChatQuota } from "./usage/ChatQuotaLog.ts";
 import * as UsageService from "./usage/UsageService.ts";
 import { HttpClient } from "effect/http";
 import { testApiKey } from "./apiKeys/testApiKey.ts";
@@ -1369,6 +1391,8 @@ export const layerWsRpc = (
               Effect.orElseSucceed(() => null),
             );
       const usage = yield* UsageService.UsageService;
+      const chatQuotaFileSystem = yield* FileSystem.FileSystem;
+      const chatQuotaPath = yield* Path.Path;
       const modelBenchmarks = yield* ModelBenchmarks.ModelBenchmarks;
       const calendar = yield* Calendar.Calendar;
       const apiKeyHttpClient = yield* HttpClient.HttpClient;
@@ -1489,6 +1513,16 @@ export const layerWsRpc = (
       const localModels = yield* LocalModelsService.LocalModelsService;
       const attachmentArchive = yield* AttachmentArchive.AttachmentArchive;
       const subagentRuns = yield* SubagentRuns.SubagentRuns;
+      // The creator draft reads the AIOS model map, so a model it marks free needs no confirm.
+      const subagentDraft = yield* SubagentDraftLive.make({
+        cwd: config.cwd,
+        aiosTiers: studioWriteScope(undefined).pipe(
+          Effect.map(({ aiosRoot }) =>
+            aiosRoot === null ? null : readAiosModelTiersNear(`${aiosRoot}/.agents/subagents/x.md`),
+          ),
+          Effect.orElseSucceed(() => null),
+        ),
+      });
       const withImagesProject = <A, E, R>(
         projectId: ProjectId,
         use: (project: Project) => Effect.Effect<A, E, R>,
@@ -1525,6 +1559,39 @@ export const layerWsRpc = (
       const backgroundPolicy = yield* BackgroundPolicy.BackgroundPolicy;
       const tradingImports = makeTradingImportWatch();
       yield* Effect.addFinalizer(() => Effect.sync(tradingImports.close));
+      const crewFs = yield* FileSystem.FileSystem;
+      const crewPath = yield* Path.Path;
+      const crewScope = yield* Effect.scope;
+      // Crew sync runs its Git commands through the Git workflow service. Never a password prompt.
+      const crewSync = makeCrewRunner({
+        scope: crewScope,
+        provide: (effect) =>
+          effect.pipe(
+            Effect.provideService(FileSystem.FileSystem, crewFs),
+            Effect.provideService(Path.Path, crewPath),
+          ),
+        run: (cwd, args) =>
+          gitWorkflow
+            .runGit({
+              operation: "TradingCrewSync",
+              cwd,
+              args,
+              allowNonZeroExit: true,
+              timeoutMs: 60_000,
+              env: { GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never" },
+            })
+            .pipe(
+              Effect.map((result) => ({
+                exitCode: Number(result.exitCode),
+                stdout: result.stdout,
+                stderr: result.stderr,
+              })),
+              // A Git error reads as a failed command, so the sync reports it and carries on.
+              Effect.catch((cause) =>
+                Effect.succeed({ exitCode: 1, stdout: "", stderr: String(cause) }),
+              ),
+            ),
+      });
       const rpcClientIds = yield* Ref.make(new Set<RpcClientId>());
       yield* Effect.addFinalizer(() =>
         Ref.get(rpcClientIds).pipe(
@@ -2684,6 +2751,48 @@ export const layerWsRpc = (
         [WS_METHODS.serverGetResourceTelemetryHistory]: (input) =>
           resourceTelemetry.readHistory(input),
         [WS_METHODS.serverGetUsageSummary]: (input) => usage.readSummary(input),
+        [WS_METHODS.serverGetChatQuotaReport]: (input) =>
+          Effect.flatMap(Clock.currentTimeMillis, (nowMs) =>
+            readChatQuota(config.providerStatusCacheDir, nowMs - input.days * 86_400_000),
+          ).pipe(
+            Effect.map(({ coverageStart, chats }) => ({
+              coverageStart:
+                coverageStart === null
+                  ? null
+                  : DateTime.formatIso(DateTime.makeUnsafe(coverageStart)),
+              chats: chats.map((chat) => ({
+                threadId: chat.threadId,
+                // The log file name comes from a valid instance id.
+                providerInstanceId: chat.providerInstanceId as ProviderInstanceId,
+                fiveHour: chat.fiveHour,
+                weekly: chat.weekly,
+                firstAt: DateTime.formatIso(DateTime.makeUnsafe(chat.firstAt)),
+                lastAt: DateTime.formatIso(DateTime.makeUnsafe(chat.lastAt)),
+              })),
+            })),
+            Effect.provideService(FileSystem.FileSystem, chatQuotaFileSystem),
+            Effect.provideService(Path.Path, chatQuotaPath),
+          ),
+        [WS_METHODS.serverGetChatQuota]: (input) =>
+          readChatQuota(config.providerStatusCacheDir, 0).pipe(
+            Effect.map(({ coverageStart, chats }) => ({
+              coverageStart:
+                coverageStart === null
+                  ? null
+                  : DateTime.formatIso(DateTime.makeUnsafe(coverageStart)),
+              accounts: chats
+                .filter((chat) => chat.threadId === input.threadId)
+                .map((chat) => ({
+                  // The log file name comes from a valid instance id.
+                  providerInstanceId: chat.providerInstanceId as ProviderInstanceId,
+                  fiveHour: chat.fiveHour,
+                  weekly: chat.weekly,
+                  lastAt: DateTime.formatIso(DateTime.makeUnsafe(chat.lastAt)),
+                })),
+            })),
+            Effect.provideService(FileSystem.FileSystem, chatQuotaFileSystem),
+            Effect.provideService(Path.Path, chatQuotaPath),
+          ),
         [WS_METHODS.serverRefreshUsageRates]: (_input) => usage.refreshRates,
         [WS_METHODS.serverGetModelBenchmarks]: (input) => modelBenchmarks.report(input.models),
         [WS_METHODS.serverGetModelBenchmarkCatalog]: () => modelBenchmarks.catalog,
@@ -2993,6 +3102,29 @@ export const layerWsRpc = (
                 }),
             });
           }),
+        [WS_METHODS.subagentsDelete]: (input) =>
+          Effect.gen(function* () {
+            const scope = yield* studioWriteScope(input.workspaceId);
+            return yield* Effect.try({
+              try: () => deleteStudioSubagent(scope, input),
+              catch: (error) =>
+                new SubagentEditError({
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+            });
+          }),
+        [WS_METHODS.subagentsDraft]: (input) => subagentDraft(input),
+        [WS_METHODS.subagentsDuplicate]: (input) =>
+          Effect.gen(function* () {
+            const scope = yield* studioWriteScope(input.workspaceId);
+            return yield* Effect.try({
+              try: () => duplicateStudioSubagent(scope, input),
+              catch: (error) =>
+                new SubagentEditError({
+                  message: error instanceof Error ? error.message : String(error),
+                }),
+            });
+          }),
         [WS_METHODS.eventsSubscribe]: (input) =>
           feedStream(
             allTaskBoardProjects.pipe(
@@ -3092,7 +3224,7 @@ export const layerWsRpc = (
         [WS_METHODS.localModelsDelete]: (input) => localModels.remove(input),
         [WS_METHODS.filesList]: (input) => attachmentArchive.list(input),
         [WS_METHODS.filesDelete]: (input) => attachmentArchive.remove(input),
-        [WS_METHODS.subagentRunsList]: (input) => subagentRuns.list(input),
+        [WS_METHODS.subagentRunsList]: (input) => subagentRuns.list(input, usage.rateFor),
         [WS_METHODS.taskBoardWorkspace]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.workspace(projects, input.workspaceId)),
@@ -3144,7 +3276,11 @@ export const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
             Effect.orElseSucceed(() => null),
-            Effect.flatMap((root) => importTradingExport(root, input, tradingImports)),
+            Effect.flatMap((root) =>
+              importTradingExport(root, input, tradingImports).pipe(
+                Effect.tap(() => (root === null ? Effect.void : crewSync.poke(root))),
+              ),
+            ),
           ),
         [WS_METHODS.tradingPackConsent]: (input) =>
           allTaskBoardProjects.pipe(
@@ -3165,9 +3301,110 @@ export const layerWsRpc = (
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
             Effect.orElseSucceed(() => null),
-            Effect.flatMap((root) => appendTradingEvents(root, input.events)),
+            Effect.flatMap((root) =>
+              appendTradingEvents(root, input.events).pipe(
+                Effect.tap(() => (root === null ? Effect.void : crewSync.poke(root))),
+              ),
+            ),
+          ),
+        [WS_METHODS.tradingSettingsSave]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(requireTradingRoot),
+            Effect.flatMap((root) =>
+              saveTradingSettings(root, {
+                monthlyFeeCap: input.monthlyFeeCap,
+                traderName: input.traderName,
+                share: input.share,
+                crewSync: input.crewSync,
+              }).pipe(Effect.tap(() => crewSync.poke(root))),
+            ),
+          ),
+        [WS_METHODS.tradingCrew]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(requireTradingRoot),
+            Effect.tap((root) => crewSync.watch(root)),
+            Effect.flatMap(crewResult),
+          ),
+        [WS_METHODS.tradingCrewSync]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(requireTradingRoot),
+            Effect.flatMap(crewSync.syncNow),
+          ),
+        [WS_METHODS.tradingTradeAdd]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => addManualTrade(root, input)),
+          ),
+        [WS_METHODS.tradingDayRead]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => readDayNote(root, input)),
+          ),
+        [WS_METHODS.tradingDaySave]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => saveDayNote(root, input)),
+          ),
+        [WS_METHODS.tradingScreenshotSave]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => saveScreenshot(root, input)),
+          ),
+        [WS_METHODS.tradingScreenshotRead]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => readScreenshot(root, input)),
+          ),
+        [WS_METHODS.tradingRiskRules]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(readTradingRiskRules),
+          ),
+        [WS_METHODS.tradingLibraryIndex]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(readLibraryIndex),
+          ),
+        [WS_METHODS.tradingLibraryPage]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => readLibraryPage(root, input)),
+          ),
+        [WS_METHODS.tradingLibrarySearch]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => searchLibrary(root, input)),
+          ),
+        [WS_METHODS.tradingResourceSave]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap((root) => saveResource(root, input)),
+          ),
+        [WS_METHODS.tradingResourceList]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.aiosRoot(projects, input.workspaceId)),
+            Effect.orElseSucceed(() => null),
+            Effect.flatMap(listResources),
           ),
         [WS_METHODS.releaseStatusRuns]: () => Effect.promise(() => readReleaseStatus()),
+        [WS_METHODS.gameModeStatus]: () => Effect.promise(() => readGameModeStatus()),
+        [WS_METHODS.gameModeRun]: (input) => Effect.promise(() => runGameModeAction(input.action)),
         [WS_METHODS.layaUsage]: () => Effect.promise(() => readLayaUsage()),
         [WS_METHODS.calendarEvents]: (input) => calendar.events(input),
         [WS_METHODS.calendarTestLink]: (input) => calendar.testLink(input.url),
@@ -3294,6 +3531,10 @@ export const layerWsRpc = (
         [WS_METHODS.aiosWorkspacesInit]: (input) =>
           allTaskBoardProjects.pipe(
             Effect.flatMap((projects) => taskBoard.workspaceInit(input, projects)),
+          ),
+        [WS_METHODS.aiosProjectsScaffold]: (input) =>
+          allTaskBoardProjects.pipe(
+            Effect.flatMap((projects) => taskBoard.projectScaffold(input, projects)),
           ),
         [WS_METHODS.aiosWorkspaceHiddenProjectsSet]: (input) =>
           allTaskBoardProjects.pipe(

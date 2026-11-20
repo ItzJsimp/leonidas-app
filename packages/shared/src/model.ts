@@ -327,7 +327,7 @@ export function codexModelFamily(slug: string): string {
   return slug.startsWith("openai.gpt-") ? slug.slice("openai.".length) : slug;
 }
 
-const ANTIGRAVITY_EFFORT_ORDER = [
+export const ANTIGRAVITY_EFFORT_ORDER = [
   "minimal",
   "low",
   "medium",

@@ -1,5 +1,27 @@
 import { VOICE_MAX_AUDIO_BYTES } from "@t3tools/contracts";
 
+/** A 0 to 1 loudness read for the level bars. It reads 0 where the browser has no Web Audio. */
+function meterFor(stream: MediaStream) {
+  try {
+    const context = new AudioContext();
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 256;
+    context.createMediaStreamSource(stream).connect(analyser);
+    const samples = new Uint8Array(analyser.fftSize);
+    return {
+      level: () => {
+        analyser.getByteTimeDomainData(samples);
+        let peak = 0;
+        for (const sample of samples) peak = Math.max(peak, Math.abs(sample - 128));
+        return peak / 128;
+      },
+      close: () => void context.close().catch(() => {}),
+    };
+  } catch {
+    return { level: () => 0, close: () => {} };
+  }
+}
+
 /** One bounded recording. Both completion and cancellation release the microphone. */
 export function recordVoice(stream: MediaStream) {
   const mimeType = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus"].find((type) =>
@@ -12,6 +34,7 @@ export function recordVoice(stream: MediaStream) {
     stream.getTracks().forEach((track) => track.stop());
     throw error;
   }
+  const meter = meterFor(stream);
   let chunks: Blob[] = [];
   let bytes = 0;
   let cancelled = false;
@@ -19,6 +42,7 @@ export function recordVoice(stream: MediaStream) {
   const result = new Promise<Blob | null>((resolve, reject) => {
     const release = () => {
       clearTimeout(timer);
+      meter.close();
       stream.getTracks().forEach((track) => track.stop());
       recorder.ondataavailable = null;
       recorder.onstop = null;
@@ -57,6 +81,7 @@ export function recordVoice(stream: MediaStream) {
   });
   return {
     result,
+    level: meter.level,
     stop: () => {
       if (recorder.state === "recording") recorder.stop();
     },

@@ -24,6 +24,7 @@ import {
 } from "./providerIconUtils";
 import { shouldShowInstanceBadge, type ProviderInstanceEntry } from "../../providerInstances";
 import { ComposerControl, type ComposerControlSize } from "./ComposerControl";
+import { TraitsSpeedIcon } from "./TraitsSpeed";
 import { useComposerMenuProps } from "./composerEventScope";
 import { shortcutLabelForCommand } from "../../keybindings";
 import { showFirstOpenTip } from "../onboarding/firstOpenTip";
@@ -52,6 +53,10 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   reasoningColumn?: ReactNode;
   /** Aggregate settings can show a neutral value without claiming one provider is selected. */
   triggerLabel?: string;
+  /** Shown after the model name while fast mode is on. */
+  speedIcon?: "fast" | "ultrafast" | undefined;
+  /** The chosen effort level, shown after a divider that follows the model name. */
+  effortLabel?: string | undefined;
   triggerAriaLabel?: string;
   onOpenChange?: (open: boolean) => void;
   onOpenProviderSetup?: (instanceId: ProviderInstanceId) => void;
@@ -305,6 +310,24 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
             </TooltipTrigger>
             <TooltipPopup side="top">{triggerTooltipContent}</TooltipPopup>
           </Tooltip>
+          {props.effortLabel && props.triggerLabel === undefined && !selectedEntries ? (
+            <>
+              <span className="h-3 w-px shrink-0 bg-border" aria-hidden="true" />
+              <span
+                className="shrink-0 text-muted-foreground"
+                data-chat-provider-model-picker-effort="true"
+              >
+                {props.effortLabel}
+              </span>
+            </>
+          ) : null}
+          {props.speedIcon && activeEntry && props.triggerLabel === undefined ? (
+            <TraitsSpeedIcon
+              provider={activeEntry.driverKind}
+              speedIcon={props.speedIcon}
+              size="xs"
+            />
+          ) : null}
           {selectedModel?.isUnavailable && !selectedEntries && props.triggerLabel === undefined ? (
             <Badge variant="outline" size="sm">
               Unavailable
@@ -331,7 +354,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         touchBackdrop
       >
         {/* The column renders with the placeholder, so the popup never resizes (and squeezes the list) when the list loads. */}
-        <div className="flex min-w-0">
+        <div className="flex min-w-0 flex-col sm:flex-row">
           {listOpen ? (
             <ModelPickerContent
               environmentId={props.environmentId}

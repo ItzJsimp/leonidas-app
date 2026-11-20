@@ -41,6 +41,11 @@ those limits. Active work, scheduled tasks, and pairing sessions are excluded. P
 logins remain machine-local; dev signing keys stay independent. Browser-only preferences
 remain in their browser profile, so the web preview is not an exact desktop-profile clone.
 
+To see the app as a new user sees it, run `pwsh -NoProfile -File scripts/dev-isolated.ps1 -Mode web -FirstRun`.
+It starts from an empty sandbox folder in the temp folder (or `-SandboxDir <path>`). The server finds no AIOS
+and no AI sign-in, and the first chat writes only inside the sandbox. Open the pairing link in a private
+browser window, because the normal browser profile keeps old settings for the same address.
+
 A second `vp run dev` for a home whose server is still healthy prints `reusing healthy dev at <url>`
 and exits without starting anything. A dead pid or a port that no longer answers counts as stale
 and starts normally. `--share`, `--dry-run`, explicit ports and other modes always start normally.

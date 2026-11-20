@@ -9,17 +9,21 @@ import { useId, useState, type FormEvent } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/ui/spinner";
+import { Switch } from "~/components/ui/switch";
 import { Textarea } from "~/components/ui/textarea";
 import { subagentUpdate } from "~/state/subagents";
 import { workspaceScopeInput } from "~/components/workspace/aiosWorkspace.logic";
 import { activeWorkspaceId } from "~/components/workspace/aiosWorkspaceStore";
 import { useAtomCommand } from "~/state/use-atom-command";
+import { AvatarPicker } from "./AvatarPicker";
+import { ModelSelect } from "./ModelSelect";
 import { modelDisplayName } from "./spawnApproval.logic";
 import {
   BUILT_IN_TOOLS,
   draftFromEntry,
+  EFFORT_SUGGESTIONS,
   isEmptyPatch,
-  MODEL_SUGGESTIONS,
+  maxTurnsProblem,
   parseToolList,
   patchFromDraft,
   raisesSpend,
@@ -48,6 +52,7 @@ export function SubagentEditor(props: {
   const [extraTools, setExtraTools] = useState(() =>
     entry.tools.filter((tool) => !BUILT_IN_TOOLS.includes(tool)).join(", "),
   );
+  const [skillsText, setSkillsText] = useState(() => (entry.skills ?? []).join(", "));
   const [newContext, setNewContext] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,9 +63,11 @@ export function SubagentEditor(props: {
   const draftWithTools: SubagentDraft = {
     ...draft,
     tools: [...builtIn, ...parseToolList(extraTools)],
+    skills: parseToolList(skillsText),
   };
   const patch = patchFromDraft(entry, draftWithTools);
   const unchanged = isEmptyPatch(patch);
+  const turnsProblem = maxTurnsProblem(draft.maxTurns);
 
   const save = async () => {
     setBusy(true);
@@ -84,7 +91,7 @@ export function SubagentEditor(props: {
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (busy || unchanged) return;
+    if (busy || unchanged || turnsProblem !== null) return;
     if (raisesSpend(patch, props.knownFree) && !confirming) {
       setConfirming(true);
       return;
@@ -127,26 +134,36 @@ export function SubagentEditor(props: {
       </div>
 
       <div className="flex flex-col gap-1.5">
+        <span className="font-medium">Avatar</span>
+        <AvatarPicker value={draft.avatar} onChange={(avatar) => setDraft({ ...draft, avatar })} />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`${ids}-instructions`} className="font-medium">
+          Instructions
+        </label>
+        <Textarea
+          id={`${ids}-instructions`}
+          value={draft.instructions}
+          rows={8}
+          maxLength={20_000}
+          onChange={(event) => setDraft({ ...draft, instructions: event.target.value })}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
         <label htmlFor={`${ids}-model`} className="font-medium">
           Model
         </label>
-        <Input
+        <ModelSelect
           id={`${ids}-model`}
           value={draft.model}
-          list={`${ids}-models`}
-          placeholder="Not set (follows its base or the app default)"
-          onChange={(event) => {
+          unsetLabel="Not set (follows its base or the app default)"
+          onChange={(model) => {
             setConfirming(false);
-            setDraft({ ...draft, model: event.target.value });
+            setDraft({ ...draft, model });
           }}
         />
-        <datalist id={`${ids}-models`}>
-          {MODEL_SUGGESTIONS.map((model) => (
-            <option key={model} value={model}>
-              {modelDisplayName(model)}
-            </option>
-          ))}
-        </datalist>
       </div>
 
       <fieldset className="flex flex-col gap-1.5">
@@ -223,6 +240,72 @@ export function SubagentEditor(props: {
         </p>
       </fieldset>
 
+      <details className="rounded-lg border border-border px-3 py-2">
+        <summary className="cursor-pointer font-medium outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+          Advanced
+        </summary>
+        <div className="mt-3 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${ids}-effort`} className="font-medium">
+              Effort
+            </label>
+            <Input
+              id={`${ids}-effort`}
+              value={draft.effort}
+              list={`${ids}-efforts`}
+              placeholder="Not set (the engine default)"
+              onChange={(event) => setDraft({ ...draft, effort: event.target.value })}
+            />
+            <datalist id={`${ids}-efforts`}>
+              {EFFORT_SUGGESTIONS.map((effort) => (
+                <option key={effort} value={effort} />
+              ))}
+            </datalist>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${ids}-skills`} className="font-medium">
+              Skills
+            </label>
+            <Input
+              id={`${ids}-skills`}
+              value={skillsText}
+              placeholder="plan-slices, ui-build"
+              onChange={(event) => setSkillsText(event.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Skill names, comma separated. They join the Context List.
+            </p>
+          </div>
+          <label className="flex items-center gap-2">
+            <Switch
+              size="sm"
+              checked={draft.canSpawn}
+              onCheckedChange={(checked) => setDraft({ ...draft, canSpawn: checked })}
+              aria-label="Can start other agents"
+            />
+            Can start other agents (a lead)
+          </label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${ids}-turns`} className="font-medium">
+              Max turns
+            </label>
+            <Input
+              id={`${ids}-turns`}
+              value={draft.maxTurns}
+              inputMode="numeric"
+              placeholder="No limit"
+              aria-invalid={turnsProblem !== null}
+              onChange={(event) => setDraft({ ...draft, maxTurns: event.target.value })}
+            />
+            {turnsProblem === null ? null : (
+              <p role="alert" className="text-xs text-destructive-foreground">
+                {turnsProblem}
+              </p>
+            )}
+          </div>
+        </div>
+      </details>
+
       {confirming ? (
         <p role="alert" className="rounded-md bg-warning/10 px-3 py-2">
           {modelDisplayName(draft.model.trim())} is not a free-tier model. This subagent will show a
@@ -236,7 +319,7 @@ export function SubagentEditor(props: {
       )}
 
       <div className="flex items-center gap-2">
-        <Button type="submit" size="sm" disabled={busy || unchanged}>
+        <Button type="submit" size="sm" disabled={busy || unchanged || turnsProblem !== null}>
           {busy ? <Spinner /> : null}
           {confirming ? "Save anyway" : "Save"}
         </Button>

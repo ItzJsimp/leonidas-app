@@ -99,6 +99,13 @@ export const makeWith = (options: SupervisorOptions) =>
 
     const loop = Effect.gen(function* () {
       while (true) {
+        // An engine we did not start already serves the port (the app's previous run left it).
+        // A second one would fail to bind and crash-loop, so wait until it is gone.
+        if (options.healthy && (yield* options.healthy)) {
+          yield* publish("running");
+          yield* Effect.sleep(options.healthEvery ?? "2 seconds");
+          continue;
+        }
         const startedAt = yield* Clock.currentTimeMillis;
         yield* Effect.ignore(runOnce);
         const ranFor = (yield* Clock.currentTimeMillis) - startedAt;
@@ -120,10 +127,16 @@ export const makeWith = (options: SupervisorOptions) =>
     return service;
   });
 
-/** Engine flags from the environment: `--config <path>` when `LEONIDAS_SCRIBE_ENGINE_CONFIG` is set. */
-export function engineArgs(env: Readonly<Record<string, string | undefined>>): string[] {
+/**
+ * Engine flags: `--config <path>` when `LEONIDAS_SCRIBE_ENGINE_CONFIG` is set, and always
+ * `--parent-pid` so the engine exits when this server does and is never left behind by an update.
+ */
+export function engineArgs(
+  env: Readonly<Record<string, string | undefined>>,
+  parentPid: number = process.pid,
+): string[] {
   const config = env.LEONIDAS_SCRIBE_ENGINE_CONFIG?.trim();
-  return config ? ["--config", config] : [];
+  return [...(config ? ["--config", config] : []), "--parent-pid", String(parentPid)];
 }
 
 export const layer = Layer.effect(

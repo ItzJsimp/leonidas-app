@@ -1,3 +1,4 @@
+import { GameModeActionInput, GameModeStatus } from "./gameMode.ts";
 import { ReleaseStatus } from "./releaseStatus.ts";
 import {
   OrchestrationV2SearchThreadError,
@@ -110,6 +111,8 @@ import {
   WorkspaceOrgActionResult,
   AiosWorkspaceSummary,
   AiosWorkspaceInitInput,
+  AiosProjectScaffoldInput,
+  AiosProjectScaffoldResult,
   AiosWorkspaceHiddenProjectsInput,
   TaskBoardHomeNews,
   PonytailCodexHooks,
@@ -356,9 +359,32 @@ import {
   TradingImportResult,
   TradingImportsResult,
   TradingPackConsentInput,
+  TradingRiskRulesResult,
   TradingStateError,
+  TradingSettings,
+  TradingSettingsSaveInput,
+  TradingCrewInput,
+  TradingCrewResult,
   TradingStateInput,
   TradingStateResult,
+  TradingDayReadInput,
+  TradingDayReadResult,
+  TradingDaySaveInput,
+  TradingScreenshotReadInput,
+  TradingScreenshotReadResult,
+  TradingScreenshotSaveInput,
+  TradingScreenshotSaveResult,
+  TradingTradeAddInput,
+  TradingTradeAddResult,
+  TradingLibraryIndexResult,
+  TradingLibraryInput,
+  TradingLibraryPageInput,
+  TradingLibraryPageResult,
+  TradingLibrarySearchInput,
+  TradingLibrarySearchResult,
+  TradingResourceListResult,
+  TradingResourceSaveInput,
+  TradingResourceSaveResult,
 } from "./trading.ts";
 import {
   PullRequestActionInput,
@@ -541,6 +567,7 @@ import {
   ProviderConsumeResetCreditInput,
   ProviderConsumeResetCreditResult,
 } from "./providerUsageLimits.ts";
+import { ChatQuota, ChatQuotaInput, ChatQuotaReport, ChatQuotaReportInput } from "./chatQuota.ts";
 import { UsagePricing, UsageReadError, UsageSummary, UsageSummaryInput } from "./usage.ts";
 import { TestApiKeyInput, TestApiKeyResult } from "./apiKeys.ts";
 import {
@@ -591,6 +618,11 @@ import {
   SubagentCatalog,
   SubagentCatalogEntry,
   SubagentCreateInput,
+  SubagentDeleteInput,
+  SubagentDeleteResult,
+  SubagentDraftInput,
+  SubagentDraftResult,
+  SubagentDuplicateInput,
   SubagentEditError,
   SubagentSpawnApprovalError,
   SubagentSpawnApprovals,
@@ -718,6 +750,9 @@ export const WS_METHODS = {
   subagentsList: "subagents.list",
   subagentsUpdate: "subagents.update",
   subagentsCreate: "subagents.create",
+  subagentsDelete: "subagents.delete",
+  subagentsDuplicate: "subagents.duplicate",
+  subagentsDraft: "subagents.draft",
   taskBoardUpdate: "taskBoard.update",
   taskBoardWorkspace: "taskBoard.workspace",
   taskBoardCardUpdate: "taskBoard.cardUpdate",
@@ -738,6 +773,7 @@ export const WS_METHODS = {
   aiosDirection: "taskBoard.aiosDirection",
   aiosWorkspacesList: "aiosWorkspaces.list",
   aiosWorkspacesInit: "aiosWorkspaces.init",
+  aiosProjectsScaffold: "aiosProjects.scaffold",
   aiosWorkspacePicturesList: "aiosWorkspaces.picturesList",
   aiosWorkspacePictureSet: "aiosWorkspaces.pictureSet",
   aiosWorkspacePictureRemove: "aiosWorkspaces.pictureRemove",
@@ -756,7 +792,23 @@ export const WS_METHODS = {
   tradingPackConsent: "trading.packConsent",
   tradingState: "trading.state",
   tradingAppend: "trading.append",
+  tradingSettingsSave: "trading.settingsSave",
+  tradingCrew: "trading.crew",
+  tradingCrewSync: "trading.crewSync",
+  tradingTradeAdd: "trading.tradeAdd",
+  tradingDayRead: "trading.dayRead",
+  tradingDaySave: "trading.daySave",
+  tradingScreenshotSave: "trading.screenshotSave",
+  tradingScreenshotRead: "trading.screenshotRead",
+  tradingRiskRules: "trading.riskRules",
+  tradingLibraryIndex: "trading.libraryIndex",
+  tradingLibraryPage: "trading.libraryPage",
+  tradingLibrarySearch: "trading.librarySearch",
+  tradingResourceSave: "trading.resourceSave",
+  tradingResourceList: "trading.resourceList",
   releaseStatusRuns: "releaseStatus.runs",
+  gameModeStatus: "gameMode.status",
+  gameModeRun: "gameMode.run",
   layaUsage: "laya.usage",
   ponytailUsage: "ponytail.usage",
   calendarEvents: "calendar.events",
@@ -963,6 +1015,8 @@ export const WS_METHODS = {
   serverReportHostPowerState: "server.reportHostPowerState",
   serverGetBackgroundPolicy: "server.getBackgroundPolicy",
   serverGetUsageSummary: "server.getUsageSummary",
+  serverGetChatQuota: "server.getChatQuota",
+  serverGetChatQuotaReport: "server.getChatQuotaReport",
   serverRefreshUsageRates: "server.refreshUsageRates",
   serverGetModelBenchmarks: "server.getModelBenchmarks",
   serverGetModelBenchmarkCatalog: "server.getModelBenchmarkCatalog",
@@ -1364,6 +1418,18 @@ const WsServerRetryResourceTelemetryRpc = Rpc.make(WS_METHODS.serverRetryResourc
 const WsServerCheckOtlpEndpointRpc = Rpc.make(WS_METHODS.serverCheckOtlpEndpoint, {
   payload: OtlpEndpointCheckInput,
   success: OtlpEndpointCheckResult,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsServerGetChatQuotaRpc = Rpc.make(WS_METHODS.serverGetChatQuota, {
+  payload: ChatQuotaInput,
+  success: ChatQuota,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsServerGetChatQuotaReportRpc = Rpc.make(WS_METHODS.serverGetChatQuotaReport, {
+  payload: ChatQuotaReportInput,
+  success: ChatQuotaReport,
   error: EnvironmentAuthorizationError,
 });
 
@@ -1799,6 +1865,24 @@ const WsSubagentsCreateRpc = Rpc.make(WS_METHODS.subagentsCreate, {
   error: Schema.Union([SubagentEditError, EnvironmentAuthorizationError]),
 });
 
+const WsSubagentsDeleteRpc = Rpc.make(WS_METHODS.subagentsDelete, {
+  payload: SubagentDeleteInput,
+  success: SubagentDeleteResult,
+  error: Schema.Union([SubagentEditError, EnvironmentAuthorizationError]),
+});
+
+const WsSubagentsDuplicateRpc = Rpc.make(WS_METHODS.subagentsDuplicate, {
+  payload: SubagentDuplicateInput,
+  success: SubagentCatalogEntry,
+  error: Schema.Union([SubagentEditError, EnvironmentAuthorizationError]),
+});
+
+const WsSubagentsDraftRpc = Rpc.make(WS_METHODS.subagentsDraft, {
+  payload: SubagentDraftInput,
+  success: SubagentDraftResult,
+  error: Schema.Union([SubagentEditError, EnvironmentAuthorizationError]),
+});
+
 const WsTaskBoardUpdateRpc = Rpc.make(WS_METHODS.taskBoardUpdate, {
   payload: TaskBoardUpdateInput,
   success: TaskBoardTask,
@@ -2074,6 +2158,12 @@ const WsAiosWorkspacesInitRpc = Rpc.make(WS_METHODS.aiosWorkspacesInit, {
   error: Schema.Union([TaskBoardReadError, TaskBoardOperationError, EnvironmentAuthorizationError]),
 });
 
+const WsAiosProjectsScaffoldRpc = Rpc.make(WS_METHODS.aiosProjectsScaffold, {
+  payload: AiosProjectScaffoldInput,
+  success: AiosProjectScaffoldResult,
+  error: Schema.Union([TaskBoardReadError, TaskBoardOperationError, EnvironmentAuthorizationError]),
+});
+
 const WsAiosWorkspaceHiddenProjectsSetRpc = Rpc.make(WS_METHODS.aiosWorkspaceHiddenProjectsSet, {
   payload: AiosWorkspaceHiddenProjectsInput,
   success: Schema.Void,
@@ -2188,9 +2278,105 @@ const WsTradingAppendRpc = Rpc.make(WS_METHODS.tradingAppend, {
   error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
 });
 
+const WsTradingSettingsSaveRpc = Rpc.make(WS_METHODS.tradingSettingsSave, {
+  payload: TradingSettingsSaveInput,
+  success: TradingSettings,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingCrewRpc = Rpc.make(WS_METHODS.tradingCrew, {
+  payload: TradingCrewInput,
+  success: TradingCrewResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingCrewSyncRpc = Rpc.make(WS_METHODS.tradingCrewSync, {
+  payload: TradingCrewInput,
+  success: TradingCrewResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingTradeAddRpc = Rpc.make(WS_METHODS.tradingTradeAdd, {
+  payload: TradingTradeAddInput,
+  success: TradingTradeAddResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingDayReadRpc = Rpc.make(WS_METHODS.tradingDayRead, {
+  payload: TradingDayReadInput,
+  success: TradingDayReadResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingDaySaveRpc = Rpc.make(WS_METHODS.tradingDaySave, {
+  payload: TradingDaySaveInput,
+  success: Schema.Void,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingScreenshotSaveRpc = Rpc.make(WS_METHODS.tradingScreenshotSave, {
+  payload: TradingScreenshotSaveInput,
+  success: TradingScreenshotSaveResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingScreenshotReadRpc = Rpc.make(WS_METHODS.tradingScreenshotRead, {
+  payload: TradingScreenshotReadInput,
+  success: TradingScreenshotReadResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingRiskRulesRpc = Rpc.make(WS_METHODS.tradingRiskRules, {
+  payload: TradingStateInput,
+  success: TradingRiskRulesResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingLibraryIndexRpc = Rpc.make(WS_METHODS.tradingLibraryIndex, {
+  payload: TradingLibraryInput,
+  success: TradingLibraryIndexResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingLibraryPageRpc = Rpc.make(WS_METHODS.tradingLibraryPage, {
+  payload: TradingLibraryPageInput,
+  success: TradingLibraryPageResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingLibrarySearchRpc = Rpc.make(WS_METHODS.tradingLibrarySearch, {
+  payload: TradingLibrarySearchInput,
+  success: TradingLibrarySearchResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingResourceSaveRpc = Rpc.make(WS_METHODS.tradingResourceSave, {
+  payload: TradingResourceSaveInput,
+  success: TradingResourceSaveResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
+const WsTradingResourceListRpc = Rpc.make(WS_METHODS.tradingResourceList, {
+  payload: TradingLibraryInput,
+  success: TradingResourceListResult,
+  error: Schema.Union([TradingStateError, EnvironmentAuthorizationError]),
+});
+
 const WsReleaseStatusRunsRpc = Rpc.make(WS_METHODS.releaseStatusRuns, {
   payload: Schema.Struct({}),
   success: ReleaseStatus,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsGameModeStatusRpc = Rpc.make(WS_METHODS.gameModeStatus, {
+  payload: Schema.Struct({}),
+  success: GameModeStatus,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsGameModeRunRpc = Rpc.make(WS_METHODS.gameModeRun, {
+  payload: GameModeActionInput,
+  success: GameModeStatus,
   error: EnvironmentAuthorizationError,
 });
 
@@ -3554,6 +3740,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerRetryResourceTelemetryRpc,
   WsServerCheckOtlpEndpointRpc,
   WsServerGetUsageSummaryRpc,
+  WsServerGetChatQuotaRpc,
+  WsServerGetChatQuotaReportRpc,
   WsServerRefreshUsageRatesRpc,
   WsServerGetModelBenchmarksRpc,
   WsServerGetModelBenchmarkCatalogRpc,
@@ -3628,6 +3816,9 @@ export const WsRpcGroup = RpcGroup.make(
   WsSubagentsListRpc,
   WsSubagentsUpdateRpc,
   WsSubagentsCreateRpc,
+  WsSubagentsDeleteRpc,
+  WsSubagentsDuplicateRpc,
+  WsSubagentsDraftRpc,
   WsFocusSubscribeRpc,
   WsEventsSubscribeRpc,
   WsEventsAppendRpc,
@@ -3666,6 +3857,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsAiosFolderListRpc,
   WsAiosWorkspacesListRpc,
   WsAiosWorkspacesInitRpc,
+  WsAiosProjectsScaffoldRpc,
   WsAiosWorkspacePicturesListRpc,
   WsAiosWorkspacePictureSetRpc,
   WsAiosWorkspacePictureRemoveRpc,
@@ -3686,7 +3878,23 @@ export const WsRpcGroup = RpcGroup.make(
   WsTradingPackConsentRpc,
   WsTradingStateRpc,
   WsTradingAppendRpc,
+  WsTradingSettingsSaveRpc,
+  WsTradingCrewRpc,
+  WsTradingCrewSyncRpc,
+  WsTradingTradeAddRpc,
+  WsTradingDayReadRpc,
+  WsTradingDaySaveRpc,
+  WsTradingScreenshotSaveRpc,
+  WsTradingScreenshotReadRpc,
+  WsTradingRiskRulesRpc,
+  WsTradingLibraryIndexRpc,
+  WsTradingLibraryPageRpc,
+  WsTradingLibrarySearchRpc,
+  WsTradingResourceSaveRpc,
+  WsTradingResourceListRpc,
   WsReleaseStatusRunsRpc,
+  WsGameModeStatusRpc,
+  WsGameModeRunRpc,
   WsLayaUsageRpc,
   WsPonytailUsageRpc,
   WsCalendarEventsRpc,

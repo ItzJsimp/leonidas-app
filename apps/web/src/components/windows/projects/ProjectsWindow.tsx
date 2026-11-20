@@ -5,6 +5,8 @@ import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { openCommandPalette } from "~/commandPaletteBus";
 import { useNowMinute } from "~/hooks/useNowMinute";
+import { openNewAiosProject } from "~/components/workspace/newAiosProjectStore";
+import { useAiosProjectRoot } from "~/components/workspace/useAiosProjectRoot";
 
 import { RailWindow } from "../../twoState/RailWindow";
 import { activityLabel } from "./projects.logic";
@@ -17,16 +19,25 @@ const BUTTON_LINK =
 /** The Projects window: one row per project with its chats, its last activity and two actions. */
 export function ProjectsWindow() {
   const { rows } = useProjectRows();
+  const canMakeProject = useAiosProjectRoot().root !== null;
   const navigate = useNavigate();
   const now = Date.parse(`${useNowMinute()}Z`);
   return (
     <RailWindow
       title="Projects"
       actions={
-        <Button size="xs" variant="outline" onClick={addProject}>
-          <PlusIcon aria-hidden />
-          Add a project
-        </Button>
+        <>
+          {canMakeProject ? (
+            <Button size="xs" onClick={openNewAiosProject}>
+              <PlusIcon aria-hidden />
+              New project
+            </Button>
+          ) : null}
+          <Button size="xs" variant="outline" onClick={addProject}>
+            <FolderIcon aria-hidden />
+            Add a folder
+          </Button>
+        </>
       }
     >
       {rows === null ? (
@@ -40,12 +51,21 @@ export function ProjectsWindow() {
           <FolderKanbanIcon aria-hidden className="size-6 text-muted-foreground" />
           <p className="text-sm font-medium">No projects yet</p>
           <p className="max-w-sm text-sm text-muted-foreground">
-            A project is a folder Leonidas works in. Add one to start a chat in it.
+            A project is a folder for one topic: its goal, rules and notes. A chat in it reads only
+            that folder, so answers improve and cost less.
           </p>
-          <Button size="sm" variant="outline" className="mt-1" onClick={addProject}>
-            <PlusIcon aria-hidden />
-            Add a project
-          </Button>
+          <div className="mt-1 flex gap-2">
+            {canMakeProject ? (
+              <Button size="sm" onClick={openNewAiosProject}>
+                <PlusIcon aria-hidden />
+                New project
+              </Button>
+            ) : null}
+            <Button size="sm" variant="outline" onClick={addProject}>
+              <FolderIcon aria-hidden />
+              Add a folder
+            </Button>
+          </div>
         </div>
       ) : (
         <ul className="divide-y divide-border rounded-xl border border-border bg-card">

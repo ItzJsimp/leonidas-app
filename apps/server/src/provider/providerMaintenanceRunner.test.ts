@@ -483,6 +483,54 @@ describe("providerMaintenanceRunner", () => {
     );
   });
 
+  it.effect("retries once with the exact version when the update leaves the old version", () => {
+    const calls: Array<{ command: string; args: ReadonlyArray<string> }> = [];
+    return Effect.gen(function* () {
+      const { registry, providersRef } = yield* makeRegistry(baseProvider);
+      const updater = yield* makeTestRunner({
+        ...registry,
+        getProviderMaintenanceCapabilitiesForInstance: (_instanceId, provider) =>
+          Effect.succeed(
+            makeProviderMaintenanceCapabilities({
+              provider,
+              packageName: "native-agent",
+              updateExecutable: "native-agent",
+              updateArgs: ["update"],
+              updateLockKey: "native-agent-native",
+              pinnedArgs: (version) => ["install", version],
+            }),
+          ),
+        // Only the exact-version install moves the provider to the latest version.
+        refreshAfterUpdate: () =>
+          Ref.updateAndGet(providersRef, (providers) =>
+            providers.map((provider) => ({
+              ...provider,
+              version: calls.some((call) => call.args[0] === "install") ? "9.9.9" : "1.0.0",
+            })),
+          ),
+      });
+
+      const result = yield* updater.updateProvider(CODEX_DRIVER);
+      assert.deepStrictEqual(calls, [
+        { command: "native-agent", args: ["update"] },
+        { command: "native-agent", args: ["install", "9.9.9"] },
+      ]);
+      assert.strictEqual(result.providers[0]?.updateState?.status, "succeeded");
+      assert.match(result.providers[0]?.updateState?.message ?? "", /native-agent install 9\.9\.9/);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          layerNonWindowsPlatform,
+          layerLatestVersionHttpClient("9.9.9"),
+          layerMockSpawner((command, args) => {
+            calls.push({ command, args });
+            return { stdout: "updated" };
+          }),
+        ),
+      ),
+    );
+  });
+
   it("splits installer output into clean status lines", () => {
     assert.deepStrictEqual(ProviderMaintenanceRunner.splitOutputLines("Down", "loading\r\n 5"), {
       lines: ["Downloading"],

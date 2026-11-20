@@ -14,7 +14,7 @@ import {
   getComposerProviderState,
   withImplicitFastModeDefault,
 } from "../../composerProviderState";
-import { renderProviderReasoningColumn } from "./composerProviderState";
+import { ProviderDownshiftNotice, renderProviderReasoningColumn } from "./composerProviderState";
 
 // Everything in composerProviderState is now data-driven by the model's
 // optionDescriptors, so these tests use a single synthetic provider/model and
@@ -99,6 +99,7 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: "high",
       modelOptionsForDispatch: undefined,
+      effortLabel: "High",
     });
   });
 
@@ -121,6 +122,8 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: "low",
       modelOptionsForDispatch: selections(["effort", "low"], ["fastMode", true]),
+      speedIcon: "fast",
+      effortLabel: "Low",
     });
   });
 
@@ -363,8 +366,44 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: "medium",
       modelOptionsForDispatch: selections(["effort", "medium"]),
+      effortLabel: "Ultrathink",
       ...ULTRATHINK_FRAME_CLASSES,
     });
+  });
+
+  it("names a saved effort the model does not offer as that model's own default", () => {
+    const state = getComposerProviderState({
+      provider: PROVIDER,
+      model: MODEL,
+      models: modelWith([
+        selectDescriptor("effort", [
+          { id: "low", label: "Low" },
+          { id: "medium", label: "Medium", isDefault: true },
+          { id: "xhigh", label: "Extra High" },
+        ]),
+      ]),
+      modelOptions: selections(["effort", "max"]),
+      planModeEnabled: true,
+    });
+
+    expect(state.effortLabel).toBe("Medium");
+  });
+
+  it("shows no effort label for a select that is not an effort level", () => {
+    const state = getComposerProviderState({
+      provider: PROVIDER,
+      model: MODEL,
+      models: modelWith([
+        selectDescriptor("agent", [
+          { id: "build", label: "Build", isDefault: true },
+          { id: "plan", label: "Plan" },
+        ]),
+      ]),
+      modelOptions: undefined,
+      planModeEnabled: true,
+    });
+
+    expect(state.effortLabel).toBeUndefined();
   });
 
   it("does not add ultrathink class names when the descriptor has no promptInjectedValues", () => {
@@ -551,5 +590,86 @@ describe("provider traits render guards", () => {
         planModeEnabled: true,
       }),
     ).toBeNull();
+  });
+});
+
+describe("ProviderDownshiftNotice", () => {
+  const extras = {
+    chatKey: "downshift-chat",
+    attachmentCount: 0,
+    contextTokens: 3_000,
+    onSwitchModel: () => {},
+  };
+  const effortModel = modelWith([
+    selectDescriptor("effort", [
+      { id: "low", label: "Low" },
+      { id: "medium", label: "Medium" },
+      { id: "high", label: "High", isDefault: true },
+      { id: "xhigh", label: "Extra High" },
+    ]),
+  ]);
+  const haiku: ServerProviderModel = {
+    slug: "claude-haiku-5-5",
+    name: "Claude Haiku 5.5",
+    isCustom: false,
+    capabilities: { optionDescriptors: [] },
+  };
+  const render = (
+    prompt: string,
+    effort: string,
+    models: ReadonlyArray<ServerProviderModel> = effortModel,
+  ) =>
+    renderToStaticMarkup(
+      <ProviderDownshiftNotice
+        input={{
+          provider: PROVIDER,
+          model: MODEL,
+          models,
+          modelOptions: selections(["effort", effort]),
+          prompt,
+          onPromptChange: () => {},
+          planModeEnabled: true,
+          draftId: DraftId.make("downshift-draft"),
+        }}
+        extras={extras}
+      />,
+    );
+
+  it("offers a lower effort on the same model for a small task", () => {
+    const markup = render("Fix the typo in the README heading", "xhigh");
+    expect(markup).toContain("Small task? Low effort costs less and may be enough.");
+    expect(markup).toContain("Use Low");
+    expect(markup).toContain("Dismiss");
+  });
+
+  it("offers a cheaper model when the effort is already light", () => {
+    const markup = render("Fix the typo in the README heading", "medium", [...effortModel, haiku]);
+    expect(markup).toContain("Small task? Claude Haiku 5.5 costs less and may be enough.");
+    expect(markup).toContain("Switch to Claude Haiku 5.5");
+  });
+
+  it("says nothing for a large task, an empty prompt, or a light setting with nothing cheaper", () => {
+    expect(render("Refactor the whole auth module", "xhigh")).toBe("");
+    expect(render("", "xhigh")).toBe("");
+    expect(render("Fix the typo in the README heading", "low")).toBe("");
+  });
+
+  it("renders nothing without a draft or a chat to keep the setting in", () => {
+    expect(
+      renderToStaticMarkup(
+        <ProviderDownshiftNotice
+          input={{
+            provider: PROVIDER,
+            model: MODEL,
+            models: effortModel,
+            modelOptions: undefined,
+            prompt: "Fix the typo in the README heading",
+            onPromptChange: () => {},
+            planModeEnabled: true,
+          }}
+          extras={extras}
+        />,
+      ),
+    ).toBe("");
   });
 });

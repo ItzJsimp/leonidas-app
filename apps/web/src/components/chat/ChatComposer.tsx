@@ -1,4 +1,9 @@
 import { cacheActionImpact } from "@t3tools/client-runtime/cache-awareness";
+import { useBenchmarkUi } from "../../benchmarkUiStore";
+import { useModelBenchmarkIndex } from "../../hooks/useModelBenchmarkIndex";
+import { useEnvironmentSettings } from "../../hooks/useSettings";
+import { pickerModelStats } from "../../lib/pickerModelStats";
+import { estimateSwitchCost, withSwitchCost } from "../../lib/switchCost";
 import {
   CacheConfigurationNotice,
   useCacheActionWarning,
@@ -134,14 +139,11 @@ import {
   usePromptStashStore,
   type PromptStashEntry,
 } from "../../promptStashStore";
-import { ComposerNotepadButton } from "./ComposerNotepadButton";
-import { ComposerSkillsButton } from "./ComposerSkillsButton";
-import { ComposerAutoPickSkillsButton } from "./ComposerAutoPickSkillsButton";
-import { ComposerSubagentsButton } from "../subagents/ComposerSubagentsButton";
+import { ComposerPlusMenu } from "./ComposerPlusMenu";
+import { ComposerReplyStyleControl } from "./ComposerReplyStyleControl";
+import { useAutoPickSkills } from "./useAutoPickSkills";
 import { useComposerSubagents } from "../subagents/useComposerSubagents";
 import { searchSubagentOptions } from "../subagents/subagentThread.logic";
-import { useThreadSubagentAttach } from "../subagents/useThreadSubagentAttach";
-import { ComposerToolbar } from "./ComposerToolbar";
 import {
   countMentionedSkills,
   hoistCommandToPromptStart,
@@ -149,7 +151,9 @@ import {
   SKILL_CONTEXT_WARNING_THRESHOLD,
 } from "./composerSkillPrefix";
 import { ComposerStashBadge } from "./ComposerStashBadge";
+import { ComposerPromptLibrary } from "./ComposerPromptLibrary";
 import { ComposerSavedItems } from "./ComposerSavedItems";
+import { insertPromptText } from "./promptLibrary";
 import { ComposerStashMenu } from "./ComposerStashMenu";
 
 import { useComposerTriggerState } from "./useComposerTriggerState";
@@ -260,7 +264,7 @@ import {
 } from "~/lib/composerContextRecords";
 import { matchComposerThreadItems } from "@t3tools/client-runtime/composerThreadItems";
 import { THREAD_CONTEXT_DROP_EVENT, threadContextDropTargetProps } from "./threadContextDrag";
-import { readThreadShell, useThreadShell, useThreadShells } from "~/state/entities";
+import { readThreadShell, useThreadShells } from "~/state/entities";
 import { requestConfirmDialog } from "~/confirmDialog";
 import { encodeComposerContextFragment } from "@t3tools/shared/composerContextClipboard";
 import type { ComposerContextClipboardFragment, ComposerContextRecord } from "@t3tools/contracts";
@@ -285,7 +289,6 @@ import {
 import { applySkillFolderView } from "./composerSkillFolders.logic";
 import { ComposerPendingApprovalActions } from "./ComposerPendingApprovalActions";
 import { CompactComposerControlsMenu } from "./CompactComposerControlsMenu";
-import { ComposerReplyStyleControl } from "./ComposerReplyStyleControl";
 import { ComposerImageThumbnail } from "./ComposerImageThumbnail";
 import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
 import { ComposerPendingApprovalPanel } from "./ComposerPendingApprovalPanel";
@@ -306,7 +309,7 @@ import {
   getComposerPromptInjectionState,
   getComposerProviderState,
 } from "../../composerProviderState";
-import { renderProviderReasoningColumn } from "./composerProviderState";
+import { ProviderDownshiftNotice, renderProviderReasoningColumn } from "./composerProviderState";
 
 import type { ComposerContextSlice } from "./composerContextSlice";
 import type { ComposerAttachmentSlice } from "./composerAttachments";
@@ -358,16 +361,9 @@ const EMPTY_PULL_REQUEST_LIST_TARGETS: ReadonlyArray<EnvironmentQueryTarget<Pull
 import { Button } from "../ui/button";
 
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { ComposerSnipButton } from "./ComposerSnipButton";
+import { ComposerSnipButton, useDesktopSnips } from "./ComposerSnipButton";
 import { toastManager } from "../ui/toast";
-import {
-  AtSignIcon,
-  CircleAlertIcon,
-  PaperclipIcon,
-  PlayIcon,
-  ShieldIcon,
-  XIcon,
-} from "lucide-react";
+import { AtSignIcon, CircleAlertIcon, PlayIcon, ShieldIcon, XIcon } from "lucide-react";
 import { proposedPlanTitle } from "@t3tools/shared/proposedPlanText";
 import { hasProviderSetup } from "./ProviderStatusBanner";
 import {
@@ -414,7 +410,6 @@ import {
 import { resolveSkillFolders } from "@t3tools/client-runtime/skillFolders";
 import { searchProviderSkills } from "../../providerSkillSearch";
 import { useDelayedStatus } from "../../hooks/useDelayedStatus";
-import { useUpdateClientSettings } from "../../hooks/useSettings";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { usePanelAnimationSettings } from "../../panelAnimations";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -700,8 +695,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     activeThreadId,
     activeThreadEnvironmentId: _activeThreadEnvironmentId,
     activeThread,
+    activeThreadShell,
     promptHistoryMessages,
-    isServerThread,
+    isServerThread: _isServerThread,
     isLocalDraftThread: _isLocalDraftThread,
     forceExpandedOnMobile,
     projectSelectionRequired,
@@ -782,6 +778,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const {
     restingControlsHost,
     restingControlsHaveLeadingContext,
+    settingsControlsHost,
     onRestingControlsVisibilityChange,
     getTimelineScrollableNode,
     isTimelineAtLogicalEnd,
@@ -1229,15 +1226,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const composerSubagents = useComposerSubagents(
     routeKind === "draft" && draftId ? draftId : routeThreadRef,
   );
-  const attachThreadShell = useThreadShell(isServerThread ? routeThreadRef : null);
-  const {
-    attached: attachedSubagent,
-    attach: attachSubagent,
-    detach: detachSubagent,
-  } = useThreadSubagentAttach({
-    threadRef: routeThreadRef,
-    serverValue: attachThreadShell?.attachedSubagent,
-  });
   const selectedProviderSkills = useMemo(
     () =>
       selectedProviderStatus ? resolveProviderSkillsForCwd(selectedProviderStatus, gitCwd) : [],
@@ -1403,21 +1391,21 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     [selectedInstanceId, selectedModel, selectedModelOptionsForDispatch],
   );
   const cacheWarning = useCacheActionWarning();
+  const benchmarkIndex = useModelBenchmarkIndex(environmentId);
+  const aaKeySaved =
+    useEnvironmentSettings(environmentId, (s) => s.artificialAnalysisApiKey) !== "";
+  const openBenchmarkWindow = useBenchmarkUi((state) => state.openWindow);
+  const openBenchmarkKeyDialog = useBenchmarkUi((state) => state.openKeyDialog);
+  const selectedModelName = selectedProviderModels.find(
+    (option) => option.slug === selectedModel,
+  )?.name;
+  const selectedModelStats = benchmarkIndex
+    ? pickerModelStats(benchmarkIndex, {
+        modelId: selectedModel,
+        ...(selectedModelName ? { displayName: selectedModelName } : {}),
+      })
+    : null;
   const pendingCacheNote = usePendingCacheNote(activeContextWindow, pendingUserInputs.length > 0);
-  const onProviderModelSelect: ChatComposerProps["onProviderModelSelect"] = (
-    instanceId,
-    model,
-    options,
-  ) => {
-    cacheWarning.run(
-      cacheActionImpact(
-        activeThreadModelSelection,
-        { instanceId, model, options: activeThreadModelSelection?.options },
-        (activeContextWindow?.cachedInputTokens ?? 0) > 0,
-      ),
-      () => applyProviderModelSelect(instanceId, model, options),
-    );
-  };
   const selectedModelForPicker = selectedModel;
   // Instance-keyed option list so the picker can show each configured
   // instance (built-in + custom) as a first-class sidebar entry. The
@@ -1440,13 +1428,39 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     }
     return out;
   }, [providerInstanceEntries, selectedInstanceId, selectedModelForPicker, settings]);
-  const updateClientSettings = useUpdateClientSettings();
   const selectedModelForPickerWithCustomFallback = useMemo(() => {
     const currentOptions = modelOptionsByInstance.get(selectedInstanceId) ?? [];
     return currentOptions.some((option) => option.slug === selectedModelForPicker)
       ? selectedModelForPicker
       : (normalizeModelSlug(selectedModelForPicker, selectedProvider) ?? selectedModelForPicker);
   }, [modelOptionsByInstance, selectedInstanceId, selectedModelForPicker, selectedProvider]);
+  // What the next message costs on this model once a switch drops the cache.
+  const switchCostTo = (instanceId: ProviderInstanceId, model: string) => {
+    const name = modelOptionsByInstance
+      .get(instanceId)
+      ?.find((option) => option.slug === model)?.name;
+    const stats = benchmarkIndex
+      ? pickerModelStats(benchmarkIndex, { modelId: model, ...(name ? { displayName: name } : {}) })
+      : null;
+    return estimateSwitchCost(activeContextWindow?.usedTokens, stats?.inputPrice);
+  };
+  const onProviderModelSelect: ChatComposerProps["onProviderModelSelect"] = (
+    instanceId,
+    model,
+    options,
+  ) => {
+    cacheWarning.run(
+      withSwitchCost(
+        cacheActionImpact(
+          activeThreadModelSelection,
+          { instanceId, model, options: activeThreadModelSelection?.options },
+          (activeContextWindow?.cachedInputTokens ?? 0) > 0,
+        ),
+        switchCostTo(instanceId, model),
+      ),
+      () => applyProviderModelSelect(instanceId, model, options),
+    );
+  };
 
   // ------------------------------------------------------------------
   // Context window
@@ -2086,7 +2100,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     ],
   );
 
-  const providerReasoningColumn = renderProviderReasoningColumn({
+  const reasoningInput: Parameters<typeof renderProviderReasoningColumn>[0] = {
     provider: selectedProvider,
     instanceId: selectedInstanceId,
     ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
@@ -2098,6 +2112,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     prompt,
     onPromptChange: setPromptFromTraits,
     planModeEnabled: settings.planModeEnabled,
+  };
+  const providerReasoningColumn = renderProviderReasoningColumn(reasoningInput, {
+    stats: selectedModelStats,
+    onOpenBenchmarks: () => openBenchmarkWindow(selectedModel),
+    ...(aaKeySaved ? {} : { onConnectKey: openBenchmarkKeyDialog }),
   });
   const [inlineRestingControlsHost, setInlineRestingControlsHost] = useState<HTMLDivElement | null>(
     null,
@@ -4338,8 +4357,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   // Banners and the tasks badge dock above the surface rather than inside
   // it, so they do not hold the composer open; only surface-internal chrome
   // does.
-  // Question and approval cards take the full width, so the bar steps out of their way.
-  const showComposerToolbar = pendingUserInputs.length === 0;
   const composerHasExpandedChrome =
     showComposerTopDrawer ||
     composerMenuOpen ||
@@ -4596,12 +4613,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     setIsComposerScrollCollapsed,
   ]);
 
-  const restingHiddenBlockCount = composerControlsCollapsed
-    ? restingControlsHiddenBlockCount
-    : expandedControlsLayout.hiddenBlockCount;
-  const iconOnlyBlockCount = composerControlsCollapsed
-    ? restingControlsIconOnlyBlockCount
-    : expandedControlsLayout.iconOnlyBlockCount;
+  // On the new chat screen the settings (permission, reply style) sit under the card, not in the bar.
+  const settingsHost = showProviderUnavailable ? null : settingsControlsHost;
+  const controlSize = composerControlsCollapsed || settingsHost ? "xs" : "sm";
+  const restingHiddenBlockCount = settingsHost
+    ? 0
+    : composerControlsCollapsed
+      ? restingControlsHiddenBlockCount
+      : expandedControlsLayout.hiddenBlockCount;
+  const iconOnlyBlockCount = settingsHost
+    ? 0
+    : composerControlsCollapsed
+      ? restingControlsIconOnlyBlockCount
+      : expandedControlsLayout.iconOnlyBlockCount;
   const restingBlockDefs = [
     {
       id: "mode",
@@ -4611,10 +4635,24 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           interactionMode={interactionMode}
           runtimeMode={compatibleRuntimeMode}
           runtimeModeOptions={compatibleRuntimeModeOptions}
-          size={composerControlsCollapsed ? "xs" : "sm"}
+          size={controlSize}
           hidden={composerControlsHidden || restingHiddenBlockCount > 0}
           onToggleInteractionMode={toggleInteractionMode}
           onRuntimeModeChange={handleRuntimeModeChange}
+        />
+      ),
+    },
+    {
+      // Last, so it is the first to hide when the bar runs out of room.
+      id: "replyStyle",
+      content: (
+        <ComposerReplyStyleControl
+          threadRef={routeThreadRef}
+          serverValue={activeThreadShell?.replyStyle}
+          environmentId={routeThreadRef.environmentId}
+          projectId={savedItemsProjectId}
+          cwd={gitCwd}
+          size="xs"
         />
       ),
     },
@@ -4681,10 +4719,13 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   cacheWarning.run(
                     exists
                       ? null
-                      : cacheActionImpact(
-                          activeThreadModelSelection,
-                          { instanceId, model, options: activeThreadModelSelection?.options },
-                          (activeContextWindow?.cachedInputTokens ?? 0) > 0,
+                      : withSwitchCost(
+                          cacheActionImpact(
+                            activeThreadModelSelection,
+                            { instanceId, model, options: activeThreadModelSelection?.options },
+                            (activeContextWindow?.cachedInputTokens ?? 0) > 0,
+                          ),
+                          switchCostTo(instanceId, model),
                         ),
                     () => setMultipleModelSelections(next),
                   );
@@ -4708,6 +4749,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             ? (activeThreadModelSelection?.model ?? selectedModelForPickerWithCustomFallback)
             : selectedModelForPickerWithCustomFallback
         }
+        speedIcon={composerProviderState.speedIcon}
+        effortLabel={composerProviderState.effortLabel}
         lockedProvider={lockedProvider}
         lockedContinuationGroupKey={lockedContinuationGroupKey}
         instanceEntries={providerInstanceEntries}
@@ -4749,50 +4792,54 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         }}
         onOpenProviderSetup={onOpenProviderSetup}
       />
-      <>
-        {restingBlockDefs.map((def, index) => {
-          const hidden = index >= restingBlockDefs.length - restingHiddenBlockCount;
-          return (
-            <div
-              key={def.id}
-              data-resting-block={def.id}
-              data-composer-block-icon-only={
-                index >= restingBlockDefs.length - iconOnlyBlockCount ? "true" : "false"
+      {settingsHost ? null : (
+        <>
+          {restingBlockDefs.map((def, index) => {
+            const hidden = index >= restingBlockDefs.length - restingHiddenBlockCount;
+            return (
+              <div
+                key={def.id}
+                data-resting-block={def.id}
+                data-composer-block-icon-only={
+                  index >= restingBlockDefs.length - iconOnlyBlockCount ? "true" : "false"
+                }
+                aria-hidden={hidden || undefined}
+                inert={hidden || undefined}
+                className={cn(
+                  "flex w-max min-w-max shrink-0 items-center gap-1",
+                  hidden && "pointer-events-none invisible absolute",
+                  index >= restingBlockDefs.length - iconOnlyBlockCount &&
+                    "[&_[data-composer-control-label]]:pointer-events-none [&_[data-composer-control-label]]:invisible [&_[data-composer-control-label]]:absolute [&_[data-composer-control-label]]:w-max [&_[data-composer-control-label]]:max-w-none [&_[data-composer-control-compact-icon]]:[visibility:inherit] [&_[data-composer-control-compact-icon]]:relative",
+                )}
+              >
+                {def.content}
+              </div>
+            );
+          })}
+          <div
+            data-resting-controls-overflow
+            aria-hidden={hiddenRestingBlockIds.length === 0 || undefined}
+            inert={hiddenRestingBlockIds.length === 0 || undefined}
+            className={cn(
+              "min-w-0 shrink-0",
+              hiddenRestingBlockIds.length === 0 && "pointer-events-none invisible absolute",
+            )}
+          >
+            <CompactComposerControlsMenu
+              interactionMode={interactionMode}
+              runtimeMode={compatibleRuntimeMode}
+              runtimeModeOptions={compatibleRuntimeModeOptions}
+              size={composerControlsCollapsed ? "xs" : "sm"}
+              hidden={composerControlsHidden || hiddenRestingBlockIds.length === 0}
+              showInteractionModeToggle={
+                planModeUiEnabled && hiddenRestingBlockIds.includes("mode")
               }
-              aria-hidden={hidden || undefined}
-              inert={hidden || undefined}
-              className={cn(
-                "flex w-max min-w-max shrink-0 items-center gap-1",
-                hidden && "pointer-events-none invisible absolute",
-                index >= restingBlockDefs.length - iconOnlyBlockCount &&
-                  "[&_[data-composer-control-label]]:pointer-events-none [&_[data-composer-control-label]]:invisible [&_[data-composer-control-label]]:absolute [&_[data-composer-control-label]]:w-max [&_[data-composer-control-label]]:max-w-none [&_[data-composer-control-compact-icon]]:[visibility:inherit] [&_[data-composer-control-compact-icon]]:relative",
-              )}
-            >
-              {def.content}
-            </div>
-          );
-        })}
-        <div
-          data-resting-controls-overflow
-          aria-hidden={hiddenRestingBlockIds.length === 0 || undefined}
-          inert={hiddenRestingBlockIds.length === 0 || undefined}
-          className={cn(
-            "min-w-0 shrink-0",
-            hiddenRestingBlockIds.length === 0 && "pointer-events-none invisible absolute",
-          )}
-        >
-          <CompactComposerControlsMenu
-            interactionMode={interactionMode}
-            runtimeMode={compatibleRuntimeMode}
-            runtimeModeOptions={compatibleRuntimeModeOptions}
-            size={composerControlsCollapsed ? "xs" : "sm"}
-            hidden={composerControlsHidden || hiddenRestingBlockIds.length === 0}
-            showInteractionModeToggle={planModeUiEnabled && hiddenRestingBlockIds.includes("mode")}
-            onToggleInteractionMode={toggleInteractionMode}
-            onRuntimeModeChange={handleRuntimeModeChange}
-          />
-        </div>
-      </>
+              onToggleInteractionMode={toggleInteractionMode}
+              onRuntimeModeChange={handleRuntimeModeChange}
+            />
+          </div>
+        </>
+      )}
     </>
   );
   const showTasksTab =
@@ -5792,6 +5839,27 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     ],
   );
 
+  const snips = useDesktopSnips((file) => {
+    void addComposerAttachments([file]).then((inserted) => {
+      if (!inserted) focusComposer();
+    });
+  });
+  const autoPick = useAutoPickSkills({
+    environmentId,
+    cwd: gitCwd ?? null,
+    prompt,
+    projectText: gitCwd?.split(/[\/]/).findLast(Boolean) ?? "",
+    skills: selectedProviderSkills,
+    cap: settings.composerSuggestSkillCap,
+    engine: settings.composerAutoPickEngine,
+    openRouterModel: settings.composerAutoPickOpenRouterModel,
+    groqModel: settings.composerAutoPickGroqModel,
+    localModel: settings.composerAutoPickLocalModel,
+    getPrompt: () => promptRef.current,
+    setPrompt,
+  });
+  const [isPromptLibraryOpen, setIsPromptLibraryOpen] = useState(false);
+
   // Render
   // ------------------------------------------------------------------
   return (
@@ -5879,6 +5947,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         to={selectedModelSelection}
         hasReusableContext={(activeContextWindow?.cachedInputTokens ?? 0) > 0}
       />
+      <ProviderDownshiftNotice
+        input={reasoningInput}
+        extras={{
+          chatKey:
+            routeKind === "server" && routeThreadRef
+              ? `${routeThreadRef.environmentId}:${routeThreadRef.threadId}`
+              : (draftId ?? ""),
+          attachmentCount: composerImages.length + composerFiles.length,
+          contextTokens: activeContextWindow?.usedTokens ?? null,
+          onSwitchModel: (slug) =>
+            onProviderModelSelect(selectedInstanceId, slug, { focusComposer: false }),
+        }}
+      />
       {composerControlsCollapsed && restingControlsHost
         ? createPortal(
             <div
@@ -5894,6 +5975,26 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               {composerControls}
             </div>,
             restingControlsHost,
+          )
+        : null}
+      {settingsHost
+        ? createPortal(
+            <div
+              data-chat-composer-settings-controls="true"
+              className="flex min-w-0 items-center gap-1 font-normal text-muted-foreground/70 [&_button]:text-xs!"
+            >
+              {/* Reply style, then permission, as in the approved design. */}
+              {restingBlockDefs.toReversed().map((def) => (
+                <div
+                  key={def.id}
+                  data-settings-block={def.id}
+                  className="flex shrink-0 items-center"
+                >
+                  {def.content}
+                </div>
+              ))}
+            </div>,
+            settingsHost,
           )
         : null}
       {/* Cards live in their own full-width column; the button bar never shares a row with them. */}
@@ -6053,85 +6154,16 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               <ComposerTasksBadge progress={activeTasksProgress} />
             </ComposerBanner.Attachment>
           ) : null}
-          {showComposerToolbar ? (
-            <ComposerToolbar
-              prefs={settings.composerToolbar}
-              collapsed={settings.composerToolbarCollapsed}
-              onFillPrompt={setPrompt}
-              onCollapsedChange={(collapsed) =>
-                void updateClientSettings({ composerToolbarCollapsed: collapsed })
-              }
-              onPrefsChange={(composerToolbar) => void updateClientSettings({ composerToolbar })}
-              builtins={{
-                replyStyle: (
-                  <ComposerReplyStyleControl
-                    threadRef={routeThreadRef}
-                    serverValue={attachThreadShell?.replyStyle}
-                    environmentId={routeThreadRef.environmentId}
-                    projectId={savedItemsProjectId}
-                    cwd={gitCwd}
-                    size="xs"
-                  />
-                ),
-                saved: (
-                  <ComposerSavedItems
-                    environmentId={environmentId}
-                    projectId={savedItemsProjectId}
-                    target={composerDraftTarget}
-                    modelSelection={selectedModelSelection}
-                    runtimeMode={runtimeMode}
-                    interactionMode={interactionMode}
-                    canSave={canOperateThread}
-                    threadId={routeKind === "server" ? activeThreadId : null}
-                  />
-                ),
-                stash: (
-                  <ComposerStashBadge
-                    count={stashQueue.length}
-                    menuOpen={isStashMenuOpen}
-                    pulseKey={stashPulse.key}
-                    pulsing={stashPulse.active}
-                    onToggleMenu={toggleStashMenu}
-                  />
-                ),
-                skills:
-                  selectedProviderSkills.length > 0 ? (
-                    <>
-                      <ComposerAutoPickSkillsButton
-                        environmentId={environmentId}
-                        cwd={gitCwd ?? null}
-                        prompt={prompt}
-                        projectText={gitCwd?.split(/[\\/]/).findLast(Boolean) ?? ""}
-                        skills={selectedProviderSkills}
-                        cap={settings.composerSuggestSkillCap}
-                        engine={settings.composerAutoPickEngine}
-                        openRouterModel={settings.composerAutoPickOpenRouterModel}
-                        groqModel={settings.composerAutoPickGroqModel}
-                        localModel={settings.composerAutoPickLocalModel}
-                        getPrompt={() => promptRef.current}
-                        setPrompt={setPrompt}
-                      />
-                      <ComposerSkillsButton
-                        skills={selectedProviderSkills}
-                        alignRight={false}
-                        onSelect={(skillName) =>
-                          setPrompt(prefixPromptWithSkill(promptRef.current, skillName))
-                        }
-                      />
-                    </>
-                  ) : null,
-                subagents:
-                  composerSubagents.length > 0 || attachedSubagent !== null ? (
-                    <ComposerSubagentsButton
-                      options={composerSubagents}
-                      attached={attachedSubagent}
-                      onAttach={attachSubagent}
-                      onDetach={detachSubagent}
-                    />
-                  ) : null,
-                nextAction: <ComposerNotepadButton alignRight={false} />,
-              }}
-            />
+          {pendingUserInputs.length === 0 && stashQueue.length > 0 ? (
+            <ComposerBanner.Attachment>
+              <ComposerStashBadge
+                count={stashQueue.length}
+                menuOpen={isStashMenuOpen}
+                pulseKey={stashPulse.key}
+                pulsing={stashPulse.active}
+                onToggleMenu={toggleStashMenu}
+              />
+            </ComposerBanner.Attachment>
           ) : null}
         </ComposerBanner.Column>
       </>
@@ -6879,27 +6911,43 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                           });
                         }}
                       />
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onPointerDown={(event) => event.preventDefault()}
-                              onClick={() => attachmentInputRef.current?.click()}
-                              aria-label="Attach files"
-                            />
-                          }
-                        >
-                          <PaperclipIcon />
-                        </TooltipTrigger>
-                        <TooltipPopup>
-                          {attachShortcutLabel
-                            ? `Attach files (${attachShortcutLabel})`
-                            : "Attach files"}
-                        </TooltipPopup>
-                      </Tooltip>
+                      <ComposerPlusMenu
+                        onAttach={() => attachmentInputRef.current?.click()}
+                        attachShortcutLabel={attachShortcutLabel}
+                        snips={snips}
+                        skills={selectedProviderSkills}
+                        onSelectSkill={(skillName) =>
+                          setPrompt(prefixPromptWithSkill(promptRef.current, skillName))
+                        }
+                        autoPick={autoPick}
+                        renderLibrary={(close) => (
+                          <ComposerPromptLibrary
+                            environmentId={environmentId}
+                            projectId={savedItemsProjectId}
+                            draft={prompt}
+                            onUse={(body) => {
+                              setPrompt(insertPromptText(promptRef.current, body));
+                              close();
+                              focusComposer();
+                            }}
+                            onManage={() => {
+                              close();
+                              setIsPromptLibraryOpen(true);
+                            }}
+                          />
+                        )}
+                      />
+                      <ComposerSavedItems
+                        environmentId={environmentId}
+                        projectId={savedItemsProjectId}
+                        target={composerDraftTarget}
+                        modelSelection={selectedModelSelection}
+                        runtimeMode={runtimeMode}
+                        interactionMode={interactionMode}
+                        canSave={canOperateThread}
+                        threadId={routeKind === "server" ? activeThreadId : null}
+                        sheet={{ open: isPromptLibraryOpen, onOpenChange: setIsPromptLibraryOpen }}
+                      />
                       <ComposerSnipButton
                         onSnip={(file) => {
                           void addComposerAttachments([file]).then((inserted) => {

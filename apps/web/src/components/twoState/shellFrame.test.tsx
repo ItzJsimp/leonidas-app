@@ -19,8 +19,14 @@ vi.mock("~/components/workspace/useActiveAiosWorkspace", () => ({
 }));
 vi.mock("~/components/workspace/WorkspaceSwitcher", () => ({ WorkspaceMenu: () => null }));
 vi.mock("~/hooks/useLocalStorage", async () => {
-  const { EMPTY_SETUP_STATE } = await import("~/onboarding/setupState.logic");
-  return { useLocalStorage: () => [EMPTY_SETUP_STATE, vi.fn()] };
+  const { EMPTY_SETUP_STATE, SETUP_STATE_STORAGE_KEY } =
+    await import("~/onboarding/setupState.logic");
+  return {
+    useLocalStorage: (key: string, initial: unknown) => [
+      key === SETUP_STATE_STORAGE_KEY ? EMPTY_SETUP_STATE : initial,
+      vi.fn(),
+    ],
+  };
 });
 vi.mock("./useTwoStateData", () => ({
   useTwoStateCounts: () => ({ needsYou: 3, running: 0, today: null }),
@@ -65,7 +71,24 @@ describe("shell frame", () => {
     const navs = host.querySelectorAll("nav");
     expect(navs).toHaveLength(1);
     expect(navs[0]?.querySelector("[aria-label='Today']")).not.toBeNull();
+    // A pin adds a tab to the chat panel and never removes it from the rail.
     expect(navs[0]?.querySelector("[aria-label='Notifications, 3 need you']")).not.toBeNull();
+    expect(navs[0]?.querySelector("[aria-label='Leonidas Chat']")).not.toBeNull();
+  });
+
+  it("has one state: workspace picker on top, Chat first, no collapse control, icon-only Usage and Settings", () => {
+    const host = document.createElement("div");
+    host.innerHTML = html();
+    const nav = host.querySelector("nav")!;
+    expect(nav.querySelector("[aria-label$='the menu']")).toBeNull();
+    expect(nav.querySelector("button, a")?.getAttribute("aria-label")).toMatch(/^Workspace: /);
+    const labels = [...nav.querySelectorAll("a")].map((link) => link.getAttribute("aria-label"));
+    const at = (name: string) => labels.findIndex((label) => label?.startsWith(name));
+    expect(at("Leonidas Chat")).toBeLessThan(at("Command Center"));
+    expect(at("Command Center")).toBeLessThan(at("Today"));
+    for (const name of ["Usage", "Settings"]) {
+      expect(nav.querySelector(`[aria-label='${name}']`)?.textContent).toBe("");
+    }
   });
 
   it("does not ship the old stat band", () => {

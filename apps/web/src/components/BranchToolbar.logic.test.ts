@@ -17,6 +17,7 @@ import {
   resolvePreviousWorktreeLabel,
   resolvePreviousWorktreeSeed,
   sanitizeNewRefName,
+  shouldHostSettingsInStrip,
   shouldIncludeBranchPickerItem,
   shouldShowComposerContextStrip,
   shouldShowEnvironmentIndicator,
@@ -881,5 +882,22 @@ describe("sanitizeNewRefName", () => {
   it("does not collapse dashes the user typed", () => {
     expect(sanitizeNewRefName("new - branch")).toBe("new---branch");
     expect(sanitizeNewRefName("foo--bar")).toBe("foo--bar");
+  });
+});
+
+describe("shouldHostSettingsInStrip", () => {
+  it("moves the settings under the card only on the new chat screen with a visible strip", () => {
+    expect(shouldHostSettingsInStrip({ isDraftHeroState: true, contextStripVisible: true })).toBe(
+      true,
+    );
+  });
+
+  it("keeps the settings in the bar when the strip is hidden or the chat is under way", () => {
+    expect(shouldHostSettingsInStrip({ isDraftHeroState: true, contextStripVisible: false })).toBe(
+      false,
+    );
+    expect(shouldHostSettingsInStrip({ isDraftHeroState: false, contextStripVisible: true })).toBe(
+      false,
+    );
   });
 });

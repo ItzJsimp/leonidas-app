@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   NO_PICKER_STATS,
+  effortRowStats,
   formatPickerCost,
   formatPickerIntelligence,
   formatPickerSpeed,
@@ -80,5 +81,30 @@ describe("pickerModelStats", () => {
     expect(stats.intelligence).toBe(50);
     expect(stats.source).toBe("artificialAnalysis");
     expect(stats.efforts.map((item) => item.effort)).toEqual(["low", "medium", "max"]);
+  });
+
+  it("gives each effort its own row and marks an unmeasured effort as not benchmarked", () => {
+    const aa = (effort: string, index: number): ModelBenchmarkEntry => ({
+      source: "artificialAnalysis",
+      sourceModelKey: `claude-opus-5-5-${effort}`,
+      name: `Claude Opus 5.5 (${effort})`,
+      effort,
+      values: { "aa:index": index, "aa:cost-per-task": index / 10 },
+    });
+    const stats = pickerModelStats([aa("low", 46), aa("medium", 52.1), aa("max", 59)], {
+      modelId: "claude-opus-5-5",
+    });
+    expect(effortRowStats(stats, "medium")?.intelligence).toBe(52.1);
+    expect(effortRowStats(stats, "low")?.costPerTask).toBeCloseTo(4.6);
+    // X-High has no AA row: null, never the number of the next effort up.
+    expect(effortRowStats(stats, "xhigh")).toBeNull();
+  });
+
+  it("shows no per-effort numbers when the source splits no efforts", () => {
+    const stats = pickerModelStats([entry("Claude Opus 5", { "benchLm:overall": 77 })], {
+      modelId: "claude-opus-5",
+    });
+    expect(effortRowStats(stats, "high")).toBeUndefined();
+    expect(effortRowStats(null, "high")).toBeUndefined();
   });
 });

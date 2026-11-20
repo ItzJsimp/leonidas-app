@@ -1,4 +1,4 @@
-import type { TradingState } from "@t3tools/contracts";
+import type { TradingCrewResult, TradingState } from "@t3tools/contracts";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState, type ReactNode } from "react";
 
@@ -16,8 +16,10 @@ import {
   setupRows,
   type Range,
 } from "./dashboard.logic";
+import { sortCards, statusLine } from "./crew.logic";
+import { chartMarkers } from "./money.logic";
 
-function Card({
+export function Card({
   title,
   aside,
   className,
@@ -39,9 +41,19 @@ function Card({
   );
 }
 
-function NetReturnChart({ state }: { readonly state: TradingState }) {
-  const [range, setRange] = useState<Range>("3M");
+/** The net return line. The Money tab adds `markers` for each Payout and Firm fee. */
+export function NetReturnChart({
+  state,
+  defaultRange = "3M",
+  markers = false,
+}: {
+  readonly state: TradingState;
+  readonly defaultRange?: Range;
+  readonly markers?: boolean;
+}) {
+  const [range, setRange] = useState<Range>(defaultRange);
   const chart = useMemo(() => chartModel(state, range), [state, range]);
+  const marks = markers ? chartMarkers(chart.plot) : [];
   return (
     <Card
       title="Net return over time"
@@ -74,38 +86,52 @@ function NetReturnChart({ state }: { readonly state: TradingState }) {
         </p>
       ) : (
         <div className="relative">
-          <svg
-            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-            preserveAspectRatio="none"
-            className="block h-28 w-full sm:h-32"
-            role="img"
-            aria-label="Net return line chart"
-          >
-            <defs>
-              <linearGradient id="trading-net-area" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="var(--color-state)" stopOpacity=".28" />
-                <stop offset="1" stopColor="var(--color-state)" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <line
-              x1="0"
-              x2={CHART_WIDTH}
-              y1={chart.zeroY}
-              y2={chart.zeroY}
-              stroke="var(--color-input)"
-              strokeDasharray="3 4"
-              vectorEffect="non-scaling-stroke"
-            />
-            <path d={chart.area ?? ""} fill="url(#trading-net-area)" />
-            <polyline
-              points={chart.points}
-              fill="none"
-              stroke="var(--color-state)"
-              strokeWidth="2"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
+          <div className="relative">
+            <svg
+              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+              preserveAspectRatio="none"
+              className="block h-28 w-full sm:h-32"
+              role="img"
+              aria-label="Net return line chart"
+            >
+              <defs>
+                <linearGradient id="trading-net-area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="var(--color-state)" stopOpacity=".28" />
+                  <stop offset="1" stopColor="var(--color-state)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <line
+                x1="0"
+                x2={CHART_WIDTH}
+                y1={chart.zeroY}
+                y2={chart.zeroY}
+                stroke="var(--color-input)"
+                strokeDasharray="3 4"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path d={chart.area ?? ""} fill="url(#trading-net-area)" />
+              <polyline
+                points={chart.points}
+                fill="none"
+                stroke="var(--color-state)"
+                strokeWidth="2"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            {marks.map((mark) => (
+              <span
+                key={mark.key}
+                style={{ left: `${mark.left}%`, top: `${mark.top}%` }}
+                className={cn(
+                  "pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded border border-input bg-card px-1 py-0.5 text-3xs font-semibold tabular-nums",
+                  mark.kind === "fee" && "text-muted-foreground",
+                )}
+              >
+                {mark.label}
+              </span>
+            ))}
+          </div>
           {chart.payoutNote ? (
             <span className="absolute right-1 top-0 rounded border border-input bg-card px-1.5 py-0.5 text-3xs font-semibold">
               {chart.payoutNote}
@@ -232,14 +258,59 @@ function JourneyCard({ state }: { readonly state: TradingState }) {
   );
 }
 
+/** The Crew card: each trader's clean streak, yours first, and when the board last synced. */
+export function CrewPreview({ crew }: { readonly crew: TradingCrewResult | null }) {
+  const shown =
+    crew === null || crew.setup !== "on"
+      ? []
+      : sortCards(
+          crew.cards.filter((card) => card.habits !== undefined),
+          crew.self,
+        ).slice(0, 4);
+  return (
+    <Card title="Crew" aside="Clean streak">
+      {crew === null || crew.setup !== "on" ? (
+        <p className="text-xs text-muted-foreground">
+          Join a Crew to compare clean streaks.{" "}
+          <Link to="/trading/crew" className="underline underline-offset-2">
+            Open Crew
+          </Link>
+        </p>
+      ) : shown.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No one shares streaks yet.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {shown.map((card) => (
+            <li key={card.trader} className="flex justify-between gap-2 py-1.5 text-sm first:pt-0">
+              <span className="truncate">{card.name}</span>
+              <span className="tabular-nums">{card.habits?.cleanStreak ?? 0}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {crew !== null && crew.setup === "on" ? (
+        <p className="mt-2 text-2xs text-muted-foreground">
+          {statusLine(crew, Date.now()).text}{" "}
+          <Link to="/trading/crew" className="underline underline-offset-2">
+            Open Crew
+          </Link>
+        </p>
+      ) : null}
+    </Card>
+  );
+}
+
 /** Dashboard B Cockpit with A's journey row (Doop pick). Numbers come from `deriveTradingState`. */
 /** `notice` shows above the key numbers, for example a new TopstepX export to import. */
 export function DashboardView({
   state,
   notice,
+  crew,
 }: {
   readonly state: TradingState;
   readonly notice?: ReactNode;
+  /** The Crew from the last sync. Null or absent shows the join line. */
+  readonly crew?: TradingCrewResult | null;
 }) {
   const numbers = keyNumbers(state);
   return (
@@ -273,11 +344,7 @@ export function DashboardView({
       <div className="grid gap-3 lg:grid-cols-[1.25fr_1fr_1fr]">
         <AccountsPreview state={state} />
         <SetupsCard state={state} />
-        <Card title="Crew" aside="Clean streak">
-          <p className="text-xs text-muted-foreground">
-            Join a Crew in Setup to compare clean streaks.
-          </p>
-        </Card>
+        <CrewPreview crew={crew ?? null} />
       </div>
       <JourneyCard state={state} />
     </div>

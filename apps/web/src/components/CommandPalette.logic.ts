@@ -4,7 +4,6 @@ import {
   type EnvironmentId,
   type FilesystemBrowseEntry,
   type KeybindingCommand,
-  THREAD_JUMP_KEYBINDING_COMMANDS,
 } from "@t3tools/contracts";
 import { filterFilesystemBrowseEntries } from "@t3tools/client-runtime/state/filesystem";
 import type { SidebarThreadSortOrder } from "@t3tools/contracts/settings";
@@ -276,18 +275,6 @@ export function findHighlightedCommandPaletteItem(
   return null;
 }
 
-export function enumerateCommandPaletteItems(
-  items: ReadonlyArray<CommandPaletteActionItem>,
-): CommandPaletteActionItem[] {
-  return items.map((item, index) => {
-    const shortcutCommand = THREAD_JUMP_KEYBINDING_COMMANDS[index];
-    if (shortcutCommand) return { ...item, shortcutCommand };
-
-    const { shortcutCommand: _shortcutCommand, ...itemWithoutShortcut } = item;
-    return itemWithoutShortcut;
-  });
-}
-
 export type CommandPaletteMode = "root" | "root-browse" | "submenu" | "submenu-browse";
 
 export type CommandPaletteProject = Project & { readonly displayName: string };
@@ -338,6 +325,28 @@ export function buildProjectActionItems(input: {
       await input.runProject(project);
     },
   }));
+}
+
+/**
+ * One section per computer, so each computer lists all of its own projects. This computer comes
+ * first, then the others as they come.
+ */
+export function groupProjectsByDevice<P extends { readonly environmentId: EnvironmentId }>(input: {
+  readonly projects: ReadonlyArray<P>;
+  readonly primaryEnvironmentId: EnvironmentId | null;
+}): Array<{ readonly environmentId: EnvironmentId; readonly projects: P[] }> {
+  const byEnvironment = new Map<EnvironmentId, P[]>();
+  for (const project of input.projects) {
+    const list = byEnvironment.get(project.environmentId);
+    if (list) list.push(project);
+    else byEnvironment.set(project.environmentId, [project]);
+  }
+  const rank = (environmentId: EnvironmentId) =>
+    environmentId === input.primaryEnvironmentId ? 0 : 1;
+  // Array.sort is stable: computers of equal rank keep the order they first appeared in.
+  return [...byEnvironment]
+    .map(([environmentId, projects]) => ({ environmentId, projects }))
+    .sort((left, right) => rank(left.environmentId) - rank(right.environmentId));
 }
 
 export type BuildThreadActionItemsThread = Pick<

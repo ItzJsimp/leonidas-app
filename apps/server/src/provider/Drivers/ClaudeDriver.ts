@@ -21,6 +21,7 @@ import * as Cache from "effect/Cache";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Crypto from "effect/Crypto";
+import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -43,6 +44,7 @@ import { makeClaudeAuth, makeClaudeAuthCommands } from "../ClaudeAuth.ts";
 import { makeClaudeAuthEventLog } from "../ClaudeAuthEvents.ts";
 import { claudeUsageReader } from "./claudeUsage.ts";
 import { claudeUsageResponseToLimits, makeClaudeScopedLimitNames } from "../claudeUsageLimits.ts";
+import { makeChatQuotaRecorder } from "../../usage/ChatQuotaLog.ts";
 import * as ClaudeResetCredits from "../claudeResetCredits.ts";
 import * as ResetCreditCoordinator from "../resetCreditCoordinator.ts";
 import {
@@ -103,7 +105,10 @@ const UPDATE = makePackageManagedProviderMaintenanceResolver({
   provider: DRIVER_KIND,
   npmPackageName: "@anthropic-ai/claude-code",
   nativeUpdate: {
-    args: ["update"],
+    // `claude update` follows the user's autoUpdatesChannel ("stable" lags `latest` by
+    // weeks), but the version check compares against the npm `latest` tag.
+    args: ["install", "latest"],
+    pinnedArgs: (version) => ["install", version],
     isCommandPath: isClaudeNativeCommandPath,
   },
 });
@@ -140,7 +145,7 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
       // server's own state dir. The server cwd is $HOME in packaged desktop
       // builds, and `claude` wrappers that scope themselves to their cwd refuse
       // to run there. Workspace probes use the thread cwd via `snapshotForCwd`.
-      const { stateDir } = yield* ServerConfig.ServerConfig;
+      const { stateDir, providerStatusCacheDir } = yield* ServerConfig.ServerConfig;
       const httpClient = yield* HttpClient.HttpClient;
       const latestVersions = yield* ProviderLatestVersions.ProviderLatestVersions;
       const resetCreditCoordinator = yield* ResetCreditCoordinator.ResetCreditCoordinator;
@@ -208,6 +213,11 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
       });
 
       const scopedLimitNames = yield* makeClaudeScopedLimitNames;
+      const recordChatQuota = yield* makeChatQuotaRecorder(
+        providerStatusCacheDir,
+        instanceId,
+        yield* Clock.currentTimeMillis,
+      );
       const orchestrationAdapter = yield* createClaudeAdapterV2(
         {
           instanceId,
@@ -217,7 +227,11 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
           enabled,
           config,
         },
-        { scopedLimitNames, onUsageLimits: (update) => snapshot.applyUsageLimits(update) },
+        {
+          scopedLimitNames,
+          onUsageLimits: (update) => snapshot.applyUsageLimits(update),
+          onChatQuota: recordChatQuota,
+        },
       ).pipe(
         Effect.mapError(
           (cause) =>

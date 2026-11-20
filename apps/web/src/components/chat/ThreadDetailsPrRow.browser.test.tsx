@@ -10,7 +10,7 @@ import * as Cause from "effect/Cause";
 import { DraftId } from "~/composerDraftStore";
 import { AsyncResult } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 const state = vi.hoisted(() => ({
   status: "success" as PullRequestCheck["status"],
@@ -149,17 +149,17 @@ it("requires a new merge click after passing checks become pending and pass agai
 });
 
 it.each<[PullRequestCheck["status"], PullRequestCheck["status"], string]>([
-  ["success", "skipped", ""],
-  ["failure", "cancelled", ""],
-  ["success", "action-required", "1/2"],
-  ["success", "pending", "1/2"],
-  ["pending", "pending", "0/2"],
-  ["pending", "action-required", "0/2"],
-  ["skipped", "pending", "1/2"],
-  ["neutral", "pending", "1/2"],
-  ["failure", "pending", "1/2"],
-  ["cancelled", "pending", "1/2"],
-])("counts finished checks while work remains (%s, %s)", async (status, extraStatus, count) => {
+  ["success", "skipped", "1 of 2 passing"],
+  ["failure", "cancelled", "2 of 2 failing"],
+  ["success", "action-required", "1 of 2 awaiting action"],
+  ["success", "pending", "1 of 2 running"],
+  ["pending", "pending", "2 of 2 running"],
+  ["pending", "action-required", "1 of 2 running · 1 of 2 awaiting action"],
+  ["skipped", "pending", "1 of 2 running"],
+  ["neutral", "pending", "1 of 2 running"],
+  ["failure", "pending", "1 of 2 running · 1 failed"],
+  ["cancelled", "pending", "1 of 2 running · 1 failed"],
+])("summarizes the checks in words (%s, %s)", async (status, extraStatus, count) => {
   await using screen = await setup();
   const { container } = screen;
   state.status = status;
@@ -178,10 +178,9 @@ it.each<[PullRequestCheck["status"], PullRequestCheck["status"], string]>([
       />,
     );
   });
-  const counts = [...container.querySelectorAll("*")]
-    .map((element) => element.textContent?.trim() ?? "")
-    .filter((value) => /^\d+\/\d+$/.test(value));
-  expect(new Set(counts)).toEqual(new Set(count ? [count] : []));
+  // The summary sits in the hover card, so open it first.
+  await userEvent.hover(container.querySelector<HTMLElement>('[aria-label="Open PR"]')!);
+  await expect.element(page.getByText(count, { exact: true })).toBeVisible();
 });
 
 it("shows the current checkout recovery detail when fixing checks fails and is retried", async () => {

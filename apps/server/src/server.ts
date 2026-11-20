@@ -4,10 +4,12 @@ import * as DevPreviewService from "./devPreview/DevPreviewService.ts";
 import * as ImageService from "./images/ImageService.ts";
 import * as LocalModelsService from "./localModels/LocalModelsService.ts";
 import * as AttachmentArchive from "./files/AttachmentArchive.ts";
+import * as NativeSpawnGateLive from "./subagents/nativeSpawnGateLive.ts";
 import * as SubagentRuns from "./subagents/SubagentRuns.ts";
 import * as TaskAutoLog from "./taskBoard/TaskAutoLog.ts";
 import * as AiosChangeLog from "./events/AiosChangeLog.ts";
 import * as AutomationService from "./automations/AutomationService.ts";
+import * as WordSyncAutoSetup from "./scribe/WordSyncAutoSetup.ts";
 import * as TaskBoardService from "./taskBoard/TaskBoardService.ts";
 import * as AreaSyncService from "./areaSync/AreaSyncService.ts";
 import * as PromptPrediction from "./workspace/PromptPrediction.ts";
@@ -345,6 +347,18 @@ const layerPlatformServices = NodeServices.layer;
 
 const layerPersistence = Layer.empty.pipe(Layer.provideMerge(SqlitePersistence.layerConfig));
 
+// The spawn gate for native Claude Agent calls (ADR-0098). Its inputs are the same layer values
+// that the rest of the server uses, so each is built once.
+const layerNativeSpawnGate = NativeSpawnGateLive.layer.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      SubagentRuns.layer.pipe(Layer.provide(layerPersistence)),
+      layerUsage,
+      layerServerSettings,
+    ),
+  ),
+);
+
 const layerVcsDriverRegistry = VcsDriverRegistry.layer.pipe(Layer.provide(VcsProjectConfig.layer));
 
 const layerSourceControlProviderRegistry = SourceControlProviderRegistry.layer.pipe(
@@ -653,6 +667,8 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
     Layer.provide(ProjectionStoreV2.layer),
   ),
   DelegatedTaskAnalytics.layer,
+  // Turns Scribe word sync on for an AIOS that never set a folder.
+  Layer.effectDiscard(WordSyncAutoSetup.make.pipe(Effect.flatMap((service) => service.start()))),
   Layer.effectDiscard(
     Effect.gen(function* () {
       const service = yield* PullRequestSyncReactor.PullRequestSyncReactor;
@@ -703,7 +719,13 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
     Layer.mergeAll(Keybindings.layer, EnvironmentTheme.layer, UsageLimitSources.layer),
   ),
   Layer.provideMerge(ProviderRegistry.layer),
-  Layer.provideMerge(ProviderInstanceRegistryHydration.layer),
+  // The instance registry is the new routing keystone — text generation,
+  // adapter lookup, and runtime ingestion all resolve `ProviderInstanceId`
+  // through this layer. Built-in drivers come from `BUILT_IN_DRIVERS`;
+  // hydration adds their default instances to `providerInstances` on boot.
+  Layer.provideMerge(
+    ProviderInstanceRegistryHydration.layer.pipe(Layer.provideMerge(layerNativeSpawnGate)),
+  ),
   // Provider hydration builds the Claude runner, which reports agents to the same scanner the
   // terminal and preview layers share.
   Layer.provideMerge(layerPortScanner),

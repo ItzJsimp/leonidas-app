@@ -16,6 +16,8 @@ import {
   makeUsageLimits,
 } from "@t3tools/provider-core/server/usageLimits";
 
+import type { ChatQuotaReading } from "../usage/chatQuota.ts";
+
 const SESSION_MINS = 5 * 60;
 const WEEK_MINS = 7 * 24 * 60;
 
@@ -183,6 +185,45 @@ export function claudeRateLimitEventToUpdate(
     return { windows: [scopedWindow(names.overageIncluded, usedPercent, resetsAt)] };
   }
   return undefined;
+}
+
+const UnifiedWindow = Schema.Struct({
+  utilization: Schema.optional(Schema.Number),
+  resetsAt: Schema.optional(Schema.Number),
+});
+// The CLI sends both windows on each event, but the SDK type does not name the field yet.
+const decodeUnifiedWindows = Schema.decodeUnknownOption(
+  Schema.Struct({
+    unifiedWindows: Schema.Struct({
+      five_hour: Schema.optional(UnifiedWindow),
+      seven_day: Schema.optional(UnifiedWindow),
+    }),
+  }),
+);
+
+/** Both plan windows from one streamed event, as 0–100 percents, for per-chat attribution. */
+export function claudeRateLimitEventToChatQuota(
+  info: SDKRateLimitInfo,
+  threadId: string,
+  at: number,
+): ChatQuotaReading | undefined {
+  const toWindow = (value: typeof UnifiedWindow.Type | undefined) =>
+    typeof value?.utilization === "number"
+      ? { usedPercent: value.utilization * 100, resetsAt: isoFromEpochSeconds(value.resetsAt) }
+      : undefined;
+  const unified = decodeUnifiedWindows(info);
+  const fromType = (type: string) =>
+    info.rateLimitType === type
+      ? toWindow({ utilization: info.utilization, resetsAt: info.resetsAt })
+      : undefined;
+  const fiveHour = Option.isSome(unified)
+    ? toWindow(unified.value.unifiedWindows.five_hour)
+    : fromType("five_hour");
+  const weekly = Option.isSome(unified)
+    ? toWindow(unified.value.unifiedWindows.seven_day)
+    : fromType("seven_day");
+  if (!fiveHour && !weekly) return undefined;
+  return { at, threadId, ...(fiveHour ? { fiveHour } : {}), ...(weekly ? { weekly } : {}) };
 }
 
 /**

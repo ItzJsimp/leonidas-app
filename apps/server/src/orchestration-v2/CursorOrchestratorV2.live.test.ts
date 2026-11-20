@@ -32,6 +32,7 @@ import * as ProviderInstanceRegistryHydration from "../provider/ProviderInstance
 import * as PortScanner from "../preview/PortScanner.ts";
 import * as ProviderLatestVersions from "@t3tools/provider-core/server/ProviderLatestVersions";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+import { nativeSpawnGateAllowAll } from "../subagents/nativeSpawnGate.test-fixtures.ts";
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as OpenCodeRuntime from "@t3tools/provider-opencode/server/OpenCodeRuntime";
 import * as OpenCodeServerLedger from "@t3tools/provider-opencode/server/OpenCodeServerLedger";
@@ -127,6 +128,7 @@ const layerLive = RuntimeLayer.layer.pipe(
   Layer.provide(layerBackgroundPolicy),
   Layer.provide(layerPlatformTest),
   Layer.provide(McpProviderSessions.layer),
+  Layer.provide(nativeSpawnGateAllowAll),
 );
 
 const waitForIdle = Effect.fn("CursorOrchestratorV2Live.waitForIdle")(function* (

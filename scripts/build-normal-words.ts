@@ -1,4 +1,4 @@
-// @effect-diagnostics nodeBuiltinImport:off globalFetch:off globalConsole:off - Standalone offline CLI that downloads word lists once and prints one summary line, outside any Effect runtime.
+// @effect-diagnostics nodeBuiltinImport:off globalFetch:off globalConsole:off - This standalone generator uses Node APIs without an Effect runtime.
 /**
  * Builds the packed lists Scribe uses to flag word fixes that also change normal sentences.
  * Run: node scripts/build-normal-words.ts <folder with the unzipped SSA yobYYYY.txt files>

@@ -3,8 +3,8 @@ import { composerDraftHasUserContent, useComposerDraftStore } from "~/composerDr
 import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
-import { FolderPlusIcon, MessageSquareIcon } from "lucide-react";
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FolderPlusIcon, MessageSquareIcon, PlusIcon } from "lucide-react";
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import { heroGreeting } from "./heroGreeting";
 
 import { openCommandPalette } from "~/commandPaletteBus";
@@ -28,7 +28,10 @@ import { ProjectFavicon } from "../ProjectFavicon";
 import { sortLogicalProjectsForSidebar } from "../Sidebar.logic";
 import {
   Combobox,
+  ComboboxCollection,
   ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxGroupLabel,
   ComboboxItem,
   ComboboxList,
   ComboboxPopup,
@@ -38,12 +41,17 @@ import {
 } from "../ui/combobox";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { InlineButton } from "../ui/button";
-import { useWorkspaceProjects } from "../workspace/useWorkspaceProjects";
+import { openNewAiosProject } from "../workspace/newAiosProjectStore";
+import { useAiosProjectRoot } from "../workspace/useAiosProjectRoot";
+import { groupPickerEntriesByWorkspace } from "../workspace/projectPickerGroups";
+import { AiosRootTip } from "./AiosRootTip";
 import { DraftProjectName } from "./DraftProjectName";
 import { DraftHeroProjectHeading } from "./DraftHeroProjectHeading";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 
 const ADD_PROJECT_VALUE = "add-project";
+// Picker value for "New project": makes a project folder from the AIOS template.
+const NEW_PROJECT_VALUE = "new-aios-project";
 // Picker value for the "No project" row: starts the chat in the scratch home.
 const SCRATCH_VALUE = "no-project";
 
@@ -56,14 +64,25 @@ const HELMET_STYLE: CSSProperties = {
   maskComposite: "intersect",
   WebkitMaskComposite: "source-in",
 };
+// Eased, many-stop falloff so the circle has no visible edge; every stop lands on 0 by the rim.
 const HELMET_GLOW: CSSProperties = {
   background:
-    "radial-gradient(closest-side,color-mix(in oklab,var(--primary) 30%,transparent),color-mix(in oklab,var(--primary) 14%,transparent) 35%,color-mix(in oklab,var(--primary) 4%,transparent) 68%,transparent)",
+    "radial-gradient(closest-side,color-mix(in oklab,var(--primary) 22%,transparent),color-mix(in oklab,var(--primary) 16%,transparent) 15%,color-mix(in oklab,var(--primary) 10%,transparent) 30%,color-mix(in oklab,var(--primary) 5%,transparent) 48%,color-mix(in oklab,var(--primary) 2%,transparent) 65%,color-mix(in oklab,var(--primary) .6%,transparent) 82%,transparent)",
 };
+
+/** The greeting sits this far above the composer. */
+export const DRAFT_HERO_GREETING_GAP = "1.5rem";
 
 interface PickerItem {
   readonly value: string;
   readonly label: string;
+}
+
+interface PickerGroup {
+  readonly key: string;
+  /** The workspace name; empty for the actions and for a single workspace. */
+  readonly value: string;
+  readonly items: readonly PickerItem[];
 }
 
 interface DraftHeroHeadlineProps {
@@ -78,7 +97,6 @@ export function DraftHeroHeadline({
   activeProjectTitle,
 }: DraftHeroHeadlineProps) {
   const allProjects = useProjects();
-  const projects = useWorkspaceProjects(allProjects, activeProjectRef);
   const threads = useThreadShells();
   const { environments } = useEnvironments();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
@@ -94,13 +112,18 @@ export function DraftHeroHeadline({
   const openAddProject = () => openCommandPalette({ open: "add-project" });
   const { scratchEnvironmentId, scratchWorkspaceRootFor, openScratchProject } = useScratchProject();
   const openProjectDraft = useNewThreadHandler();
+  const {
+    root: aiosRoot,
+    environmentId: aiosEnvironmentId,
+    workspaces: aiosWorkspaces,
+  } = useAiosProjectRoot();
 
   const environmentLabelById = new Map(
     environments.map((environment) => [environment.environmentId, environment.label] as const),
   );
   const projectGroups = sortLogicalProjectsForSidebar(
     buildSidebarProjectSnapshots({
-      projects,
+      projects: allProjects,
       settings: projectGroupingSettings,
       primaryEnvironmentId,
       resolveEnvironmentLabel: (environmentId) => environmentLabelById.get(environmentId) ?? null,
@@ -145,7 +168,7 @@ export function DraftHeroHeadline({
   const activeProject =
     activeProjectRef === null
       ? null
-      : (projects.find(
+      : (allProjects.find(
           (project) =>
             project.environmentId === activeProjectRef.environmentId &&
             project.id === activeProjectRef.projectId,
@@ -158,31 +181,54 @@ export function DraftHeroHeadline({
     activeProject !== null && isScratchProject(activeProject, scratchWorkspaceRoot);
 
   // {value, label} items let Base UI drive the combobox selection while the
-  // popup search filters the same collection. "Add project" is an action, not
-  // a project, so it only trails the unfiltered list.
-  const pickerItems = useMemo<readonly PickerItem[]>(
-    () => [
-      ...menuEntries.map(({ group }) => ({ value: group.projectKey, label: group.displayName })),
-      ...(scratchWorkspaceRoot !== null && !isScratchDraft
-        ? [{ value: SCRATCH_VALUE, label: "No project" }]
-        : []),
-      { value: ADD_PROJECT_VALUE, label: "Add project" },
-    ],
-    [menuEntries, scratchWorkspaceRoot, isScratchDraft],
-  );
+  // popup search filters the same collection. The rows are grouped by workspace, so a project of
+  // another workspace is listed under its workspace name. "Add project" is an action, not a
+  // project, so it only trails the unfiltered list.
+  const pickerGroups: readonly PickerGroup[] = [
+    ...groupPickerEntriesByWorkspace(menuEntries, {
+      workspaces: aiosWorkspaces,
+      environmentId: aiosEnvironmentId,
+      activeProjectId: activeProjectRef?.projectId,
+    }).map((group) => ({
+      key: group.key,
+      value: group.label,
+      items: group.entries.map(({ group: project }) => ({
+        value: project.projectKey,
+        label: project.displayName,
+      })),
+    })),
+    {
+      key: "actions",
+      value: "",
+      items: [
+        ...(scratchWorkspaceRoot !== null && !isScratchDraft
+          ? [{ value: SCRATCH_VALUE, label: "No project" }]
+          : []),
+        ...(aiosRoot !== null ? [{ value: NEW_PROJECT_VALUE, label: "New project" }] : []),
+        { value: ADD_PROJECT_VALUE, label: "Add project" },
+      ],
+    },
+  ];
+  const pickerItems = pickerGroups.flatMap((group) => group.items);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
   const pickerFilter = useComboboxFilter();
-  const filteredPickerItems = useMemo(() => {
-    const query = pickerQuery.trim();
-    if (query.length === 0) return pickerItems;
-    return pickerItems.filter(
-      (item) =>
-        item.value !== ADD_PROJECT_VALUE &&
-        item.value !== SCRATCH_VALUE &&
-        pickerFilter.contains(item, query, (candidate) => candidate.label),
-    );
-  }, [pickerFilter, pickerItems, pickerQuery]);
+  const pickerSearch = pickerQuery.trim();
+  const filteredPickerGroups =
+    pickerSearch.length === 0
+      ? pickerGroups
+      : pickerGroups
+          .map((group) => ({
+            ...group,
+            items: group.items.filter(
+              (item) =>
+                item.value !== ADD_PROJECT_VALUE &&
+                item.value !== NEW_PROJECT_VALUE &&
+                item.value !== SCRATCH_VALUE &&
+                pickerFilter.contains(item, pickerSearch, (candidate) => candidate.label),
+            ),
+          }))
+          .filter((group) => group.items.length > 0);
   const selectedPickerItem = pickerItems.find((item) => item.value === activeProjectKey) ?? null;
 
   // The picker can change the draft's target while the no-project home is
@@ -194,7 +240,7 @@ export function DraftHeroHeadline({
   // An empty draft instead opens the chosen project's own draft, like starting a new thread there:
   // moving it would replace that draft and strand whatever it holds, such as the browser tabs of
   // the no-project draft.
-  const selectProject = (project: (typeof projects)[number], logicalProjectKey: string) => {
+  const selectProject = (project: (typeof allProjects)[number], logicalProjectKey: string) => {
     if (!draftId) {
       return;
     }
@@ -250,8 +296,8 @@ export function DraftHeroHeadline({
 
   const projectSelector = shouldShowProjectMenu ? (
     <Combobox
-      items={pickerItems}
-      filteredItems={filteredPickerItems}
+      items={pickerGroups}
+      filteredItems={filteredPickerGroups}
       autoHighlight
       itemToStringLabel={(item) => item.label}
       isItemEqualToValue={(a, b) => a.value === b.value}
@@ -266,6 +312,10 @@ export function DraftHeroHeadline({
         setPickerOpen(false);
         if (item.value === ADD_PROJECT_VALUE) {
           openAddProject();
+          return;
+        }
+        if (item.value === NEW_PROJECT_VALUE) {
+          openNewAiosProject();
           return;
         }
         if (item.value === SCRATCH_VALUE) {
@@ -298,7 +348,10 @@ export function DraftHeroHeadline({
           />
         </TooltipTrigger>
         {activeProjectDisplayName && !isScratchDraft ? (
-          <TooltipPopup side="top">{activeProjectDisplayName}</TooltipPopup>
+          <TooltipPopup side="top">
+            {activeProjectDisplayName}
+            <AiosRootTip projectRoot={activeProject?.workspaceRoot ?? null} />
+          </TooltipPopup>
         ) : null}
       </Tooltip>
       <ComboboxPopup align="center" className="w-72 overflow-hidden">
@@ -310,33 +363,47 @@ export function DraftHeroHeadline({
         />
         <ComboboxEmpty>No project matches. Change your words and try again.</ComboboxEmpty>
         <ComboboxList>
-          {(item: PickerItem) => {
-            const entry = projectEntryByKey.get(item.value);
-            return (
-              <ComboboxItem key={item.value} hideIndicator value={item}>
-                {item.value === ADD_PROJECT_VALUE ? (
-                  <FolderPlusIcon className="size-4 shrink-0" />
-                ) : item.value === SCRATCH_VALUE ? (
-                  <MessageSquareIcon className="size-4 shrink-0" />
-                ) : entry ? (
-                  <ProjectFavicon project={entry.group} className="size-4 shrink-0" />
-                ) : null}
-                <Tooltip>
-                  <TooltipTrigger render={<span className="min-w-0 flex-1 text-sm" />}>
-                    <DraftProjectName value={item.label} />
-                  </TooltipTrigger>
-                  <TooltipPopup side="top">{item.label}</TooltipPopup>
-                </Tooltip>
-                {entry && showProjectEnvironments ? (
-                  <ProjectEnvironmentBadge
-                    group={entry.group}
-                    primaryEnvironmentId={primaryEnvironmentId}
-                    machineByEnvironmentId={environmentMachineById}
-                  />
-                ) : null}
-              </ComboboxItem>
-            );
-          }}
+          {(group: PickerGroup) => (
+            <div
+              key={group.key}
+              className={group.key === "actions" ? "mt-1 border-border border-t pt-1" : undefined}
+            >
+              <ComboboxGroup items={group.items}>
+                {group.value ? <ComboboxGroupLabel>{group.value}</ComboboxGroupLabel> : null}
+                <ComboboxCollection>
+                  {(item: PickerItem) => {
+                    const entry = projectEntryByKey.get(item.value);
+                    return (
+                      <ComboboxItem key={item.value} hideIndicator value={item}>
+                        {item.value === ADD_PROJECT_VALUE ? (
+                          <FolderPlusIcon className="size-4 shrink-0" />
+                        ) : item.value === NEW_PROJECT_VALUE ? (
+                          <PlusIcon className="size-4 shrink-0" />
+                        ) : item.value === SCRATCH_VALUE ? (
+                          <MessageSquareIcon className="size-4 shrink-0" />
+                        ) : entry ? (
+                          <ProjectFavicon project={entry.group} className="size-4 shrink-0" />
+                        ) : null}
+                        <Tooltip>
+                          <TooltipTrigger render={<span className="min-w-0 flex-1 text-sm" />}>
+                            <DraftProjectName value={item.label} />
+                          </TooltipTrigger>
+                          <TooltipPopup side="top">{item.label}</TooltipPopup>
+                        </Tooltip>
+                        {entry && showProjectEnvironments ? (
+                          <ProjectEnvironmentBadge
+                            group={entry.group}
+                            primaryEnvironmentId={primaryEnvironmentId}
+                            machineByEnvironmentId={environmentMachineById}
+                          />
+                        ) : null}
+                      </ComboboxItem>
+                    );
+                  }}
+                </ComboboxCollection>
+              </ComboboxGroup>
+            </div>
+          )}
         </ComboboxList>
       </ComboboxPopup>
     </Combobox>

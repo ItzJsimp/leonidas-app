@@ -16,6 +16,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { ModelListRow } from "./ModelListRow";
 import { ModelPickerSidebar } from "./ModelPickerSidebar";
 import { ProviderReadinessControl } from "./ProviderReadinessControl";
+import { useModelBenchmarkIndex } from "../../hooks/useModelBenchmarkIndex";
 import { useNowMinute } from "../../hooks/useNowMinute";
 import {
   modelPickerLegacySectionKey,
@@ -54,9 +55,6 @@ import {
   type ProviderInstanceEntry,
 } from "../../providerInstances";
 import { providerModelKey, sortProviderModelItems } from "../../modelOrdering";
-import { indexBenchmarkEntries } from "@t3tools/shared/modelBenchmarkMatch";
-import { useEnvironmentQuery } from "../../state/query";
-import { serverEnvironment } from "../../state/server";
 import { pickerModelStats } from "../../lib/pickerModelStats";
 
 type ModelPickerItem = {
@@ -289,16 +287,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   const keybindings = providedKeybindings ?? serverKeybindings;
   const navigate = useNavigate();
   const toggleFavorite = useToggleEnvironmentModelFavorite(props.environmentId);
-  // The server caches the catalog; one shared copy serves every row.
-  const benchmarkCatalog = useEnvironmentQuery(
-    props.environmentId
-      ? serverEnvironment.modelBenchmarkCatalog({ environmentId: props.environmentId, input: {} })
-      : null,
-  ).data;
-  const benchmarkIndex = useMemo(
-    () => (benchmarkCatalog ? indexBenchmarkEntries(benchmarkCatalog.entries) : null),
-    [benchmarkCatalog],
-  );
+  const benchmarkIndex = useModelBenchmarkIndex(props.environmentId);
 
   const focusSearchInput = useCallback(() => {
     searchInputRef.current?.focus({ preventScroll: true });

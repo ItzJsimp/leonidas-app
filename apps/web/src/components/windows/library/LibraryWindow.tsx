@@ -2,7 +2,6 @@ import { PackageIcon, ScrollTextIcon, SparklesIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Input } from "~/components/ui/input";
-import { SubagentStudio } from "~/components/subagents/SubagentStudio";
 import { ReplyStyleSettingsRow } from "~/components/settings/ReplyStyleSettingsRow";
 import { SettingsScopeProvider } from "~/components/settings/SettingsScopeContext";
 import {
@@ -19,7 +18,6 @@ import { packRows, skillRows } from "./skillRows";
 
 const TABS: readonly WindowTab[] = [
   { id: "skills", label: "Skills" },
-  { id: "helpers", label: "Helpers" },
   { id: "reply-styles", label: "Reply styles" },
   { id: "rules", label: "Rules" },
   { id: "packs", label: "Packs" },
@@ -33,8 +31,6 @@ export function LibraryWindow() {
     <RailWindow title="Library" tabs={TABS}>
       {(tab) => {
         switch (tab) {
-          case "helpers":
-            return <SubagentStudio />;
           case "reply-styles":
             return <ReplyStyles />;
           case "rules":

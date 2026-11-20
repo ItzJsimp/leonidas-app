@@ -117,6 +117,23 @@ it("keeps a subagent child awake when its parent thread is snoozed", () => {
   });
 });
 
+it("does not pass the Home role from a parent thread to its subagent child", () => {
+  const childThread = makeSubagentChildThread({
+    parentThread: { ...makeParentThread(), role: "home" },
+    childThreadId,
+    parentNodeId: NodeId.make("node:subagent-parent"),
+    activeProviderThreadId: null,
+    providerInstanceId: childProviderInstanceId,
+    modelSelection: childModelSelection,
+    title: "Child of Home",
+    now: childCreatedAt,
+    createdBy: "agent",
+    creationSource: "mcp",
+  });
+
+  assert.isUndefined(childThread.role);
+});
+
 it("attributes native subagent prompts to their parent thread", () => {
   for (const role of ["user", "assistant"] as const) {
     const artifacts = makeSubagentConversationArtifacts({

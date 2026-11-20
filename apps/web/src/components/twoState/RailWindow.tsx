@@ -24,11 +24,14 @@ export function RailWindow({
   title,
   actions,
   tabs = NO_TABS,
+  flushTab,
   children,
 }: {
   readonly title: string;
   readonly actions?: ReactNode;
   readonly tabs?: readonly WindowTab[];
+  /** A tab that fills the whole panel and scrolls on its own, with no padding. */
+  readonly flushTab?: string;
   readonly children: ReactNode | ((tab: string | undefined) => ReactNode);
 }) {
   const navigate = useNavigate();
@@ -65,7 +68,11 @@ export function RailWindow({
         role={tabs.length > 0 ? "tabpanel" : undefined}
         id={`${base}-panel`}
         aria-labelledby={active ? `${base}-tab-${active}` : undefined}
-        className="min-h-0 flex-1 overflow-y-auto p-4"
+        className={
+          active !== undefined && active === flushTab
+            ? "min-h-0 flex-1 overflow-hidden"
+            : "min-h-0 flex-1 overflow-y-auto p-4"
+        }
       >
         {typeof children === "function" ? children(active) : children}
       </div>

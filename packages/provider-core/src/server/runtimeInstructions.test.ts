@@ -186,3 +186,12 @@ describe("question budget", () => {
     expect(QUESTION_BUDGET_REPLY).toContain("Pick your recommended option");
   });
 });
+
+describe("buildRuntimeInstructions home agent block", () => {
+  it("adds the Home block last, and nothing for a plain chat", () => {
+    const block = "<home_agent>\nYou are the Home chat.\n</home_agent>";
+    const home = buildRuntimeInstructions({ harness: "Claude Code", homeAgent: block });
+    expect(home.endsWith(block)).toBe(true);
+    expect(buildRuntimeInstructions({ harness: "Claude Code" })).not.toContain("<home_agent>");
+  });
+});

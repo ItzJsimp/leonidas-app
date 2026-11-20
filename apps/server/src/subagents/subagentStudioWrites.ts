@@ -10,11 +10,12 @@ import * as NodePath from "node:path";
 import type {
   SubagentCatalogEntry,
   SubagentCreateInput,
+  SubagentDeleteResult,
   SubagentSpecPatch,
 } from "@t3tools/contracts";
 
 import { catalogEntry, subagentSources, type SubagentSource } from "./subagentCatalog.ts";
-import { createSubagentSpec, updateSubagentSpec } from "./subagentEdit.ts";
+import { createSubagentSpec, deleteSubagentSpec, updateSubagentSpec } from "./subagentEdit.ts";
 
 interface StudioScope {
   readonly aiosRoot: string | null;
@@ -60,6 +61,41 @@ export function createStudioSubagent(
     folder = NodePath.resolve(project.workspaceRoot, ".agents", "subagents");
     source = { folder, source: "project", projectName: project.title };
   }
-  const specPath = createSubagentSpec({ folder, name: input.name, contents: input.contents });
+  const specPath = createSubagentSpec({
+    folder,
+    name: input.name,
+    contents: input.contents,
+    ...(input.onNameTaken === undefined ? {} : { onNameTaken: input.onNameTaken }),
+  });
   return catalogEntry(specPath, source, scope.appFreeModels);
+}
+
+/** The spec must be listed and exist: the RPC can never touch another file. */
+function requireListedSpec(scope: StudioScope, specPath: string): void {
+  if (sourceOfSpec(scope, specPath) === null || !NodeFs.existsSync(specPath)) {
+    throw new Error("That subagent is not in the Studio list.");
+  }
+}
+
+export function deleteStudioSubagent(
+  scope: StudioScope,
+  input: { readonly specPath: string },
+): SubagentDeleteResult {
+  requireListedSpec(scope, input.specPath);
+  deleteSubagentSpec(input.specPath);
+  return { specPath: input.specPath };
+}
+
+/** Copies a listed agent into the AIOS folder as the first free `<name>-N.md`. */
+export function duplicateStudioSubagent(
+  scope: StudioScope,
+  input: { readonly specPath: string },
+): SubagentCatalogEntry {
+  requireListedSpec(scope, input.specPath);
+  return createStudioSubagent(scope, {
+    name: NodePath.basename(input.specPath, ".md"),
+    contents: NodeFs.readFileSync(input.specPath, "utf8"),
+    destination: { kind: "aios" },
+    onNameTaken: "number",
+  });
 }

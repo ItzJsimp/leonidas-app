@@ -13,6 +13,8 @@ export type UserErrorKind =
   | "no-paid-plan"
   | "quota-reached"
   | "port-in-use"
+  | "folder-already-project"
+  | "folder-unusable"
   | "settings-corrupt"
   | "update-download-failed"
   | "server-down"
@@ -60,6 +62,7 @@ export interface DescribeUserErrorOptions {
 
 export const PROVIDER_SETTINGS_ROUTE = "/settings/providers";
 export const GENERAL_SETTINGS_ROUTE = "/settings/general";
+export const PROJECTS_ROUTE = "/projects";
 export const INSTALLER_DOWNLOAD_URL =
   "https://github.com/ItzJsimp/leonidas-app/releases/latest/download/Leonidas-Setup.exe";
 
@@ -122,6 +125,9 @@ const NO_PAID_PLAN =
 const QUOTA_REACHED =
   /usage limit|rate.?limit|quota|too many requests|credit balance|out of credits|limit (reached|exceeded)/;
 const PORT_IN_USE = /eaddrinuse|address already in use|port (\d+ )?is (already )?in use/;
+const FOLDER_ALREADY_PROJECT = /workspace .* already belongs to project/;
+const FOLDER_UNUSABLE =
+  /failed to create workspace root|workspace root .*(does not exist|not a directory)|(eperm|eacces|enoent)[^\n]*(mkdir|workspace)/;
 const PORT_NUMBER = /(?:port|:)\s*(\d{2,5})\b/;
 const SETTINGS_CORRUPT =
   /settings[^\n]*(parse|json|decode|invalid|corrupt)|(parse|decode)[^\n]*settings/;
@@ -146,6 +152,8 @@ function classify(facts: ErrorFacts, options: DescribeUserErrorOptions): UserErr
   if (tags.has("ServerSettingsError") || SETTINGS_CORRUPT.test(text)) return "settings-corrupt";
   if (codes.has("EADDRINUSE") || PORT_IN_USE.test(text)) return "port-in-use";
   if (CLI_MISSING.test(text)) return "provider-cli-missing";
+  if (FOLDER_ALREADY_PROJECT.test(text)) return "folder-already-project";
+  if (FOLDER_UNUSABLE.test(text)) return "folder-unusable";
   if (NO_PAID_PLAN.test(text)) return "no-paid-plan";
   if (options.providerClass === "usage_limit" || status === 429 || QUOTA_REACHED.test(text)) {
     return "quota-reached";
@@ -228,6 +236,24 @@ function buildUserError(
           : COPY_DETAILS,
       };
     }
+    case "folder-already-project":
+      return {
+        kind,
+        detail,
+        title: "That folder is already a project.",
+        reason:
+          "Another project uses this folder, so Leonidas did not add it twice. Open it from Projects.",
+        action: { kind: "route", label: "Open Projects", to: PROJECTS_ROUTE },
+      };
+    case "folder-unusable":
+      return {
+        kind,
+        detail,
+        title: "Leonidas cannot use that folder.",
+        reason:
+          "The folder is missing, or Leonidas has no permission to write there. Pick another folder.",
+        action: COPY_DETAILS,
+      };
     case "settings-corrupt":
       return {
         kind,

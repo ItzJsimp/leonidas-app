@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
+import type { ThreadRouteTarget } from "~/threadRoutes";
+
 import { SHELL_LAYOUT_STORAGE_KEY, useTwoStateStore } from "./twoStateStore";
 
 describe("shell layout store", () => {
@@ -24,6 +26,27 @@ describe("shell layout store", () => {
     expect(useTwoStateStore.persist.getOptions().partialize?.(useTwoStateStore.getState())).toEqual(
       { split: false, ratio: 0.4, chatListOpen: true, lastThread: place, leftPage: page },
     );
+  });
+
+  it("remembers the chat behind a modal, ignores a new object for the same chat, and never saves it", () => {
+    const chat = (threadId: string) =>
+      ({ kind: "server", threadRef: { environmentId: "env", threadId } }) as ThreadRouteTarget;
+    const draft = { kind: "draft", draftId: "d1" } as ThreadRouteTarget;
+    const { rememberChatRoute } = useTwoStateStore.getState();
+    rememberChatRoute(chat("a"));
+    const first = useTwoStateStore.getState();
+    rememberChatRoute(chat("a"));
+    expect(useTwoStateStore.getState()).toBe(first);
+    rememberChatRoute(chat("b"));
+    expect(useTwoStateStore.getState().chatRoute).toEqual(chat("b"));
+    rememberChatRoute(draft);
+    expect(useTwoStateStore.getState().chatRoute).toEqual(draft);
+    // A rail page has no chat: the next modal must not show an old one.
+    rememberChatRoute(null);
+    expect(useTwoStateStore.getState().chatRoute).toBeNull();
+    expect(
+      useTwoStateStore.persist.getOptions().partialize?.(useTwoStateStore.getState()),
+    ).not.toHaveProperty("chatRoute");
   });
 
   it("turns the split off once for a layout saved by version 1", () => {

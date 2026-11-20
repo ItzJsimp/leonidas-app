@@ -1,3 +1,4 @@
+import { resolveThreadDetailsModelSelection } from "./chat/threadDetailsModelSelection";
 import { useComposerOutputActions } from "./chat/useComposerOutputActions";
 import { deriveAgentActivity } from "../agentActivity";
 import { reportMessageSent } from "../lib/usageAnalytics/reportMessageSent";
@@ -462,7 +463,9 @@ import {
 } from "../state/entities";
 import { environmentShell } from "../state/shell";
 import { draftReplyStyleField } from "./chat/useThreadReplyStyle";
+import { BenchmarkHost } from "./chat/BenchmarkHost";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
+import { connectedBenchmarkCandidates } from "../lib/modelBenchmarks";
 import { FocusWidgetHost } from "./focus/FocusWidgetHost";
 import { useComposerContextSlice } from "./chat/composerContextSlice";
 import type { ComposerAttachmentSlice } from "./chat/composerAttachments";
@@ -470,7 +473,7 @@ import type { ComposerLayoutSlice } from "./chat/composerLayout";
 import { createPageScrollController, type PageScrollKey } from "./chat/pageScrollController";
 import { isTimelineScrollTarget } from "./chat/timelineScrollTarget";
 import { DraftHeroDots } from "./chat/DraftHeroDots";
-import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
+import { DRAFT_HERO_GREETING_GAP, DraftHeroHeadline } from "./chat/DraftHeroHeadline";
 import { ExpandedImageDialog } from "./chat/ExpandedImageDialog";
 import { PullRequestThreadDialog } from "./PullRequestThreadDialog";
 import type { AssistantCitationRequest } from "./chat/AssistantCitationSource";
@@ -500,6 +503,7 @@ import {
   type EnvironmentOption,
   resolveEffectiveEnvMode,
   resolveLocalCheckoutBranchMismatch,
+  shouldHostSettingsInStrip,
   shouldShowComposerContextStrip,
   shouldShowEnvironmentIndicator,
 } from "./BranchToolbar.logic";
@@ -1059,6 +1063,7 @@ export default function ChatView(props: ChatViewProps) {
   const pasteAsTextShortcutUntilRef = useRef(0);
   const [restingComposerControlsHost, setRestingComposerControlsHost] =
     useState<HTMLDivElement | null>(null);
+  const [settingsControlsHost, setSettingsControlsHost] = useState<HTMLDivElement | null>(null);
   const [restingComposerControlsVisible, setRestingComposerControlsVisible] = useState(false);
   const citeAssistantText = useCallback(
     (citation: AssistantCitation, sourceAnchor: AssistantCitationSourceAnchor) => {
@@ -2381,7 +2386,18 @@ export default function ChatView(props: ChatViewProps) {
         icon: <WifiOffIcon />,
         // When this device lost its network, the computer is not the problem: say so, and offer no
         // Reconnect, because the app reconnects by itself when the network is back.
-        ...(deviceOffline ? { description: "Leonidas reconnects when the network is back." } : {}),
+        ...(deviceOffline
+          ? { description: "Leonidas reconnects when the network is back." }
+          : activeEnvironmentTurnedOff
+            ? {}
+            : {
+                description: [
+                  unavailableConnection.error
+                    ? `Reason: ${unavailableConnection.error}.`
+                    : "The Leonidas server on this computer is not answering. It may be busy or stopped.",
+                  "Select Reconnect now. If it stays stuck, close Leonidas and open it again.",
+                ].join(" "),
+              }),
         title: deviceOffline
           ? "This device is offline"
           : `${activeEnvironmentUnavailableState.label} is ${activeEnvironmentTurnedOff ? "turned off" : environmentReconnecting ? "reconnecting" : "offline"}`,
@@ -2399,7 +2415,7 @@ export default function ChatView(props: ChatViewProps) {
               >
                 Turn on
               </Button>
-            ) : !environmentReconnecting ? (
+            ) : (
               <Button
                 size="xs"
                 variant="ghost"
@@ -2409,9 +2425,9 @@ export default function ChatView(props: ChatViewProps) {
                   )
                 }
               >
-                Reconnect
+                {environmentReconnecting ? "Reconnect now" : "Reconnect"}
               </Button>
-            ) : null}
+            )}
             {disconnectAction}
           </>
         ),
@@ -3611,13 +3627,16 @@ export default function ChatView(props: ChatViewProps) {
   });
   const detailsModelSelection = useMemo(
     () =>
-      isServerThread || activeProviderInstanceId === null
-        ? activeThread?.modelSelection
-        : createModelSelection(
-            activeProviderInstanceId,
-            draftModelState.selectedModel,
-            draftModelState.modelOptions?.[activeProviderInstanceId],
-          ),
+      resolveThreadDetailsModelSelection({
+        isServerThread,
+        instanceId: activeProviderInstanceId,
+        threadSelection: activeThread?.modelSelection,
+        draftModel: draftModelState.selectedModel,
+        draftOptions:
+          activeProviderInstanceId === null
+            ? undefined
+            : draftModelState.modelOptions?.[activeProviderInstanceId],
+      }),
     [
       activeProviderInstanceId,
       activeThread?.modelSelection,
@@ -8478,12 +8497,17 @@ export default function ChatView(props: ChatViewProps) {
     if (compactDisabled) return;
     void sendStandaloneCommand("/compact", "Could not compact context.");
   };
+  const settingsInStrip = shouldHostSettingsInStrip({
+    isDraftHeroState,
+    contextStripVisible: showComposerContextStrip,
+  });
   const composerLayoutLeadingContext =
     mountComposerContextStrip && (isGitRepo || showComposerEnvironmentIndicator);
   const composerLayout: ComposerLayoutSlice = useMemo(
     () => ({
       restingControlsHost: restingComposerControlsHost,
       restingControlsHaveLeadingContext: composerLayoutLeadingContext,
+      settingsControlsHost: settingsInStrip ? settingsControlsHost : null,
       onRestingControlsVisibilityChange: setRestingComposerControlsVisible,
       getTimelineScrollableNode,
       isTimelineAtLogicalEnd,
@@ -8497,6 +8521,8 @@ export default function ChatView(props: ChatViewProps) {
     [
       restingComposerControlsHost,
       composerLayoutLeadingContext,
+      settingsInStrip,
+      settingsControlsHost,
       setRestingComposerControlsVisible,
       getTimelineScrollableNode,
       isTimelineAtLogicalEnd,
@@ -11279,9 +11305,6 @@ export default function ChatView(props: ChatViewProps) {
       modelLabel: providerSubagentModelLabel,
       effortLabel: providerSubagentEffortLabel,
       contextWindow: headerContextWindow,
-      providerEntries: providerInstanceEntries,
-      onStartChat: activeProjectRef === null ? null : handleNewThreadWithModel,
-      onStartArena: activeProject ? handleStartArena : null,
     },
   };
   const panelToggleControlProps = {
@@ -11678,7 +11701,7 @@ export default function ChatView(props: ChatViewProps) {
               data-chat-composer-overlay="true"
               className={
                 isDraftHeroState
-                  ? "pointer-events-none absolute inset-0 z-20 flex items-center"
+                  ? "pointer-events-none absolute inset-0 z-20 flex items-end pb-6 sm:pb-[max(4rem,26dvh)]"
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
@@ -11693,11 +11716,13 @@ export default function ChatView(props: ChatViewProps) {
                   {isDraftHeroState ? (
                     <div className="absolute inset-x-0 bottom-full">
                       <div
-                        className="pb-6"
                         style={
                           forceExpandedMobileComposer
-                            ? { viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME }
-                            : undefined
+                            ? {
+                                paddingBottom: DRAFT_HERO_GREETING_GAP,
+                                viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME,
+                              }
+                            : { paddingBottom: DRAFT_HERO_GREETING_GAP }
                         }
                       >
                         <DraftHeroHeadline
@@ -11745,6 +11770,17 @@ export default function ChatView(props: ChatViewProps) {
                               }
                             />
                           ) : null}
+                          <BenchmarkHost
+                            environmentId={activeThread.environmentId}
+                            candidates={connectedBenchmarkCandidates(
+                              providerInstanceEntries,
+                              activeProviderInstanceId,
+                            )}
+                            onStartChat={
+                              activeProjectRef === null ? null : handleNewThreadWithModel
+                            }
+                            onStartArena={activeProject ? handleStartArena : null}
+                          />
                           {!composerMounted ? null : (
                             <ChatComposer
                               attachments={composerAttachments}
@@ -11948,6 +11984,7 @@ export default function ChatView(props: ChatViewProps) {
                                 }
                                 availableEnvironments={logicalProjectEnvironments}
                                 composerControlsHostRef={setRestingComposerControlsHost}
+                                settingsControlsHostRef={setSettingsControlsHost}
                                 contextStripVisible={showComposerContextStrip}
                               />
                             </div>

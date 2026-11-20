@@ -430,7 +430,7 @@ export function TasksPage() {
       <SidebarInset
         data-tasks-surface
         // Breakpoints follow the pane, not the window: in the split the pane is half the width.
-        className="@container/tasks isolate h-dvh min-h-0 overflow-hidden overscroll-y-none"
+        className="@container/tasks isolate h-full min-h-0 overflow-hidden overscroll-y-none"
       >
         <WorkspacePageHeader electron={isElectron} className="gap-2 border-b border-border">
           <ListChecksIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />

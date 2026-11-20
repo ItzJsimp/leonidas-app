@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "preinstall": "node scripts/guard-main-install.mjs",
-    "prepare": "effect-tsgo patch && vp config --no-agent",
+    "prepare": "effect-tsgo patch && vp config --no-agent && node scripts/prune-hook-stubs.mjs",
     "dev": "node scripts/dev-runner.ts dev",
     "dev:share": "node scripts/dev-runner.ts dev --share",
     "dev:server": "node scripts/dev-runner.ts dev:server",

@@ -27,6 +27,9 @@ import * as ProviderRegistry from "#server/provider/ProviderRegistry.ts";
 import { readReleaseStatus } from "#server/releaseStatus/releaseStatus.ts";
 import * as Settings from "#server/serverSettings.ts";
 import { usageStatus } from "#server/usage/usageStatus.ts";
+import { readChatQuota } from "#server/usage/ChatQuotaLog.ts";
+import { accountName } from "#server/mcp/spawnQuotaGuard.ts";
+import * as ServerConfig from "#server/config.ts";
 import * as McpToolAccess from "../../McpToolAccess.ts";
 import { readThread, unavailable } from "../../threadAccess.ts";
 import { workspaceRoot } from "../marketing/handlers.ts";
@@ -89,6 +92,37 @@ export const layer = McpToolAccess.toLayer(InsightToolkit, {
       return {
         nearLimitPercent: subagentQuotaBlockPercent,
         accounts: usageStatus(providers, nowMs, subagentQuotaBlockPercent),
+      };
+    }),
+  ),
+  leo_chat_quota: McpToolAccess.reads(({ days, threadId, limit }) =>
+    Effect.gen(function* () {
+      const { providerStatusCacheDir } = yield* ServerConfig.ServerConfig;
+      const providers = yield* (yield* ProviderRegistry.ProviderRegistry).getProviders;
+      const nowMs = yield* Clock.currentTimeMillis;
+      const report = yield* readChatQuota(providerStatusCacheDir, nowMs - (days ?? 7) * 86_400_000);
+      const names = new Map(
+        providers.map((provider) => {
+          const name = accountName(provider);
+          // An account label can be an email, so fall back to the instance id.
+          return [provider.instanceId as string, name.includes("@") ? provider.instanceId : name];
+        }),
+      );
+      const iso = (ms: number) => DateTime.formatIso(DateTime.makeUnsafe(ms));
+      return {
+        method:
+          "Each rise in the account's used percent goes to the chat that made the request. sharedPoints: another chat made the reading before, or a new window opened.",
+        coverageStart: report.coverageStart === null ? null : iso(report.coverageStart),
+        chats: report.chats
+          .filter((chat) => threadId === undefined || chat.threadId === threadId)
+          .filter((chat) => chat.fiveHour.points > 0 || chat.weekly.points > 0)
+          .slice(0, limit ?? 25)
+          .map((chat) => ({
+            ...chat,
+            account: names.get(chat.providerInstanceId) ?? chat.providerInstanceId,
+            firstAt: iso(chat.firstAt),
+            lastAt: iso(chat.lastAt),
+          })),
       };
     }),
   ),

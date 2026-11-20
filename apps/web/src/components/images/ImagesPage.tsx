@@ -187,7 +187,7 @@ function ImagesPageBody() {
   );
 
   return (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
+    <SidebarInset className="h-full min-h-0 overflow-hidden overscroll-y-none isolate">
       <WindowHeader
         title="Images"
         actions={
@@ -306,7 +306,7 @@ export function ImagesPage() {
   const environmentId = usePrimaryEnvironmentId();
   if (environmentId === null) {
     return (
-      <SidebarInset className="h-dvh min-h-0 items-center justify-center">
+      <SidebarInset className="h-full min-h-0 items-center justify-center">
         <Spinner />
       </SidebarInset>
     );

@@ -2,6 +2,11 @@
 export interface ComposerLayoutSlice {
   readonly restingControlsHost: HTMLDivElement | null;
   readonly restingControlsHaveLeadingContext: boolean;
+  /**
+   * The right end of the strip under the card. When set, reply style and permission render
+   * there; when null they stay in the composer bar.
+   */
+  readonly settingsControlsHost: HTMLElement | null;
   readonly onRestingControlsVisibilityChange: (visible: boolean) => void;
   readonly getTimelineScrollableNode: () => HTMLElement | null;
   readonly isTimelineAtLogicalEnd: () => boolean;

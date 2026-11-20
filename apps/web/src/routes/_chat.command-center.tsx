@@ -25,7 +25,7 @@ function CommandCenterPage() {
   );
 
   return (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
+    <SidebarInset className="h-full min-h-0 overflow-hidden overscroll-y-none">
       <WorkspacePageHeader electron={isElectron} className="border-b border-border">
         <LayoutDashboardIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
         <p className="truncate text-sm font-medium">Command Center</p>

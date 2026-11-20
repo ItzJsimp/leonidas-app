@@ -73,6 +73,13 @@ export function keyNumbers(state: TradingState): readonly KeyNumber[] {
   ];
 }
 
+export interface ChartPlot {
+  readonly point: TradingState["moneyTimeline"][number];
+  /** Position in the 560 x 180 box. */
+  readonly x: number;
+  readonly y: number;
+}
+
 export interface ChartModel {
   /** SVG point list in a 560 x 180 box, or null with fewer than two points. */
   readonly points: string | null;
@@ -81,6 +88,8 @@ export interface ChartModel {
   readonly last: { readonly x: number; readonly y: number } | null;
   readonly axis: readonly { readonly key: string; readonly label: string; readonly odd: boolean }[];
   readonly payoutNote: string | null;
+  /** Every shown point with its position, so a view can place markers on the line. */
+  readonly plot: readonly ChartPlot[];
 }
 
 export const CHART_WIDTH = 560;
@@ -106,6 +115,7 @@ export function chartModel(state: TradingState, range: Range): ChartModel {
     last: null,
     axis: [],
     payoutNote: null,
+    plot: [],
   };
   if (shown.length < 2) return empty;
 
@@ -117,7 +127,11 @@ export function chartModel(state: TradingState, range: Range): ChartModel {
   const spanY = Math.max(high - low, 1);
   const y = (value: number) => PAD + ((high - value) / spanY) * (CHART_HEIGHT - PAD * 2);
   const x = (time: number) => ((time - first) / span) * CHART_WIDTH;
-  const coords = shown.map((entry) => ({ x: x(entry.time), y: y(entry.point.netReturn) }));
+  const coords: ChartPlot[] = shown.map((entry) => ({
+    point: entry.point,
+    x: x(entry.time),
+    y: y(entry.point.netReturn),
+  }));
   const line = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`);
   const lastCoord = coords[coords.length - 1]!;
   const biggest = shown
@@ -139,6 +153,7 @@ export function chartModel(state: TradingState, range: Range): ChartModel {
     payoutNote: biggest
       ? `Payout ${formatSigned(biggest.point.amount)} · ${dayLabel(biggest.time)}`
       : null,
+    plot: coords,
   };
 }
 

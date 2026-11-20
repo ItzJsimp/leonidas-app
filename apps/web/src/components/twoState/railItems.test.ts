@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { activeRailId, badgeAnnouncement, railItems, railLinkLabel } from "./railItems";
+import {
+  activeRailId,
+  badgeAnnouncement,
+  DEFAULT_PINS,
+  pinnableItems,
+  railItems,
+  railLinkLabel,
+} from "./railItems";
 
 const ids = (items: ReadonlyArray<{ readonly id: string }>) => items.map((item) => item.id);
 
-// Jake's flat groups (2026-11-07): Home, Work, Brain, Create.
+// Jake's flat groups (2026-11-18): Home (Chat, Command Center), Work, Brain, Create.
 const BASE = [
+  "chat",
   "command-center",
   "today",
   "inbox",
-  "chat",
   "tasks",
   "projects",
   "memory",
@@ -85,6 +92,13 @@ describe("railItems", () => {
     const { main } = railItems({ business: true, builder: true, scribe: true });
     const groups = main.map((item) => item.group).filter((g, i, all) => g !== all[i - 1]);
     expect(groups).toEqual(["home", "work", "brain", "create", "business", "builder"]);
+  });
+
+  it("puts Chat and Command Center alone in the first section, then Today, Tasks and Projects", () => {
+    const { main } = railItems({ business: false, builder: false, scribe: true });
+    const section = (group: string) => ids(main.filter((item) => item.group === group));
+    expect(section("home")).toEqual(["chat", "command-center"]);
+    expect(section("work")).toEqual(["today", "inbox", "tasks", "projects"]);
   });
 
   it("always has Usage then Settings at the bottom", () => {
@@ -199,7 +213,7 @@ describe("railItems in a Trading workspace", () => {
       "trading-accounts",
       "trading-risk",
       "trading-money",
-      "library",
+      "trading-library",
       "chat",
       "trading-crew",
     ]);
@@ -228,5 +242,54 @@ describe("railItems in a Trading workspace", () => {
 
   it("marks the Trading icon for a Trading page", () => {
     expect(activeRailId("/trading/money", false)).toBe("trading-money");
+  });
+
+  it("points the Learn Library item at the Trading Library, not the personal one", () => {
+    const library = trading.main.find((item) => item.id === "trading-library");
+    expect(library?.to).toBe("/trading/library");
+    expect(library?.group).toBe("learn");
+    expect(activeRailId("/trading/library", false)).toBe("trading-library");
+    expect(activeRailId("/library", false)).toBe("library");
+  });
+});
+
+describe("chat panel pins", () => {
+  const personal = { business: false, builder: false, scribe: true };
+
+  it("lists a pinned tab for the panel, in pin order, and keeps it on the rail", () => {
+    const { main, pinned } = railItems({ ...personal, pinned: ["projects", "inbox"] });
+    expect(ids(pinned)).toEqual(["projects", "inbox"]);
+    expect(ids(main)).toEqual(BASE);
+  });
+
+  it("pins Notifications, Tasks, Projects and Agents by default, all of them on the rail", () => {
+    expect(DEFAULT_PINS).toEqual(["inbox", "tasks", "projects", "subagents"]);
+    const { main, pinned } = railItems({ ...personal, pinned: DEFAULT_PINS });
+    expect(ids(pinned)).toEqual(DEFAULT_PINS);
+    for (const id of DEFAULT_PINS) expect(ids(main)).toContain(id);
+  });
+
+  it("never pins Chat, and ignores tabs this workspace does not show", () => {
+    const { main, pinned } = railItems({ ...personal, pinned: ["chat", "team", "developer"] });
+    expect(pinned).toEqual([]);
+    expect(ids(main)).toContain("chat");
+  });
+
+  it("offers every visible tab except Chat, pinned or not, and none in a Trading workspace", () => {
+    const offered = ids(pinnableItems({ ...personal, pinned: ["inbox"] }));
+    expect(offered).toContain("inbox");
+    expect(offered).toContain("projects");
+    expect(offered).not.toContain("chat");
+    expect(pinnableItems({ ...personal, trading: true })).toEqual([]);
+  });
+
+  it("gives the long names a short label for under the icon", () => {
+    const { main } = railItems(personal);
+    const short = (id: string) => main.find((item) => item.id === id)?.short;
+    expect([short("command-center"), short("chat"), short("inbox")]).toEqual([
+      "Command",
+      "Chat",
+      "Alerts",
+    ]);
   });
 });

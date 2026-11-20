@@ -24,7 +24,10 @@ import {
 import { UsageLimitSourceId } from "./usageLimitSourceId.ts";
 import { EnvironmentMachineKind, ThreadEnvMode, WorktreeSubmodules } from "./environment.ts";
 import { KeybindingShortcut } from "./keybindings.ts";
-import { DEFAULT_SUBAGENT_FREE_TIER_MODELS } from "./subagentSpawn.ts";
+import {
+  DEFAULT_SUBAGENT_DAILY_CAP_USD,
+  DEFAULT_SUBAGENT_FREE_TIER_MODELS,
+} from "./subagentSpawn.ts";
 import {
   CustomModelSetting,
   DEFAULT_TEXT_GENERATION_MODEL,
@@ -1531,6 +1534,13 @@ export const ServerSettings = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed([...DEFAULT_SUBAGENT_FREE_TIER_MODELS])),
   ),
   /**
+   * Most a user's subagent runs may cost in one local day, for each account.
+   * The spawn card warns at 80 percent and a spawn is refused at the cap.
+   */
+  subagentDailyCapUsd: Schema.Number.check(Schema.isGreaterThan(0)).pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_SUBAGENT_DAILY_CAP_USD)),
+  ),
+  /**
    * A delegated task fails before it starts when its account has used this
    * percent or more of any quota window. 100 blocks only a full window.
    */
@@ -1894,6 +1904,7 @@ export const ServerSettingsPatch = Schema.Struct({
   autoResumeLimitedThreads: Schema.optionalKey(Schema.Boolean),
   snoozeLimitedThreads: Schema.optionalKey(Schema.Boolean),
   subagentFreeTierModels: Schema.optionalKey(Schema.Array(Schema.String)),
+  subagentDailyCapUsd: Schema.optionalKey(Schema.Number.check(Schema.isGreaterThan(0))),
   subagentQuotaBlockPercent: Schema.optionalKey(
     Schema.Number.check(Schema.isBetween({ minimum: 1, maximum: 100 })),
   ),
