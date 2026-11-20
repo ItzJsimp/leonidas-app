@@ -2,21 +2,21 @@ import { memo } from "react";
 
 import type { UsageSeverity } from "../../lib/usageLimitsPopover";
 
-const RING_STROKE: Record<UsageSeverity, string> = {
-  normal: "stroke-info",
+const RING_STROKE: Record<Exclude<UsageSeverity, "normal">, string> = {
   warning: "stroke-warning",
   critical: "stroke-destructive",
 };
 
 /**
  * Ring on a provider rail tile: the arc is the quota left in the account's tightest window,
- * blue while half or more is left, amber under half, red under 10%. Place inside a `relative`
+ * hidden while half or more is left, amber under half, red under 10%. Place inside a `relative`
  * square. Screen readers get the numbers from the tile's label.
  */
 export const AccountHeadroomRing = memo(function AccountHeadroomRing(props: {
   readonly leftPercent: number;
   readonly severity: UsageSeverity;
 }) {
+  if (props.severity === "normal") return null;
   return (
     <svg
       aria-hidden

@@ -4,10 +4,15 @@ import { describe, expect, it } from "vite-plus/test";
 import { AccountHeadroomRing } from "./AccountHeadroomRing";
 
 describe("AccountHeadroomRing", () => {
-  it("draws an arc as long as the quota left", () => {
-    const html = renderToStaticMarkup(<AccountHeadroomRing leftPercent={62} severity="normal" />);
-    expect(html).toContain('stroke-dasharray="62 100"');
-    expect(html).toContain("stroke-info");
+  it("draws nothing while plenty of quota is left", () => {
+    expect(renderToStaticMarkup(<AccountHeadroomRing leftPercent={62} severity="normal" />)).toBe(
+      "",
+    );
+  });
+
+  it("draws an arc as long as the quota left when it runs low", () => {
+    const html = renderToStaticMarkup(<AccountHeadroomRing leftPercent={30} severity="warning" />);
+    expect(html).toContain('stroke-dasharray="30 100"');
   });
 
   it("changes color as the quota runs low", () => {
