@@ -9,7 +9,7 @@ import {
 } from "../../lib/pickerModelStats";
 import { Switch } from "../ui/switch";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { EffortNumbers, EffortNumbersHeader } from "./PickerEffortNumbers";
+import { EffortNumbers, EffortNumbersCard } from "./PickerEffortNumbers";
 import {
   getDescriptorStringValue,
   replaceDescriptorCurrentValue,
@@ -59,7 +59,6 @@ function ChoiceGroup(props: {
   disabled?: boolean;
   onPick: (id: string) => void;
 }) {
-  const showNumbers = props.choices.some((choice) => choice.numbers !== undefined);
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 px-3 pt-2 pb-1 text-xs text-muted-foreground">
@@ -71,7 +70,6 @@ function ChoiceGroup(props: {
           </>
         ) : null}
       </div>
-      {showNumbers ? <EffortNumbersHeader /> : null}
       <div
         role="radiogroup"
         aria-label={props.label}
@@ -89,7 +87,6 @@ function ChoiceGroup(props: {
               className={cn(
                 "flex min-h-8 flex-col justify-center gap-1 rounded-md px-2 py-1 text-left text-sm sm:w-full",
                 "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none disabled:opacity-50",
-                choice.numbers !== undefined && "w-full",
                 choice.selected && "bg-accent/60",
               )}
             >
@@ -102,15 +99,18 @@ function ChoiceGroup(props: {
                   ) : null}
                 </span>
               </span>
-              {choice.numbers !== undefined ? (
-                <EffortNumbers stats={choice.numbers} selected={choice.selected} />
-              ) : null}
+              {choice.numbers === null ? <EffortNumbers stats={null} /> : null}
             </button>
           );
-          return choice.hint ? (
+          const card = choice.numbers ? (
+            <EffortNumbersCard label={choice.label} stats={choice.numbers} />
+          ) : (
+            choice.hint
+          );
+          return card ? (
             <Tooltip key={choice.id}>
               <TooltipTrigger render={button} />
-              <TooltipPopup side="left">{choice.hint}</TooltipPopup>
+              <TooltipPopup side="left">{card}</TooltipPopup>
             </Tooltip>
           ) : (
             button

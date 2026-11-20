@@ -1,38 +1,13 @@
 import { InfoIcon } from "lucide-react";
 
-import { cn } from "~/lib/utils";
 import { dollars, formatCostPerTask, type PickerEffortStats } from "../../lib/pickerModelStats";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
-/** One grid for the header and every row, so the numbers form clean columns. */
-const COLUMNS = "grid grid-cols-[2.5rem_3.5rem_2.25rem_2.5rem_minmax(0,1fr)] gap-x-1";
-
-const HEADERS = [
-  ["Score", "Artificial Analysis Intelligence Index"],
-  ["Speed", "Output speed in tokens per second"],
-  ["In /1M", "Input price per 1 million tokens"],
-  ["Out /1M", "Output price per 1 million tokens"],
-  ["Cost", "Cost to run one Artificial Analysis task"],
-] as const;
-
 const NONE = "-";
 
-/** Column names above the effort rows. */
-export function EffortNumbersHeader() {
-  return (
-    <div className={cn(COLUMNS, "px-3.5 pb-0.5 text-3xs text-muted-foreground")}>
-      {HEADERS.map(([label, hint]) => (
-        <Tooltip key={label}>
-          <TooltipTrigger render={<span className="truncate" />}>{label}</TooltipTrigger>
-          <TooltipPopup side="top">{hint}</TooltipPopup>
-        </Tooltip>
-      ))}
-    </div>
-  );
-}
-
-/** Shown in place of numbers when the source has no run at this effort. */
-function NotBenchmarked() {
+/** Shown on an effort row when the source has no run at this effort. Measured rows show nothing. */
+export function EffortNumbers(props: { stats: PickerEffortStats | null }) {
+  if (props.stats !== null) return null;
   return (
     <Tooltip>
       <TooltipTrigger
@@ -50,41 +25,28 @@ function NotBenchmarked() {
   );
 }
 
-/** The five numbers for one effort, with a thin score bar. `null` means this effort was not measured. */
-export function EffortNumbers(props: { stats: PickerEffortStats | null; selected: boolean }) {
-  const { stats, selected } = props;
-  if (stats === null) return <NotBenchmarked />;
-  const score = stats.intelligence;
-  const cells = [
-    score === null ? NONE : score.toFixed(1),
-    stats.tokensPerSecond === null ? NONE : `${Math.round(stats.tokensPerSecond)} t/s`,
-    stats.inputPrice === null ? NONE : dollars(stats.inputPrice),
-    stats.outputPrice === null ? NONE : dollars(stats.outputPrice),
-    stats.costPerTask === null ? NONE : formatCostPerTask(stats.costPerTask),
+/** The hover card for one effort: score, speed, cost per task, and the price (the same for every effort). */
+export function EffortNumbersCard(props: { label: string; stats: PickerEffortStats }) {
+  const { label, stats } = props;
+  const rows: ReadonlyArray<readonly [string, string]> = [
+    ["Score", stats.intelligence === null ? NONE : stats.intelligence.toFixed(1)],
+    ["Speed", stats.tokensPerSecond === null ? NONE : `${Math.round(stats.tokensPerSecond)} t/s`],
+    ["Cost per task", stats.costPerTask === null ? NONE : formatCostPerTask(stats.costPerTask)],
   ];
+  const price =
+    stats.inputPrice === null || stats.outputPrice === null
+      ? null
+      : `${dollars(stats.inputPrice)} in · ${dollars(stats.outputPrice)} out per 1M`;
   return (
-    <div className="grid gap-0.5">
-      <div className={cn(COLUMNS, "text-xs tabular-nums text-muted-foreground")}>
-        {cells.map((cell, index) => (
-          <span
-            key={HEADERS[index]![0]}
-            className={cn(index === 0 && "font-medium text-foreground")}
-          >
-            {cell}
-          </span>
-        ))}
-      </div>
-      {score === null ? null : (
-        <span className="h-0.5 w-10 overflow-hidden rounded-full bg-muted-foreground/25">
-          <span
-            className={cn(
-              "block h-full rounded-full",
-              selected ? "bg-state" : "bg-muted-foreground/60",
-            )}
-            style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
-          />
+    <div className="grid gap-1 text-xs tabular-nums">
+      <span className="font-medium">{label}</span>
+      {rows.map(([name, value]) => (
+        <span key={name} className="flex justify-between gap-4 text-muted-foreground">
+          {name}
+          <span className="text-foreground">{value}</span>
         </span>
-      )}
+      ))}
+      {price === null ? null : <span className="text-muted-foreground">{price}</span>}
     </div>
   );
 }
