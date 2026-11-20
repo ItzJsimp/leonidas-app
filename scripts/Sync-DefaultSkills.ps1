@@ -70,7 +70,7 @@ foreach ($target in $targets | Select-Object -Unique) {
 # Core skills (standards/project-standard.md section 11). Every workspace links these from this AIOS
 # canon and never copies them, so one canonical edit reaches every workspace. A workspace's own folder
 # with the same name wins. A name the canon lacks is reported, never invented.
-$coreSkills = @('session-handoff', 'chat-sync', 'chat-closeout', 'recap', 'daily-briefing', 'daily-closeout', 'find-skills', 'ask-leonidas', 'implement', 'grilling', 'grill-me', 'grill-with-docs', 'domain-modeling', 'diagnosing-bugs', 'to-spec', 'to-tickets', 'wayfinder', 'retro', 'wizard', 'wait-what', 'writing-for-agents', 'pr', 'review-two-axis')
+$coreSkills = @('session-handoff', 'chat-sync', 'daily-briefing', 'find-skills', 'ask-leonidas', 'implement', 'grilling', 'grill-me', 'grill-with-docs', 'domain-modeling', 'diagnosing-bugs', 'to-spec', 'to-tickets', 'wayfinder', 'retro', 'wizard', 'wait-what', 'writing-for-agents', 'pr', 'review-two-axis')
 $canonCore = @($coreSkills | Where-Object { Test-Path -LiteralPath (Join-Path $repo ".agents/skills/$_/SKILL.md") })
 $absentCore = @($coreSkills | Where-Object { $_ -notin $canonCore })
 if ($absentCore) { Write-Warning "Core skills missing from ${repo}: $($absentCore -join ', ')" }
@@ -125,7 +125,10 @@ function Remove-EmptySkillDir([string]$Path) {
 $sharedLinked = 0
 $sharedRoot = Join-Path $repo 'projects/leonidas-app/.agents/skills'
 if (-not $ProjectPath -and (Test-Path -LiteralPath $sharedRoot)) {
-    foreach ($dir in Get-ChildItem -LiteralPath $sharedRoot -Directory | Where-Object { -not $_.LinkType -and (Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md')) }) {
+    # Archived or merged skills (ADR-0102) must not come back through the app's stale copies.
+    # shortcut: plan and review are app-only names merged into to-tickets and review-two-axis; drop them after the app slice deletes those folders.
+    $notShared = @('plan', 'review') + @((Get-ChildItem -LiteralPath (Join-Path $repo '.agents/skills/_archive') -Directory -ErrorAction SilentlyContinue | Get-ChildItem -Directory).Name)
+    foreach ($dir in Get-ChildItem -LiteralPath $sharedRoot -Directory | Where-Object { -not $_.LinkType -and $_.Name -notin $notShared -and (Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md')) }) {
         $aiosLink = Join-Path $repo ".agents/skills/$($dir.Name)"
         $item = Get-Item -LiteralPath $aiosLink -Force -ErrorAction SilentlyContinue
         # A pull that untracked a shared skill leaves only ignored caches behind; clear them so the link is made.
