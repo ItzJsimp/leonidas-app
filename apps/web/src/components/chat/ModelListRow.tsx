@@ -16,6 +16,7 @@ import { modelPickerModelKey } from "./modelPickerKeys";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 import { ModelStatsPanel } from "./ModelStatsPanel";
 import {
+  formatEffortLabel,
   formatPickerCost,
   formatPickerIntelligence,
   formatPickerSpeed,
@@ -26,6 +27,8 @@ import {
 function ModelStatChips(props: { stats: PickerModelStats }) {
   const { stats } = props;
   const known = hasPickerStats(stats);
+  // BenchLM publishes one score per model, measured at the model's top effort.
+  const effort = stats.effort ?? (stats.source === "benchLm" ? "max" : null);
   const chips = [
     { label: "Intelligence", value: formatPickerIntelligence(stats) },
     { label: "Speed", value: formatPickerSpeed(stats) },
@@ -36,6 +39,14 @@ function ModelStatChips(props: { stats: PickerModelStats }) {
       <TooltipTrigger
         render={
           <div className="mt-1 flex items-center gap-1 text-3xs tabular-nums text-muted-foreground">
+            {effort && known ? (
+              <span
+                className="rounded border border-border bg-muted/60 px-1 py-px font-medium leading-none text-foreground"
+                aria-label={`These numbers are for ${formatEffortLabel(effort)} effort`}
+              >
+                {formatEffortLabel(effort)}
+              </span>
+            ) : null}
             {chips.map((chip) => (
               <span
                 key={chip.label}

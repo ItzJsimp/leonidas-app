@@ -463,7 +463,9 @@ import {
 } from "../state/entities";
 import { environmentShell } from "../state/shell";
 import { draftReplyStyleField } from "./chat/useThreadReplyStyle";
+import { BenchmarkHost } from "./chat/BenchmarkHost";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
+import { connectedBenchmarkCandidates } from "../lib/modelBenchmarks";
 import { FocusWidgetHost } from "./focus/FocusWidgetHost";
 import { useComposerContextSlice } from "./chat/composerContextSlice";
 import type { ComposerAttachmentSlice } from "./chat/composerAttachments";
@@ -11303,9 +11305,6 @@ export default function ChatView(props: ChatViewProps) {
       modelLabel: providerSubagentModelLabel,
       effortLabel: providerSubagentEffortLabel,
       contextWindow: headerContextWindow,
-      providerEntries: providerInstanceEntries,
-      onStartChat: activeProjectRef === null ? null : handleNewThreadWithModel,
-      onStartArena: activeProject ? handleStartArena : null,
     },
   };
   const panelToggleControlProps = {
@@ -11771,6 +11770,17 @@ export default function ChatView(props: ChatViewProps) {
                               }
                             />
                           ) : null}
+                          <BenchmarkHost
+                            environmentId={activeThread.environmentId}
+                            candidates={connectedBenchmarkCandidates(
+                              providerInstanceEntries,
+                              activeProviderInstanceId,
+                            )}
+                            onStartChat={
+                              activeProjectRef === null ? null : handleNewThreadWithModel
+                            }
+                            onStartArena={activeProject ? handleStartArena : null}
+                          />
                           {!composerMounted ? null : (
                             <ChatComposer
                               attachments={composerAttachments}

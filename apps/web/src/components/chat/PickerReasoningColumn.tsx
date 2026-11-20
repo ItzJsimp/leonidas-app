@@ -1,9 +1,15 @@
 import type { ProviderOptionDescriptor } from "@t3tools/contracts";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import { memo, type ReactNode } from "react";
 import { cn } from "~/lib/utils";
+import {
+  effortRowStats,
+  type PickerEffortStats,
+  type PickerModelStats,
+} from "../../lib/pickerModelStats";
 import { Switch } from "../ui/switch";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { EffortNumbers, EffortNumbersHeader } from "./PickerEffortNumbers";
 import {
   getDescriptorStringValue,
   replaceDescriptorCurrentValue,
@@ -12,11 +18,23 @@ import {
   type TraitsPersistence,
 } from "./TraitsPicker";
 
+/** What the picker adds on top of the traits: this model's benchmark numbers and the two ways out. */
+export interface PickerColumnExtras {
+  /** Benchmark numbers for the selected model; null while the catalog loads. */
+  stats?: PickerModelStats | null;
+  /** Opens the benchmarks window on this model. */
+  onOpenBenchmarks?: () => void;
+  /** Opens the Artificial Analysis key dialog. Only set while no key is saved. */
+  onConnectKey?: () => void;
+}
+
 type Choice = {
   id: string;
   label: string;
   selected: boolean;
   isDefault?: boolean;
+  /** `undefined`: show no numbers. `null`: show "Not benchmarked". */
+  numbers?: PickerEffortStats | null;
   hint?: string;
   note?: string;
 };
@@ -41,6 +59,7 @@ function ChoiceGroup(props: {
   disabled?: boolean;
   onPick: (id: string) => void;
 }) {
+  const showNumbers = props.choices.some((choice) => choice.numbers !== undefined);
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 px-3 pt-2 pb-1 text-xs text-muted-foreground">
@@ -52,6 +71,7 @@ function ChoiceGroup(props: {
           </>
         ) : null}
       </div>
+      {showNumbers ? <EffortNumbersHeader /> : null}
       <div
         role="radiogroup"
         aria-label={props.label}
@@ -67,18 +87,24 @@ function ChoiceGroup(props: {
               disabled={props.disabled}
               onClick={() => props.onPick(choice.id)}
               className={cn(
-                "flex min-h-8 items-center justify-between gap-2 rounded-md px-2 text-left text-sm sm:w-full",
+                "flex min-h-8 flex-col justify-center gap-1 rounded-md px-2 py-1 text-left text-sm sm:w-full",
                 "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none disabled:opacity-50",
+                choice.numbers !== undefined && "w-full",
                 choice.selected && "bg-accent/60",
               )}
             >
-              <span className="min-w-0 truncate">{choice.label}</span>
-              <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground/70">
-                {choice.isDefault ? "Default" : choice.note}
-                {choice.selected ? (
-                  <CheckIcon className="size-3.5 shrink-0 text-foreground" aria-hidden="true" />
-                ) : null}
+              <span className="flex w-full items-center justify-between gap-2">
+                <span className="min-w-0 truncate">{choice.label}</span>
+                <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground/70">
+                  {choice.isDefault ? "Default" : choice.note}
+                  {choice.selected ? (
+                    <CheckIcon className="size-3.5 shrink-0 text-foreground" aria-hidden="true" />
+                  ) : null}
+                </span>
               </span>
+              {choice.numbers !== undefined ? (
+                <EffortNumbers stats={choice.numbers} selected={choice.selected} />
+              ) : null}
             </button>
           );
           return choice.hint ? (
@@ -100,9 +126,10 @@ function ChoiceGroup(props: {
  * It reads and writes the same options the old traits menu did.
  */
 export const PickerReasoningColumn = memo(function PickerReasoningColumn(
-  props: TraitsMenuContentProps & TraitsPersistence,
+  props: TraitsMenuContentProps & TraitsPersistence & PickerColumnExtras,
 ) {
-  const { models, model } = props;
+  const { stats, onOpenBenchmarks, onConnectKey, ...traitsProps } = props;
+  const { models, model } = traitsProps;
   const {
     modelSelection,
     descriptors,
@@ -115,7 +142,7 @@ export const PickerReasoningColumn = memo(function PickerReasoningColumn(
     modelIsUnavailable,
     updateDescriptors,
     handleSelectChange,
-  } = useTraitsSelection(props);
+  } = useTraitsSelection(traitsProps);
   if (!hasAnyControls || modelIsUnavailable) return null;
 
   const modelName = models.find((entry) => entry.slug === model)?.name ?? model;
@@ -124,10 +151,19 @@ export const PickerReasoningColumn = memo(function PickerReasoningColumn(
     descriptor.options.filter((option) => !descriptor.promptInjectedValues?.includes(option.id));
   const selects = selectDescriptors.filter((descriptor) => pickable(descriptor).length > 1);
   if (selects.length === 0 && booleanDescriptors.length === 0) return null;
+  const primaryOptions = selects.find(
+    (descriptor) => descriptor.id === primarySelectDescriptor?.id,
+  );
+  const hasNumbers =
+    primaryOptions !== undefined &&
+    pickable(primaryOptions).some((option) => effortRowStats(stats, option.id) !== undefined);
 
   return (
     <div
-      className="flex max-h-72 w-full shrink-0 flex-col overflow-y-auto border-t border-border/70 bg-muted/40 sm:max-h-none sm:w-54 sm:border-t-0 sm:border-l"
+      className={cn(
+        "flex max-h-72 w-full shrink-0 flex-col overflow-y-auto border-t border-border/70 bg-muted/40 sm:max-h-none sm:border-t-0 sm:border-l",
+        hasNumbers ? "sm:w-76" : "sm:w-54",
+      )}
       data-picker-reasoning-column="true"
     >
       {selects.map((descriptor) => {
@@ -149,11 +185,36 @@ export const PickerReasoningColumn = memo(function PickerReasoningColumn(
               ...(option.isDefault ? { isDefault: true } : {}),
               ...(option.description ? { hint: option.description } : {}),
               ...(isPrimary && EFFORT_NOTES[option.id] ? { note: EFFORT_NOTES[option.id] } : {}),
+              ...(isPrimary && effortRowStats(stats, option.id) !== undefined
+                ? { numbers: effortRowStats(stats, option.id) ?? null }
+                : {}),
             }))}
             onPick={(id) => handleSelectChange(descriptor, id)}
           />
         );
       })}
+      {hasNumbers && onOpenBenchmarks ? (
+        <button
+          type="button"
+          onClick={onOpenBenchmarks}
+          className="mx-1.5 flex min-h-8 items-center justify-between gap-2 rounded-md px-2 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:outline-none"
+        >
+          <span className="min-w-0 truncate">All metrics for {modelName}</span>
+          <ChevronRightIcon className="size-3.5 shrink-0" aria-hidden="true" />
+        </button>
+      ) : null}
+      {!hasNumbers && onConnectKey ? (
+        <button
+          type="button"
+          onClick={onConnectKey}
+          className="mx-1.5 mb-1.5 flex min-h-8 items-center justify-between gap-2 rounded-md px-2 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:outline-none"
+        >
+          <span className="min-w-0">
+            Connect Artificial Analysis to see numbers for each effort
+          </span>
+          <ChevronRightIcon className="size-3.5 shrink-0" aria-hidden="true" />
+        </button>
+      ) : null}
       {booleanDescriptors.map((descriptor) => (
         <label
           key={descriptor.id}

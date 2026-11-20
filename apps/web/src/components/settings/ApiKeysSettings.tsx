@@ -1,6 +1,7 @@
 import { API_KEY_PROVIDERS, type ApiKeyProvider } from "@t3tools/shared/apiKeyProviders";
 import { ExternalLinkIcon } from "lucide-react";
 
+import { useBenchmarkUi } from "../../benchmarkUiStore";
 import { usePrimaryEnvironmentId } from "../../state/environments";
 import { Button, InlineButton } from "../ui/button";
 import { Input } from "../ui/input";
@@ -36,6 +37,7 @@ function ApiKeyRow({
     environmentId,
     provider,
   );
+  const openKeyDialog = useBenchmarkUi((state) => state.openKeyDialog);
 
   return (
     <SettingsRow
@@ -56,6 +58,9 @@ function ApiKeyRow({
               <ExternalLinkIcon aria-hidden className="size-3" />
             </InlineButton>
             <span className="text-muted-foreground">{provider.keyUrl}</span>
+            {provider.id === "artificialAnalysis" ? (
+              <InlineButton onClick={openKeyDialog}>Set up with a guide</InlineButton>
+            ) : null}
           </span>
           <span className="mt-1 block" role="status">
             {testResult ? testResult.message : saved ? "A key is saved." : "No key saved."}

@@ -11,7 +11,7 @@ import type { DraftId } from "../../composerDraftStore";
 import { resolveComposerOptionSelections } from "../../composerProviderState";
 import type { ComposerControlSize } from "./ComposerControl";
 import { DownshiftNotice, type DownshiftExtras } from "./DownshiftNotice";
-import { PickerReasoningColumn } from "./PickerReasoningColumn";
+import { PickerReasoningColumn, type PickerColumnExtras } from "./PickerReasoningColumn";
 import {
   shouldRenderTraitsControls,
   type TraitsMenuContentProps,
@@ -103,8 +103,11 @@ function renderTraitsControl<Extra extends object>(
   );
 }
 
-export function renderProviderReasoningColumn(input: TraitsRenderInput): ReactNode {
-  return renderTraitsControl(PickerReasoningColumn, input, {});
+export function renderProviderReasoningColumn(
+  input: TraitsRenderInput,
+  extras: PickerColumnExtras = {},
+): ReactNode {
+  return renderTraitsControl(PickerReasoningColumn, input, extras);
 }
 
 /**

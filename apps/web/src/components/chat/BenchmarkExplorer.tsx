@@ -632,7 +632,8 @@ function ExplorerBody({
   );
   const catalog = catalogQuery.data;
 
-  const [view, setView] = useState<"chart" | "table" | "arena">("chart");
+  // The benchmarks window replaced the chart and the table. Only the blind test is left here.
+  const [view] = useState<"chart" | "table" | "arena">("arena");
   const [xKind, setXKind] = useState<XKind>("price");
   const [yKey, setYKey] = useState<string | null>(null);
   const [hoveredRaw, setHovered] = useState<string | null>(null);
@@ -984,16 +985,6 @@ function ExplorerBody({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented
-          label="View"
-          value={view}
-          options={[
-            { id: "chart", label: "Chart" },
-            { id: "table", label: "Table" },
-            { id: "arena", label: "Blind test" },
-          ]}
-          onChange={setView}
-        />
         {view === "chart" ? (
           <>
             <span className="text-2xs text-muted-foreground">Score vs</span>
@@ -1229,8 +1220,8 @@ function ExplorerBody({
   );
 }
 
-/** The benchmark explorer: chart, table and blind tests over every model the source publishes. */
-export function BenchmarkExplorer({
+/** The blind test: run one prompt on several models and vote for the best reply. */
+export function BlindTestDialog({
   open,
   onOpenChange,
   environmentId,
@@ -1249,7 +1240,7 @@ export function BenchmarkExplorer({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup className="max-w-5xl">
         <DialogPanel>
-          <DialogTitle className="mb-3">Model benchmarks</DialogTitle>
+          <DialogTitle className="mb-3">Blind test</DialogTitle>
           <ExplorerBody
             environmentId={environmentId}
             candidates={candidates}

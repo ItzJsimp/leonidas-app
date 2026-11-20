@@ -1,6 +1,5 @@
 import type {
   EnvironmentId,
-  ModelSelection,
   ProviderInstanceId,
   ThreadId,
   UsageLimitsReport,
@@ -15,7 +14,6 @@ import { useConnectedUsageAccounts } from "../../hooks/useConnectedUsageAccounts
 import { useNowMinute } from "../../hooks/useNowMinute";
 import { useClientSettings, useUpdateClientSettings } from "../../hooks/useSettings";
 import type { ContextWindowSnapshot } from "../../lib/contextWindow";
-import { connectedBenchmarkCandidates } from "../../lib/modelBenchmarks";
 import {
   accountFreshnessLabel,
   accountTitle,
@@ -30,7 +28,6 @@ import {
   usedPercentLabel,
 } from "../../lib/usageLimitsPopover";
 import { cn } from "../../lib/utils";
-import type { ProviderInstanceEntry } from "../../providerInstances";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { providerClients } from "../settings/providerDriverMeta";
@@ -39,7 +36,6 @@ import { RefreshIcon } from "../ui/refresh-icon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { ResetCreditDialog, resetCreditsSummary, useResetCredit } from "../usage/UsageLimits";
 import { readUsagePagePreferences, saveUsagePagePreferences } from "../usage/usagePagePreferences";
-import type { StartBenchmarkArena } from "./BenchmarkExplorer";
 import { UsageBar } from "./PlanUsageLimits";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 import { ThreadDetailsChatQuota } from "./ThreadDetailsChatQuota";
@@ -62,10 +58,6 @@ export interface ThreadDetailsUsageProps {
   readonly modelLabel: string;
   readonly effortLabel: string | null;
   readonly contextWindow: ContextWindowSnapshot | null;
-  readonly providerEntries: ReadonlyArray<ProviderInstanceEntry>;
-  /** Null when no project is active, which hides the benchmark row action. */
-  readonly onStartChat: ((selection: ModelSelection) => void) | null;
-  readonly onStartArena: StartBenchmarkArena | null;
 }
 
 /** How often the open panel re-reads account limits; the server caches probes inside this. */
@@ -345,7 +337,7 @@ function AccountRows({
  * Only the user folds it, and the choice is saved for every chat.
  */
 export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUsageProps }) {
-  const { environmentId, instanceId, providerEntries } = usage;
+  const { environmentId, instanceId } = usage;
   const navigate = useNavigate();
   const { active, others } = useConnectedUsageAccounts(environmentId, instanceId);
   // The setting first showed the old usage card, so a user who turned that card off keeps limits folded.
@@ -410,10 +402,6 @@ export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUs
     return () => clearTimeout(timer);
   }, [nextReset, now, environmentId, refreshProviders]);
 
-  const benchmarkCandidates = useMemo(
-    () => connectedBenchmarkCandidates(providerEntries, instanceId),
-    [providerEntries, instanceId],
-  );
   const freshness = limitsFreshness(
     accounts.map((account) => account.limits.checkedAt),
     now,
@@ -583,13 +571,7 @@ export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUs
             </TooltipTrigger>
             <TooltipPopup side="top">Read the limits of every AI account again now</TooltipPopup>
           </Tooltip>
-          <UsageBenchmarks
-            compact
-            environmentId={environmentId}
-            candidates={benchmarkCandidates}
-            onStartChat={usage.onStartChat}
-            onStartArena={usage.onStartArena}
-          />
+          <UsageBenchmarks compact />
           <Tooltip>
             <TooltipTrigger
               render={

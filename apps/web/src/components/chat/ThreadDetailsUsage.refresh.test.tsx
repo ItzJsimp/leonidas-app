@@ -49,9 +49,6 @@ const usage: ThreadDetailsUsageProps = {
   modelLabel: "Model",
   effortLabel: null,
   contextWindow: null,
-  providerEntries: [],
-  onStartChat: null,
-  onStartArena: null,
 };
 
 let renderer: ReactTestRenderer;

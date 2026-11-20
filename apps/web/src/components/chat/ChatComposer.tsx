@@ -1,5 +1,7 @@
 import { cacheActionImpact } from "@t3tools/client-runtime/cache-awareness";
+import { useBenchmarkUi } from "../../benchmarkUiStore";
 import { useModelBenchmarkIndex } from "../../hooks/useModelBenchmarkIndex";
+import { useEnvironmentSettings } from "../../hooks/useSettings";
 import { pickerModelStats } from "../../lib/pickerModelStats";
 import { estimateSwitchCost, withSwitchCost } from "../../lib/switchCost";
 import {
@@ -1390,6 +1392,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   );
   const cacheWarning = useCacheActionWarning();
   const benchmarkIndex = useModelBenchmarkIndex(environmentId);
+  const aaKeySaved =
+    useEnvironmentSettings(environmentId, (s) => s.artificialAnalysisApiKey) !== "";
+  const openBenchmarkWindow = useBenchmarkUi((state) => state.openWindow);
+  const openBenchmarkKeyDialog = useBenchmarkUi((state) => state.openKeyDialog);
+  const selectedModelName = selectedProviderModels.find(
+    (option) => option.slug === selectedModel,
+  )?.name;
+  const selectedModelStats = benchmarkIndex
+    ? pickerModelStats(benchmarkIndex, {
+        modelId: selectedModel,
+        ...(selectedModelName ? { displayName: selectedModelName } : {}),
+      })
+    : null;
   const pendingCacheNote = usePendingCacheNote(activeContextWindow, pendingUserInputs.length > 0);
   const selectedModelForPicker = selectedModel;
   // Instance-keyed option list so the picker can show each configured
@@ -2098,7 +2113,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     onPromptChange: setPromptFromTraits,
     planModeEnabled: settings.planModeEnabled,
   };
-  const providerReasoningColumn = renderProviderReasoningColumn(reasoningInput);
+  const providerReasoningColumn = renderProviderReasoningColumn(reasoningInput, {
+    stats: selectedModelStats,
+    onOpenBenchmarks: () => openBenchmarkWindow(selectedModel),
+    ...(aaKeySaved ? {} : { onConnectKey: openBenchmarkKeyDialog }),
+  });
   const [inlineRestingControlsHost, setInlineRestingControlsHost] = useState<HTMLDivElement | null>(
     null,
   );

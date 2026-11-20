@@ -87,9 +87,6 @@ describe("ThreadDetailsPanel", () => {
         modelLabel: "Model",
         effortLabel: null,
         contextWindow: null,
-        providerEntries: [],
-        onStartChat: null,
-        onStartArena: null,
       },
     };
 

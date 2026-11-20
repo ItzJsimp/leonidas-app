@@ -196,6 +196,21 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --series-2: oklch(0.72 0.15 300);
 }
 
+/* Who made the model, in the benchmark charts, plus the green of the "most attractive" quadrant.
+   White text on each creator color clears 4.5:1 in both themes. */
+:root {
+  --chart-anthropic: #a9552f;
+  --chart-openai: #4f4f4f;
+  --chart-google: #17703a;
+  --chart-good: #2f8f55;
+}
+.dark {
+  --chart-anthropic: #b9603a;
+  --chart-openai: #6f6f6f;
+  --chart-google: #1c8040;
+  --chart-good: #2f9e5b;
+}
+
 /* The font tokens are declared outside the inline theme so utilities reference
    the variables and Settings -> Appearance can override them at runtime. The
    default stacks are mirrored in `appearanceFonts.ts`. */
@@ -285,6 +300,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --color-state-text: var(--state-text);
   --color-series-1: var(--series-1);
   --color-series-2: var(--series-2);
+  --color-chart-anthropic: var(--chart-anthropic);
+  --color-chart-openai: var(--chart-openai);
+  --color-chart-google: var(--chart-google);
+  --color-chart-good: var(--chart-good);
   --color-input: var(--contrast-input);
   --color-border: var(--contrast-border);
   --color-destructive: var(--destructive);
