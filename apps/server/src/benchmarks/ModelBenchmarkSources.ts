@@ -267,6 +267,13 @@ const AA_METRICS: ReadonlyArray<Omit<ModelBenchmarkMetric, "source">> = [
     higherIsBetter: false,
   },
   {
+    key: "aa:first-answer",
+    label: "First answer",
+    kind: "latency",
+    unit: "seconds",
+    higherIsBetter: false,
+  },
+  {
     key: "aa:price:input",
     label: "Input price",
     kind: "price",
@@ -304,6 +311,10 @@ export function parseArtificialAnalysis(pages: ReadonlyArray<unknown>): ParsedBe
       if (!name || !slug) continue;
       const evaluations = recordAt(model, "evaluations");
       const performance = recordAt(model, "performance");
+      const performanceV3 = recordAt(model, "performance_v3");
+      // `performance` returns null from 2026-12-10 and the v3 means replace it, so v3 goes first.
+      const perf = (test: (name: string) => boolean) =>
+        numberWhere(performanceV3, test) ?? numberWhere(performance, test);
       const pricing = recordAt(model, "pricing");
       const cost = recordAt(
         recordAt(model, "artificial_analysis_intelligence_index_cost"),
@@ -313,11 +324,9 @@ export function parseArtificialAnalysis(pages: ReadonlyArray<unknown>): ParsedBe
         "aa:index": numberWhere(evaluations, (n) => n.endsWith("intelligence_index")),
         "aa:coding": numberWhere(evaluations, (n) => n.endsWith("coding_index")),
         "aa:agentic": numberWhere(evaluations, (n) => n.endsWith("agentic_index")),
-        "aa:speed": numberWhere(performance, (n) => /tokens_per_second/.test(n)),
-        "aa:ttft": numberWhere(
-          performance,
-          (n) => /time_to_first_token/.test(n) && !/answer/.test(n),
-        ),
+        "aa:speed": perf((n) => /tokens_per_second/.test(n)),
+        "aa:ttft": perf((n) => /time_to_first_token/.test(n) && !/answer/.test(n)),
+        "aa:first-answer": perf((n) => /time_to_first_answer_token/.test(n)),
         "aa:price:input": numberWhere(pricing, (n) => /input/.test(n) && !/cache/.test(n)),
         "aa:price:output": numberWhere(pricing, (n) => /output/.test(n)),
         "aa:cost-per-task": numberWhere(cost, (n) => /total/.test(n)),
