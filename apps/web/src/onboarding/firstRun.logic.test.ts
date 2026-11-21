@@ -5,6 +5,7 @@ import {
   isFreshFirstRunWorkspace,
   resolveFirstRunDecision,
   resolveHostedFirstRunDecision,
+  settingsAfterOnboarding,
   transitionFirstRunGateState,
 } from "./firstRun.logic";
 
@@ -475,5 +476,21 @@ describe("isFreshFirstRunWorkspace", () => {
         threads: [{ ...bootstrapThread, runtime: { status: "ready" } }],
       }),
     ).toBe(false);
+  });
+});
+
+describe("settingsAfterOnboarding", () => {
+  const before = { inAppNotificationsEnabled: false, notificationMode: "off" };
+
+  it("turns in-app notices on and stamps the completion time", () => {
+    const next = settingsAfterOnboarding(before, "2026-11-21T20:00:00.000Z");
+    expect(next.inAppNotificationsEnabled).toBe(true);
+    expect(next.onboardingCompletedAt).toBe("2026-11-21T20:00:00.000Z");
+  });
+
+  it("leaves system alerts and sounds off", () => {
+    expect(settingsAfterOnboarding(before, "2026-11-21T20:00:00.000Z").notificationMode).toBe(
+      "off",
+    );
   });
 });

@@ -1,10 +1,13 @@
 import { useCallback } from "react";
 import { ensureClientSettingsHydrated, persistClientSettingsUpdate } from "../hooks/useSettings";
+import { settingsAfterOnboarding } from "./firstRun.logic";
 
 export async function completeOnboarding(): Promise<void> {
   await ensureClientSettingsHydrated();
   const onboardingCompletedAt = new Date().toISOString();
-  await persistClientSettingsUpdate((current) => ({ ...current, onboardingCompletedAt }));
+  await persistClientSettingsUpdate((current) =>
+    settingsAfterOnboarding(current, onboardingCompletedAt),
+  );
 }
 
 /**
@@ -16,6 +19,8 @@ export function useCompleteOnboarding(): () => Promise<void> {
   return useCallback(async () => {
     await ensureClientSettingsHydrated();
     const onboardingCompletedAt = new Date().toISOString();
-    await persistClientSettingsUpdate((current) => ({ ...current, onboardingCompletedAt }));
+    await persistClientSettingsUpdate((current) =>
+      settingsAfterOnboarding(current, onboardingCompletedAt),
+    );
   }, []);
 }

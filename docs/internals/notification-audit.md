@@ -159,7 +159,9 @@ Rule for Jake: interrupt only for approval needed, input needed, failure, and "c
 
 ### Defaults for a new user
 
-Today a new user gets `notificationMode: "off"` and `inAppNotificationsEnabled: false`. The coordinator does not run. This is low noise and has no duplicates, but a new user never learns that a chat needs an approval. The change keeps this default, because a new default would also apply to every existing user who never set it. A follow-up card proposes a migration that turns In-app on for "needs you" events only.
+An existing user keeps `notificationMode: "off"` and `inAppNotificationsEnabled: false` when the setting is missing. A test documents this opt-in on purpose, so an update never starts alerts for people who did not ask.
+
+A new user turns In-app notices on when first-run setup ends or is skipped (`settingsAfterOnboarding` in `onboarding/firstRun.logic.ts`). The user sees toasts for approval, input, failure, usage limit, and a chat that finished on another chat. System alerts and sounds stay off, because they need consent. Every channel stays mutable in Settings, Notifications and in Inbox, Rules.
 
 ### Focus rule
 
@@ -187,7 +189,6 @@ Measured by `count_toasts.py` (a scratch script). Template parts such as `${name
 ## 9. Not changed, and why
 
 - Mobile push still runs in parallel with a desktop toast. The server does not know if the user looks at the desktop. A fix needs desktop presence in the cloud relay.
-- New-user defaults stay silent. See section 7.
 - 124 toasts have a dynamic title. A runtime check needs a toast manager hook. Not added to keep the diff small.
 - `ThreadNotificationCoordinator.browser.test.tsx` lists old titles ("Approval needed", "Thread failed"). They already differ from the shipped titles. The browser test run is not in the scoped set.
 - AIOS scripts and prompts (health prompts, watchdog, movement reminder) are Jake's files. They need a separate card.
@@ -197,8 +198,7 @@ Measured by `count_toasts.py` (a scratch script). Template parts such as `${name
 1. AIOS: replace per-issue toasts in the weekly health prompts with one digest event.
 2. AIOS: stop `Watch-AiosDaemons.ps1` from re-sending while a breaker is open. Fix `AIOS Sync Failing`.
 3. AIOS: one channel (voice or feed) in `Audit-ColdReality.ps1` and `Run-DailyBriefing.ps1`. Remove `Send-TaskToast.ps1`.
-4. App: migrate In-app toasts to on for "needs you" events only.
-5. Cloud: send desktop presence to the relay so a phone push waits while the desktop is in focus.
+4. Cloud: send desktop presence to the relay so a phone push waits while the desktop is in focus.
 
 ## 11. Verification
 

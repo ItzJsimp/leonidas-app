@@ -151,3 +151,14 @@ export function resolveHostedFirstRunDecision(hydrated: boolean): {
 } {
   return { decision: hydrated ? "app" : "pending", persistCompletion: false };
 }
+
+/**
+ * Settings a user has when first-run setup ends. In-app notices start on, so a new user sees
+ * when a chat needs an answer or an approval. System alerts and sounds stay off: they need consent.
+ */
+export function settingsAfterOnboarding<T extends { readonly inAppNotificationsEnabled: boolean }>(
+  current: T,
+  onboardingCompletedAt: string,
+): T & { readonly onboardingCompletedAt: string } {
+  return { ...current, onboardingCompletedAt, inAppNotificationsEnabled: true };
+}
