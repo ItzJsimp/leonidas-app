@@ -1,6 +1,6 @@
 # Qt (PySide6) audit add-on
 
-For any Qt Widgets or QML app (PySide6, PyQt, C++). Impeccable and every public design skill target web, iOS or Android, so these checks cover what they miss. Run them after [`rubric.md`](rubric.md). Check against the app's own token module and shared widget helpers. Reference implementation in AIOS: Leonidas Scribe, whose tokens are [`styles.py`](../../../../projects/leonidas-scribe/ui/styles.py) `T` (mirroring [`tokens.css`](../../../../projects/leonidas-command-center/src/tokens.css)), helpers are [`widgets.py`](../../../../projects/leonidas-scribe/ui/widgets.py), and motion is [`motion.py`](../../../../projects/leonidas-scribe/ui/motion.py) (Calm switch via `motion.enabled()`).
+For any Qt Widgets or QML app (PySide6, PyQt, C++). Impeccable and every public design skill target web, iOS or Android, so these checks cover what they miss. Run them after [`rubric.md`](rubric.md). Check against the app's own token module and shared widget helpers. Reference pattern in AIOS (from archived Python Scribe): a token module `ui/styles.py` `T` (mirroring [`tokens.css`](../../../../projects/leonidas-command-center/src/tokens.css)), shared helpers `ui/widgets.py`, and motion `ui/motion.py` (Calm switch via `motion.enabled()`).
 
 ## Capture screenshots (3 sizes)
 
@@ -28,7 +28,7 @@ def shoot(win, name):
 
 ## Styling
 
-- **P0** Hex values in a stylesheet string or `QColor("#...")` outside the app's token module (Scribe: `styles.py` `T`).
+- **P0** Hex values in a stylesheet string or `QColor("#...")` outside the app's token module (e.g. `styles.py` `T`).
 - **P1** Per-widget `setStyleSheet` overriding the global sheet for something that should be an object name (`setObjectName("GhostBtn")`) styled once.
 - **P1** A `QTableWidget` with default Qt chrome: grid lines on, alternating colors off, header not styled, row height default. Tables need hairline row dividers, a styled header, and tabular numbers.
 - **P2** Native `QComboBox` popup and `QSpinBox` arrows left unstyled against the dark theme.

@@ -1,6 +1,6 @@
 ---
 name: "research"
-description: "Investigate an external topic, library or claim with web evidence through sub-agents or deep-research prompts. Use for open questions that need several sources and a synthesized answer."
+description: "Investigate a topic, library or claim against primary sources and web evidence, and keep the findings. Use for open questions, docs or API facts, or reading legwork for a background agent."
 category: research
 scope: structural
 distribution: template
@@ -57,6 +57,14 @@ Executes directly in Antigravity or Claude Code for immediate, in-session delive
 4. **Stream & Deflate:** Subagents write raw scrapes to disk (`wiki/research/runs/<date>-<topic>/raw/`) and return structured JSON evidence records (`[{"claim", "quote", "locator", "url"}]`) to the parent.
 5. **Synthesize:** Parent drafts the report using [`templates/research-report-template.md`](templates/research-report-template.md).
 
+### Mode A-light: Primary-Source Note (Quick Tier, one question)
+
+Spin up one **background agent** with a fresh context window, so you keep working while it reads. Its job:
+
+1. Investigate the question against **primary sources** (official docs, source code, specs, first-party APIs), not a secondary write-up of them. Follow every claim back to the source that owns it. Read a source page as clean Markdown with [`defuddle`](../defuddle/SKILL.md).
+2. Write the findings to a single Markdown file and cite each claim's source.
+3. Save it where the repo already keeps such notes. Match the existing convention. If there is none, put it somewhere sensible and say where. In an AIOS, the storage sinks in section 3 are the convention.
+
 ### Mode B: Web Deep Research Bridge (`--web`)
 
 Used when the user explicitly requests massive (50–150+ source) cloud-scale research:
@@ -86,3 +94,5 @@ Used when the user explicitly requests massive (50–150+ source) cloud-scale re
 7. **Cross-Dossier Reconciliation:** After appending, run `pwsh -File scripts/Test-DossierContradictions.ps1`. If it flags a source this dossier shares with an earlier one but disagrees on, resolve it in the new dossier's Notes section (documented product change) or correct the stale claim, before treating the run as complete.
 8. **Canon Promotion:** Any finding whose `applies_to` overlaps an active skill or a durable operating fact (not project-specific trivia) gets promoted out of the dossier: author a short `memory/<finding-name>.md`, via `pwsh -File scripts/New-Memory.ps1` (the generated `memory/memory-index.md` lists it from its `description:`) so it becomes canon every future session inherits, not something only discoverable by reopening this specific dossier.
 9. **Telemetry Logged:** Append one line to `wiki/research/telemetry.jsonl` (`date`, `dossier_id`, `topic`, `tier`, `tokens_used`, `tool_calls`, `wall_clock_s`, `sources_verified`) per subagent spawned. Periodically run `pwsh -File scripts/Get-ResearchTelemetryStats.ps1` (or via `ai-efficiency-audit`) to check whether the FFS thresholds above and the tool-call ceilings in `.agents/subagents/researcher.md` still match observed reality, and recalibrate from the medians instead of re-guessing.
+
+Credit: Mode A-light is adapted from [mattpocock/skills](https://github.com/mattpocock/skills) `research` (MIT). See [LICENSE](LICENSE).

@@ -21,7 +21,7 @@
     {
       "name": "next-action",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -30,28 +30,8 @@
     {
       "name": "task-management",
       "kind": "skill",
-      "pack": "core",
-      "needs": [
-        "scripts/Archive-CompletedTasks.ps1",
-        "scripts/Audit-Tasks.ps1",
-        "scripts/Build-TasksIndex.ps1",
-        "scripts/Capture-Thought.ps1",
-        "scripts/Complete-Task.ps1",
-        "scripts/Get-Tasks.ps1",
-        "scripts/New-Task.ps1",
-        "scripts/Test-TaskGate.ps1",
-        "scripts/skills/task-management/Invoke-TaskManagement.ps1",
-        "scripts/task-health-sweep.py"
-      ],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
-      "name": "task-scoping",
-      "kind": "skill",
-      "pack": "core",
-      "needs": ["scripts/Audit-Substrate.ps1", "scripts/Audit-Tasks.ps1", "scripts/New-Task.ps1"],
+      "pack": "extras",
+      "needs": ["scripts/Archive-CompletedTasks.ps1", "scripts/Audit-Tasks.ps1", "scripts/Build-TasksIndex.ps1", "scripts/Capture-Thought.ps1", "scripts/Complete-Task.ps1", "scripts/Get-Tasks.ps1", "scripts/New-Task.ps1", "scripts/Test-TaskGate.ps1", "scripts/skills/task-management/Invoke-TaskManagement.ps1", "scripts/task-health-sweep.py"],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -77,7 +57,7 @@
     {
       "name": "to-questionnaire",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -86,7 +66,7 @@
     {
       "name": "roast",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -111,15 +91,6 @@
       "credit": "mattpocock/skills"
     },
     {
-      "name": "explain-simply",
-      "kind": "skill",
-      "pack": "core",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
       "name": "teach",
       "kind": "skill",
       "pack": "core",
@@ -131,7 +102,7 @@
     {
       "name": "quick-question",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -141,14 +112,7 @@
       "name": "research",
       "kind": "skill",
       "pack": "core",
-      "needs": [
-        "scripts/Build-Index.ps1",
-        "scripts/Find-EmDashes.ps1",
-        "scripts/Get-ResearchTelemetryStats.ps1",
-        "scripts/New-Memory.ps1",
-        "scripts/Query-Evidence.ps1",
-        "scripts/Test-DossierContradictions.ps1"
-      ],
+      "needs": ["scripts/Build-Index.ps1", "scripts/Find-EmDashes.ps1", "scripts/Get-ResearchTelemetryStats.ps1", "scripts/New-Memory.ps1", "scripts/Query-Evidence.ps1", "scripts/Test-DossierContradictions.ps1"],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -156,20 +120,11 @@
     {
       "name": "deep-research",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
-    },
-    {
-      "name": "primary-research",
-      "kind": "skill",
-      "pack": "core",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "mattpocock/skills"
     },
     {
       "name": "defuddle",
@@ -183,7 +138,7 @@
     {
       "name": "youtube-analyzer",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -192,7 +147,7 @@
     {
       "name": "youtube-search",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -219,7 +174,7 @@
     {
       "name": "humanizer",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -230,15 +185,6 @@
       "kind": "skill",
       "pack": "core",
       "needs": ["scripts/Build-Index.ps1"],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
-      "name": "prompt-improver",
-      "kind": "skill",
-      "pack": "core",
-      "needs": [],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -255,7 +201,7 @@
     {
       "name": "aios-explorer",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": ["scripts/Build-Index.ps1", "scripts/search-aios.py"],
       "version": "1.0.0",
       "license": "MIT",
@@ -268,32 +214,13 @@
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
-      "credit": "Leonidas"
+      "credit": "mattpocock/skills"
     },
     {
       "name": "chat-sync",
       "kind": "skill",
-      "pack": "core",
-      "needs": [
-        "scripts/Build-Index.ps1",
-        "scripts/Capture-Thought.ps1",
-        "scripts/New-ADR.ps1",
-        "scripts/New-Memory.ps1",
-        "scripts/New-Task.ps1"
-      ],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
-      "name": "chat-closeout",
-      "kind": "skill",
-      "pack": "core",
-      "needs": [
-        "scripts/Audit-Substrate.ps1",
-        "scripts/New-Task.ps1",
-        "scripts/test-project-playbooks.py"
-      ],
+      "pack": "extras",
+      "needs": ["scripts/Build-Index.ps1", "scripts/Capture-Thought.ps1", "scripts/New-ADR.ps1", "scripts/New-Memory.ps1", "scripts/New-Task.ps1"],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -305,41 +232,13 @@
       "needs": ["scripts/Check-OpenHandoffs.ps1"],
       "version": "1.0.0",
       "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
-      "name": "recap",
-      "kind": "skill",
-      "pack": "core",
-      "needs": ["scripts/Build-Index.ps1"],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
+      "credit": "mattpocock/skills"
     },
     {
       "name": "component-audit",
       "kind": "skill",
-      "pack": "core",
-      "needs": [
-        "scripts/Audit-Substrate.ps1",
-        "scripts/Build-Index.ps1",
-        "scripts/Detect-Drift.ps1",
-        "scripts/New-AiosScheduledTask.ps1",
-        "scripts/New-Memory.ps1",
-        "scripts/Set-HarnessChatName.ps1",
-        "scripts/Sync-AgentSkills.ps1",
-        "scripts/Sync-Mem0Index.ps1",
-        "scripts/track-task.py"
-      ],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
-      "name": "context-budget",
-      "kind": "skill",
-      "pack": "core",
-      "needs": [],
+      "pack": "extras",
+      "needs": ["scripts/Audit-Substrate.ps1", "scripts/Build-Index.ps1", "scripts/Detect-Drift.ps1", "scripts/New-AiosScheduledTask.ps1", "scripts/New-Memory.ps1", "scripts/Set-HarnessChatName.ps1", "scripts/Sync-AgentSkills.ps1", "scripts/Sync-Mem0Index.ps1", "scripts/track-task.py"],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -347,7 +246,7 @@
     {
       "name": "context-engineering",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -357,31 +256,10 @@
       "name": "skill-creator",
       "kind": "skill",
       "pack": "core",
-      "needs": [
-        "scripts/Audit-Substrate.ps1",
-        "scripts/Build-Index.ps1",
-        "scripts/Detect-Drift.ps1",
-        "scripts/Export-UniversalAIOS.py",
-        "scripts/New-Skill.ps1",
-        "scripts/Sync-AgentSkills.ps1"
-      ],
+      "needs": ["scripts/Audit-Substrate.ps1", "scripts/Build-Index.ps1", "scripts/Detect-Drift.ps1", "scripts/Export-UniversalAIOS.py", "scripts/New-Skill.ps1", "scripts/Sync-AgentSkills.ps1"],
       "version": "1.0.0",
       "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
-      "name": "skill-learn",
-      "kind": "skill",
-      "pack": "core",
-      "needs": [
-        "scripts/Audit-Substrate.ps1",
-        "scripts/Build-Index.ps1",
-        "scripts/Collect-SkillSignals.py",
-        "scripts/Sync-AgentSkills.ps1"
-      ],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
+      "credit": "mattpocock/skills"
     },
     {
       "name": "find-skills",
@@ -395,17 +273,8 @@
     {
       "name": "subagent-builder",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": ["scripts/Sync-Subagents.ps1"],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
-      "name": "system-prompt-authoring",
-      "kind": "skill",
-      "pack": "core",
-      "needs": [],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -413,7 +282,7 @@
     {
       "name": "mode-persona-builder",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": ["scripts/Audit-Substrate.ps1", "scripts/Build-Index.ps1"],
       "version": "1.0.0",
       "license": "MIT",
@@ -422,16 +291,8 @@
     {
       "name": "automation-architect",
       "kind": "skill",
-      "pack": "core",
-      "needs": [
-        "scripts/Audit-Substrate.ps1",
-        "scripts/Compile-AutomationManifest.ps1",
-        "scripts/Detect-Drift.ps1",
-        "scripts/Get-AutomationSurface.ps1",
-        "scripts/New-AiosScheduledTask.ps1",
-        "scripts/Route-SystemOne.ps1",
-        "scripts/route-system-one.py"
-      ],
+      "pack": "extras",
+      "needs": ["scripts/Audit-Substrate.ps1", "scripts/Compile-AutomationManifest.ps1", "scripts/Detect-Drift.ps1", "scripts/Get-AutomationSurface.ps1", "scripts/New-AiosScheduledTask.ps1", "scripts/Route-SystemOne.ps1", "scripts/route-system-one.py"],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -439,7 +300,7 @@
     {
       "name": "workflow-spec-builder",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": ["scripts/Capture-Thought.ps1", "scripts/Complete-Task.ps1"],
       "version": "1.0.0",
       "license": "MIT",
@@ -457,7 +318,7 @@
     {
       "name": "manual-setup-walkthrough",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -475,7 +336,7 @@
     {
       "name": "ceo",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -484,7 +345,7 @@
     {
       "name": "leonidas-canvas",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -493,7 +354,7 @@
     {
       "name": "archify",
       "kind": "skill",
-      "pack": "core",
+      "pack": "extras",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -502,52 +363,7 @@
     {
       "name": "idea-to-ship",
       "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "addyosmani/agent-skills"
-    },
-    {
-      "name": "spec",
-      "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "addyosmani/agent-skills"
-    },
-    {
-      "name": "plan",
-      "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "addyosmani/agent-skills"
-    },
-    {
-      "name": "build",
-      "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "addyosmani/agent-skills"
-    },
-    {
-      "name": "test",
-      "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "addyosmani/agent-skills"
-    },
-    {
-      "name": "review",
-      "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -556,7 +372,7 @@
     {
       "name": "ship",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -565,7 +381,7 @@
     {
       "name": "review-two-axis",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -574,7 +390,7 @@
     {
       "name": "tdd",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -583,25 +399,16 @@
     {
       "name": "diagnosing-bugs",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "mattpocock/skills"
     },
     {
-      "name": "code-simplify",
-      "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "addyosmani/agent-skills"
-    },
-    {
       "name": "code-skimmer",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": ["scripts/get-harness-tokens.py", "scripts/get-symbol-outline.py"],
       "version": "1.0.0",
       "license": "MIT",
@@ -610,7 +417,7 @@
     {
       "name": "codebase-design",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -619,7 +426,7 @@
     {
       "name": "improve-codebase-architecture",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -628,7 +435,7 @@
     {
       "name": "domain-modeling",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -637,7 +444,7 @@
     {
       "name": "prototype",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -655,7 +462,7 @@
     {
       "name": "performance-gate",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": ["scripts/Detect-Drift.ps1"],
       "version": "1.0.0",
       "license": "MIT",
@@ -664,7 +471,7 @@
     {
       "name": "performance-optimization",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -682,38 +489,11 @@
     {
       "name": "pr",
       "kind": "skill",
-      "pack": "developer",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "mattpocock/skills"
-    },
-    {
-      "name": "resolving-merge-conflicts",
-      "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "mattpocock/skills"
-    },
-    {
-      "name": "using-git-worktrees",
-      "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "obra/superpowers"
-    },
-    {
-      "name": "git-advanced-workflows",
-      "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "wshobson/agents"
     },
     {
       "name": "git-guardrails-claude-code",
@@ -723,15 +503,6 @@
       "version": "1.0.0",
       "license": "MIT",
       "credit": "mattpocock/skills"
-    },
-    {
-      "name": "github-issues",
-      "kind": "skill",
-      "pack": "developer",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "github/awesome-copilot"
     },
     {
       "name": "graphify",
@@ -779,58 +550,13 @@
       "credit": "Leonidas"
     },
     {
-      "name": "token-optimizer",
-      "kind": "skill",
-      "pack": "builder",
-      "needs": ["scripts/Audit-AiEfficiency.ps1", "scripts/get-harness-tokens.py"],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
-      "name": "design-build",
-      "kind": "skill",
-      "pack": "design",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonidas"
-    },
-    {
       "name": "design-audit",
       "kind": "skill",
-      "pack": "design",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
-    },
-    {
-      "name": "impeccable",
-      "kind": "skill",
-      "pack": "design",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "Apache-2.0",
-      "credit": "pbakaus/impeccable"
-    },
-    {
-      "name": "ui-taste",
-      "kind": "skill",
-      "pack": "design",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "Apache-2.0",
-      "credit": "uizze.sh"
-    },
-    {
-      "name": "design-taste-frontend-v2-experimental",
-      "kind": "skill",
-      "pack": "design",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "Leonxlnx/taste-skill"
     },
     {
       "name": "brandkit",
@@ -844,7 +570,7 @@
     {
       "name": "accessibility",
       "kind": "skill",
-      "pack": "design",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
@@ -1022,15 +748,6 @@
       "credit": "ar9av/obsidian-wiki"
     },
     {
-      "name": "wiki-dedup",
-      "kind": "skill",
-      "pack": "knowledge",
-      "needs": ["scripts/Detect-Drift.ps1"],
-      "version": "1.0.0",
-      "license": "MIT",
-      "credit": "ar9av/obsidian-wiki"
-    },
-    {
       "name": "llm-wiki-research",
       "kind": "skill",
       "pack": "knowledge",
@@ -1124,11 +841,7 @@
       "name": "windows-toast",
       "kind": "skill",
       "pack": "windows-pc",
-      "needs": [
-        "scripts/Handle-ToastAction.ps1",
-        "scripts/Register-ToastProtocol.ps1",
-        "scripts/Send-TaskToast.ps1"
-      ],
+      "needs": ["scripts/Handle-ToastAction.ps1", "scripts/Register-ToastProtocol.ps1", "scripts/Send-TaskToast.ps1"],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -1152,22 +865,58 @@
       "credit": "Leonidas"
     },
     {
-      "name": "caveman",
+      "name": "code-simplification",
       "kind": "skill",
-      "pack": "writing-style",
-      "needs": [],
-      "version": "1.0.0",
-      "license": "Apache-2.0",
-      "credit": "juliusbrussee/caveman"
-    },
-    {
-      "name": "fable-mode",
-      "kind": "skill",
-      "pack": "writing-style",
+      "pack": "core",
       "needs": [],
       "version": "1.0.0",
       "license": "MIT",
-      "credit": "Leonidas"
+      "credit": "addyosmani/agent-skills"
+    },
+    {
+      "name": "grill-me",
+      "kind": "skill",
+      "pack": "core",
+      "needs": [],
+      "version": "1.0.0",
+      "license": "MIT",
+      "credit": "mattpocock/skills"
+    },
+    {
+      "name": "grill-with-docs",
+      "kind": "skill",
+      "pack": "core",
+      "needs": [],
+      "version": "1.0.0",
+      "license": "MIT",
+      "credit": "mattpocock/skills"
+    },
+    {
+      "name": "implement",
+      "kind": "skill",
+      "pack": "core",
+      "needs": [],
+      "version": "1.0.0",
+      "license": "MIT",
+      "credit": "mattpocock/skills"
+    },
+    {
+      "name": "ux-copy",
+      "kind": "skill",
+      "pack": "core",
+      "needs": [],
+      "version": "1.0.0",
+      "license": "Apache-2.0",
+      "credit": "anthropics/knowledge-work-plugins"
+    },
+    {
+      "name": "implement-spec",
+      "kind": "skill",
+      "pack": "core",
+      "needs": [],
+      "version": "1.0.0",
+      "license": "MIT",
+      "credit": "mattpocock/skills"
     }
   ]
 }

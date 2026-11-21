@@ -1,6 +1,6 @@
 ---
 name: "prompt-composer"
-description: "Write, audit and grade prompts and agent instructions with model-calibrated structure. Use when writing or improving a prompt, system prompt, brief or agent instruction."
+description: "Write, audit and grade prompts and agent instructions, or clarify a vague request with research. Use when writing or improving a prompt, brief or instruction, or a request is underspecified."
 category: "agents"
 scope: "structural"
 distribution: "portable"
@@ -11,8 +11,9 @@ kind: "procedure"
 load: "on-demand"
 owner: "shared"
 verified: "2026-11-09"
-related: ["skills-index", "system-prompt-authoring", "model-router", "prompt-standard"]
+related: ["skills-index", "writing-for-agents", "model-router", "prompt-standard"]
 generated: false
+license: MIT
 ---
 
 # Prompt Composer
@@ -24,8 +25,9 @@ Compose, audit and grade prompts so the receiving agent takes the same path ever
 - **Compose:** a request with no draft. Start at Phase 0.
 - **Audit:** a draft exists. Keep its intent. Run Phase 0 only when the target model is unknown, then start at Phase 2.
 - **Compress:** a long conversational request. Run Phase 0 and Phase 2, then Phase 3.
+- **Clarify:** a vague request that needs research and a choice before work starts. Follow the Clarify section below. Formerly `prompt-improver`.
 
-Neighbors: agent-read files (skills, AGENTS.md, CLAUDE.md) go to [`writing-for-agents`](../writing-for-agents/SKILL.md). Shared document theory is in [`system-prompt-authoring`](../system-prompt-authoring/SKILL.md). Image prompts go to [`image-prompt-craft`](../image-prompt-craft/SKILL.md). Ten prompts at once go to [`autonomous-prompts`](../autonomous-prompts/SKILL.md), which calls this skill per prompt.
+Neighbors: agent-read files (skills, AGENTS.md, CLAUDE.md) go to [`writing-for-agents`](../writing-for-agents/SKILL.md). The document theory behind Phase 2 is in [`writing-for-agents`](../writing-for-agents/SKILL.md). Image prompts go to [`image-prompt-craft`](../image-prompt-craft/SKILL.md). Ten prompts at once go to [`autonomous-prompts`](../autonomous-prompts/SKILL.md), which calls this skill per prompt.
 
 ## Pipeline
 
@@ -84,6 +86,16 @@ Done when: the score block and one fenced prompt are printed, and the reuse ques
 - _Scope & Guardrail Boundaries (15):_ forbidden files and actions are bounded.
 - **Key Enhancements:** 2 to 3 bullets naming what was pruned or sharpened.
 
+## Clarify a vague request
+
+Use this for a request with a missing target, an unclear scope or unclear criteria. Skip Phases 0 to 4 and follow [references/clarify-workflow.md](references/clarify-workflow.md):
+
+1. **Research first.** Read the conversation history, the codebase and the docs before you ask anything. Base every option on a real finding.
+2. **Options.** Write 1 to 3 multiple-choice questions grounded in the findings. Mark one option "(Recommended)" with its technical reason. Ask no open-ended or yes/no question.
+3. **Ask, then execute.** Ask with the structured question tool. Then carry out the original intent with the chosen options, as if it had been specified clearly. Check the result with tests or diagnostics.
+
+More: [question patterns](references/clarify-question-patterns.md), [research strategies](references/clarify-research-strategies.md), [examples](references/clarify-examples.md).
+
 ## Delegation
 
 Grading 4 or more prompts: give each prompt to one Haiku or Luna subagent. It returns the score block and a one-line fix. The lead agent keeps the Phase 3 rewrite and the final answer.
@@ -93,3 +105,4 @@ Grading 4 or more prompts: give each prompt to one Haiku or Luna subagent. It re
 1. `scripts/lint-prompt.py` exits 0 on the delivered prompt, and `--selftest` prints `selftest ok`.
 2. The score block lists all five lines, and they sum to the printed total.
 3. Nothing is written to `prompts/` before the user says yes.
+4. A Clarify run asked no question that its research could answer, and ended with the chosen option carried out.

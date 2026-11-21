@@ -2,15 +2,16 @@
 
 Battle-tested evaluation standard for scoring, auditing, and optimizing agent skills across Claude Code and Google Antigravity. Revised 2026-09-10 to account for harness economics, listing budget ceilings, and mechanical verification.
 
+Where the skill standard differs, the standard wins: pillar 3 uses its 1,024 character cap, not 250 and 550. [`scripts/Score-Skill.py`](../../../../scripts/Score-Skill.py) checks the mechanical parts and prints the score.
+
 ---
 
 ## 1. Rubric Overview
 
 | #                       | Pillar                                             | Max Pts | Core Evaluation Standard                                                                                                               |
 | ----------------------- | -------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 1                       | **Substrate & Domain Grounding**                   | 20      | Integration with AIOS canon ( asks/, decisions/, CONTEXT.md, scripts) vs foreign imports. Every referenced file must exist on disk.    |
-| 2                       | **Progressive Disclosure & Information Hierarchy** | 15      | Clean separation of primary steps vs reference material. Complex tables and deep specs pushed to                                       |
-| eferences/ or scripts/. |
+| 1                       | **Substrate & Domain Grounding**                   | 20      | Integration with AIOS canon (tasks/, decisions/, CONTEXT.md, scripts) vs foreign imports. Every referenced file must exist on disk.    |
+| 2                       | **Progressive Disclosure & Information Hierarchy** | 15      | Clean separation of primary steps vs reference material. Complex tables and deep specs pushed to references/ or scripts/. |
 | 3                       | **Trigger Precision & Ergonomics**                 | 15      | Front-loaded leading words, positive triggers, description under 250 chars (550 max), appropriate disable-model-invocation.            |
 | 4                       | **Completion Criteria & Mechanical Verifiability** | 15      | Explicit "Done when" conditions. At least half the points require a mechanical check (test, script, hook, linter), not just prose.     |
 | 5                       | **Distinctness & Boundary Integrity**              | 15      | Single-responsibility boundary, zero alias duplication, non-overlapping capabilities. Clean scope assignment (personal vs structural). |
@@ -22,14 +23,13 @@ Battle-tested evaluation standard for scoring, auditing, and optimizing agent sk
 
 ### Pillar 1: Substrate & Domain Grounding (20 pts)
 
-- **20 pts:** Flawlessly binds to AIOS stores ( asks/, decisions/, CONTEXT.md, scripts/). Zero hardcoded absolute paths or foreign framework references.
+- **20 pts:** Flawlessly binds to AIOS stores (tasks/, decisions/, CONTEXT.md, scripts/). Zero hardcoded absolute paths or foreign framework references.
 - **10-15 pts:** Mostly grounded, but contains minor loose references or undocumented dependencies.
 - **<10 pts:** Contains dead file paths, references non-existent scripts, or imports foreign conventions.
 
 ### Pillar 2: Progressive Disclosure & Information Hierarchy (15 pts)
 
-- **15 pts:** Root SKILL.md is a lean execution recipe (<120 lines). Deep reference, schemas, and templates are cleanly disclosed in
-  eferences/.
+- **15 pts:** Root SKILL.md is a lean execution recipe (<120 lines). Deep reference, schemas, and templates are cleanly disclosed in references/.
 - **10 pts:** Mild sprawl (120-200 lines) with some inline reference that could be disclosed.
 - **<10 pts:** Monolithic dump (>200 lines) burying execution steps beneath static reference.
 
@@ -49,8 +49,7 @@ Battle-tested evaluation standard for scoring, auditing, and optimizing agent sk
 
 - **15 pts:** Unique capability boundary. Zero overlap with existing skills. Explicit scope: tag properly assigned.
 - **10 pts:** Minor capability overlap with another skill that could be resolved with a pointer.
-- **<10 pts:** Redundant alias (e.g. old current-action vs
-  ext-action) or untracked cross-tenant duplicate.
+- **<10 pts:** Redundant alias (e.g. old current-action vs next-action) or untracked cross-tenant duplicate.
 
 ### Pillar 6: Harness Economics & Cache Headroom (20 pts)
 

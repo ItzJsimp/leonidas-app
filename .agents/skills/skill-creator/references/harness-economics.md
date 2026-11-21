@@ -2,22 +2,24 @@
 
 Understanding the physical constraints of Claude Code and Google Antigravity harnesses is mandatory for authoring sustainable skills.
 
+Rules: [skill standard](../../../../standards/skill-standard.md). Numbers below follow the docs read on 2026-11-06 ([research](../../../../wiki/research/2026-11-06-skill-authoring-practice.md)).
+
 ---
 
 ## 1. Claude Code Listing Budget (The 78% Overage Reality)
 
 Claude Code loads skills into context via a dynamic listing derived from ~/.claude/settings.json:
 
-- skillListingMaxDescChars: 550 characters maximum per skill description.
-- skillListingBudgetFraction: 0.01 (1% of the 200,000 token context window = ~2,000 tokens).
+- skillListingMaxDescChars: 1536 by default. The cap covers description plus when_to_use. The AIOS hard cap is 1,024 characters.
+- skillListingBudgetFraction: 0.01 by default (1% of the context window). Shipped settings use 0.02. The docs give a fraction, not a token count.
 
 ### The Portfolio Competition Reality
 
 Skills do not live in isolation; they compete for a shared listing budget:
 
-- At 60 skills with average descriptions of ~220 characters, the listing consumes over 3,500 tokens (78% above the default 2,000 token budget).
-- When the portfolio exceeds the budget, descriptions past the cutoff are truncated or omitted, causing silent auto-routing failures.
-- **Authoring Rule:** Target descriptions between **80 and 250 characters**. Every extra character directly degrades routing reliability for all other skills.
+- At 60 skills with average descriptions of ~220 characters, the listing consumes over 3,500 tokens (78% above the default 2,000 token budget). This figure assumes a 200,000 token window and is unverified.
+- When the portfolio exceeds the budget, Claude Code keeps every skill name and drops the descriptions of the least-used skills first. It logs a warning under `--debug`, and `/doctor` shows the cost.
+- **Authoring Rule:** No length target. Cap 1,024 characters. A trigger test decides if a description works. A budget lint warns when the linked descriptions pass the listing budget.
 
 ---
 
@@ -26,7 +28,7 @@ Skills do not live in isolation; they compete for a shared listing budget:
 - **Discovery Hierarchy:** Enterprise > Personal (~/.claude/skills/) > Project (<repo>/.claude/skills/).
 - **Isolation Standard:** To prevent personal skills (e.g. `financial-audit`, PC gaming tuners) from leaking into business repositories (the peer AIOS), the global folder ~/.claude/skills/ is kept empty.
 - **NTFS Junctions:** Skills canonically live in .agents/skills/<name>/SKILL.md. Running scripts/Sync-AgentSkills.ps1 creates project-scoped NTFS junctions in .claude/skills/<name>.
-- **Hot-Reloading:** Claude Code hot-reloads skills when junctions are created or modified, but mid-session description edits invalidate the prompt cache.
+- **Hot-Reloading:** Claude Code detects SKILL.md text edits live. After a link change, run `/reload-skills`. The prompt-cache cost of a description edit is unverified.
 
 ---
 

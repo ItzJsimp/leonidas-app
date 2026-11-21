@@ -1,118 +1,76 @@
 ---
 name: to-tickets
-description: "Break a plan, spec or conversation into tracer-bullet tickets with declared blocking edges, published to the configured tracker. Use when a plan must become a set of tickets."
-scope: structural
-distribution: core
-category: planning
-type: skill
-id: skill-to-tickets
-title: "To Tickets"
-kind: procedure
-load: on-demand
-owner: shared
-verified: 2026-10-14
-source: "https://github.com/mattpocock/skills (skills/engineering/to-tickets, MIT, commit 49dd158)"
+description: "Break a spec, plan or conversation into small tracer-bullet tickets with blocking edges, then publish them to the tracker. Use after a spec exists, or when asked for /to-tickets."
+disable-model-invocation: true
+metadata:
+  scope: structural
+  category: planning
+  reach: core
+  distribution: portable
+  sources: ["mattpocock/to-tickets@abeeaf9", "addyosmani/planning-and-task-breakdown@aeac41d"]
 license: MIT
 ---
 
 # To Tickets
 
-Break a plan, spec, or conversation into a set of **tickets**: tracer-bullet vertical slices, each declaring the tickets that **block** it.
+Break a spec, plan or conversation into **tickets**: tracer-bullet vertical slices. Each ticket declares the tickets that **block** it. Main-flow step 3: after `to-spec`, before `implement` or `implement-spec`. `/ask-leonidas` shows the whole flow.
 
-Tracker for this AIOS: `tasks/` cards, created with `pwsh scripts/New-Task.ps1` and gated per [tasks-standard](../../../standards/tasks-standard.md). Use GitHub issues only when the user asks or the work lives in a GitHub repo.
+**Tracker:** read the Tracker section of the repo's [workflow profile](../../workflow-profile.md) (`.agents/workflow-profile.md`). With no profile, write local files under `.scratch/<feature-slug>/issues/` and tell the user once. Task cards in an AIOS: follow [references/tracker-task-cards.md](references/tracker-task-cards.md).
 
-## Process
+## 1. Gather context
 
-### 1. Gather context
+Work from the conversation. If the user passes a reference (a spec path, an issue number or a URL), read its full body and comments. If the goal is still foggy, stop and suggest `/grill-with-docs` first. When `idea-to-ship` runs this step, the spec must carry Gate 1 approval.
 
-Work from whatever is already in the conversation context. If the user passes a reference (a spec path, an issue number or URL) as an argument, fetch it and read its full body and comments.
+## 2. Survey, read only
 
-### 2. Explore the codebase (optional)
+Write no code in this step. Map what exists: components, scripts, tests, names. Mark each touched piece as reuse, modify or create. Only modify and create get tickets. Note risks and unknowns.
 
-If you have not already explored the codebase, do so to understand the current state of the code. Ticket titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
+Use the glossary words (`CONTEXT.md`) in titles, and respect the ADRs in the area. Look for a prefactor that makes the change easy: "make the change easy, then make the easy change."
 
-Look for opportunities to prefactor the code to make the implementation easier. "Make the change easy, then make the easy change."
+## 3. Draft vertical slices
 
-### 3. Draft vertical slices
+- Each slice cuts a narrow but complete path through every layer (schema, API, UI, tests). Never one horizontal layer.
+- A finished slice is demoable or verifiable alone, and leaves the system working.
+- No "set up the project" slices. Prefactoring comes first.
+- **Size by files touched:** XS 1, S 1 to 2, M 3 to 5. Split L (6 to 8) and XL (more than 8). Also split a slice that needs more than one fresh context window, more than 3 acceptance bullets, two independent subsystems, or has "and" in its title.
+- Each slice gets acceptance criteria, **one command that verifies it**, and its **blocking edges** (tickets that must finish first, or "none").
 
-Break the work into **tracer bullet** tickets.
+**Wide refactors are the exception.** One mechanical change whose blast radius fans across the codebase (rename a column, retype a shared symbol) cannot land as one green vertical slice. Sequence it as **expand, migrate, contract**: add the new form beside the old, migrate call sites in batches sized by blast radius (one ticket each, blocked by the expand), then delete the old form in a ticket blocked by every batch. When even the batches cannot stay green alone, let them share an integration branch that blocks a final integrate-and-verify ticket.
 
-<vertical-slice-rules>
+## 4. Order and checkpoints
 
-- Each slice cuts a narrow but COMPLETE path through every layer (schema, API, UI, tests): vertical, NOT a horizontal slice of one layer
-- A completed slice is demoable or verifiable on its own
-- Each slice is sized to fit in a single fresh context window
-- Any prefactoring should be done first
+Order: blockers first, then highest risk (fail fast), then most visible (the user checks direction early). After every 2 to 3 slices, add a checkpoint: tests pass, the build passes, the core flow works.
 
-</vertical-slice-rules>
+## 5. Quiz the user
 
-Give each ticket its **blocking edges**: the other tickets that must complete before it can start. A ticket with no blockers can start immediately.
+Show the breakdown as a numbered list: title, blocked by, what it delivers, size. Ask:
 
-**Wide refactors are the exception to vertical slicing.** A **wide refactor** is one mechanical change (rename a column, retype a shared symbol) whose **blast radius** fans across the whole codebase, so a single edit breaks thousands of call sites at once and no vertical slice can land green. Don't force it into a tracer bullet; sequence it as **expand–contract**. First expand: add the new form beside the old so nothing breaks. Then migrate the call sites over in batches sized by blast radius (per package, per directory), each batch its own ticket blocked by the expand, keeping CI green batch to batch because the old form still exists. Finally contract: delete the old form once no caller remains, in a ticket blocked by every migrate batch. When even the batches can't stay green alone, keep the sequence but let them share an integration branch that all block a final integrate-and-verify ticket; green is promised only there.
+- Does the granularity feel right (too coarse or too fine)?
+- Does each ticket depend only on tickets that really gate it?
+- Should any ticket be merged or split?
 
-### 4. Quiz the user
+Repeat until the user approves.
 
-Present the proposed breakdown as a numbered list. For each ticket, show:
+## 6. Publish
 
-- **Title**: short descriptive name
-- **Blocked by**: which other tickets (if any) must complete first
-- **What it delivers**: the end-to-end behaviour this ticket makes work
+Publish in dependency order, blockers first, so each edge can name a real identifier. Templates: [references/ticket-templates.md](references/ticket-templates.md).
 
-Ask the user:
+- **Local files:** one file per ticket, `<NN>-<slug>.md`, numbered from `01`. Never one combined file.
+- **A real tracker (GitHub, Linear):** one issue per ticket. Use the native blocking link where one exists. If the source was an issue, make each ticket its sub-issue. Add the `ready-for-agent` label unless told otherwise. Do not close or change the parent issue.
+- **Task cards:** see the tracker reference.
 
-- Does the granularity feel right? (too coarse / too fine)
-- Are the blocking edges correct: does each ticket only depend on tickets that genuinely gate it?
-- Should any tickets be merged or split further?
+Mark mechanical tickets (rename, boilerplate, one-file edit) as fit for a cheap model. Claim the tickets this run builds now, by the tracker's claim rule in the profile. If an unfinished plan for different work exists, ask before you replace it.
 
-Iterate until the user approves the breakdown.
+Leave file paths and code out of ticket bodies: they go stale. Exception: a prototype snippet that states a decision better than prose (state machine, reducer, schema, type shape). Trim it to the decision and say it came from a prototype.
 
-### 5. Publish the tickets to the configured tracker
+## 7. Hand on
 
-Publish the approved tickets. **How** depends on the tracker (a `tasks/` card by default); the tickets are the same either way, only the shape of the blocking edges changes:
+The **frontier** is every ticket whose blockers are done. Tell the user the next step: `/implement` per ticket, or `/implement-spec` for the whole graph. The spec and tickets now hold the truth, so this is the place to reset context (`/compact`, or a fresh session).
 
-- **Task cards (default)** → write one `tasks/` card per ticket with `pwsh scripts/New-Task.ps1`, titled `<NN>-<slug>`, numbered from `01` in dependency order (blockers first). Pass each blocker's card slug to `New-Task.ps1 -BlockedBy` so `blocked_by:` is set in the frontmatter; the delegation gate and `Audit-Tasks` read that field, not the body. Also list the numbers/titles in the body "Blocked by" section. Use the per-ticket file template below: one ticket per file, never a single combined file.
-- **A real issue tracker (GitHub, Linear, …)** → publish one issue per ticket in dependency order (blockers first) so each ticket's blocking edges can reference real identifiers. Use the platform's native blocking relationship where it has one; otherwise set each ticket's "Blocked by" to the blocking issues. If the source was an existing issue, make each ticket its sub-issue (tracker doc's operation). Apply the `ready-for-agent` triage label unless instructed otherwise; the tickets are agent-grabbable by construction.
+## Done when
 
-Work the **frontier**: any ticket whose blockers are all done. For a purely linear chain that means top to bottom.
+- Every ticket is XS, S or M, with acceptance criteria, one verify command and a blocked-by line.
+- The user approved the breakdown, and every ticket is published in blocker order.
+- The blocking graph has no cycle. In an AIOS: `pwsh -NoProfile -File scripts/Audit-Tasks.ps1` ends with `[PASS]`.
 
-Do NOT close or modify any parent issue.
-
-<local-ticket-template>
-
-# <NN>: <Ticket title>
-
-**What to build:** the end-to-end behaviour this ticket makes work, from the user's perspective, not a layer-by-layer implementation list.
-
-**Blocked by:** the numbers/titles of the tickets that gate this one, or "None (can start immediately)".
-
-**Status:** ready-for-agent
-
-- [ ] Acceptance criterion 1
-- [ ] Acceptance criterion 2
-
-</local-ticket-template>
-
-<issue-template>
-
-## Parent
-
-A reference to the parent issue on the tracker (if the source was an existing issue, otherwise omit this section).
-
-## What to build
-
-The end-to-end behaviour this ticket makes work, from the user's perspective, not layer-by-layer implementation.
-
-## Acceptance criteria
-
-- [ ] Criterion 1
-- [ ] Criterion 2
-
-## Blocked by
-
-- A reference to each blocking ticket, or "None (can start immediately)". Omit this section when blockers were set as native edges.
-
-</issue-template>
-
-In either form, avoid specific file paths or code snippets: they go stale fast. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
-
-Credit: adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT). See [LICENSE](LICENSE).
+Credit: adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) and [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT). See [LICENSE](LICENSE).

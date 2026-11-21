@@ -11,7 +11,7 @@ kind: procedure
 load: on-demand
 owner: shared
 verified: 2026-09-28
-source: "https://github.com/mattpocock/skills (skills/engineering/codebase-design, MIT, commit c55ee46)"
+source: "https://github.com/mattpocock/skills (skills/engineering/codebase-design, MIT, commit abeeaf9)"
 license: MIT
 ---
 

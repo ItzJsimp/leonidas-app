@@ -32,7 +32,7 @@ flowchart LR
         DM["/domain-modeling"]
     end
     subgraph S2["Planning"]
-        TSC["/task-scoping"]
+        TSC["/to-spec, /to-tickets"]
         TM["/task-management"]
     end
     subgraph S3["Execution"]
@@ -51,8 +51,8 @@ flowchart LR
 ### Execution Steps:
 
 1. **Discovery & Architecture:** Execute [`grill-with-docs`](../../grill-with-docs/SKILL.md). Conduct interactive interrogation rounds, record hard architectural decisions under `decisions/` as ADRs, and synchronize domain terms into [`CONTEXT.md`](../../../../CONTEXT.md) via [`domain-modeling`](../../domain-modeling/SKILL.md).
-2. **Task Decomposition:** Execute [`task-scoping`](../../task-scoping/SKILL.md). Decompose the brief into vertical slices declaring blocking dependencies. Record in [`tasks/`](../../../../tasks/tasks-index.md) via [`task-management`](../../task-management/SKILL.md).
-3. **Test-First Implementation:** Execute [`implement`](../../implement/SKILL.md). Build each vertical slice using disciplined Red-Green-Refactor cycles. Verify with tests and atomic git commits.
+2. **Spec and Task Decomposition:** Execute [`to-spec`](../../to-spec/SKILL.md), then [`to-tickets`](../../to-tickets/SKILL.md). Decompose the spec into vertical slices declaring blocking dependencies. Record in [`tasks/`](../../../../tasks/tasks-index.md) via [`task-management`](../../task-management/SKILL.md).
+3. **Test-First Implementation:** Execute [`implement`](../../implement/SKILL.md) per ticket, or [`implement-spec`](../../implement-spec/SKILL.md) for the whole spec. Build each vertical slice using disciplined Red-Green-Refactor cycles. Verify with tests and atomic git commits, then review the diff with [`review-two-axis`](../../review-two-axis/SKILL.md).
 4. **Closeout & Sync:** Execute [`chat-sync`](../../chat-sync/SKILL.md) to harvest durable memories and update canon logs before session conclusion.
 
 ---
@@ -63,10 +63,10 @@ For complex, ambiguous, or high-uncertainty greenfield builds where domain bound
 
 ### Execution Steps:
 
-1. **Multi-Gate Discipline:** Launch [`fable-mode`](../../fable-mode/SKILL.md). Enforce multi-gate checkpoints, deep boundary probing, and prototype spikes.
+1. **Decision Map:** Launch [`wayfinder`](../../wayfinder/SKILL.md). Chart a map of decision tickets, resolve them one at a time, and settle prototype spikes with [`prototype`](../../prototype/SKILL.md).
 2. **External Knowledge Gathering:** If requirements rely on third-party documentation, dispatch [`research`](../../research/SKILL.md) to extract cited primary-source findings.
 3. **Stakeholder Alignment:** If external clarity from collaborators or clients is needed, invoke [`to-questionnaire`](../../to-questionnaire/SKILL.md) to produce a standalone asynchronous questionnaire.
-4. **Structured Handoff:** Once the fog clears and specs freeze, hand off via [`references/phase-boundaries.md`](phase-boundaries.md) to [`task-scoping`](../../task-scoping/SKILL.md) and [`implement`](../../implement/SKILL.md).
+4. **Structured Handoff:** Once the fog clears and specs freeze, hand off via [`references/phase-boundaries.md`](phase-boundaries.md) to [`to-spec`](../../to-spec/SKILL.md), [`to-tickets`](../../to-tickets/SKILL.md) and [`implement`](../../implement/SKILL.md).
 
 ---
 
@@ -78,7 +78,7 @@ For codebase health, god-node decomposition, circular dependency cleanup, and to
 
 1. **AST & Knowledge Graph Analysis:** Run [`graphify`](../../graphify/SKILL.md) to construct the AST knowledge graph, detect god nodes, and identify clustered modules.
 2. **Structural Debt Audit:** Execute [`improve-codebase-architecture`](../../improve-codebase-architecture/SKILL.md) to evaluate module boundaries and generate refactoring targets.
-3. **Token Budget Assessment:** Execute [`token-optimizer`](../../token-optimizer/SKILL.md) to eliminate instruction bloat across preloaded instruction files.
+3. **Token Budget Assessment:** Execute [`context-engineering`](../../context-engineering/SKILL.md) to eliminate instruction bloat across preloaded instruction files.
 4. **Refactoring Execution:** Execute [`implement`](../../implement/SKILL.md) to perform structural refactors test-first.
 5. **Formatting & Punctuation Sweep:** Run [`de-emdash`](../../de-emdash/SKILL.md) to enforce punctuation standards.
 
@@ -121,5 +121,5 @@ flowchart TD
 
 ## Related Documents
 
-- [`catalog-matrix.md`](catalog-matrix.md): Exhaustive skill classification matrix.
+- [`skills-catalog-matrix.md`](../../skills-catalog-matrix.md): Exhaustive skill classification matrix (generated, AIOS only).
 - [`phase-boundaries.md`](phase-boundaries.md): 5-option context transition decision tree.

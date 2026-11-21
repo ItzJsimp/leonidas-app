@@ -1,92 +1,73 @@
 ---
-name: "implement"
-description: "Execute plans and specifications through disciplined test-first slices with mutation gates, AST checks, and atomic commits. Use when a plan or spec is approved and ready to build."
-category: "code"
-type: "skill"
-id: "skill-implement"
-title: "Implement: Disciplined Test-First Execution Loop"
-kind: "procedure"
-load: "on-demand"
-owner: "shared"
-scope: "structural"
-source: "https://github.com/mattpocock/skills (skills/engineering/implement, MIT, adapted for the AIOS)"
-distribution: core
-verified: "2026-10-08"
-related: ["skills-index", "tdd", "execution-standard", "complete-slice", "codebase-design"]
-generated: false
+name: implement
+description: "Implement a spec or tickets through test-first slices, one commit each, then verify every success criterion with evidence. Use when work is ready to build, or when asked for /implement."
+disable-model-invocation: true
+metadata:
+  scope: structural
+  category: code
+  reach: core
+  distribution: portable
+  sources: ["mattpocock/implement@abeeaf9", "addyosmani/incremental-implementation@aeac41d"]
+license: MIT
 ---
 
-# Implement: Disciplined Test-First Execution Loop
+# Implement
 
-**Upstream of this skill:** for a new build or non-trivial system (not a one-line fix), run the 6 phases before this one per [`standards/execution-standard.md`](../../../standards/execution-standard.md): Ideate & Scope, Deep Research, Core Principles, Power User Posture, Best Practices, Gap Analysis (with 3 Work Tiers). This skill is that standard's 7th phase, Test-First Execution.
+Main-flow step 4: after `to-tickets`, before `review-two-axis`. To run a whole ticket graph, use `/implement-spec`. `/ask-leonidas` shows the whole flow.
 
-## Purpose
+Implement the work in the spec or tickets the user names. If the user passes a ticket reference, fetch it from the tracker and state its title before you start. If the reference is ambiguous, ask. With no reference, take the next pending ticket whose blockers are done, and stop after it. Note the commit before this work started: it is the fixed point for the review.
 
-Translates an approved plan, task checklist, or technical specification into tested, production-hardened code through a vertical-slice loop. Enforces observable red-phase validation, counterfactual mutation falsification, static AST pre-flight checks, 3-strike rollback circuit breakers, adversarial chaos probes, and atomic telemetry-backed commits.
+## 1. Intake and baseline
 
----
+- Read the spec or ticket. Confirm that the acceptance criteria and prerequisites are unambiguous before you write code.
+- Run `git status --porcelain`. Do not stage changes that are not part of this work. In a shared checkout, stage explicit paths only (`safe-parallel-commit`). If unrelated changes block the work, ask.
 
-## Procedure
+## 2. Loop: one slice at a time
 
-1. **Intake & Boundary Check:**
-   - Read the approved task specification, plan checklist, or prompt brief.
-   - Confirm acceptance criteria and prerequisites are unambiguous before writing code.
+Take exactly one vertical slice or ticket. Then:
 
-2. **Slice Extraction & Static Pre-Flight:**
-   - Select exactly one vertical slice or numbered task item.
-   - Run static AST parsing and inbound symbol checks before modifying code (consult [`verification-patterns.md`](./references/verification-patterns.md)).
-   - For shared APIs or cmdlets, inspect callers via `codebase-memory-mcp` (`trace_path` with `direction="inbound"`) to protect external contracts.
+1. **Pre-flight.** Run static AST checks and inbound symbol checks before you edit ([verification-patterns](references/verification-patterns.md)). For a shared API, inspect the callers first (`trace_path` inbound in `codebase-memory-mcp`, when present).
+2. **Red.** Call `tdd` where possible, at the pre-agreed seams. Write a check that fails because the requirement is missing, run it, and see the failure. A bug fix starts with a test that fails because of the bug (Prove-It). Flip a return value or a condition: the test must fail. Accept no vacuous assertion.
+3. **Green.** Write the smallest direct code that passes. Use the standard library and platform tools before a dependency or an abstraction.
+4. **Chaos probe.** Run the 4-point stress check in [adversarial-chaos-matrix](references/adversarial-chaos-matrix.md): paths with spaces and Unicode, empty or null input, CRLF against LF and UTF-8, subprocess exit codes.
+5. **Refactor.** Clean up, and follow the repo's coding standards. Run typecheck and single test files often, not the full suite.
+6. **Performance gate.** Run [`performance-gate`](../performance-gate/SKILL.md) on the slice diff (the fast lane for a small slice). Fix every FAIL. A slice with a FAIL is not done.
+7. **Commit** to the current branch: one commit per slice, explicit paths only, never `git add -A`. The code compiles and the tests pass after each slice. Mark the ticket done in the tracker.
 
-3. **Red Phase (Observable Failure & Anti-Tautology Invariant):**
-   - Establish a reproducible failing test or check that proves the requirement is currently missing.
-   - Run the check and observe the non-zero exit code or assertion failure.
-   - **Counterfactual Mutation Inversion:** Verify the test is sensitive: if a return value or condition is flipped, the test MUST fail. Never accept vacuous assertions (consult [`verification-patterns.md`](./references/verification-patterns.md)).
+An AIOS adds a commit script, drift checks and task reconcile: [references/aios-commit-path.md](references/aios-commit-path.md).
 
-4. **Green Phase (Minimal Direct Implementation):**
-   - Write the minimal direct code required to make the failing test pass.
-   - Reach for standard library and platform-native tools before adding dependencies or abstractions.
+## 3. Rules in every slice
 
-5. **Adversarial Chaos Probe (Dirty Environment Stress):**
-   - Once the slice passes green on happy-path inputs, execute the 4-point stress check per [`adversarial-chaos-matrix.md`](./references/adversarial-chaos-matrix.md):
-     1. Dirty paths with spaces (e.g. `<repo>/`) and Unicode.
-     2. Empty/null input streams and edge collections.
-     3. Line-ending CRLF vs LF invariance and UTF-8 encoding.
-     4. Subprocess exit code trapping (`$LASTEXITCODE -ne 0`).
+- **Scope:** touch only what the slice needs. Write other findings down. Do not fix them. A blocker or an unclear design halts the slice: report it and wait.
+- **Real runs:** every red and green step needs real shell output. Never say a test passes without the run.
+- **No extra files:** no `implementation_plan.md` or `walkthrough.md` unless the user asks.
+- **Many files:** more than 3 files in one change go through one script, not single-file edits.
 
-6. **Refactor Phase & 3-Strike Rollback Circuit Breaker:**
-   - Clean up formatting, streamline logic, and adhere to workspace coding standards.
-   - **3-Strike Rollback Invariant:** If an implementation or refactor attempt fails 3 consecutive times, stop editing immediately. Revert dirty changes to the slice start via `git checkout` / `git stash`, drop back to M1 root-cause diagnosis, and resolve the underlying blocker before re-attempting. Never thrash edits in a failing state.
+## 4. Stop and ask
 
-7. **Performance Gate, then Reconcile, Micro-Telemetry & Commit Slice:**
-   - Before committing code, run [`performance-gate`](../performance-gate/SKILL.md) on the slice diff (Fast lane for small slices) and fix any FAIL. A slice with a FAIL verdict is not done.
-   - Run `pwsh -File scripts/Complete-Slice.ps1 -Paths <files...> -Message "<type>(<scope>): <summary>"` to verify zero em dashes, check drift, log slice telemetry to `logs/slice-telemetry.jsonl`, and execute an atomic git commit per [ADR-0010](../../../decisions/0010-git-history-replaces-the-master-log.md).
-   - Reconcile task state by marking the slice item complete (`[x]`) in the active task file under [`tasks/`](../../../tasks/tasks-index.md).
+Do not continue when:
 
-8. **Loop or Finalize:**
-   - Repeat steps 2 through 7 for each remaining slice.
-   - When all slices complete, verify full suite health and append any discovered quirks to [`logs/lessons-learned.md`](../../../logs/lessons-learned.md).
+- a test or the build still fails after 3 attempts in a row. Stop editing, revert to the slice start (`git checkout` or `git stash`), and load `diagnosing-bugs` before you try again;
+- the spec is ambiguous, or the slice needs a decision the spec does not cover;
+- the slice is high risk, or `git revert` cannot undo it: auth, permissions, data migration or deletion, payments, secrets, deploy or publish.
 
----
+A new run continues from the next pending ticket.
 
-## Execution Guardrails
+## 5. Verify
 
-- **No Simulated Verifications:** Every Red and Green transition must be backed by actual shell execution output. Never assert tests pass without running the command.
-- **Single Slice Boundary:** Never modify files outside the current task slice. If a blocker or architectural ambiguity is hit, immediately halt the slice, report the obstacle, and await user direction.
-- **No Unsolicited Planning Artifacts (Rule 6):** Never generate `implementation_plan.md` or `walkthrough.md` files unless explicitly requested.
-- **Batch Multi-File Operations (Rule 3):** When modifying or refactoring >3 files, write and run a single script rather than executing sequential single-file tool calls.
-- **Zero Em-Dash Standard (Rule 4):** Never introduce U+2014 em dashes in code, comments, strings, or documentation.
-- **Relative File Links (Rule 7):** Format all path and symbol references in prose as repo-relative clickable links.
+When every slice is committed:
 
----
+1. Run the full test suite once, and every check in the workflow profile Verify section: tests for the changed files, lint, typecheck, build. Show each command and its result. Never claim a check you did not run.
+2. Map each success criterion in the spec to evidence: a test name, a command result or a screenshot. A criterion with no evidence is a FAIL.
+3. For a UI or game change, run the UI check from the profile (for example `design-audit`, a browser pass or a playtest) when the spec Boundaries allow it.
+4. Run `performance-gate` on the whole change. It must give a verdict.
+5. **PASS:** load `review-two-axis` with the fixed point you noted. When `idea-to-ship` runs this step, stop here: it runs the review. **FAIL:** write each failure as Location, Cause, Fix. Go back to step 2 with a fix slice for each.
 
-## Done When
+Report: slices done, tests added, commits, and items skipped or flagged.
 
-The implementation task is complete when all seven are true:
+## Done when
 
-1. **Every Slice Check Green:** All acceptance criteria in the intake plan have an automated check that passes green.
-2. **Adversarial Chaos Survived:** Touched code survives spaces in paths, nulls, and subprocess error trapping.
-3. **Substrate Drift Clean:** `scripts/Detect-Drift.ps1` emits zero `[FAIL]` lines.
-4. **Punctuation Clean:** `scripts/Find-EmDashes.ps1` reports zero em dashes in touched files.
-5. **Atomic Git Log & Telemetry:** Every slice corresponds to a distinct git commit and is logged to `logs/slice-telemetry.jsonl`.
-6. **Task Progress Reconciled:** The source task checklist or file in [`tasks/`](../../../tasks/tasks-index.md) reflects updated `[x]` completion states.
-7. **Performance Gate Passed:** every code slice carries a `Performance Gate: PASS` (or an owner-accepted PASS-WITH-RISK) verdict.
+- Every slice has a check that failed first and then passed in real output, survived the chaos probe, and has its own commit. Or the report names the stop rule that fired.
+- Every success criterion has evidence, the profile test command exits 0, and `performance-gate` gave a verdict.
+
+Credit: adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) and [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT). See [LICENSE](LICENSE).

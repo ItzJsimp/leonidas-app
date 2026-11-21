@@ -1,130 +1,87 @@
 ---
 name: ask-leonidas
-description: "Route user tasks to optimal AIOS skills, resolve workflow boundaries, and plan session handoffs. Use when unsure which skill or workflow fits a task."
-category: agents
-type: skill
-id: skill-ask-leonidas
-title: "Ask Leonidas : Master Skill & Flow Router"
-kind: procedure
-load: on-demand
-owner: shared
-scope: structural
-distribution: template
-verified: 2026-09-16
-related:
-  [
-    "skills-index",
-    "grill-me",
-    "implement",
-    "find-skills",
-    "chat-sync",
-    "next-action",
-    "cole-medin-11-tips",
-  ]
-generated: false
+description: "Route a task to the right skill, flow and phase boundary. Use when unsure which skill or workflow fits, what to run next, or whether to continue, hand off or compact."
+metadata:
+  scope: structural
+  category: agents
+  reach: core
+  distribution: portable
+  sources: ["mattpocock/ask-matt@abeeaf9"]
 license: MIT
 ---
 
-# Ask Leonidas: Master Skill & Flow Router
+# Ask Leonidas
 
-Orient across the 91 AIOS skills on disk, select high-leverage skill pipelines, and resolve session context boundaries.
+You do not remember every skill, so ask. Before you state what a skill does, or recommend that a step be skipped, read that skill's `SKILL.md`: the summaries here are for orientation only.
 
----
+A **flow** is a path through the skills. Most paths run along one **main flow**, and two **on-ramps** merge onto it. Everything else is standalone, or a vocabulary layer that runs underneath. In an AIOS, also read [references/aios-routes.md](references/aios-routes.md): the intent router for PC, gaming, audit and wiki work.
 
-## High-Velocity Intent Router
+## The main flow: idea to ship
 
-Walk this precedence ladder top-to-bottom. Select the first matching operational branch:
+The route most work travels: you have an idea and want it built. [`idea-to-ship`](../idea-to-ship/SKILL.md) runs the same steps as an autopilot with two gates.
 
-| Intent / Situation                        | Immediate Action / Flow                 | Primary Skills                                                                                                                           |
-| ----------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **0. Kickoff / What to Work on Now**      | Mindless Intake -> Gap Audit -> Build   | [`/next-action`](../next-action/SKILL.md) (or [`/current-action`](../next-action/SKILL.md)) -> [`/implement`](../implement/SKILL.md)     |
-| **1. Feature Build / New Capability**     | Discovery -> Planning -> Execution      | [`/grill-me`](../grill-me/SKILL.md) -> [`/task-scoping`](../task-scoping/SKILL.md) -> [`/implement`](../implement/SKILL.md)              |
-| **2. Foggy / Complex Greenfield Project** | Multi-Gate Checkpoints -> Spec Freeze   | [`/fable-mode`](../fable-mode/SKILL.md) -> [`/task-scoping`](../task-scoping/SKILL.md)                                                   |
-| **3. Hardware, Driver, or Crash Triage**  | Crash Forensics -> OS Diagnostics       | [`/pc-incident-forensics`](../pc-incident-forensics/SKILL.md) -> [`/pc-systems-engineer`](../pc-systems-engineer/SKILL.md)               |
-| **4. Gaming, Latency & Peripherals**      | Engine Tuning -> Input Calibration      | [`/game-optimization`](../game-optimization/SKILL.md) -> [`/peripherals-display-tuner`](../peripherals-display-tuner/SKILL.md)           |
-| **5. Codebase Health & Refactoring**      | Graph AST -> Deepen Modules -> Refactor | [`/graphify`](../graphify/SKILL.md) -> [`/improve-codebase-architecture`](../improve-codebase-architecture/SKILL.md)                     |
-| **6. System Auditing & Token Budget**     | Substrate Gate -> Token Pruning         | [`/leonidas-os-audit`](../leonidas-os-audit/SKILL.md) -> [`/token-optimizer`](../token-optimizer/SKILL.md)                               |
-| **7. External Package Discovery**         | Open Ecosystem Search (skills.sh)       | [`/find-skills`](../find-skills/SKILL.md)                                                                                                |
-| **8. In-Flight Memory / Closeout**        | Harvest Decisions & Sync Canon          | [`/chat-sync`](../chat-sync/SKILL.md) -> the user runs [`/session-handoff`](../session-handoff/SKILL.md) manually (user-only invocation) |
+1. **`/grill-with-docs`** sharpens the idea by interview. Start here when you work in a working directory: it keeps what it learns in `CONTEXT.md` and in ADRs. With no working directory, use `/grill-me`. Both run the same `/grilling` primitive.
+2. **Branch: can you settle every question in conversation?** If a question needs a runnable answer (state, business logic, a UI you must see), detour through a prototype. Either dispatch **`/prototype`** in a background subagent while the grilling goes on, or bridge it with `/session-handoff` in both directions: hand off out, open a fresh session on that file, run `/prototype`, then hand back what you learned and point to it from the original thread.
+3. **Branch: is this a multi-session build?**
+   - **Yes:** **`/to-spec`** turns the thread into a spec. **`/to-tickets`** splits it into tracer-bullet tickets, each with its **blocking edges**. Then work the tickets one of two ways:
+     - **`/implement`** per ticket, in a fresh session each time. Each ticket is self-contained, so the last one's context is disposable.
+     - **`/implement-spec`** for the whole spec in one run. It reads the tickets as a **task graph**, runs implementer subagents across the ready **frontier**, and lands one **integration branch**.
+   - **No:** **`/implement`** right here, in the same context window.
 
----
+   Either way, **`/tdd`** builds the code (one red-green slice at a time) and **`/review-two-axis`** closes it: a two-axis review (Standards and Spec) of the diff. Use `/tdd` alone to build one behaviour test-first without a spec. Use `/review-two-axis` alone to review a branch or a PR against a fixed point. When the work goes up as a pull request, **`/pr`** shapes the body.
+4. **`/retro`** closes the loop. After a build, and most of all one that went sideways, it looks back over the session and suggests changes to the agent's **environment**, not the code: pointers, automated checks, coding standards, steering files, tooling.
 
-## Agent Delegation Fitness Checklist
+**Context hygiene.** Keep steps 1 to 3 in **one unbroken context window**, so the grilling, the spec and the tickets build on the same thinking. Compact or reset only after `/to-tickets`. Each `/implement` then starts fresh from its ticket. Run `/retro` in the session it reviews. The limit is the **smart zone**, the part of the window where the model still reasons sharply: about 150k tokens, or the selected model's live context warning when that is lower. If a session nears it before `/to-tickets`, `/compact` at the nearest phase boundary.
 
-Before delegating work to a coding agent (connected providers or delegated child agents in Leonidas), ask these three questions. Your answer determines scope and preparation depth.
+## On-ramps
 
-| Fitness Question                              | Example: Brainstorming                                                                                                 | Example: Execution                             | Example: Domain Knowledge                                                                                |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Is this brainstorming or creative design?** | "What should our architecture look like?"                                                                              | "Implement feature X as specified."            | "Do we need TypeScript generics here?"                                                                   |
-| **Requires upfront human thinking?**          | YES - Architect first, agent implements.                                                                               | NO - Agent owns it; you QA output.             | YES - You provide context first; agent executes.                                                         |
-| **Expected depth of domain knowledge?**       | HIGH - You lead; agent supports.                                                                                       | MEDIUM - Spec is locked, agent executes.       | MEDIUM - Incorporate domain context in prompt.                                                           |
-| **Best Approach**                             | Interview yourself (or use [`/grill-with-docs`](../grill-with-docs/SKILL.md)), lock the spec, then delegate execution. | Pass locked spec + context; let agent execute. | Provide full context (existing code, patterns, constraints); ask agent to implement within those bounds. |
+A starting situation that makes work, then merges onto the main flow.
 
-**Gate rule:** If you're uncertain whether a task should be agent-led or human-led, default to human-led design + agent execution. Never hand off an unlocked spec or ambiguous requirements.
+- **Something is broken:** **`/diagnosing-bugs`**. For the hard ones: the bug that resists a first look, the flake, the regression between two good states. It builds a **tight feedback loop** first (one command that goes red on this bug), then fixes with a regression test. Run `/retro` in the same session afterwards. If the finding is that no good seam exists, go to `/improve-codebase-architecture`.
+- **A huge, foggy effort** (a greenfield project, or a feature too big for one session): **`/wayfinder`**. It charts a shared map of **decision tickets** and resolves them one at a time, making decisions, not deliverables. It hands off at `/to-spec`, which collapses the map into a buildable plan. Go straight to `/implement` only when the effort turned out small.
 
-See [`raw/youtube/cole-medin/11-tiny-fixes/analysis.md`](../../../raw/youtube/cole-medin/11-tiny-fixes/analysis.md) (Tip #3: "Assess what should be delegated") for the reasoning behind this gate.
+## Codebase health
 
----
+**`/improve-codebase-architecture`** runs whenever you have a spare moment. It surfaces **deepening opportunities**. Picking one makes an idea that you take into the main flow at `/grill-with-docs`. **`/codebase-design`** is the bench where you design the chosen one.
 
-## The Core Builder Flow (Idea -> Ship)
+## Vocabulary underneath
 
-Standard route for developing workspace features and scripts:
+Two model-invoked references run beneath the other skills. Use them directly when the **words**, not the process, are the problem.
 
-1. **Sharpen by Interview:** Run [`/grill-me`](../grill-me/SKILL.md), the model-invocable interview (chat-only), to conduct frontier interrogation rounds. Record hard architectural decisions under `decisions/` as ADRs and update [`CONTEXT.md`](../../../CONTEXT.md) via [`/domain-modeling`](../domain-modeling/SKILL.md). When the interview should write to canon as it goes, recommend the user-only [`/grill-with-docs`](../grill-with-docs/SKILL.md) (same engine plus ADR/glossary authoring; `disable-model-invocation: true`, so the router can recommend it but cannot invoke it). ADR-0066.
-2. **Prototype Spikes (If Uncertain):** If an architectural question requires visual feedback or state spikes, ask the user to run [`/session-handoff`](../session-handoff/SKILL.md) (user-only invocation) to branch into an isolated scratch session, build the throwaway spike, and hand off back into the main idea thread.
-3. **Decompose into Tasks:** Break specifications into testable vertical slices with blocking edges using [`/task-scoping`](../task-scoping/SKILL.md). Record tasks in [`tasks/`](../../../tasks/tasks-index.md) via [`/task-management`](../task-management/SKILL.md).
-4. **Disciplined Execution:** Run [`/implement`](../implement/SKILL.md) per task slice test-first (Red-Green-Refactor). Review diffs against a fixed point before committing per [ADR-0010](../../../decisions/0010-git-history-replaces-the-master-log.md).
-5. **Session Harvest & Closeout:** Run [`/chat-sync`](../chat-sync/SKILL.md) to harvest durable lessons, memories, and canon updates without wiping session history.
+- **`/domain-modeling`** sharpens the project's domain language: it challenges a fuzzy term, resolves an overloaded word, and records a hard-to-reverse decision as an ADR.
+- **`/codebase-design`** is the deep-module vocabulary (module, interface, depth, seam, adapter, leverage, locality) for the _shape_ of a module.
 
----
+## Phase boundaries
 
-## Phase Boundaries & Context Management
+A **phase** is a chunk of work inside a session. At the **boundary** between two phases you have five options:
 
-A phase boundary is the transition point between two operational chunks (e.g. discovery -> implementation).
+- **Continue:** stay put. It costs nothing and loses nothing.
+- **Fresh session:** open a new chat when nothing here matters to what is next. Never run `/clear`: it wipes the history.
+- **`/session-handoff`:** write a portable file. Use it only for a **new harness**, a **new directory**, a **colleague**, or a side task forked **mid-phase**.
+- **Subagent:** send a tightly scoped task to its own window and get a report back.
+- **`/compact`:** compress this context. It is the default at the bottom of the tree, not the first reach.
 
-### The Five-Action Precedence Tree:
+The ordered tree and its reasoning: [references/phase-boundaries.md](references/phase-boundaries.md). Decide **at** a boundary. Mid-phase, continue or split the rest into subagents.
 
-1. **Continue:** Stay in active session if the next phase requires verbatim history as a primary source and the token count is within the **smart zone** (below the selected model's live context warning).
-2. **Fresh Session:** Open a new chat window when prior exploration context is disposable. Never run `/clear` (which permanently wipes history).
-3. **`/session-handoff`:** Emit a portable briefing when changing providers or accounts inside Leonidas, switching directories, or handing off to collaborators.
-4. **Subagent:** Dispatch an isolated background agent for autonomous, non-blocking tasks (e.g. test sweeps, diff audits).
-5. **`/compact`:** Condense active context with an explicit retention instruction when smart zone limit is reached and session must continue in-place.
+## Standalone
 
-_For complete evaluation details, see [references/phase-boundaries.md](references/phase-boundaries.md)._
+- **`/next-action`:** ranks what to work on now.
+- **`/find-skills`:** finds an external skill when none here fits.
+- **`/grill-me`:** the same interview as `/grill-with-docs`, but stateless. Use it when no working directory exists.
+- **`/grilling`:** the interview primitive. Rounds, the frontier, facts are the agent's job and decisions are yours.
+- **`/prototype`:** a small throwaway program that answers one design question. The answer folds into the real code.
+- **`/research`:** delegates reading legwork to a background agent, which leaves a cited Markdown file.
+- **`/to-questionnaire`:** for when the answer is in someone else's head. It writes them a questionnaire.
+- **`/wizard`:** for the steps only a human can take. It makes an interactive script that captures each value.
+- **`/wait-what`:** the fix for a message that did not land. The agent re-pitches it in plain words with the missing context.
+- **`/teach`:** learn a concept over several sessions.
+- **`/writing-for-agents`:** the reference for documents that agents read: skills, `AGENTS.md`, pointed-at docs.
 
----
+More: [references/flow-taxonomies.md](references/flow-taxonomies.md) (multi-skill recipes), [references/delegation-fitness.md](references/delegation-fitness.md) (before you hand work to an agent).
 
-## Deterministic Zero-Token CLI Discovery
+## Done when
 
-Query all AIOS skills and generate routing matrices directly from the terminal without spending LLM tokens:
+- A target skill or a skill pipeline is named and announced, and the phase boundary action (continue, fresh session, handoff, subagent, compact) is declared when one applies.
+- In an AIOS, when unsure: `pwsh -File scripts/Find-SkillFlow.ps1 -Query "<topic>"` lists the matching skills.
 
-```powershell
-# Search skills by keyword
-pwsh -File scripts/Find-SkillFlow.ps1 -Query "performance"
-
-# Filter skills by operational category
-pwsh -File scripts/Find-SkillFlow.ps1 -Category "Execution"
-
-# Regenerate catalog matrix from live metadata
-pwsh -File scripts/Find-SkillFlow.ps1 -GenerateMatrix
-```
-
-_(Script lives at [`scripts/Find-SkillFlow.ps1`](../../../scripts/Find-SkillFlow.ps1))._
-
----
-
-## Disclosed Reference Modules
-
-- **[`references/catalog-matrix.md`](references/catalog-matrix.md):** Skill classification matrix with invocation types, input/output contracts, and authoritative Mode bindings (generated; regenerate with `Find-SkillFlow.ps1 -GenerateMatrix`).
-- **[`references/phase-boundaries.md`](references/phase-boundaries.md):** The 5-action boundary decision tree and primary vs. secondary source tradeoff analysis.
-- **[`references/flow-taxonomies.md`](references/flow-taxonomies.md):** End-to-end multi-skill execution recipes across Discovery, Systems, Refactoring, and External Fallbacks.
-
----
-
-## Done When
-
-A routing request is complete when all three conditions are satisfied:
-
-1. A definitive target skill or multi-skill execution pipeline is identified and announced.
-2. The appropriate Mode binding is established per [`modes/router.md`](../../../modes/router.md).
-3. Any required phase boundary transitions (Continue, Fresh Session, Handoff, Subagent, Compact) are explicitly declared.
+Credit: the flow map is adapted from [mattpocock/skills](https://github.com/mattpocock/skills) `ask-matt` (MIT). See [LICENSE](LICENSE).

@@ -11,13 +11,13 @@ kind: procedure
 load: on-demand
 owner: leonidas
 verified: 2026-09-28
-related: ["design-build", "impeccable", "standard-design-system", "app-building-standard"]
+related: ["design", "standard-design-system", "app-building-standard"]
 license: MIT
 ---
 
 # Design Audit
 
-Apply the [design review limits](../design-build/references/review-budget.md).
+Apply the [design review limits](../design/references/design-build/references/review-budget.md).
 Review all states and sizes in one batch. Linked skills share that pass.
 Save screenshots locally; audit sizes do not require new Doop frames or individual chat images.
 
@@ -39,9 +39,9 @@ Works on anything with a visual surface: web apps and pages, desktop apps (Qt, E
    - Documents and PDFs: render pages to images (first page, a dense page, the last page).
      Also capture one empty state and one error state when the surface shows data.
 3. **Run the rubric.** Walk every gate in [`references/rubric.md`](references/rubric.md). Qt surfaces add [`references/qt-audit.md`](references/qt-audit.md). Mark each finding P0 (blocking), P1 (fix before calling done) or P2 (polish). Gates that cannot apply (motion on a PDF) are marked n/a with a reason.
-4. **Score heuristics.** For web, run impeccable `critique` ([`../impeccable/reference/critique.md`](../impeccable/reference/critique.md)) for the Nielsen 0-4 table and impeccable `audit` ([`../impeccable/reference/audit.md`](../impeccable/reference/audit.md)) for technical checks (`audit.native.md` for iOS and Android). For everything else, score the same 10 Nielsen heuristics by hand from the screenshots using the anchors in the critique reference, marking non-applicable ones n/a.
+4. **Score heuristics.** For web, run impeccable `critique` ([`../impeccable/reference/critique.md`](../design/references/impeccable/reference/critique.md)) for the Nielsen 0-4 table and impeccable `audit` ([`../impeccable/reference/audit.md`](../design/references/impeccable/reference/audit.md)) for technical checks (`audit.native.md` for iOS and Android). For everything else, score the same 10 Nielsen heuristics by hand from the screenshots using the anchors in the critique reference, marking non-applicable ones n/a.
 5. **Verdict.** FAIL if any P0 exists, or more than 3 P1s, or the heuristic total is under 70 percent of the applicable maximum (28/40 when all ten apply). Otherwise PASS. State it on line one.
-6. **Report.** Use the format below, then hand fixes to [`design-build`](../design-build/SKILL.md) or apply them if the user asked for fixes.
+6. **Report.** Use the format below, then hand fixes to the [`design`](../design/SKILL.md) skill (build mode) or apply them if the user asked for fixes.
 
 ## Report format
 

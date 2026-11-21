@@ -10,7 +10,7 @@ kind: procedure
 load: on-demand
 owner: shared
 verified: 2026-10-14
-source: "https://github.com/mattpocock/skills (skills/engineering/pr, MIT, commit 49dd158)"
+source: "https://github.com/mattpocock/skills (skills/engineering/pr, MIT, commit abeeaf9, adapted for the AIOS)"
 license: MIT
 ---
 

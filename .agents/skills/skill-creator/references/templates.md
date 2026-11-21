@@ -1,96 +1,101 @@
-# Canonical Skill Templates
+# Skill templates
 
-Use these starter templates when authoring new skills. Conforms to ADR-0012, ADR-0013, and ADR-0038.
+Starter templates for a new skill. The tag keys follow the skill standard: engine keys at the top level, every AIOS tag under `metadata:`. In a repo with no AIOS, drop the `metadata:` block.
 
+## 1. Model-invoked skill
+
+Use when the agent must reach the skill on its own, or another skill must.
+
+```markdown
 ---
-
-## 1. Minimal Model-Invoked Skill Template
-
-Use when the skill should be reachable both autonomously by the AI and manually by the user.
-
-`markdown
----
-
 name: "kebab-case-name"
-description: "Front-loaded action verb describing what this skill does under 250 chars. For situation A, situation B."
-scope: structural
-distribution: core
+description: "Front-loaded action verb describing what this skill does, in 1,024 characters or fewer. Use when situation A, situation B."
+metadata:
+  scope: structural
+  category: "<id from .agents/skills/_categories.json>"
+  reach: aios
+  distribution: portable
 ---
 
 # Title of the Skill
 
-One-line mission statement explaining the operational outcome of this skill.
+One-line mission statement: the outcome of this skill.
 
 ## 1. Procedure
 
-1. **Step 1:** First concrete action ending on a checkable gate.
-2. **Step 2:** Second sequential action.
+1. **Step 1:** First concrete action, ending on a checkable gate.
+2. **Step 2:** Second action.
 3. **Step 3:** Next action.
 
-## 2. Completion Criteria
+## Done when
 
-- [ ] Clear observable state confirming work is finished.
-- [ ] Automated verification script or test command passes with exit code 0.
-      `
+- A clear, observable state confirms the work is finished.
+- A verification script or test command exits 0.
+```
 
+## 2. User-invoked skill
+
+Use for manual workflows, destructive scripts and developer checklists that must not start by themselves. It costs no listing tokens.
+
+```markdown
 ---
-
-## 2. Minimal User-Invoked Skill Template (disable-model-invocation)
-
-Use for manual workflows, destructive scripts, or developer checklists that should never fire automatically. Consumes 0 context listing tokens.
-
-`markdown
----
-
 name: "kebab-case-name"
-description: "Human-facing summary of this manual operator workflow."
+description: "Human-facing summary of this manual workflow."
 disable-model-invocation: true
-scope: structural
-distribution: core
+metadata:
+  scope: structural
+  category: "<id from .agents/skills/_categories.json>"
+  reach: aios
+  distribution: portable
 ---
 
-# Title of Manual Skill
+# Title of the Manual Skill
 
-Detailed procedural guide executed strictly when manually invoked via /kebab-case-name.
+The procedure, run only when the user types /kebab-case-name.
 
-## 1. Interactive Steps
+## 1. Steps
 
-1. **Step 1:** Actionable operator instructions.
-2. **Step 2:** Follow-up verification.
+1. **Step 1:** Instruction for the operator.
+2. **Step 2:** Follow-up check.
 
-## 2. Done When
+## Done when
 
-- Operator confirms completion.
-  `
+- The operator confirms completion, or a named command exits 0.
+```
 
+## 3. Router skill
+
+Use to group several user-invoked skills under one entry point. It can only hint: user-invoked skills have no description, so nothing but the human can start them.
+
+```markdown
 ---
-
-## 3. Router Skill Template
-
-Use when grouping multiple user-invoked skills under a single cognitive entry point.
-
-`markdown
----
-
 name: "kebab-router-name"
 description: "Route domain tasks across specialized child skills."
-scope: structural
-distribution: core
+disable-model-invocation: true
+metadata:
+  scope: structural
+  category: "<id from .agents/skills/_categories.json>"
+  reach: aios
+  distribution: portable
 ---
 
 # Domain Router
 
-Guides the operator or agent to the right specialized skill based on the active task.
+Guides the operator to the right specialized skill for the active task.
 
-## Routing Ladder
+## Routing ladder
 
-| Condition / Task Type | Recommended Skill | Invocation     |
-| --------------------- | ----------------- | -------------- |
-| Specific Task A       | child-skill-a     | /child-skill-a |
-| Specific Task B       | child-skill-b     | /child-skill-b |
+| Condition or task type | Skill | Invocation |
+| --- | --- | --- |
+| Specific task A | child-skill-a | /child-skill-a |
+| Specific task B | child-skill-b | /child-skill-b |
 
 ## Procedure
 
-1. Identify the matching task branch above.
-2. Invoke the corresponding skill directly.
-   `
+1. Match the task to a row of the ladder.
+2. Tell the user the skill to type.
+
+## Done when
+
+- The user has the name of the one skill that fits the task.
+```

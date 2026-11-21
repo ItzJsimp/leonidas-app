@@ -15,7 +15,9 @@ generated: false
 
 A **phase** is a discrete unit of work within a development lifecycle: discovery/grilling, task decomposition, implementation, or system verification.
 
-A **phase boundary** is the transition point between two phases. It is the only point where context management decisions should be evaluated. Mid-phase, maintain continuity or dispatch background subagents for non-blocking sub-tasks.
+A phase is fuzzy on purpose: it ends when you think "ok, we're done with that".
+
+A **phase boundary** is the transition point between two phases. It is the only point where context management decisions should be evaluated. Mid-phase, maintain continuity or dispatch background subagents for non-blocking sub-tasks. Compacting mid-phase makes the agent lose the thread.
 
 ---
 
@@ -23,7 +25,7 @@ A **phase boundary** is the transition point between two phases. It is the only 
 
 | Action                 | Mechanism                | Tradeoff                                                             | Best Used When                                                                    |
 | ---------------------- | ------------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| **Continue**           | Remain in active session | Zero context loss; consumes smart zone (below ~400k tokens)          | Next phase requires verbatim reasoning as a primary source                        |
+| **Continue**           | Remain in active session | Zero context loss; consumes smart zone (about 150k tokens, or the model's live warning)          | Next phase requires verbatim reasoning as a primary source                        |
 | **Fresh Session**      | Open new chat window     | Resets window to 100% capacity; preserves disk transcripts           | Current context is disposable; task checklist already committed                   |
 | **`/session-handoff`** | Emit markdown briefing   | Creates portable transfer artifact across directories/harnesses      | Switching engines (Claude <-> Antigravity), directories, or delegating            |
 | **Subagent**           | Launch isolated agent    | Zero primary session pollution; executes in background               | Task is self-contained and execution is autonomous (e.g. diff review, test sweep) |
@@ -54,16 +56,16 @@ flowchart TD
 ### Detailed Evaluation Steps:
 
 1. **Can you continue in this session?**
-   - _Test:_ Does the next phase require this session's unbroken dialogue as a **primary source**, and is the current token footprint well within the **smart zone** (below ~400k tokens, the warning point the user gets in Claude Code)?
+   - _Test:_ Does the next phase require this session's unbroken dialogue as a **primary source**, and is the current token footprint well within the **smart zone** (about 150k tokens on frontier models, or the selected model's live context warning when that is lower)?
    - _Verdict:_ If yes, **Continue**. Grilling -> implementation is the canonical yes, preserving exact technical rationale without lossy compression.
 
 2. **Is prior context disposable?**
    - _Test:_ Are earlier exploration logs, brainstorming, and dead ends irrelevant to the next step, with key outputs already written to disk (e.g. [`BUILD-PLAN.md`](../../../../BUILD-PLAN.md), task markdown)?
-   - _Verdict:_ If yes, **Open a Fresh Session**. Never run `/clear` (which wipes chat records permanently). A fresh session starts with a clean window while keeping audit trails intact.
+   - _Verdict:_ If yes, **Open a Fresh Session**. Never run `/clear` (which wipes chat records permanently). A fresh session starts with a clean window while keeping audit trails intact. The cost of a wrong call is one-way: open a fresh session on a _relevant_ context and you lose the **why** behind what you built, and reading the diff back does not return it.
 
 3. **Do you need a portable handoff?**
    - _Test:_ Are you swapping engines (Claude Code <-> Antigravity), switching to a different working directory or peer repo, or handing off work to a collaborator?
-   - _Verdict:_ If yes, execute **[`/session-handoff`](../../session-handoff/SKILL.md)**. Handoff creates a standalone, portable briefing document. If no boundary transition is occurring, `/session-handoff` is unneeded.
+   - _Verdict:_ If yes, execute **[`/session-handoff`](../../session-handoff/SKILL.md)**. Handoff creates a standalone, portable briefing document. The list is the whole clause: a new harness, a new directory or repo, a collaborator, or a side task forked **mid-phase** without derailing the current one. What a handoff buys is **portability**. If nothing is travelling, `/session-handoff` is unneeded.
 
 4. **Can the task execute autonomously?**
    - _Test:_ Is the task tightly scoped, deterministic, and runnable without interactive human steering?
@@ -71,7 +73,7 @@ flowchart TD
 
 5. **Otherwise: `/compact`.**
    - _Test:_ Context is relevant, you are remaining in the same harness and directory, and token consumption approaches the smart zone limit.
-   - _Verdict:_ Execute **`/compact`** with an explicit focus instruction (e.g. `/compact retain architectural constraints and active task list`).
+   - _Verdict:_ Execute **`/compact`** with an explicit focus instruction (e.g. `/compact retain architectural constraints and active task list`). It is the **default, not the first reach**: the four questions above it are cheaper or more precise. Starting here gives a fresh session that is confidently wrong about a decision the summary flattened.
 
 ---
 
@@ -84,8 +86,14 @@ flowchart TD
 
 ---
 
+## These are judgement calls
+
+Each question has taste in it, and the same boundary can go two ways on two days. The value is in asking them **in order**, at the boundary, not in the middle of the work. Every move except **Continue** turns a primary source into a secondary one, so question 1 comes first: pay the lossiness only when staying costs more than it saves.
+
+---
+
 ## Related Documents
 
-- [`catalog-matrix.md`](catalog-matrix.md): Exhaustive skill classification and routing table.
+- [`skills-catalog-matrix.md`](../../skills-catalog-matrix.md): Exhaustive skill classification and routing table (generated, AIOS only).
 - [`flow-taxonomies.md`](flow-taxonomies.md): Standardized end-to-end multi-skill execution pipelines.
 - [`session-handoff`](../../session-handoff/SKILL.md): Standalone portable briefing generator.

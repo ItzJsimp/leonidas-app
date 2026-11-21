@@ -1,5 +1,6 @@
 ---
 type: research
+scope: structural
 id: "research-YYYY-MM-DD-<topic-slug>"
 title: "<Topic Title>: Research Dossier"
 description: "<One dense sentence summarizing core findings and architectural implications>"

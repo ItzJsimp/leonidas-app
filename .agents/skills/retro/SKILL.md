@@ -10,7 +10,7 @@ kind: procedure
 load: on-demand
 owner: shared
 verified: 2026-10-14
-source: "https://github.com/mattpocock/skills (skills/engineering/retro, MIT, commit 49dd158)"
+source: "https://github.com/mattpocock/skills (skills/engineering/retro, MIT, commit abeeaf9, adapted for the AIOS)"
 license: MIT
 ---
 
@@ -20,7 +20,7 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
 1. Call the Skill tool with `writing-for-agents` for the writing style guide.
 
-2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one.
+2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one. Also read the review comments on the session's pull request, with `gh`.
 
 3. Look for candidates for improvement in these categories.
 
@@ -30,6 +30,8 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 - **Global AGENTS.md**: are there any steering instructions that should be moved to coding standards (or automated checks) instead? _Use when_ the AGENTS.md file is particularly large - in the repo OR the user's global scope.
 - **Tool economy**: did the agent make expensive tool calls that could be streamlined? Is there any custom tooling (CLI's, MCP's) that is particularly token-inefficient? _Use when_ the agent made an expensive tool call.
 - **No-ops**: look for instructions in steering files that don't modify the agent's behavior. _Use when_ the steering files are large and unwieldy.
+- **Ratchet**: a new lint rule that would flag many legacy lines. Scope the rule to the folders that are already clean, and widen it as more folders are cleaned. Do not fix every old violation first. _Use when_ a rule is right but the legacy code breaks it.
+- **Comment smells**: audit the comments in the reviewed work. A comment that restates the code, narrates the change, or explains a vague name is a smell. Each finding becomes a coding standard or a lint rule, not a new skill. _Use when_ the diff adds comments.
 - **Information access**: look for opportunities to increase the agent's access to information. Teeing dev server logs, readonly access to third-party services. _Use when_ a crucial piece of information was not available to the agent.
 
 4. Present these candidates to the user, in order of severity.

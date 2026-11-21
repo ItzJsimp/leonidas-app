@@ -3,7 +3,7 @@ name: grilling
 description: "Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases."
 category: planning
 scope: structural
-source: "https://github.com/mattpocock/skills (skills/productivity/grilling, MIT, adapted for the AIOS)"
+source: "https://github.com/mattpocock/skills (skills/productivity/grilling, MIT, commit abeeaf9, adapted for the AIOS)"
 distribution: core
 license: MIT
 ---
@@ -25,9 +25,11 @@ When no structured question tool exists, write the round in chat instead: number
 
 ## Between rounds
 
+**Pace the crux.** When the design hinges on one decision, ask that one question alone until the user says otherwise, then widen to the whole frontier. When a question needs a runnable answer, dispatch `prototype` in a background subagent and keep grilling the branches that do not wait on it.
+
 Each round the user answers reshapes the tree: settled decisions push the frontier outward and unblock questions that depended on them. Recompute the frontier and ask the next round. A question whose answer depends on another question still open in this round belongs to a _later_ round, not this one.
 
-Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (filesystem, tools, etc.), dispatch a sub-agent to find it; don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for the sub-agent to report; ask the rest of the frontier now. The _decisions_ are the user's: put each to them and wait.
+Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (filesystem, tools, etc.), dispatch a sub-agent with a fresh context window to find it; don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for the sub-agent to report; ask the rest of the frontier now. The _decisions_ are the user's: put each to them and wait.
 
 **Capture file.** Before the first round, create `logs/grill-sessions/{YYYY-MM-DD}-{topic-slug}.md` (create the folder if it is missing; get the date from `date +%F`) with Topic, Date, Goal and the facts you found. After each round, append every question, the user's verbatim answer and the settled decision, newest round last. The file keeps the interview safe through context compaction, and the nightly harvest (`scripts/harvest-grill-memory.py`) reads it.
 

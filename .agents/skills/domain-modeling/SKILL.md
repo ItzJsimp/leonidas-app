@@ -3,7 +3,7 @@ name: domain-modeling
 description: "Sharpen the domain model while designing: challenge terms, write CONTEXT.md glossary entries, record ADRs. Use when naming concepts, resolving fuzzy terms, or deciding architecture."
 category: code
 scope: structural
-source: "https://github.com/mattpocock/skills (skills/engineering/domain-modeling, MIT, adapted for the AIOS)"
+source: "https://github.com/mattpocock/skills (skills/engineering/domain-modeling, MIT, commit abeeaf9, adapted for the AIOS)"
 distribution: core
 license: MIT
 ---
@@ -55,6 +55,10 @@ When the user uses vague or overloaded terms, propose a precise canonical term. 
 ### Discuss concrete scenarios
 
 When domain relationships are being discussed, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force the user to be precise about the boundaries between concepts.
+
+### Test candidate names with scenarios
+
+When one concept has two or more candidate names, put them in a table with the columns: candidate name, a realistic scenario (a sentence the team would say, or a short user flow), reads naturally here, used aloud. Weight the name the user already says out loud: spoken use beats a tidy name that nobody says.
 
 ### Cross-reference with code & ADRs
 
