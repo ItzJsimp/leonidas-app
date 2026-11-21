@@ -1,43 +1,38 @@
 import type { SidebarThreadSortOrder } from "@t3tools/contracts";
+import {
+  CalendarIcon,
+  ClockIcon,
+  FolderIcon,
+  ListIcon,
+  UserIcon,
+  type LucideIcon,
+} from "lucide-react";
 import type { RefObject } from "react";
 
+import { cn } from "~/lib/utils";
 import { Popover, PopoverPopup } from "../ui/popover";
 import { Switch } from "../ui/switch";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
-import { DEFAULT_SIDEBAR_VIEW, type SidebarView } from "./sidebarView.logic";
+import { DEFAULT_SIDEBAR_VIEW, type SidebarGroupBy, type SidebarView } from "./sidebarView.logic";
 import { useSidebarViewStore } from "./sidebarViewStore";
 
-function Segmented<T extends string>(props: {
-  label: string;
-  value: T;
-  options: ReadonlyArray<readonly [T, string, string]>;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-2xs text-muted-foreground">{props.label}</span>
-      <ToggleGroup
-        aria-label={props.label}
-        className="w-full *:flex-1"
-        value={[props.value]}
-        onValueChange={(next) => {
-          const value = props.options.find(([option]) => option === next[0])?.[0];
-          if (value) props.onChange(value);
-        }}
-      >
-        {props.options.map(([value, text]) => (
-          <Toggle key={value} value={value}>
-            {text}
-          </Toggle>
-        ))}
-      </ToggleGroup>
-      {/* Says what the current choice does, so no option needs a guess. */}
-      <span className="text-2xs text-muted-foreground/80">
-        {props.options.find(([option]) => option === props.value)?.[2]}
-      </span>
-    </div>
-  );
-}
+const GROUP_OPTIONS: ReadonlyArray<{
+  readonly value: SidebarGroupBy;
+  readonly label: string;
+  readonly hint: string;
+  readonly Icon: LucideIcon;
+}> = [
+  { value: "date", label: "Date", hint: "Today, Yesterday, This week", Icon: CalendarIcon },
+  {
+    value: "status",
+    label: "Status",
+    hint: "Needs you, Running, Ready, Recent",
+    Icon: ClockIcon,
+  },
+  { value: "project", label: "Project", hint: "One group per project", Icon: FolderIcon },
+  { value: "account", label: "Account", hint: "One group per account", Icon: UserIcon },
+  { value: "classic", label: "Manual", hint: "Manual drag order", Icon: ListIcon },
+];
 
 const SHOW_ROWS: ReadonlyArray<readonly [keyof SidebarView & `show${string}`, string]> = [
   ["showRail", "Project rail"],
@@ -54,10 +49,10 @@ const GROUP_LABELS: Readonly<Record<SidebarView["groupBy"], string>> = {
   classic: "Manual",
 };
 
-/** The current grouping, as the More menu shows it next to View options. */
+/** The current grouping, as the More menu shows it next to Display options. */
 export const viewOptionsLabel = (groupBy: SidebarView["groupBy"]) => GROUP_LABELS[groupBy];
 
-/** View options: four small choices that change the chat list in place. The More menu opens it. */
+/** Display options popover: Group by tiles, Sort by & Row density segmented controls, and Show on rows switches. */
 export function SidebarViewMenu(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -72,54 +67,109 @@ export function SidebarViewMenu(props: {
   const isDefault =
     JSON.stringify(view) === JSON.stringify(DEFAULT_SIDEBAR_VIEW) &&
     props.sortOrder === "updated_at";
+  const activeGroupHint = GROUP_OPTIONS.find((option) => option.value === view.groupBy)?.hint ?? "";
+
   return (
     <Popover open={props.open} onOpenChange={props.onOpenChange}>
       <PopoverPopup
         anchor={props.anchor}
         align="end"
         padding="none"
-        className="w-72"
-        aria-label="View options"
+        className="w-80 max-w-[calc(100vw-2rem)]"
+        aria-label="Display options"
       >
-        <div className="flex flex-col gap-2.5 p-3">
-          <Segmented
-            label="Group by"
-            value={view.groupBy}
-            options={[
-              ["date", "Date", "Today, Yesterday, This week"],
-              ["status", "Status", "Needs you, Running, Ready, Recent"],
-              ["project", "Project", "One group for each project with chats"],
-              ["account", "Account", "One group for each connected account"],
-              ["classic", "Manual", "One list in the order you drag"],
-            ]}
-            onChange={(groupBy) => setView({ groupBy })}
-          />
-          <Segmented
-            label="Sort by"
-            value={props.sortOrder}
-            options={[
-              ["updated_at", "Last activity", "The newest message or result first"],
-              ["created_at", "Created", "The newest chat first"],
-            ]}
-            onChange={props.onSortOrderChange}
-          />
-          <Segmented
-            label="Density"
-            value={view.density}
-            options={[
-              ["comfortable", "Comfortable", "Two lines for each chat"],
-              ["compact", "Compact", "One line for each chat"],
-            ]}
-            onChange={(density) => setView({ density })}
-          />
-          <div className="flex flex-col gap-1">
-            <span className="text-2xs text-muted-foreground">Show</span>
+        <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+          <span className="text-xs font-semibold text-foreground">Display</span>
+          <button
+            type="button"
+            disabled={isDefault}
+            onClick={() => {
+              resetView();
+              props.onSortOrderChange("updated_at");
+            }}
+            className="cursor-pointer rounded-sm px-1.5 py-0.5 text-2xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-45 motion-reduce:transition-none"
+          >
+            Reset
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-3 p-3">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-2xs font-medium text-muted-foreground">Group by</span>
+              <span className="truncate text-2xs text-muted-foreground/85">{activeGroupHint}</span>
+            </div>
+            <div role="group" aria-label="Group by" className="grid grid-cols-5 gap-1">
+              {GROUP_OPTIONS.map(({ value, label, Icon }) => {
+                const active = view.groupBy === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setView({ groupBy: value })}
+                    className={cn(
+                      "flex h-11 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border px-0.5 text-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
+                      active
+                        ? "border-state bg-sidebar-row-active font-medium text-foreground [&_svg]:text-state-text"
+                        : "border-border bg-background text-muted-foreground hover:border-input hover:text-foreground",
+                    )}
+                  >
+                    <Icon aria-hidden className="size-3.5 shrink-0" />
+                    <span className="truncate">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-border pt-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">Sort by</span>
+              <ToggleGroup
+                aria-label="Sort by"
+                variant="segmented"
+                size="segmented"
+                value={[props.sortOrder]}
+                onValueChange={(next) => {
+                  const value = next[0];
+                  if (value === "updated_at" || value === "created_at") {
+                    props.onSortOrderChange(value);
+                  }
+                }}
+              >
+                <Toggle value="updated_at">Last activity</Toggle>
+                <Toggle value="created_at">Created</Toggle>
+              </ToggleGroup>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">Row density</span>
+              <ToggleGroup
+                aria-label="Row density"
+                variant="segmented"
+                size="segmented"
+                value={[view.density]}
+                onValueChange={(next) => {
+                  const value = next[0];
+                  if (value === "comfortable" || value === "compact") {
+                    setView({ density: value });
+                  }
+                }}
+              >
+                <Toggle value="comfortable">Comfortable</Toggle>
+                <Toggle value="compact">Compact</Toggle>
+              </ToggleGroup>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 border-t border-border pt-2.5">
+            <span className="text-2xs font-medium text-muted-foreground">Show on rows</span>
             {SHOW_ROWS.map(([key, label]) => (
               <label
                 key={key}
-                className="flex cursor-pointer items-center justify-between gap-2 py-0.5 text-xs"
+                className="flex h-7 cursor-pointer items-center justify-between gap-2 rounded-sm px-0.5 text-xs text-foreground"
               >
-                {label}
+                <span className="truncate">{label}</span>
                 <Switch
                   size="sm"
                   checked={view[key]}
@@ -128,18 +178,6 @@ export function SidebarViewMenu(props: {
               </label>
             ))}
           </div>
-          {isDefault ? null : (
-            <button
-              type="button"
-              onClick={() => {
-                resetView();
-                props.onSortOrderChange("updated_at");
-              }}
-              className="cursor-pointer self-start text-2xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              Reset to default
-            </button>
-          )}
         </div>
       </PopoverPopup>
     </Popover>

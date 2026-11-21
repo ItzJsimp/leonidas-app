@@ -1,15 +1,15 @@
 /**
- * The sidebar header (Jake's pick B2, 2026-11-07): a quiet New chat button, then search with one
- * More menu. The menu holds View options, Review old chats, Filter by project and Add project.
- *
- * The project scope picker is passed in: its combobox state lives with the rest of the sidebar's
- * scope logic. It has no trigger of its own. The More menu opens it, and it anchors to the search
- * field through `searchFieldRef`, as the View options panel does.
+ * The sidebar header (approved Option B, 2026-11-19):
+ * 1. Top utility bar: Search field + dedicated Filter button + More options menu, above a hairline divider.
+ * 2. Action & navigation block: New chat + Pinned tabs, separated from the scrollable chat list.
  */
 import type { EnvironmentId, SidebarThreadSortOrder } from "@t3tools/contracts";
 import { Link } from "@tanstack/react-router";
 import {
-  ChevronRightIcon,
+  CheckCheckIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  CircleDotIcon,
   EllipsisIcon,
   FolderPlusIcon,
   HistoryIcon,
@@ -37,6 +37,8 @@ import { Button } from "../ui/button";
 import {
   Menu,
   MenuCheckboxItem,
+  MenuGroup,
+  MenuGroupLabel,
   MenuItem,
   MenuItemLabel,
   MenuPopup,
@@ -56,20 +58,27 @@ import { Tip } from "../twoState/Tip";
 import { SidebarViewMenu, viewOptionsLabel } from "./SidebarViewMenu";
 import { useSidebarViewStore } from "./sidebarViewStore";
 
-/** One row style for New chat and every pinned tab, so the top of the panel reads as one list. */
+/** One row style for New chat and every pinned tab, so the nav block reads as one list. */
 const PANEL_ROW_CLASS =
-  "flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-row-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none";
+  "flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-row-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none";
 const PANEL_ROW_ICON_CLASS = "size-4 shrink-0 text-(--sidebar-icon-color)";
 
 export interface SidebarThreadHeaderProps {
   searchFieldRef: RefObject<HTMLDivElement | null>;
   hasProjects: boolean;
   projectScope: ReactNode;
-  /** The current scope, shown in the menu: "All projects" or the project names. */
+  /** The current scope, shown in the Filter tooltip: "All projects" or the project names. */
   projectScopeLabel: string;
+  isProjectScoped?: boolean;
   onOpenProjectScope: () => void;
   sortOrder: SidebarThreadSortOrder;
   onSortOrderChange: (order: SidebarThreadSortOrder) => void;
+  needsAttentionOnly?: boolean;
+  onNeedsAttentionOnlyChange?: (value: boolean) => void;
+  unreadCount?: number;
+  onMarkAllRead?: () => void;
+  anySectionExpanded?: boolean;
+  onToggleCollapseAllSections?: () => void;
   /** Where Review old chats may run. Without a project folder the item stays out. */
   sweep: { readonly environmentId: EnvironmentId | null; readonly cwd: string | null };
   onNewProject: () => void;
@@ -93,9 +102,16 @@ export function SidebarThreadHeader({
   hasProjects,
   projectScope,
   projectScopeLabel,
+  isProjectScoped = false,
   onOpenProjectScope,
   sortOrder,
   onSortOrderChange,
+  needsAttentionOnly = false,
+  onNeedsAttentionOnlyChange,
+  unreadCount = 0,
+  onMarkAllRead,
+  anySectionExpanded = true,
+  onToggleCollapseAllSections,
   sweep,
   onNewProject,
   onNewThread,
@@ -127,52 +143,14 @@ export function SidebarThreadHeader({
   const { pinned, pinnable, togglePin } = useRailItems();
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* New chat and the pinned tabs are one even list (Jake's sidebar pick, 2026-11-17). */}
-      <div className="flex flex-col">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <button
-                type="button"
-                data-usage-id="new_thread"
-                aria-label={newThreadLabel}
-                disabled={newThreadDisabled}
-                onClick={onNewThread}
-                className={cn(PANEL_ROW_CLASS, "disabled:pointer-events-none disabled:opacity-64")}
-              />
-            }
-          >
-            <SquarePenIcon aria-hidden className={PANEL_ROW_ICON_CLASS} />
-            <span className="flex-1 text-left">New chat</span>
-            {newThreadShortcutLabel ? (
-              <kbd className="font-sans text-2xs text-sidebar-muted-foreground">
-                {newThreadShortcutLabel}
-              </kbd>
-            ) : null}
-          </TooltipTrigger>
-          <TooltipPopup side="bottom">
-            {showNewThreadInProjectHint ? (
-              <span className="flex flex-col gap-0.5">
-                <span>{newThreadLabel}</span>
-                <span className="text-muted-foreground">
-                  New thread in current project: Shift+click
-                  {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
-                </span>
-              </span>
-            ) : (
-              newThreadLabel
-            )}
-          </TooltipPopup>
-        </Tooltip>
-        <PinnedTabs pinned={pinned} onToggle={togglePin} />
-      </div>
-      <div className="flex items-center gap-1">
+    <div className="flex flex-col gap-3">
+      {/* Top utility bar: Search + Filter + More above a hairline divider. */}
+      <div className="flex items-center gap-1.5 border-b border-sidebar-border/65 pb-3">
         <div
           ref={searchFieldRef}
-          className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-within:bg-sidebar-row-hover focus-within:text-sidebar-foreground focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring/70"
+          className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-sidebar-border bg-sidebar-control-surface px-2 text-sm text-sidebar-muted-foreground transition-colors hover:border-input hover:text-sidebar-foreground focus-within:border-input focus-within:text-sidebar-foreground focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring/70 motion-reduce:transition-none"
         >
-          <SearchIcon className="size-4 shrink-0 text-(--sidebar-icon-color)" />
+          <SearchIcon aria-hidden className="size-3.5 shrink-0 text-(--sidebar-icon-color)" />
           <SidebarInput
             ref={searchInputRef}
             nativeInput
@@ -180,7 +158,7 @@ export function SidebarThreadHeader({
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.currentTarget.value)}
             onKeyDown={onSearchKeyDown}
-            placeholder="Search"
+            placeholder="Search chats..."
             aria-label="Search chats"
             role="combobox"
             aria-autocomplete="list"
@@ -207,51 +185,115 @@ export function SidebarThreadHeader({
             >
               <XIcon className="size-3" />
             </Button>
-          ) : null}
+          ) : (
+            <kbd
+              aria-hidden
+              className="shrink-0 rounded-sm border border-sidebar-border bg-background px-1 font-mono text-3xs leading-4 text-sidebar-muted-foreground"
+            >
+              /
+            </kbd>
+          )}
         </div>
+
+        {hasProjects ? (
+          <SidebarHeaderIconButton
+            label="Filter by project"
+            tooltip={`Filter by project (${projectScopeLabel})`}
+            variant={isProjectScoped ? "outline" : "default"}
+            onClick={onOpenProjectScope}
+          >
+            <ListFilterIcon className="size-4" />
+            {isProjectScoped ? (
+              <span
+                aria-hidden
+                data-testid="sidebar-filter-active-dot"
+                className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-state"
+              />
+            ) : null}
+          </SidebarHeaderIconButton>
+        ) : null}
+
         <Menu>
-          <MenuTrigger render={<SidebarHeaderIconButton label="More" />}>
+          <MenuTrigger
+            render={<SidebarHeaderIconButton label="More options" tooltip="More options" />}
+          >
             <EllipsisIcon className="size-4" />
           </MenuTrigger>
           {/* No focus return: an item that opens a panel hands focus to that panel. */}
-          <MenuPopup align="end" className="w-60" finalFocus={false}>
-            <MenuItem onClick={() => setViewOpen(true)}>
-              <SlidersHorizontalIcon />
-              <span className="flex-1">View options</span>
-              <MenuValue>{viewOptionsLabel(groupBy)}</MenuValue>
-            </MenuItem>
-            {pinnable.length > 0 ? (
-              <MenuSub>
-                <MenuSubTrigger>
-                  <PencilIcon />
-                  <MenuItemLabel>Edit tabs</MenuItemLabel>
-                </MenuSubTrigger>
-                <MenuSubPopup>
-                  {pinnable.map((item) => (
-                    <MenuCheckboxItem
-                      key={item.id}
-                      checked={pinned.some((entry) => entry.id === item.id)}
-                      onCheckedChange={(on) => togglePin(item.id, on)}
-                    >
-                      {item.label}
-                    </MenuCheckboxItem>
-                  ))}
-                </MenuSubPopup>
-              </MenuSub>
-            ) : null}
-            {canSweep ? (
-              <MenuItem data-usage-id="thread_sweep" onClick={() => setSweepOpen(true)}>
-                <HistoryIcon />
-                <span className="flex-1">Review old chats</span>
+          <MenuPopup align="end" className="w-64" finalFocus={false}>
+            <MenuGroup>
+              <MenuGroupLabel>Customize</MenuGroupLabel>
+              <MenuItem onClick={() => setViewOpen(true)}>
+                <SlidersHorizontalIcon />
+                <span className="flex-1">Display options</span>
+                <span className="rounded-sm border border-border bg-background px-1.5 py-0.5 text-2xs text-muted-foreground">
+                  {viewOptionsLabel(groupBy)}
+                </span>
               </MenuItem>
-            ) : null}
+              <MenuCheckboxItem
+                variant="switch"
+                checked={needsAttentionOnly}
+                onCheckedChange={(checked) => onNeedsAttentionOnlyChange?.(checked)}
+              >
+                <span className="flex items-center gap-2">
+                  <CircleDotIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                  <span>Needs attention</span>
+                </span>
+              </MenuCheckboxItem>
+              {pinnable.length > 0 ? (
+                <MenuSub>
+                  <MenuSubTrigger>
+                    <PencilIcon />
+                    <MenuItemLabel>Edit tabs</MenuItemLabel>
+                    <span className="ms-auto text-xs tabular-nums text-muted-foreground">
+                      {pinned.length} pinned
+                    </span>
+                  </MenuSubTrigger>
+                  <MenuSubPopup>
+                    {pinnable.map((item) => (
+                      <MenuCheckboxItem
+                        key={item.id}
+                        checked={pinned.some((entry) => entry.id === item.id)}
+                        onCheckedChange={(on) => togglePin(item.id, on)}
+                      >
+                        {item.label}
+                      </MenuCheckboxItem>
+                    ))}
+                  </MenuSubPopup>
+                </MenuSub>
+              ) : null}
+            </MenuGroup>
+
+            <MenuSeparator />
+
+            <MenuGroup>
+              <MenuGroupLabel>Actions</MenuGroupLabel>
+              <MenuItem disabled={unreadCount === 0} onClick={() => onMarkAllRead?.()}>
+                <CheckCheckIcon />
+                <span className="flex-1">Mark all read</span>
+                {unreadCount > 0 ? (
+                  <span className="rounded-sm border border-border bg-background px-1.5 py-0.5 text-2xs tabular-nums text-muted-foreground">
+                    {unreadCount}
+                  </span>
+                ) : null}
+              </MenuItem>
+              <MenuItem onClick={() => onToggleCollapseAllSections?.()}>
+                {anySectionExpanded ? <ChevronsDownUpIcon /> : <ChevronsUpDownIcon />}
+                <span className="flex-1">
+                  {anySectionExpanded ? "Collapse all sections" : "Expand all sections"}
+                </span>
+              </MenuItem>
+              {canSweep ? (
+                <MenuItem data-usage-id="thread_sweep" onClick={() => setSweepOpen(true)}>
+                  <HistoryIcon />
+                  <span className="flex-1">Review old chats</span>
+                  <span className="text-2xs text-muted-foreground">AI sweep</span>
+                </MenuItem>
+              ) : null}
+            </MenuGroup>
+
             {hasProjects ? (
               <>
-                <MenuItem onClick={onOpenProjectScope}>
-                  <ListFilterIcon />
-                  <span className="flex-1">Filter by project</span>
-                  <MenuValue>{projectScopeLabel}</MenuValue>
-                </MenuItem>
                 <MenuSeparator />
                 <MenuItem onClick={onNewProject}>
                   <FolderPlusIcon />
@@ -262,6 +304,50 @@ export function SidebarThreadHeader({
           </MenuPopup>
         </Menu>
       </div>
+
+      {/* New chat and pinned rail tabs below the top utility divider. */}
+      <div className="flex flex-col gap-0.5 border-b border-sidebar-border/70 pb-2.5">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                data-usage-id="new_thread"
+                aria-label={newThreadLabel}
+                disabled={newThreadDisabled}
+                onClick={onNewThread}
+                className={cn(
+                  PANEL_ROW_CLASS,
+                  "font-medium disabled:pointer-events-none disabled:opacity-64",
+                )}
+              />
+            }
+          >
+            <SquarePenIcon aria-hidden className="size-4 shrink-0 text-primary" />
+            <span className="flex-1 text-left">New chat</span>
+            {newThreadShortcutLabel ? (
+              <kbd className="font-sans text-2xs text-sidebar-muted-foreground">
+                {newThreadShortcutLabel}
+              </kbd>
+            ) : null}
+          </TooltipTrigger>
+          <TooltipPopup side="bottom">
+            {showNewThreadInProjectHint ? (
+              <span className="flex flex-col gap-0.5">
+                <span>{newThreadLabel}</span>
+                <span className="text-muted-foreground">
+                  New thread in current project: Shift+click
+                  {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
+                </span>
+              </span>
+            ) : (
+              newThreadLabel
+            )}
+          </TooltipPopup>
+        </Tooltip>
+        <PinnedTabs pinned={pinned} onToggle={togglePin} />
+      </div>
+
       {hasProjects ? projectScope : null}
       <SidebarViewMenu
         open={viewOpen}
@@ -296,7 +382,7 @@ function PinnedTabs({
   const needsYou = useTwoStateCounts().needsYou ?? 0;
   if (pinned.length === 0) return null;
   return (
-    <ul aria-label="Pinned tabs" className="flex flex-col">
+    <ul aria-label="Pinned tabs" className="flex flex-col gap-0.5">
       {pinned.map((item) => {
         const Icon = ICONS[item.id] ?? LayoutDashboardIcon;
         const count = item.id === "inbox" ? needsYou : 0;
@@ -337,19 +423,9 @@ function PinnedTabs({
   );
 }
 
-/** A menu item's current value, muted, with an arrow: the item opens a panel to change it. */
-function MenuValue({ children }: { children: ReactNode }) {
-  return (
-    <span className="flex max-w-28 min-w-0 items-center gap-0.5 text-xs text-muted-foreground">
-      <span className="truncate">{children}</span>
-      <ChevronRightIcon aria-hidden className="size-3.5 shrink-0" />
-    </span>
-  );
-}
-
 /**
- * Icon button with a tooltip, sized for the header. Spreads unknown props through so it can serve
- * as a popup trigger's render target, which injects its own handlers, ref and aria state.
+ * Icon button with a tooltip, sized for the top header bar. Spreads unknown props through so it can
+ * serve as a popup trigger's render target, which injects its own handlers, ref and aria state.
  */
 function SidebarHeaderIconButton({
   label,
@@ -375,7 +451,7 @@ function SidebarHeaderIconButton({
             type="button"
             aria-label={label}
             {...rest}
-            className={cn("relative size-7 shrink-0", className)}
+            className={cn("relative shrink-0", className)}
           />
         }
       >

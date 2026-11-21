@@ -15,6 +15,7 @@ import type { AsyncResult } from "effect/reactivity";
 import { planPinnedReorder } from "@t3tools/client-runtime/state/thread-sort";
 import {
   effectiveSnoozed,
+  threadWokeAt,
   type ThreadSnoozeShell,
 } from "@t3tools/client-runtime/state/thread-settled";
 import {
@@ -27,6 +28,7 @@ import type { SidebarThreadSummary, Thread } from "../types";
 import { formatContextWindowTokens } from "../lib/contextWindow";
 import { cacheClock } from "../lib/cacheAwarenessStore";
 import { normalizeSearchText } from "../lib/utils";
+import { parseTimestampDate } from "../timestampFormat";
 import { isLatestRunSettled } from "../session-logic";
 import { resolveServerBackedAppStageLabel } from "../branding.logic";
 
@@ -1538,4 +1540,55 @@ export function useSidebarCacheWarmth(usage: SidebarThreadSummary["contextUsage"
     sidebarCacheWarmthKey(usage, cacheClock.read()),
   );
   return sidebarCacheWarmth(usage, cacheClock.read());
+}
+
+export function isSidebarThreadUnreadOrWoke(
+  thread: ThreadStatusInput &
+    Parameters<typeof threadWokeAt>[0] & {
+      readonly settledOverride?: SidebarThreadSummary["settledOverride"] | undefined;
+    },
+  opts: {
+    readonly now: string;
+    readonly lastVisitedAt: string | undefined;
+  },
+): {
+  readonly isUnread: boolean;
+  readonly wokeAt: string | null;
+  readonly isWoke: boolean;
+  readonly isUnreadOrWoke: boolean;
+} {
+  const isUnread = hasUnseenCompletion({ ...thread, lastVisitedAt: opts.lastVisitedAt });
+  const lastVisitedDate =
+    opts.lastVisitedAt === undefined ? null : parseTimestampDate(opts.lastVisitedAt);
+  const wokeAt = threadWokeAt(thread, { now: opts.now });
+  const wokeAtDate = wokeAt === null ? null : parseTimestampDate(wokeAt);
+  const isWoke =
+    wokeAtDate !== null &&
+    (lastVisitedDate === null || lastVisitedDate < wokeAtDate) &&
+    thread.settledOverride !== "settled";
+  return {
+    isUnread,
+    wokeAt,
+    isWoke,
+    isUnreadOrWoke: isUnread || isWoke,
+  };
+}
+
+export function sidebarThreadNeedsAttention(
+  thread: SidebarThreadStatusInput &
+    ThreadStatusInput &
+    ThreadSnoozeShell &
+    Parameters<typeof threadWokeAt>[0] & {
+      readonly settledOverride?: SidebarThreadSummary["settledOverride"] | undefined;
+    },
+  opts: {
+    readonly now: string;
+    readonly lastVisitedAt: string | undefined;
+  },
+): boolean {
+  if (thread.settledOverride === "settled") return false;
+  if (effectiveSnoozed(thread, { now: opts.now })) return false;
+  const status = resolveSidebarThreadStatus(thread);
+  if (sidebarThreadNeedsUser(status)) return true;
+  return isSidebarThreadUnreadOrWoke(thread, opts).isUnreadOrWoke;
 }

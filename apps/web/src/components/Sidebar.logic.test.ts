@@ -24,6 +24,8 @@ import {
   getSidebarForkParentThreadId,
   getSidebarThreadIdsToPrewarm,
   hasUnseenCompletion,
+  isSidebarThreadUnreadOrWoke,
+  sidebarThreadNeedsAttention,
   isContextMenuPointerDown,
   isSidebarSubagentThread,
   resolveSidebarRowThreadId,
@@ -2576,5 +2578,79 @@ describe("threadUsageLines", () => {
     expect(threadUsageLines({ usedTokens: 0 })).toEqual([]);
     expect(threadUsageLines(null)).toEqual([]);
     expect(threadUsageLines(undefined)).toEqual([]);
+  });
+});
+
+describe("isSidebarThreadUnreadOrWoke and sidebarThreadNeedsAttention", () => {
+  const now = "2026-06-20T02:00:00.000Z";
+  const base = presentThreadShell(localEnvironmentId, {
+    ...makeThreadFixture().source,
+    latestRunId: RunId.make("run-1"),
+    status: "completed",
+    latestRunCompletedAt: DateTime.makeUnsafe("2026-06-20T01:00:00.000Z"),
+    lastVisitedAt: DateTime.makeUnsafe("2026-06-20T00:59:00.000Z"),
+  });
+
+  it("flags unseen completions and unacknowledged wakes as unread/attention", () => {
+    expect(
+      isSidebarThreadUnreadOrWoke(base, { now, lastVisitedAt: base.lastVisitedAt ?? undefined }),
+    ).toEqual({
+      isUnread: true,
+      wokeAt: null,
+      isWoke: false,
+      isUnreadOrWoke: true,
+    });
+    expect(
+      sidebarThreadNeedsAttention(base, { now, lastVisitedAt: base.lastVisitedAt ?? undefined }),
+    ).toBe(true);
+
+    const seenVisitedAt = "2026-06-20T01:00:01.000Z";
+    expect(
+      isSidebarThreadUnreadOrWoke(base, { now, lastVisitedAt: seenVisitedAt }).isUnreadOrWoke,
+    ).toBe(false);
+    expect(sidebarThreadNeedsAttention(base, { now, lastVisitedAt: seenVisitedAt })).toBe(false);
+  });
+
+  it("handles woken threads, pending approvals, settled threads, and active snoozes", () => {
+    const woke = presentThreadShell(localEnvironmentId, {
+      ...makeThreadFixture().source,
+      snoozedAt: DateTime.makeUnsafe("2026-06-20T00:00:00.000Z"),
+      snoozedUntil: DateTime.makeUnsafe("2026-06-20T01:30:00.000Z"),
+      lastVisitedAt: DateTime.makeUnsafe("2026-06-20T01:00:00.000Z"),
+    });
+    expect(
+      isSidebarThreadUnreadOrWoke(woke, { now, lastVisitedAt: woke.lastVisitedAt ?? undefined })
+        .isWoke,
+    ).toBe(true);
+    expect(
+      sidebarThreadNeedsAttention(woke, { now, lastVisitedAt: woke.lastVisitedAt ?? undefined }),
+    ).toBe(true);
+    expect(
+      sidebarThreadNeedsAttention(woke, { now, lastVisitedAt: "2026-06-20T01:30:01.000Z" }),
+    ).toBe(false);
+
+    const approval = { ...base, hasPendingApprovals: true };
+    expect(
+      sidebarThreadNeedsAttention(approval, { now, lastVisitedAt: "2026-06-20T01:59:00.000Z" }),
+    ).toBe(true);
+
+    const settled = { ...base, settledOverride: "settled" as const };
+    expect(
+      sidebarThreadNeedsAttention(settled, { now, lastVisitedAt: base.lastVisitedAt ?? undefined }),
+    ).toBe(false);
+
+    const activeSnooze = presentThreadShell(localEnvironmentId, {
+      ...makeThreadFixture().source,
+      snoozedAt: DateTime.makeUnsafe("2026-06-20T01:50:00.000Z"),
+      snoozedUntil: DateTime.makeUnsafe("2026-06-20T03:00:00.000Z"),
+      latestRunCompletedAt: DateTime.makeUnsafe("2026-06-20T01:00:00.000Z"),
+      lastVisitedAt: DateTime.makeUnsafe("2026-06-20T00:59:00.000Z"),
+    });
+    expect(
+      sidebarThreadNeedsAttention(activeSnooze, {
+        now,
+        lastVisitedAt: activeSnooze.lastVisitedAt ?? undefined,
+      }),
+    ).toBe(false);
   });
 });
