@@ -208,15 +208,15 @@ try {
     },
   );
 
-  NodeFS.rmSync(NodePath.resolve(tempRoot, "pnpm-lock.yaml"), { force: true });
-
+  // Keep the lockfile: a fresh resolve reads the live registry, so any new patch release
+  // of a patched package turned this check red with no change in the repo.
   NodeChildProcess.execFileSync("vp", ["install", "--lockfile-only", "--ignore-scripts"], {
     cwd: tempRoot,
     stdio: "inherit",
   });
 
   const lockfile = NodeFS.readFileSync(NodePath.resolve(tempRoot, "pnpm-lock.yaml"), "utf8");
-  assertContains(lockfile, "lockfileVersion:", "Expected pnpm-lock.yaml to be regenerated.");
+  assertContains(lockfile, "lockfileVersion:", "Expected pnpm-lock.yaml to be updated.");
 
   for (const relativePath of [
     "apps/server/package.json",
