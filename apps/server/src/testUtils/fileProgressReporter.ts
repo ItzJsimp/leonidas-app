@@ -1,5 +1,5 @@
-// @effect-diagnostics nodeBuiltinImport:off - vitest loads this reporter from the config,
-// outside any Effect runtime, and only needs path.relative.
+// @effect-diagnostics nodeBuiltinImport:off globalTimers:off - vitest loads this reporter from the config,
+// outside any Effect runtime, and only needs path.relative and one timer per test.
 import * as NodePath from "node:path";
 
 import type { Reporter, TestCase, TestModule, Vitest } from "vite-plus/test/node";
