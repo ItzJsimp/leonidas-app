@@ -6,7 +6,7 @@
  */
 import { resolveSpawnTier, type AiosModelTiers } from "./spawnTiers.ts";
 
-export const MAX_RUNNING_CHILDREN = 3;
+const MAX_RUNNING_CHILDREN = 3;
 const CAP_WARNING_FRACTION = 0.8;
 
 export interface SpawnGateInput {

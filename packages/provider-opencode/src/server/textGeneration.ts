@@ -192,15 +192,18 @@ export const makeOpenCodeTextGeneration = Effect.fn("makeOpenCodeTextGeneration"
           ...(server.serverPassword !== undefined ? { serverPassword: server.serverPassword } : {}),
         });
         const session = yield* Effect.tryPromise({
-          try: () =>
-            client.session.create({
-              title: `Leonidas ${input.operation}`,
-              // OpenCode Zen refuses free-model requests that carry no tools, so keep read.
-              permission: [
-                { permission: "*", pattern: "*", action: "deny" },
-                { permission: "read", pattern: "*", action: "allow" },
-              ],
-            }),
+          try: (signal) =>
+            client.session.create(
+              {
+                title: `Leonidas ${input.operation}`,
+                // OpenCode Zen refuses free-model requests that carry no tools, so keep read.
+                permission: [
+                  { permission: "*", pattern: "*", action: "deny" },
+                  { permission: "read", pattern: "*", action: "allow" },
+                ],
+              },
+              { signal },
+            ),
           catch: (cause) =>
             new OpenCodeTextGenerationSessionRequestError({
               operation: input.operation,

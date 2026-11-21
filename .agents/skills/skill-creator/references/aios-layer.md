@@ -32,12 +32,12 @@ Every skill in an AIOS must meet these rules:
 
 `metadata.distribution` decides what ships when the user builds or hands over an AIOS (a hand-over bundle, the universal template, future installs). It is separate from `scope`: `scope` says whether the pattern is reusable, and `distribution` says whether this skill is packaged for other people.
 
-| Value | Meaning | Ships as |
-| --- | --- | --- |
-| `portable` (legacy `core`) | User-agnostic. Works for anyone with zero edits: no owner name, personal path, hardware, accounts or business. | Real copy, always |
-| `template` | Generic procedure, but a few facts are owner-specific (name, machine, folders, accounts). | Copy with `{{PLACEHOLDER}}` blanks that the recipient's agent fills |
-| `private` | Owner-only (own business, bridge, brand assets, workflows). | Never |
-| absent | Not triaged yet. | Not shipped until triaged |
+| Value                      | Meaning                                                                                                        | Ships as                                                            |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `portable` (legacy `core`) | User-agnostic. Works for anyone with zero edits: no owner name, personal path, hardware, accounts or business. | Real copy, always                                                   |
+| `template`                 | Generic procedure, but a few facts are owner-specific (name, machine, folders, accounts).                      | Copy with `{{PLACEHOLDER}}` blanks that the recipient's agent fills |
+| `private`                  | Owner-only (own business, bridge, brand assets, workflows).                                                    | Never                                                               |
+| absent                     | Not triaged yet.                                                                                               | Not shipped until triaged                                           |
 
 **Triage test** (run it on every new or refactored skill):
 

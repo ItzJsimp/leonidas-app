@@ -71,13 +71,9 @@ export function GameModeCard() {
   if (!allowed || !environmentId) return null;
   const status = query.data;
 
-  const act = async (action: GameModeAction) => {
+  const act = (action: GameModeAction) => {
     setBusy(true);
-    try {
-      await run({ environmentId, input: { action } });
-    } finally {
-      setBusy(false);
-    }
+    return run({ environmentId, input: { action } }).finally(() => setBusy(false));
   };
 
   return (

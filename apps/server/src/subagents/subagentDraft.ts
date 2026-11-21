@@ -28,7 +28,7 @@ import type { AiosModelTiers } from "./spawnTiers.ts";
 import { parseSubagentSpec } from "./subagentPersona.ts";
 
 /** The built-in tools a draft may pick from. */
-export const DRAFT_TOOLS: ReadonlyArray<string> = [
+const DRAFT_TOOLS: ReadonlyArray<string> = [
   "Read",
   "Grep",
   "Glob",

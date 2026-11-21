@@ -9,46 +9,21 @@ import * as Effect from "effect/Effect";
 
 const repoRoot = NodePath.resolve(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)), "..");
 
+// Globbed, not listed: a hand-kept list missed every new workspace package.
 const workspaceFiles = [
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
-  "apps/server/package.json",
-  "apps/desktop/package.json",
-  "apps/web/package.json",
-  "apps/mobile/package.json",
-  "apps/mobile/modules/t3-source-text/package.json",
-  "apps/mobile/modules/t3-review-diff/package.json",
-  "apps/mobile/modules/t3-terminal/package.json",
-  "apps/marketing/package.json",
-  "infra/relay/package.json",
-  "oxlint-plugin-t3code/package.json",
-  "packages/client-runtime/package.json",
-  "packages/contracts/package.json",
-  "packages/shared/package.json",
-  "packages/ssh/package.json",
-  "packages/tailscale/package.json",
-  "packages/provider-core/package.json",
-  "packages/provider-testing/package.json",
-  "packages/provider-pi/package.json",
-  "packages/provider-acp/package.json",
-  "packages/provider-acp-registry/package.json",
-  "packages/provider-cursor/package.json",
-  "packages/provider-grok/package.json",
-  "packages/provider-muse/package.json",
-  "packages/provider-opencode/package.json",
-  "packages/source-control-azure-devops/package.json",
-  "packages/source-control-bitbucket/package.json",
-  "packages/source-control-core/package.json",
-  "packages/source-control-forgejo/package.json",
-  "packages/source-control-gitcafe/package.json",
-  "packages/source-control-github/package.json",
-  "packages/source-control-gitlab/package.json",
-  "packages/source-control-testing/package.json",
-  "packages/effect-acp/package.json",
-  "packages/effect-codex-app-server/package.json",
-  "scripts/package.json",
-] as const;
+  ...NodeFS.globSync(
+    [
+      "{apps,infra,packages}/*/package.json",
+      "apps/mobile/modules/*/package.json",
+      "oxlint-plugin-t3code/package.json",
+      "scripts/package.json",
+    ],
+    { cwd: repoRoot },
+  ).map((path) => path.split(NodePath.sep).join("/")),
+];
 
 function copyWorkspaceManifestFixture(targetRoot: string): void {
   for (const relativePath of workspaceFiles) {
@@ -233,15 +208,15 @@ try {
     },
   );
 
-  NodeFS.rmSync(NodePath.resolve(tempRoot, "pnpm-lock.yaml"), { force: true });
-
+  // Keep the lockfile: a fresh resolve reads the live registry, so any new patch release
+  // of a patched package turned this check red with no change in the repo.
   NodeChildProcess.execFileSync("vp", ["install", "--lockfile-only", "--ignore-scripts"], {
     cwd: tempRoot,
     stdio: "inherit",
   });
 
   const lockfile = NodeFS.readFileSync(NodePath.resolve(tempRoot, "pnpm-lock.yaml"), "utf8");
-  assertContains(lockfile, "lockfileVersion:", "Expected pnpm-lock.yaml to be regenerated.");
+  assertContains(lockfile, "lockfileVersion:", "Expected pnpm-lock.yaml to be updated.");
 
   for (const relativePath of [
     "apps/server/package.json",

@@ -63,37 +63,37 @@ export const ComposerPromptLibrary = memo(function ComposerPromptLibrary(props: 
   const folder = query.data?.promptsFolder;
   const draft = props.draft.trim();
 
-  const save = async () => {
+  const save = () => {
     if (!draft || saving) return;
     setSaving(true);
-    saveCommandId.current ??= CommandId.make(randomUUID());
-    try {
-      const result = await create({
-        environmentId: props.environmentId,
-        input: {
-          ...workspace.scope,
-          commandId: saveCommandId.current,
-          kind: "prompt",
-          title: savedPromptTitle(draft),
-          body: draft,
-          tags: [],
-          projectId: null,
-        },
-      });
-      if (result._tag === "Failure") throw result;
-      saveCommandId.current = null;
-      setGroup(SAVED_GROUP);
-      query.refresh();
-      toastManager.add({ type: "success", title: "Saved to your prompt library" });
-    } catch {
-      toastManager.add({
-        type: "error",
-        title: "Could not save the message",
-        description: "Try again.",
-      });
-    } finally {
-      setSaving(false);
-    }
+    if (saveCommandId.current === null) saveCommandId.current = CommandId.make(randomUUID());
+    return create({
+      environmentId: props.environmentId,
+      input: {
+        ...workspace.scope,
+        commandId: saveCommandId.current,
+        kind: "prompt",
+        title: savedPromptTitle(draft),
+        body: draft,
+        tags: [],
+        projectId: null,
+      },
+    })
+      .then((result) => {
+        if (result._tag === "Failure") throw result;
+        saveCommandId.current = null;
+        setGroup(SAVED_GROUP);
+        query.refresh();
+        toastManager.add({ type: "success", title: "Saved to your prompt library" });
+      })
+      .catch(() => {
+        toastManager.add({
+          type: "error",
+          title: "Could not save the message",
+          description: "Try again.",
+        });
+      })
+      .finally(() => setSaving(false));
   };
 
   return (

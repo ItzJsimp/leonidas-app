@@ -32,12 +32,12 @@ Run this before you write the document.
 
 The full map is `workflows/session-ritual-chain.md`. Each ceremony owns one artifact family.
 
-| Order | Ceremony | Mode in this skill | Owns |
-| --- | --- | --- | --- |
-| 1 | `chat-sync` | (separate skill) | `memory/`, `decisions/`, `tasks/`, `capture/`, `CONTEXT.md`: durable canon, repeatable mid-session |
-| 2 | Handoff | Handoff | `handoff-docs/`: the transient frontier and the resume prompt, once per context switch |
-| 3 | Close the chat | [references/chat-closeout.md](chat-closeout.md) | `capture/continuations/`, `logs/lessons-learned.md`, the Archival Readiness Stamp |
-| 4 | Close the day | [references/daily-closeout.md](daily-closeout.md) | `logs/closeouts/`, git hygiene, tomorrow's seed plan |
-| any | Recap | [references/recap.md](recap.md) | nothing: a read-only reporter |
+| Order | Ceremony       | Mode in this skill                                | Owns                                                                                               |
+| ----- | -------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1     | `chat-sync`    | (separate skill)                                  | `memory/`, `decisions/`, `tasks/`, `capture/`, `CONTEXT.md`: durable canon, repeatable mid-session |
+| 2     | Handoff        | Handoff                                           | `handoff-docs/`: the transient frontier and the resume prompt, once per context switch             |
+| 3     | Close the chat | [references/chat-closeout.md](chat-closeout.md)   | `capture/continuations/`, `logs/lessons-learned.md`, the Archival Readiness Stamp                  |
+| 4     | Close the day  | [references/daily-closeout.md](daily-closeout.md) | `logs/closeouts/`, git hygiene, tomorrow's seed plan                                               |
+| any   | Recap          | [references/recap.md](recap.md)                   | nothing: a read-only reporter                                                                      |
 
 Boundary rules: durable facts go to canon first. Close the chat never re-lists the `chat-sync` checklist. Close the day never re-runs the chat extraction. Recap never replaces a ceremony.

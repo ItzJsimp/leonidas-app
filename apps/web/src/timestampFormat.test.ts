@@ -53,9 +53,9 @@ describe("formatShortTimestamp", () => {
     expect(format(date, "locale").replace(/[  ]/g, " ")).toBe(localTime);
     expect(format(date, "12-hour").replace(/[  ]/g, " ")).toMatch(/^3:44 [ap]m$/i);
     expect(format(date, "24-hour")).toBe("15:44");
-    expect(formatHourShort(date, undefined, false, resolveHour12("locale"))).toBe(localHour);
-    expect(formatHourShort(date, undefined, false, resolveHour12("12-hour"))).toBe("3 PM");
-    expect(formatHourShort(date, undefined, false, resolveHour12("24-hour"))).toBe("15:00");
+    expect(formatHourShort(date, undefined, resolveHour12("locale"))).toBe(localHour);
+    expect(formatHourShort(date, undefined, resolveHour12("12-hour"))).toBe("3 PM");
+    expect(formatHourShort(date, undefined, resolveHour12("24-hour"))).toBe("15:00");
   });
 });
 

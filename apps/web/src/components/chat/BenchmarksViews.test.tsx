@@ -136,7 +136,5 @@ it("draws one bar per model, and a bar per effort when every effort is shown", a
 });
 
 it("says Not benchmarked in the picker for an effort with no run", async () => {
-  expect(renderToStaticMarkup(<EffortNumbers stats={null} />)).toContain(
-    "Not benchmarked",
-  );
+  expect(renderToStaticMarkup(<EffortNumbers stats={null} />)).toContain("Not benchmarked");
 });
