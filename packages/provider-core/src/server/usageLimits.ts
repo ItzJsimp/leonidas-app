@@ -78,15 +78,16 @@ export function applyUsageLimitsUpdate(input: {
       changed = true;
     }
   }
-  // A snapshot marked unavailable is replaced even by an unchanged window: the bars can fill now.
-  if (!changed && previous !== undefined && previous.unavailable === undefined) {
+  if (!changed && previous !== undefined) {
     return previous;
   }
+  // A first update with no probe behind it is a partial read. A failed probe stays marked until a full probe recovers.
+  const unavailable =
+    previous === undefined ? { reason: "probeFailed" as const } : previous.unavailable;
   return {
     ...makeUsageLimits({ checkedAt: input.checkedAt, windows: merged.values() }),
     ...(previous?.resetCredits !== undefined ? { resetCredits: previous.resetCredits } : {}),
-    // A first update with no probe behind it is a partial read; a later update clears it.
-    ...(previous === undefined ? { unavailable: { reason: "probeFailed" as const } } : {}),
+    ...(unavailable !== undefined ? { unavailable } : {}),
   };
 }
 
