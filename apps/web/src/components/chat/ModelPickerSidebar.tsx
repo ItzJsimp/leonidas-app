@@ -9,7 +9,6 @@ import { useNowMinute } from "../../hooks/useNowMinute";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { SparklesIcon, StarIcon } from "lucide-react";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
-import { AccountHeadroomRing } from "./AccountHeadroomRing";
 import { AccountLoadBadge, accountLoadLabel } from "./AccountLoadBadge";
 import { useAccountLoad } from "../../hooks/useAccountLoad";
 import { accountHeadroom, accountHeadroomLabel } from "../../lib/accountHeadroom";
@@ -221,12 +220,6 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                   }
                   {...(entry.accentColor ? { badgeClassName: "h-3 min-w-3 px-0.5 text-5xs" } : {})}
                 />
-                {headroom ? (
-                  <AccountHeadroomRing
-                    leftPercent={headroom.leftPercent}
-                    severity={headroom.severity}
-                  />
-                ) : null}
                 {showNewBadge ? (
                   <span className={NEW_BADGE_CLASS} aria-hidden>
                     <SparklesIcon className="size-2" />
