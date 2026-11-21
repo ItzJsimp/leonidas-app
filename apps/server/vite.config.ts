@@ -4,6 +4,7 @@ import { defineConfig, mergeConfig } from "vite-plus";
 import baseConfig from "../../vite.config.ts";
 import { loadRepoEnv } from "../../scripts/lib/public-config.ts";
 import packageJson from "./package.json" with { type: "json" };
+import { FileProgressReporter } from "./src/testUtils/fileProgressReporter.ts";
 import { WeightedShardSequencer } from "./src/testUtils/weightedShardSequencer.ts";
 
 // NSIS install time tracks file count, not bytes.
@@ -131,6 +132,8 @@ export default mergeConfig(
       setupFiles: ["./src/testUtils/gitConfig.setup.ts"],
       hookTimeout: 120_000,
       testTimeout: 120_000,
+      // CI logs name the file a timed-out shard was running.
+      reporters: process.env.CI ? ["default", new FileProgressReporter()] : ["default"],
     },
   }),
 );
