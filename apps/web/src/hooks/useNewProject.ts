@@ -46,11 +46,15 @@ export function useNewProject() {
     });
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
+        console.error(
+          "[project] Could not create the repository.",
+          squashAtomCommandFailure(result),
+        );
         toastManager.add(
           stackedThreadToast({
             type: "error",
             title: `Could not create the ${label} repository`,
-            description: `${errorMessage(squashAtomCommandFailure(result))} Use Publish Repository in the Git menu to try again.`,
+            description: "Use Publish Repository in the Git menu to try again.",
           }),
         );
       }
@@ -111,11 +115,12 @@ export function useNewProject() {
     // Drafts key off the project's stored path, so wait for the create event
     // to reach the store before opening one.
     const project = await waitForProject(projectRef).catch((error: unknown) => {
+      console.error("[project] Could not open the project.", error);
       toastManager.add(
         stackedThreadToast({
           type: "error",
           title: "Failed to open project",
-          description: `${errorMessage(error)} It will appear in the sidebar once this client catches up.`,
+          description: "It will appear in the sidebar soon.",
         }),
       );
       return null;

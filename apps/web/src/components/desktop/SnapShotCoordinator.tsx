@@ -335,15 +335,14 @@ export function SnapShotCoordinator() {
             captureTargetsRef.current.delete(item.id);
             soundedCaptureIdsRef.current.delete(item.id);
           } catch (error) {
+            console.error("[snapshot] Capture failed.", error);
             await dismissSnapShotAnimation(item.id);
             soundedCaptureIdsRef.current.delete(item.id);
             toastManager.add(
               stackedThreadToast({
                 type: "error",
                 title: "Could not take the snapshot",
-                description: `Capture ${item.id}: ${
-                  error instanceof Error ? error.message : "Take the snapshot again."
-                }`,
+                description: "Take the snapshot again.",
               }),
             );
           }

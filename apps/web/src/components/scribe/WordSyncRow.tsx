@@ -45,7 +45,8 @@ export function WordSyncRow({ environmentId }: Pick<ScribeTabProps, "environment
     } else if (!isAtomCommandInterrupted(result)) {
       toastManager.add({
         type: "error",
-        title: "Could not save the folder. Check that Scribe is running, then try again.",
+        title: "Could not save the folder",
+        description: "Check that Scribe is running. Then try again.",
       });
     }
   };

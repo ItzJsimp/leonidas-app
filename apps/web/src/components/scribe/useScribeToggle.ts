@@ -32,7 +32,8 @@ export function useScribeToggle(environmentId: EnvironmentId | null) {
     if (result._tag !== "Success" && !isAtomCommandInterrupted(result)) {
       toastManager.add({
         type: "error",
-        title: "Could not change Scribe. Check that Scribe is running, then try again.",
+        title: "Could not change Scribe",
+        description: "Check that Scribe is running. Then try again.",
       });
     }
   };

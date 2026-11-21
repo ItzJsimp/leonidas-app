@@ -241,7 +241,7 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
       await track(
         changes.map(({ task }) => task.id),
         async () => {
-          const results = await Promise.all(
+          await Promise.all(
             changes.map(({ task, suggestion }) =>
               updateCard(
                 task,
@@ -254,13 +254,6 @@ export function useTaskActions(input: UseTaskActionsInput): UseTaskActionsResult
               ),
             ),
           );
-          const done = results.filter(Boolean).length;
-          if (done > 0) {
-            toastManager.add({
-              type: "success",
-              title: `Organized ${done} ${done === 1 ? "task" : "tasks"}`,
-            });
-          }
         },
       );
     },

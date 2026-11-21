@@ -14,6 +14,7 @@ import {
   type OrchestrationV2ThreadShell,
   type ThreadId,
 } from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 import {
   CircleAlertIcon,
@@ -43,6 +44,8 @@ import {
 } from "../threadNotifications";
 import { resolveSidebarThreadStatus } from "./Sidebar.logic";
 import { toastManager } from "./ui/toast";
+import { addReplacingToast } from "./ui/replacingToast";
+import { toastBody } from "./ui/toast.logic";
 import { useActiveAiosWorkspace } from "./workspace/useActiveAiosWorkspace";
 
 const NO_SCOPE: EventsSubscribeInput = {};
@@ -155,6 +158,7 @@ function leadingIcon(event: FeedEvent) {
 function usePresentFeedEvent(
   environmentId: EnvironmentId,
   onNotification: (environmentId: EnvironmentId, notification: Notification) => void,
+  threadsRef: { readonly current: ReadonlyArray<OrchestrationV2ThreadShell> | null },
 ) {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
@@ -167,6 +171,21 @@ function usePresentFeedEvent(
     (event: FeedEvent) => {
       // The type's rule (Settings in Notifications): only Toast pops up, sounds or notifies.
       if (!popsUp(event, useEventFeedStore.getState().typeRules)) return;
+      const thread = event.target?.thread;
+      // A snoozed chat stays in Notifications and wakes with its snooze.
+      const snoozedUntil = threadsRef.current?.find(
+        (candidate) => candidate.id === thread,
+      )?.snoozedUntil;
+      if (snoozedUntil != null && DateTime.toEpochMillis(snoozedUntil) > Date.now()) return;
+      // One window, one alert: a chat on screen needs no toast, sound or system alert.
+      const windowShown = document.visibilityState !== "hidden";
+      if (
+        windowShown &&
+        thread !== undefined &&
+        active.current.environmentId === environmentId &&
+        active.current.threadId === thread
+      )
+        return;
       const settings = getClientSettings();
       const quiet = isInNotificationQuietHours(settings);
       if (hasNotificationSound(settings.notificationMode) && !quiet) {
@@ -178,9 +197,8 @@ function usePresentFeedEvent(
           settings.notificationVolume,
         );
       }
-      const thread = event.target?.thread;
       const open = () => openFeedEvent(event, environmentId, navigate);
-      if (document.visibilityState === "hidden") {
+      if (!windowShown) {
         if (
           !hasDesktopNotifications(settings.notificationMode) ||
           quiet ||
@@ -206,18 +224,13 @@ function usePresentFeedEvent(
         return;
       }
       if (!settings.inAppNotificationsEnabled) return;
-      if (
-        thread !== undefined &&
-        active.current.environmentId === environmentId &&
-        active.current.threadId === thread
-      )
-        return;
       const target = feedEventOpenTarget(event);
-      const toastId = toastManager.add({
+      // One toast per type: a repeat replaces the open one and counts the others.
+      const toastId = addReplacingToast(event.type, (count) => ({
         type:
           event.level === "failed" ? "error" : event.level === "needs_you" ? "warning" : "success",
         title: event.title,
-        ...(event.body === undefined ? {} : { description: event.body }),
+        ...(event.body === undefined ? {} : { description: toastBody(event.body, count - 1) }),
         data: { hideCopyButton: true, leadingIcon: leadingIcon(event) },
         ...(target === null
           ? {}
@@ -230,9 +243,9 @@ function usePresentFeedEvent(
                 },
               },
             }),
-      });
+      }));
     },
-    [environmentId, navigate, onNotification],
+    [environmentId, navigate, onNotification, threadsRef],
   );
 }
 
@@ -250,7 +263,11 @@ function EnvironmentNotifications({
   const threads =
     shell.status === "live" && Option.isSome(shell.snapshot) ? shell.snapshot.value.threads : null;
   const previous = useRef(new Map<ThreadId, NotificationState>());
-  const present = usePresentFeedEvent(environmentId, onNotification);
+  const threadsRef = useRef(threads);
+  useEffect(() => {
+    threadsRef.current = threads;
+  }, [threads]);
+  const present = usePresentFeedEvent(environmentId, onNotification, threadsRef);
   const runAppend = useAtomCommand(eventsAppend, { reportFailure: false });
   const feedAtom = useMemo(
     () => (scope === null ? null : eventFeedLive({ environmentId, input: scope })),
@@ -333,15 +350,15 @@ function EnvironmentNotifications({
       const title =
         kind === "completion"
           ? isDelegatedChild
-            ? "Delegated task completed"
-            : "Chat completed"
+            ? "Delegated task finished"
+            : "Chat finished"
           : status === "approval"
-            ? "Permission needed"
+            ? "Chat needs permission"
             : status === "limited"
               ? "Usage limit reached"
               : status === "failed"
                 ? "Chat failed"
-                : "Input needed";
+                : "Chat needs your answer";
       emit({
         level: kind === "completion" ? "info" : status === "failed" ? "failed" : "needs_you",
         type: threadEventType(kind, status, isDelegatedChild),

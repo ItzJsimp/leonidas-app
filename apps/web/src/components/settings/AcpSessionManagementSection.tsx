@@ -206,7 +206,6 @@ export function AcpSessionManagementSection(props: {
       setSessions((current) =>
         current.filter((candidate) => candidate.sessionId !== session.sessionId),
       );
-      toastManager.add({ type: "success", title: "Chat deleted" });
       return;
     }
     reportFailure("Could not delete the chat. Try again.", result);

@@ -86,22 +86,29 @@ export function readFeedFrom(file: string, cursor: FeedCursor): FeedRead {
   return { events, bad, cursor: { offset: start.offset + consumed, line } };
 }
 
+/** An event with no `dedupe` key folds by what it says: same source, type, title and target. */
+const foldKey = (event: FeedEvent): string =>
+  event.dedupe ??
+  `${event.actor.name}|${event.type}|${event.title}|${JSON.stringify(event.target ?? null)}`;
+
 /**
- * Folds events with the same `dedupe` key within 1 hour of the group's first event. The fold keeps
- * the first id, so read state stays attached, and shows the latest time, title and body.
+ * Folds events with the same key within 1 hour of the group's first event. The key is `dedupe`, or
+ * the source, type, title and target when a script sent none. The fold keeps the first id, so read
+ * state stays attached and a repeat never raises a new toast. It shows the latest time, title and body.
  */
 export function foldDedupe(events: ReadonlyArray<FeedEvent>): Array<FoldedFeedEvent> {
   const out: Array<FoldedFeedEvent> = [];
   const open = new Map<string, { index: number; startedAt: number }>();
   for (const event of events) {
     const at = Date.parse(event.ts);
-    const group = event.dedupe === undefined ? undefined : open.get(event.dedupe);
+    const key = foldKey(event);
+    const group = open.get(key);
     if (group && at - group.startedAt < DEDUPE_WINDOW_MS) {
       const first = out[group.index]!;
       out[group.index] = { ...event, id: first.id, count: first.count + 1 };
       continue;
     }
-    if (event.dedupe !== undefined) open.set(event.dedupe, { index: out.length, startedAt: at });
+    open.set(key, { index: out.length, startedAt: at });
     out.push({ ...event, count: 1 });
   }
   return out;

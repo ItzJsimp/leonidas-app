@@ -91,6 +91,13 @@ describe("notification rules", () => {
     expect(groups[1]!.rows.find((row) => row.type === "agent.failed")?.lastAt).toBeNull();
   });
 
+  it("pops up for a finished chat but not for a finished delegated task", () => {
+    const finished = { level: "info", title: "Chat finished" } as const;
+    expect(popsUp(event({ ...finished, type: "agent.finished" }), rules())).toBe(true);
+    expect(popsUp(event({ ...finished, type: "agent.child_finished" }), rules())).toBe(false);
+    expect(isShown(event({ ...finished, type: "agent.child_finished" }), rules())).toBe(true);
+  });
+
   it("names types in plain words", () => {
     expect(typeLabel("agent.needs_input")).toBe("Chat needs your answer");
     expect(typeLabel("model_registry.discovered.info")).toBe("Model registry discovered info");

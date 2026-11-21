@@ -116,3 +116,11 @@ export function shouldRenderThreadScopedToast(
 
   return activeThreadRef?.threadId === toastThreadId;
 }
+
+const TOAST_BODY_MAX = 80;
+
+/** One line for a toast: the text cut short, plus how many more alerts it replaced. */
+export function toastBody(body: string, more: number): string {
+  const line = body.length > TOAST_BODY_MAX ? `${body.slice(0, TOAST_BODY_MAX - 3)}...` : body;
+  return more > 0 ? `${line} and ${more} more` : line;
+}

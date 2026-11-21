@@ -141,7 +141,8 @@ function ProviderUpdateEnvironmentsNotification() {
             }}
           />
         ),
-        timeout: 0,
+        // The sidebar update pill stays until the update is done, so this toast need not.
+        timeout: 15_000,
         actionProps: {
           children: "Settings",
           onClick: openProviderSettings,
