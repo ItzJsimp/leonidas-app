@@ -36,7 +36,7 @@ interface TwoStateState {
 }
 
 /** The router builds a new target object on every update, so compare the chat it names. */
-export const sameChatRoute = (a: ThreadRouteTarget | null, b: ThreadRouteTarget | null) =>
+const sameChatRoute = (a: ThreadRouteTarget | null, b: ThreadRouteTarget | null) =>
   a === null || b === null
     ? a === b
     : a.kind === "server"

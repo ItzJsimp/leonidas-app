@@ -136,17 +136,3 @@ export function slugifySubagentName(text: string): string | null {
     .replace(/-+$/g, "");
   return slug.length === 0 ? null : slug;
 }
-
-/** Where a new subagent can go: the AIOS folder, or a project the Studio already lists. */
-export function newSubagentDestinations(
-  entries: ReadonlyArray<SubagentCatalogEntry>,
-  hasAios: boolean,
-): ReadonlyArray<{ readonly id: string; readonly label: string }> {
-  const projects = [
-    ...new Set(entries.flatMap((entry) => (entry.projectName === null ? [] : [entry.projectName]))),
-  ].toSorted();
-  return [
-    ...(hasAios ? [{ id: "aios", label: "My AIOS (every project)" }] : []),
-    ...projects.map((name) => ({ id: `project:${name}`, label: name })),
-  ];
-}

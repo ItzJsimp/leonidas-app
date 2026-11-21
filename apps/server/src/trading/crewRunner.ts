@@ -21,7 +21,7 @@ import { readCrewView, syncCrew, type RunGit } from "./crewSync.ts";
 import { readTradingSettings } from "./tradingSettings.ts";
 import { readLinkedPack } from "./tradingPack.ts";
 
-export const SYNC_EVERY = Duration.minutes(3);
+const SYNC_EVERY = Duration.minutes(3);
 /** A change starts a sync after this wait, so a burst of entries makes one sync. */
 const POKE_DELAY = Duration.seconds(5);
 

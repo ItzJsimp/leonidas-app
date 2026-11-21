@@ -16,7 +16,7 @@ export type RunGit = (
   args: readonly string[],
 ) => Effect.Effect<{ readonly exitCode: number; readonly stdout: string; readonly stderr: string }>;
 
-export const CREW_BRANCH = "crew";
+const CREW_BRANCH = "crew";
 /** Files under `crew/` the sync may write: one card per trader and shared resources. */
 const CARD_DIR = "crew";
 const RESOURCE_DIR = "crew/resources";
