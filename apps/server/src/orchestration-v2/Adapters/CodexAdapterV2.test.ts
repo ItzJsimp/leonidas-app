@@ -699,6 +699,7 @@ describe("CodexAdapterV2 process spawning", () => {
         model: "gpt-5.4",
         config: {
           "tools.update_plan.enabled": true,
+          mcp_optional_startup_grace_ms: 10_000,
           mcp_servers: {
             leonidas: {
               url: "http://127.0.0.1:43123/mcp",
