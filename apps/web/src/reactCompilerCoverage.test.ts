@@ -5,7 +5,7 @@ import * as NodeURL from "node:url";
 import { transform } from "oxc-transform-react";
 import { describe, expect, it } from "vite-plus/test";
 
-import { REACT_COMPILER_BAILOUTS } from "../reactCompilerBailouts.ts";
+import { REACT_COMPILER_BAILOUTS } from "./reactCompilerBailouts.ts";
 
 const repoRoot = NodePath.resolve(
   NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)),

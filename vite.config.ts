@@ -1,5 +1,5 @@
 import "vite-plus/test/config";
-import { REACT_COMPILER_BAILOUTS } from "./apps/web/reactCompilerBailouts.ts";
+import { REACT_COMPILER_BAILOUTS } from "./apps/web/src/reactCompilerBailouts.ts";
 import { defineConfig } from "vite-plus";
 import * as NodeURL from "node:url";
 

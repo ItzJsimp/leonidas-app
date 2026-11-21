@@ -1592,3 +1592,14 @@ export function sidebarThreadNeedsAttention(
   if (sidebarThreadNeedsUser(status)) return true;
   return isSidebarThreadUnreadOrWoke(thread, opts).isUnreadOrWoke;
 }
+
+/**
+ * The sidebar's clock for memoized views: the later of the minute tick and the last snooze
+ * wake. Memos read time only through it, so their dependencies name every input. A snooze
+ * wakes exactly on time because its timer stores the instant it fired.
+ */
+export function sidebarClockNow(nowMinute: string, snoozeWakeAt: string | null): string {
+  // useNowMinute returns a UTC minute without the zone, such as "2026-11-21T12:00".
+  const minute = `${nowMinute}:00.000Z`;
+  return snoozeWakeAt !== null && snoozeWakeAt > minute ? snoozeWakeAt : minute;
+}
