@@ -1,10 +1,8 @@
 import {
   memo,
-  useCallback,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   useState,
-  useMemo,
   type ReactNode,
 } from "react";
 import {
@@ -27,26 +25,23 @@ import {
   Undo2Icon,
   AlarmClockOffIcon,
 } from "lucide-react";
+import { CollapsibleSectionHeader } from "../ui/collapsible-section-header";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import { type EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { discardComposerDraft } from "../../lib/discardComposerDraft";
 
-export const draftSurfaceClassName = "bg-warning/4 hover:bg-warning/8";
+export const draftSurfaceClassName = "bg-warning-surface/35 hover:bg-warning-surface/55";
 
-export const draftPenClassName = "size-3 shrink-0 text-warning-foreground";
+export const draftPenClassName = "size-3.5 shrink-0 text-warning-foreground";
 
-// One unsent draft session the user has invested content in. Two lines,
-// nothing else: project name, then the typed prompt. All the draft's
-// settings (model, env mode, branch, worktree) still travel with it —
-// clicking is a plain navigation to /draft/$draftId, which touches nothing.
-// While the draft is open the row renders a frozen snapshot (see
-// SidebarDraftBlock); memoized so per-keystroke block re-renders skip it
-// entirely.
+// Compact unsent draft row with amber pen icon, Draft pill, project/Unsent meta line,
+// and discard button. Memoized with a frozen entry snapshot so typing never repaints the list.
 const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   draftId: DraftId;
   composer: ComposerThreadDraftState;
   project: ProjectFaviconProject | null;
   projectDisplayName: string | null;
+  showProject: boolean;
   isActive: boolean;
   onNavigate: (draftId: DraftId) => void;
   onDiscard: (draftId: DraftId) => void;
@@ -75,39 +70,30 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
     projectDisplayName: props.projectDisplayName,
     isActive: props.isActive,
   });
-  const handleActivate = useCallback(() => onNavigate(draftId), [draftId, onNavigate]);
-  const handleKeyDown = useCallback(
-    (event: ReactKeyboardEvent) => {
-      // Keys targeting the nested discard button belong to the button:
-      // preventDefault here would swallow Space's synthesized click and
-      // navigate instead of discarding.
-      if ((event.target as HTMLElement).closest("button")) return;
-      if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
-        event.preventDefault();
-        const rect = event.currentTarget.getBoundingClientRect();
-        onContextMenu(draftId, { x: rect.left, y: rect.bottom });
-      } else if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        onNavigate(draftId);
-      }
-    },
-    [draftId, onContextMenu, onNavigate],
-  );
-  const handleContextMenu = useCallback(
-    (event: ReactMouseEvent) => {
+  const handleActivate = () => onNavigate(draftId);
+  const handleKeyDown = (event: ReactKeyboardEvent) => {
+    // Keys targeting the nested discard button belong to the button:
+    // preventDefault here would swallow Space's synthesized click and
+    // navigate instead of discarding.
+    if ((event.target as HTMLElement).closest("button")) return;
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
       event.preventDefault();
-      onContextMenu(draftId, { x: event.clientX, y: event.clientY });
-    },
-    [draftId, onContextMenu],
-  );
-  const handleDiscard = useCallback(
-    (event: ReactMouseEvent) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      onContextMenu(draftId, { x: rect.left, y: rect.bottom });
+    } else if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      event.stopPropagation();
-      onDiscard(draftId);
-    },
-    [draftId, onDiscard],
-  );
+      onNavigate(draftId);
+    }
+  };
+  const handleContextMenu = (event: ReactMouseEvent) => {
+    event.preventDefault();
+    onContextMenu(draftId, { x: event.clientX, y: event.clientY });
+  };
+  const handleDiscard = (event: ReactMouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onDiscard(draftId);
+  };
   return (
     <li className="list-none py-0.5">
       <div
@@ -117,43 +103,58 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         aria-current={accessibility.current}
         data-testid="sidebar-draft-row"
         className={cn(
-          "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-          props.isActive ? "bg-sidebar-row-active" : draftSurfaceClassName,
+          "group/sidebar-row relative min-h-12 w-full cursor-pointer overflow-hidden rounded-md border px-2 py-1.5 text-left text-sidebar-foreground outline-none select-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
+          props.isActive
+            ? "border-warning/40 bg-sidebar-row-active"
+            : cn("border-warning/25", draftSurfaceClassName),
         )}
         onClick={handleActivate}
         onContextMenu={handleContextMenu}
         onKeyDown={handleKeyDown}
       >
         <span className="sr-only">{preview}</span>
-        <div className="relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
-          <div className="flex h-5 min-w-0 items-center gap-1.5">
+        <div className="relative z-10 flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 items-center gap-1.5">
             <SquarePenIcon aria-hidden className={draftPenClassName} />
-            {props.project ? (
-              <ProjectFavicon project={props.project} className="size-4 shrink-0" />
-            ) : null}
-            <span className="min-w-0 flex-1 truncate text-xs font-medium text-secondary-label">
-              {props.projectDisplayName}
+            <span
+              aria-hidden
+              className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground"
+            >
+              {preview}
             </span>
-            <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-end">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label="Discard draft"
-                      onClick={handleDiscard}
-                      className="pointer-events-none inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100"
-                    >
-                      <XIcon className="size-3" />
-                    </button>
-                  }
-                />
-                <TooltipPopup side="top">Discard draft</TooltipPopup>
-              </Tooltip>
+            <span className="shrink-0 rounded-sm border border-warning/30 bg-warning-surface/75 px-1.5 text-3xs font-medium leading-4 text-warning-foreground">
+              Draft
             </span>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label="Discard draft"
+                    onClick={handleDiscard}
+                    className="grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-sidebar-muted-foreground opacity-70 transition-opacity hover:bg-sidebar-row-active hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring group-hover/sidebar-row:opacity-100 motion-reduce:transition-none"
+                  >
+                    <XIcon className="size-3" />
+                  </button>
+                }
+              />
+              <TooltipPopup side="top">Discard draft</TooltipPopup>
+            </Tooltip>
           </div>
-          <div aria-hidden className="mt-0.5 truncate text-sm font-medium text-foreground/90">
-            {preview}
+          <div
+            aria-hidden
+            className="flex min-w-0 items-center gap-1.5 pl-5 text-2xs text-sidebar-muted-foreground"
+          >
+            {props.showProject && props.projectDisplayName ? (
+              <>
+                {props.project ? (
+                  <ProjectFavicon project={props.project} className="size-3 shrink-0" />
+                ) : null}
+                <span className="min-w-0 truncate">{props.projectDisplayName}</span>
+                <span aria-hidden>·</span>
+              </>
+            ) : null}
+            <span className="shrink-0">Unsent</span>
           </div>
         </div>
       </div>
@@ -167,15 +168,18 @@ interface SidebarDraftRowData {
   composer: ComposerThreadDraftState;
 }
 
-// Draft sessions with user content, surfaced above the pinned block so an
+// Draft sessions with user content, surfaced in a collapsible Drafts section so an
 // interrupted "new thread" stays one click away. Self-contained (own store
-// subscription + closing divider) so per-keystroke composer updates
-// re-render only this block, never the whole sidebar. Vanishes at count 0.
+// subscription) so per-keystroke composer updates re-render only this block,
+// never the whole sidebar. Vanishes at count 0.
 export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
   projectByKey: ReadonlyMap<string, EnvironmentProject>;
   projectDisplayNameByKey: ReadonlyMap<string, string>;
   scopedProjectKeys: ReadonlySet<string> | null;
   routeDraftId: string | null;
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
+  showProject?: boolean;
   onNavigateToDraft: (draftId: DraftId) => void;
   onDraftContextMenu: (draftId: DraftId, position: { x: number; y: number }) => void;
 }) {
@@ -195,9 +199,8 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
     let row: SidebarDraftRowData | null = null;
     if (props.routeDraftId !== null) {
       const draftId = DraftId.make(props.routeDraftId);
-      const store = useComposerDraftStore.getState();
-      const session = store.getDraftSession(draftId);
-      const composer = store.getComposerDraft(draftId);
+      const session = draftThreadsByThreadKey[draftId];
+      const composer = draftsByThreadKey[draftId];
       row =
         session && session.promotedTo == null && composer && composerDraftHasUserContent(composer)
           ? { draftId, session, composer }
@@ -205,51 +208,57 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
     }
     setFrozenActive({ routeDraftId: props.routeDraftId, row });
   }
-  const drafts = useMemo(() => {
-    const rows: SidebarDraftRowData[] = [];
-    // Every non-promoted session with content gets a row, mapped or not:
-    // new-thread surfaces mint fresh drafts and leave invested ones behind
-    // unmapped, so the mapping only knows about the latest per project.
-    for (const [draftKey, session] of Object.entries(draftThreadsByThreadKey)) {
-      if (session.promotedTo != null) {
-        continue;
-      }
-      if (
-        props.scopedProjectKeys !== null &&
-        !props.scopedProjectKeys.has(`${session.environmentId}:${session.projectId}`)
-      ) {
-        continue;
-      }
-      if (draftKey === props.routeDraftId) {
-        // Open draft: render the frozen entry snapshot, or nothing for a
-        // draft that has never been left. Gated on the LIVE session above so
-        // send/discard still removes the row immediately.
-        if (frozenActive.routeDraftId === draftKey && frozenActive.row !== null) {
-          rows.push(frozenActive.row);
-        }
-        continue;
-      }
-      const composer = draftsByThreadKey[draftKey];
-      if (!composer || !composerDraftHasUserContent(composer)) {
-        continue;
-      }
-      rows.push({ draftId: DraftId.make(draftKey), session, composer });
+  const drafts: SidebarDraftRowData[] = [];
+  // Every non-promoted session with content gets a row, mapped or not:
+  // new-thread surfaces mint fresh drafts and leave invested ones behind
+  // unmapped, so the mapping only knows about the latest per project.
+  for (const [draftKey, session] of Object.entries(draftThreadsByThreadKey)) {
+    if (session.promotedTo != null) {
+      continue;
     }
-    rows.sort((left, right) => right.session.createdAt.localeCompare(left.session.createdAt));
-    return rows;
-  }, [
-    draftThreadsByThreadKey,
-    draftsByThreadKey,
-    frozenActive,
-    props.routeDraftId,
-    props.scopedProjectKeys,
-  ]);
+    if (
+      props.scopedProjectKeys !== null &&
+      !props.scopedProjectKeys.has(`${session.environmentId}:${session.projectId}`)
+    ) {
+      continue;
+    }
+    if (draftKey === props.routeDraftId) {
+      // Open draft: render the frozen entry snapshot, or nothing for a
+      // draft that has never been left. Gated on the LIVE session above so
+      // send/discard still removes the row immediately.
+      if (frozenActive.routeDraftId === draftKey && frozenActive.row !== null) {
+        drafts.push(frozenActive.row);
+      }
+      continue;
+    }
+    const composer = draftsByThreadKey[draftKey];
+    if (!composer || !composerDraftHasUserContent(composer)) {
+      continue;
+    }
+    drafts.push({ draftId: DraftId.make(draftKey), session, composer });
+  }
+  drafts.sort((left, right) => right.session.createdAt.localeCompare(left.session.createdAt));
   if (drafts.length === 0) {
     return null;
   }
+  const expanded = props.expanded ?? true;
+  const showProject = props.showProject ?? true;
+  const visibleDrafts = expanded
+    ? drafts
+    : drafts.filter((draft) => draft.draftId === props.routeDraftId);
   return (
     <>
-      {drafts.map(({ composer, draftId, session }) => {
+      <li role="presentation" className="mx-0.5 list-none">
+        <CollapsibleSectionHeader
+          expanded={expanded}
+          onClick={props.onToggleExpanded}
+          accessory={<span className="text-2xs font-normal tabular-nums">{drafts.length}</span>}
+          data-testid="sidebar-drafts-shelf-toggle"
+        >
+          Drafts
+        </CollapsibleSectionHeader>
+      </li>
+      {visibleDrafts.map(({ composer, draftId, session }) => {
         const projectKey = `${session.environmentId}:${session.projectId}`;
         return (
           <SidebarDraftRow
@@ -258,6 +267,7 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
             composer={composer}
             project={props.projectByKey.get(projectKey) ?? null}
             projectDisplayName={props.projectDisplayNameByKey.get(projectKey) ?? null}
+            showProject={showProject}
             isActive={draftId === props.routeDraftId}
             onNavigate={props.onNavigateToDraft}
             // The /draft/$draftId route redirects home on its own when the
@@ -268,11 +278,6 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
           />
         );
       })}
-      <li
-        aria-hidden
-        data-testid="sidebar-draft-divider"
-        className="mx-2.5 my-1.5 h-px list-none bg-sidebar-border/60"
-      />
     </>
   );
 });

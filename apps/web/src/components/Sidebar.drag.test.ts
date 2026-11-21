@@ -21,6 +21,12 @@ const thread = (key: string, section: SidebarSection): SidebarListItem => ({
   section,
 });
 const marker = (marker: SidebarListMarker): SidebarListItem => ({ kind: "marker", marker });
+const pinnedGroup = (count: number): SidebarListItem => ({
+  kind: "group",
+  id: "pinned",
+  label: "Pinned",
+  count,
+});
 const pinnedHeader = marker("pinned-header");
 const divider = marker("pinned-divider");
 const settledHeader = marker("settled-header");
@@ -39,7 +45,7 @@ function layout(
       item.kind === "thread"
         ? (item.section === "pinned" || item.section === "active" ? cardHeight : 36) * scale
         : item.kind === "group"
-          ? 0
+          ? 38 * scale
           : item.marker === "pinned-header" || item.marker === "pinned-divider"
             ? 0
             : (item.marker.endsWith("placeholder") ? 0 : 32) * scale;
@@ -287,6 +293,45 @@ describe("sidebar drag projection", () => {
     for (const transform of restored.values()) expect(transform).toEqual(stationary);
 
     expect(preview({ ...input, enabled: true }, active, over)).toEqual(reordered);
+  });
+
+  it("keeps the collapsible Pinned group header stationary while reordering or emptying pins", () => {
+    const withTwoPins = [
+      pinnedHeader,
+      pinnedGroup(2),
+      thread("p1", "pinned"),
+      thread("p2", "pinned"),
+      divider,
+      thread("a1", "active"),
+      settledHeader,
+      thread("s1", "settled"),
+    ];
+    const reordered = preview(
+      { items: withTwoPins, settledOrder: [], settledExpanded: true },
+      "p2",
+      "group:pinned",
+    );
+    expect(reordered.get("group:pinned")).toEqual(stationary);
+    expect(reordered.get("p1")).toEqual({ ...stationary, y: 83 });
+    expect(reordered.get(sidebarMarkerId("pinned-divider"))).toEqual(stationary);
+
+    const singlePin = [
+      pinnedHeader,
+      pinnedGroup(1),
+      thread("p1", "pinned"),
+      divider,
+      thread("a1", "active"),
+      settledHeader,
+      thread("s1", "settled"),
+    ];
+    const emptied = preview(
+      { items: singlePin, settledOrder: [], settledExpanded: true },
+      "p1",
+      "a1",
+    );
+    expect(emptied.get("group:pinned")?.scaleY).toBe(0);
+    expect(emptied.get(sidebarMarkerId("pinned-divider"))?.y).toBe(-122);
+    expect(emptied.get("a1")?.y).toBe(-122);
   });
 
   it.each([

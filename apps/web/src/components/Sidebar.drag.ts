@@ -106,6 +106,7 @@ export function createSidebarSortingStrategy(input: {
 }): SortingStrategy {
   if (input.enabled === false) return () => stationary;
   const { items } = input;
+  const pinnedGroup = items.find((item) => item.kind === "group" && item.id === "pinned");
   const indices = new Map(items.map((item, index) => [sidebarListItemId(item), index]));
   let previous: Pick<Layout, "rects" | "activeIndex" | "overIndex"> | undefined;
   let transforms: ReturnType<SortingStrategy>[] | null = [];
@@ -176,6 +177,7 @@ export function createSidebarSortingStrategy(input: {
       else marker(`${name}-placeholder`);
     };
     marker("pinned-header");
+    if (pinnedGroup && groups.pinned.length > 0) projected.push(pinnedGroup);
     projected.push(...groups.pinned);
     marker("pinned-divider");
     section("active");
@@ -202,14 +204,18 @@ export function createSidebarSortingStrategy(input: {
           ? cardHeight
           : slimHeight;
       const moved = item.kind === "thread" && item.key === active.key;
-      return item.kind === "marker" &&
+      if (item.kind === "group") return rect?.height ?? 38 * scale;
+      if (
+        item.kind === "marker" &&
         (item.marker === "pinned-header" || item.marker === "pinned-divider")
-        ? labelHeight
-        : item.kind === "marker" && item.marker.endsWith("placeholder")
-          ? slimHeight
-          : moved
-            ? fallback
-            : (rect?.height ?? fallback);
+      ) {
+        return item.marker === "pinned-header" && pinnedGroup ? 0 : labelHeight;
+      }
+      return item.kind === "marker" && item.marker.endsWith("placeholder")
+        ? slimHeight
+        : moved
+          ? fallback
+          : (rect?.height ?? fallback);
     });
     const firstShelf = items.findIndex(isShelfHeader);
     const shelfRect = rects[firstShelf];

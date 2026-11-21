@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { type EnvironmentId, AuthOrchestrationOperateScope } from "@t3tools/contracts";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode } from "react";
 import { useEnvironmentScope } from "../../state/session";
 import {
   animateSidebarLayoutChanges,
@@ -34,25 +34,20 @@ export function SortableThreadRow(props: {
     disabled: { draggable: props.disabled || !canOperateThread },
     animateLayoutChanges: animateSidebarLayoutChanges,
   });
-  // dnd-kit memoizes each field but not the bag, so the memoized row would
-  // rerender on every shell update without this.
-  const bag = useMemo(
-    () => ({
-      listeners,
-      setNodeRef,
-      transform: props.contextDrag ? null : transform,
-      // The lifted row normally follows the pointer without a transition.
-      // When it becomes a context ghost, glide its sidebar copy back home.
-      transition: props.contextDrag && isDragging ? "transform 150ms ease-out" : transition,
-      isDragging: isDragging && !props.contextDrag,
-    }),
-    [listeners, setNodeRef, transform, transition, isDragging, props.contextDrag],
-  );
+  const bag: SortableThreadRowBag = {
+    listeners,
+    setNodeRef,
+    transform: props.contextDrag ? null : transform,
+    // The lifted row normally follows the pointer without a transition.
+    // When it becomes a context ghost, glide its sidebar copy back home.
+    transition: props.contextDrag && isDragging ? "transform 150ms ease-out" : transition,
+    isDragging: isDragging && !props.contextDrag,
+  };
   return props.children(bag);
 }
 
-// Structural list items — the section headers and the
-// empty-section placeholders — take part in the sortable list so they shift
+// Structural list items: the section headers and the
+// empty-section placeholders take part in the sortable list so they shift
 // with the rows and the gap can open on either side of them. They can't be
 // picked up, and a marker is the sortable `over` when the pointer is on it,
 // which resolveSidebarDropTarget turns into the section the gap sits in.
@@ -77,6 +72,29 @@ function SortableSidebarMarker(props: {
         transform: CSS.Translate.toString(transform),
         // A newly revealed target must not slide from its hidden position.
         transition: props.marker.endsWith("-placeholder") ? "none" : transition,
+        visibility: transform?.scaleY === 0 ? "hidden" : undefined,
+      }}
+    >
+      {props.children}
+    </li>
+  );
+}
+
+function SortableSidebarGroupItem(props: { id: string; className?: string; children?: ReactNode }) {
+  const { setNodeRef, transform, transition } = useSortable({
+    id: `group:${props.id}`,
+    disabled: { draggable: true },
+    animateLayoutChanges: animateSidebarLayoutChanges,
+  });
+  return (
+    <li
+      ref={setNodeRef}
+      role="presentation"
+      data-thread-selection-safe
+      className={cn("list-none", props.className)}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
         visibility: transform?.scaleY === 0 ? "hidden" : undefined,
       }}
     >
@@ -181,13 +199,13 @@ export function SidebarSectionHeader(props: {
     <SortableSidebarMarker
       marker={props.marker}
       data-testid={`sidebar-${props.marker}`}
-      className={cn("mx-0.5 h-8", props.className)}
+      className={cn("mx-0.5 mt-1.5 h-8 first:mt-0", props.className)}
     >
       <CollapsibleSectionHeader
         onClick={props.toggle.onToggle}
         expanded={props.toggle.expanded}
         tone={props.isDropTarget ? "accent" : props.dragging ? "emphasized" : "muted"}
-        accessory={<span className="font-normal tabular-nums">{props.count}</span>}
+        accessory={<span className="text-2xs font-normal tabular-nums">{props.count}</span>}
         data-testid={`sidebar-${shelf}-shelf-toggle`}
       >
         {props.label}
@@ -196,16 +214,39 @@ export function SidebarSectionHeader(props: {
   );
 }
 
-// A date or status heading inside the inbox: text and a count, no toggle.
-export function SidebarGroupHeading(props: { label: string; count: number }) {
-  return (
-    <li
-      role="presentation"
-      className="flex list-none items-center gap-2 px-2.5 pt-3 pb-1 text-2xs font-semibold text-sidebar-muted-foreground first:pt-1"
+// Collapsible Pinned / Date / Status / Project / Account section header matching shelf headers.
+export function SidebarGroupHeading(props: {
+  id?: string;
+  label: string;
+  count: number;
+  expanded?: boolean;
+  onToggle?: () => void;
+  tone?: "muted" | "emphasized" | "accent";
+  sortable?: boolean;
+}) {
+  const header = (
+    <CollapsibleSectionHeader
+      expanded={props.expanded ?? true}
+      onClick={props.onToggle}
+      tone={props.tone ?? "muted"}
+      accessory={<span className="text-2xs font-normal tabular-nums">{props.count}</span>}
+      data-testid={props.id ? `sidebar-group-toggle-${props.id}` : undefined}
     >
-      <span>{props.label}</span>
-      <span className="font-normal tabular-nums text-sidebar-muted-foreground">{props.count}</span>
-      <span aria-hidden className="h-px flex-1 bg-sidebar-border/70" />
+      {props.label}
+    </CollapsibleSectionHeader>
+  );
+
+  if (props.sortable && props.id) {
+    return (
+      <SortableSidebarGroupItem id={props.id} className="mx-0.5 pt-1.5 first:pt-0">
+        {header}
+      </SortableSidebarGroupItem>
+    );
+  }
+
+  return (
+    <li role="presentation" className="mx-0.5 mt-1.5 list-none first:mt-0">
+      {header}
     </li>
   );
 }
