@@ -97,8 +97,13 @@ jobs:
       - name: Check generated Expo GraphQL operations
         run: vp run --filter t3 generate --check
 
-      - name: Check
-        run: vp check
+      - name: Check formatting
+        run: vp fmt --check
+
+      # Fails on any lint error missing from scripts/lint-baseline.json. The baseline only shrinks.
+      - name: Lint
+        if: ${{ !cancelled() }}
+        run: node scripts/lint-ratchet.ts
 
   build:
     name: Build and Typecheck

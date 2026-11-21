@@ -136,6 +136,8 @@ export default defineConfig({
     ignorePatterns: [
       ".repos",
       ".repos/**",
+      // A link to .agents/skills: linting it counts the same files twice.
+      ".claude/skills/**",
       "dist",
       "dist-electron",
       "node_modules",
