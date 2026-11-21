@@ -88,7 +88,6 @@ After completing a simplification pass:
 - [ ] No dead code was left behind (unused imports, unreachable branches)
 - [ ] A teammate or review agent would approve the change as a net improvement
 
-
 ## Done when
 
 - The project test command exits 0 after each simplification, and the diff holds no unrelated change.

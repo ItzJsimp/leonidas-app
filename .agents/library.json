@@ -31,7 +31,18 @@
       "name": "task-management",
       "kind": "skill",
       "pack": "extras",
-      "needs": ["scripts/Archive-CompletedTasks.ps1", "scripts/Audit-Tasks.ps1", "scripts/Build-TasksIndex.ps1", "scripts/Capture-Thought.ps1", "scripts/Complete-Task.ps1", "scripts/Get-Tasks.ps1", "scripts/New-Task.ps1", "scripts/Test-TaskGate.ps1", "scripts/skills/task-management/Invoke-TaskManagement.ps1", "scripts/task-health-sweep.py"],
+      "needs": [
+        "scripts/Archive-CompletedTasks.ps1",
+        "scripts/Audit-Tasks.ps1",
+        "scripts/Build-TasksIndex.ps1",
+        "scripts/Capture-Thought.ps1",
+        "scripts/Complete-Task.ps1",
+        "scripts/Get-Tasks.ps1",
+        "scripts/New-Task.ps1",
+        "scripts/Test-TaskGate.ps1",
+        "scripts/skills/task-management/Invoke-TaskManagement.ps1",
+        "scripts/task-health-sweep.py"
+      ],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -112,7 +123,14 @@
       "name": "research",
       "kind": "skill",
       "pack": "core",
-      "needs": ["scripts/Build-Index.ps1", "scripts/Find-EmDashes.ps1", "scripts/Get-ResearchTelemetryStats.ps1", "scripts/New-Memory.ps1", "scripts/Query-Evidence.ps1", "scripts/Test-DossierContradictions.ps1"],
+      "needs": [
+        "scripts/Build-Index.ps1",
+        "scripts/Find-EmDashes.ps1",
+        "scripts/Get-ResearchTelemetryStats.ps1",
+        "scripts/New-Memory.ps1",
+        "scripts/Query-Evidence.ps1",
+        "scripts/Test-DossierContradictions.ps1"
+      ],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -220,7 +238,13 @@
       "name": "chat-sync",
       "kind": "skill",
       "pack": "extras",
-      "needs": ["scripts/Build-Index.ps1", "scripts/Capture-Thought.ps1", "scripts/New-ADR.ps1", "scripts/New-Memory.ps1", "scripts/New-Task.ps1"],
+      "needs": [
+        "scripts/Build-Index.ps1",
+        "scripts/Capture-Thought.ps1",
+        "scripts/New-ADR.ps1",
+        "scripts/New-Memory.ps1",
+        "scripts/New-Task.ps1"
+      ],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -238,7 +262,17 @@
       "name": "component-audit",
       "kind": "skill",
       "pack": "extras",
-      "needs": ["scripts/Audit-Substrate.ps1", "scripts/Build-Index.ps1", "scripts/Detect-Drift.ps1", "scripts/New-AiosScheduledTask.ps1", "scripts/New-Memory.ps1", "scripts/Set-HarnessChatName.ps1", "scripts/Sync-AgentSkills.ps1", "scripts/Sync-Mem0Index.ps1", "scripts/track-task.py"],
+      "needs": [
+        "scripts/Audit-Substrate.ps1",
+        "scripts/Build-Index.ps1",
+        "scripts/Detect-Drift.ps1",
+        "scripts/New-AiosScheduledTask.ps1",
+        "scripts/New-Memory.ps1",
+        "scripts/Set-HarnessChatName.ps1",
+        "scripts/Sync-AgentSkills.ps1",
+        "scripts/Sync-Mem0Index.ps1",
+        "scripts/track-task.py"
+      ],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -256,7 +290,14 @@
       "name": "skill-creator",
       "kind": "skill",
       "pack": "core",
-      "needs": ["scripts/Audit-Substrate.ps1", "scripts/Build-Index.ps1", "scripts/Detect-Drift.ps1", "scripts/Export-UniversalAIOS.py", "scripts/New-Skill.ps1", "scripts/Sync-AgentSkills.ps1"],
+      "needs": [
+        "scripts/Audit-Substrate.ps1",
+        "scripts/Build-Index.ps1",
+        "scripts/Detect-Drift.ps1",
+        "scripts/Export-UniversalAIOS.py",
+        "scripts/New-Skill.ps1",
+        "scripts/Sync-AgentSkills.ps1"
+      ],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "mattpocock/skills"
@@ -292,7 +333,15 @@
       "name": "automation-architect",
       "kind": "skill",
       "pack": "extras",
-      "needs": ["scripts/Audit-Substrate.ps1", "scripts/Compile-AutomationManifest.ps1", "scripts/Detect-Drift.ps1", "scripts/Get-AutomationSurface.ps1", "scripts/New-AiosScheduledTask.ps1", "scripts/Route-SystemOne.ps1", "scripts/route-system-one.py"],
+      "needs": [
+        "scripts/Audit-Substrate.ps1",
+        "scripts/Compile-AutomationManifest.ps1",
+        "scripts/Detect-Drift.ps1",
+        "scripts/Get-AutomationSurface.ps1",
+        "scripts/New-AiosScheduledTask.ps1",
+        "scripts/Route-SystemOne.ps1",
+        "scripts/route-system-one.py"
+      ],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"
@@ -841,7 +890,11 @@
       "name": "windows-toast",
       "kind": "skill",
       "pack": "windows-pc",
-      "needs": ["scripts/Handle-ToastAction.ps1", "scripts/Register-ToastProtocol.ps1", "scripts/Send-TaskToast.ps1"],
+      "needs": [
+        "scripts/Handle-ToastAction.ps1",
+        "scripts/Register-ToastProtocol.ps1",
+        "scripts/Send-TaskToast.ps1"
+      ],
       "version": "1.0.0",
       "license": "MIT",
       "credit": "Leonidas"

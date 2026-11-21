@@ -18,12 +18,12 @@ Turn everything this session learned into one **handoff document**, so a fresh a
 
 ## Pick the mode
 
-| Mode | Use when | Follow |
-| --- | --- | --- |
-| **Handoff** (default) | The task, engine or directory changes, or the context is full. | This file |
-| **Recap** | The user wants a read-only summary of what changed. Formerly `/recap`. | [references/recap.md](references/recap.md) |
-| **Close the chat** | A substantive session ends. AIOS only. Formerly `/chat-closeout`. | [references/chat-closeout.md](references/chat-closeout.md) |
-| **Close the day** | The working day ends. AIOS only. Formerly `/daily-closeout`. | [references/daily-closeout.md](references/daily-closeout.md) |
+| Mode                  | Use when                                                               | Follow                                                       |
+| --------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Handoff** (default) | The task, engine or directory changes, or the context is full.         | This file                                                    |
+| **Recap**             | The user wants a read-only summary of what changed. Formerly `/recap`. | [references/recap.md](references/recap.md)                   |
+| **Close the chat**    | A substantive session ends. AIOS only. Formerly `/chat-closeout`.      | [references/chat-closeout.md](references/chat-closeout.md)   |
+| **Close the day**     | The working day ends. AIOS only. Formerly `/daily-closeout`.           | [references/daily-closeout.md](references/daily-closeout.md) |
 
 In an AIOS, also read [references/aios-layer.md](references/aios-layer.md): where handoffs live, the resume gate, and the order of the ceremonies.
 

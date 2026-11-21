@@ -23,13 +23,13 @@ A **phase boundary** is the transition point between two phases. It is the only 
 
 ## The Five Boundary Actions
 
-| Action                 | Mechanism                | Tradeoff                                                             | Best Used When                                                                    |
-| ---------------------- | ------------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| **Continue**           | Remain in active session | Zero context loss; consumes smart zone (about 150k tokens, or the model's live warning)          | Next phase requires verbatim reasoning as a primary source                        |
-| **Fresh Session**      | Open new chat window     | Resets window to 100% capacity; preserves disk transcripts           | Current context is disposable; task checklist already committed                   |
-| **`/session-handoff`** | Emit markdown briefing   | Creates portable transfer artifact across directories/harnesses      | Switching engines (Claude <-> Antigravity), directories, or delegating            |
-| **Subagent**           | Launch isolated agent    | Zero primary session pollution; executes in background               | Task is self-contained and execution is autonomous (e.g. diff review, test sweep) |
-| **`/compact`**         | Context summarization    | Compresses window; turns primary source into lossy secondary summary | Must stay in same session/directory but smart zone limit reached                  |
+| Action                 | Mechanism                | Tradeoff                                                                                | Best Used When                                                                    |
+| ---------------------- | ------------------------ | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **Continue**           | Remain in active session | Zero context loss; consumes smart zone (about 150k tokens, or the model's live warning) | Next phase requires verbatim reasoning as a primary source                        |
+| **Fresh Session**      | Open new chat window     | Resets window to 100% capacity; preserves disk transcripts                              | Current context is disposable; task checklist already committed                   |
+| **`/session-handoff`** | Emit markdown briefing   | Creates portable transfer artifact across directories/harnesses                         | Switching engines (Claude <-> Antigravity), directories, or delegating            |
+| **Subagent**           | Launch isolated agent    | Zero primary session pollution; executes in background                                  | Task is self-contained and execution is autonomous (e.g. diff review, test sweep) |
+| **`/compact`**         | Context summarization    | Compresses window; turns primary source into lossy secondary summary                    | Must stay in same session/directory but smart zone limit reached                  |
 
 ---
 
