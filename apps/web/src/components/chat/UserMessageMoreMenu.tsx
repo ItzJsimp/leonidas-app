@@ -61,11 +61,11 @@ export function UserMessageMoreMenu({ text }: { readonly text: string }) {
     busy;
   const notepadDisabled = !canDrop || !text.trim() || busy;
 
-  const savePrompt = async () => {
+  const savePrompt = () => {
     if (promptDisabled) return;
     setBusy(true);
-    try {
-      await saver.save(
+    return saver
+      .save(
         {
           key: `${ctx.threadRef?.threadId ?? "thread"}:${text}`,
           body: text,
@@ -74,32 +74,33 @@ export function UserMessageMoreMenu({ text }: { readonly text: string }) {
         },
         () => true,
         () => {},
-      );
-      toastManager.add({ type: "success", title: "Saved as prompt" });
-    } catch (error) {
-      toastManager.add({
-        type: "error",
-        title: "Could not save prompt",
-        description: errorText(error),
-      });
-    } finally {
-      setBusy(false);
-    }
+      )
+      .then(() => {
+        toastManager.add({ type: "success", title: "Saved as prompt" });
+      })
+      .catch((error: unknown) => {
+        toastManager.add({
+          type: "error",
+          title: "Could not save prompt",
+          description: errorText(error),
+        });
+      })
+      .finally(() => setBusy(false));
   };
 
-  const addToNotepad = async () => {
+  const addToNotepad = () => {
     if (notepadDisabled) return;
     setBusy(true);
-    try {
-      const result = await drop(text);
-      if (!result.ok && result.error) {
-        toastManager.add({ type: "error", title: "Could not save", description: result.error });
-      }
-    } catch (error) {
-      toastManager.add({ type: "error", title: "Could not save", description: errorText(error) });
-    } finally {
-      setBusy(false);
-    }
+    return drop(text)
+      .then((result) => {
+        if (!result.ok && result.error) {
+          toastManager.add({ type: "error", title: "Could not save", description: result.error });
+        }
+      })
+      .catch((error: unknown) => {
+        toastManager.add({ type: "error", title: "Could not save", description: errorText(error) });
+      })
+      .finally(() => setBusy(false));
   };
 
   return (

@@ -159,13 +159,16 @@ export function useAutoPickSkills(props: {
 
     busyRef.current = true;
     setBusy(true);
-    let outcome;
-    try {
-      outcome = await autoPickSkills({ prompt: base, projectText, skills, cap, askModel });
-    } finally {
+    const outcome = await autoPickSkills({
+      prompt: base,
+      projectText,
+      skills,
+      cap,
+      askModel,
+    }).finally(() => {
       busyRef.current = false;
       setBusy(false);
-    }
+    });
     if (getPrompt() !== current) {
       toastManager.add({
         type: "info",

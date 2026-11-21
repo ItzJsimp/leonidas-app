@@ -30,10 +30,11 @@ export function DiscordNamesCard(props: {
   // "Stop waiting" cannot end the engine's wait, so a result that comes after it is ignored.
   const attempt = useRef(0);
 
+  const { call } = props;
   const refresh = useCallback(async () => {
-    const result = await props.call("GET", "discord");
+    const result = await call("GET", "discord");
     if (result.ok) setStatus(parseDiscord(result.value));
-  }, [props.call]);
+  }, [call]);
 
   // Read the saved state on load so a finished setup shows as done before it is opened.
   useEffect(() => {

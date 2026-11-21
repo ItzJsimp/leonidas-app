@@ -82,12 +82,13 @@ export function ThreadDetailsFoldLine({
 export function ThreadDetailsFoldButton({
   label,
   onFold,
-  tooltip = `Fold ${label} to one line`,
+  tooltip: tooltipOverride,
 }: {
   readonly label: string;
   readonly onFold: () => void;
   readonly tooltip?: string;
 }) {
+  const tooltip = tooltipOverride ?? `Fold ${label} to one line`;
   return (
     <Tooltip>
       <TooltipTrigger
