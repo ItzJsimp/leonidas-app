@@ -805,7 +805,8 @@ export function buildCodexTurnStartParams(input: {
             mode: input.runtimePolicy.interactionMode === "plan" ? "plan" : "default",
             settings: {
               model: input.modelSelection.model,
-              reasoning_effort: effort ?? "medium",
+              // Codex falls back to the model's default effort when this is left out.
+              ...(effort === undefined ? {} : { reasoning_effort: effort }),
               ...(developerInstructions === undefined
                 ? {}
                 : { developer_instructions: developerInstructions }),
