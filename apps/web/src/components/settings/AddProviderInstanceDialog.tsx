@@ -330,7 +330,7 @@ export function AddProviderInstanceDialog({
       setIsSaving(false);
       toastManager.add({
         type: "error",
-        title: "Could not add the AI account. Check the details and try again",
+        title: "Could not add the AI account",
         ...userErrorToastFields(error),
       });
       return;

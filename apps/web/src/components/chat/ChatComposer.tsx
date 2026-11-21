@@ -4121,7 +4121,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       if (composerFileNeedsReattach(file)) {
         toastManager.add({
           type: "error",
-          title: "Attach the dropped files again, or remove them. Then save the draft.",
+          title: "The draft was not saved",
+          description: "Attach the dropped files again, or remove them. Then save.",
         });
         return;
       }
@@ -4184,8 +4185,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         toastManager.add({
           type: "error",
           title: "Could not save this draft",
-          description:
-            "The browser did not save the draft. Your message is still here. Free some browser storage and try again.",
+          description: "Your message is still here. Free some browser storage. Then try again.",
           data: { hideCopyButton: true },
         });
         return;
@@ -4296,7 +4296,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         toastManager.add({
           type: "warning",
           title: "The saved images did not attach",
-          description: `You restored or deleted that draft before ${kept.length} image${kept.length === 1 ? "" : "s"} finished saving. Attach ${kept.length === 1 ? "it" : "them"} again if you need ${kept.length === 1 ? "it" : "them"}.`,
+          description: `The draft changed before ${kept.length === 1 ? "the image" : "the images"} finished saving. Attach again if needed.`,
           data: { hideCopyButton: true },
         });
       }
@@ -5091,7 +5091,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         const attached = storedFiles[0]!;
         toastManager.add({
           type: "info",
-          title: `Large paste added as the file ${attached.name}`,
+          title: "Large paste added as a file",
           description: `${formatAttachmentSize(attached.sizeBytes)} · Use ${
             isMacPlatform(navigator.platform) ? "⌘⇧V" : "Ctrl+Shift+V"
           } to paste it as text.`,
@@ -5596,8 +5596,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         if (target === "remote") {
           toastManager.add({
             type: "error",
-            title:
-              "You cannot drop folders on a remote computer. Type the folder path with @ instead.",
+            title: "Folders cannot be dropped here",
+            description: "Type the folder path with @ instead.",
           });
           return;
         }

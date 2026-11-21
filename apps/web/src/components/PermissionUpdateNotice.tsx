@@ -44,9 +44,8 @@ function EnvironmentPermissionNotice({
       toastManager.close(id);
     };
     const id = toastManager.add({
-      title: `Permissions have changed for ${label}`,
-      description:
-        "This connection still uses the old permissions, so some actions may no longer be available. Connect again with a new link that has the permissions you need.",
+      title: `New permissions for ${label}`,
+      description: "Some actions may not work. Connect again with a new link.",
       timeout: 0,
       onClose: persistDismissal,
       actionProps: {

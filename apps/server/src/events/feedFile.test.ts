@@ -125,7 +125,26 @@ describe("foldDedupe", () => {
     expect(folded.map((e) => e.count)).toEqual([2, 1]);
   });
 
-  it("never folds events without a key", () => {
-    expect(foldDedupe([event("a", AT), event("a", AT + 1)])).toHaveLength(2);
+  it("folds events without a key when source, type and title match", () => {
+    const folded = foldDedupe([event("a", AT), event("a", AT + 1), event("b", AT + 2)]);
+    expect(folded.map((e) => [e.title, e.count])).toEqual([
+      ["a", 2],
+      ["b", 1],
+    ]);
+  });
+
+  it("keeps events without a key apart when the target differs", () => {
+    const at = (thread: string) =>
+      completeFeedEvent(
+        {
+          level: "failed",
+          type: "script.failed",
+          title: "same",
+          actor: { kind: "script", name: "test.ps1" },
+          target: { thread },
+        },
+        AT,
+      );
+    expect(foldDedupe([at("one"), at("two")])).toHaveLength(2);
   });
 });

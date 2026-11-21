@@ -24,12 +24,13 @@ export const NOTIFICATION_RULES: ReadonlyArray<{
 
 type RuleEvent = Pick<FeedEvent, "type" | "level" | "actor">;
 
-const APP_FINISHED = new Set(["agent.finished", "agent.child_finished"]);
-
-/** Questions and failures pop up. Info stays in Notifications, except chats the app saw finish. */
+/**
+ * Questions and failures pop up. Info stays in Notifications, except a chat the app saw finish.
+ * A delegated task stays quiet: its parent chat reports the result.
+ */
 export function defaultRule(event: RuleEvent): NotificationRule {
   if (event.level !== "info") return "toast";
-  return event.actor.kind === "app" && APP_FINISHED.has(event.type) ? "toast" : "inbox";
+  return event.actor.kind === "app" && event.type === "agent.finished" ? "toast" : "inbox";
 }
 
 export const ruleFor = (event: RuleEvent, rules: NotificationRules): NotificationRule =>

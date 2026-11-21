@@ -3801,7 +3801,7 @@ export default function ChatView(props: ChatViewProps) {
         id: "load-balancing-attachments",
         title: "Keep attachments on this computer",
         description:
-          "Remove the attachments before you choose automatic routing. Then attach them on the computer you choose.",
+          "Remove the attachments to use automatic routing. Or attach them on the computer you choose.",
       });
       return;
     }
@@ -4707,8 +4707,6 @@ export default function ChatView(props: ChatViewProps) {
       }
       const nextScripts = activeProjectScripts.filter((script) => script.id !== scriptId);
 
-      const deletedName = activeProjectScripts.find((s) => s.id === scriptId)?.name;
-
       const result = await persistProjectScripts({
         projectId: activeProject.id,
         projectCwd: activeProject.workspaceRoot,
@@ -4717,12 +4715,7 @@ export default function ChatView(props: ChatViewProps) {
         keybinding: null,
         keybindingCommand: commandForProjectScript(scriptId),
       });
-      if (result._tag === "Success") {
-        toastManager.add({
-          type: "success",
-          title: `Deleted action "${deletedName ?? "Unknown"}"`,
-        });
-      } else if (!isAtomCommandInterrupted(result)) {
+      if (result._tag !== "Success" && !isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
         toastManager.add(
           stackedThreadToast({

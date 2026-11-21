@@ -18,9 +18,9 @@ export function LegacyThreadMigrationToast() {
       toastIdRef.current = toastManager.add({
         type: "loading",
         title: "Restoring your chats…",
-        description: `Migrating ${migration.totalThreadCount.toLocaleString()} ${
+        description: `${migration.totalThreadCount.toLocaleString()} ${
           migration.totalThreadCount === 1 ? "chat" : "chats"
-        } from the previous version. You can keep working while this finishes.`,
+        } to move. You can keep working.`,
         timeout: 0,
       });
       return;

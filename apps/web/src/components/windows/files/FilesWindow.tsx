@@ -86,7 +86,6 @@ export function FilesWindow() {
     setAsking(null);
     setSelectedId(null);
     setPreviewOpen(false);
-    toastManager.add({ type: "success", title: "File deleted", description: file.name });
   };
 
   const actions = (

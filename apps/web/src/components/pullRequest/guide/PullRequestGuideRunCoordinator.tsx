@@ -8,6 +8,7 @@ import { useEnvironmentQuery } from "~/state/query";
 import {
   hasDesktopNotifications,
   hasNotificationSound,
+  isInNotificationQuietHours,
   playNotificationSound,
 } from "~/threadNotifications";
 
@@ -80,17 +81,24 @@ function GuideRunWatcher({ runKey, watch }: { runKey: string; watch: GuideRunWat
         },
       });
     };
-    const mode = getClientSettings().notificationMode;
-    if (hasNotificationSound(mode)) {
-      void playNotificationSound(failure === null ? "completion" : "input", () =>
-        hasNotificationSound(getClientSettings().notificationMode),
+    const settings = getClientSettings();
+    const mode = settings.notificationMode;
+    // Quiet hours silence sounds and system alerts here, as they do for chats.
+    const quiet = isInNotificationQuietHours(settings);
+    if (hasNotificationSound(mode) && !quiet) {
+      void playNotificationSound(
+        failure === null ? "completion" : "input",
+        () =>
+          hasNotificationSound(getClientSettings().notificationMode) &&
+          !isInNotificationQuietHours(getClientSettings()),
+        settings.notificationVolume,
       );
     }
     if (looking) {
       const toastId = toastManager.add({
         type: failure === null ? "success" : "error",
         title,
-        description: failure === null ? body : `${body}: ${failure}`,
+        description: body,
         data: {
           hideCopyButton: true,
           leadingIcon:
@@ -112,6 +120,7 @@ function GuideRunWatcher({ runKey, watch }: { runKey: string; watch: GuideRunWat
     }
     if (
       !hasDesktopNotifications(mode) ||
+      quiet ||
       typeof Notification === "undefined" ||
       Notification.permission !== "granted"
     )

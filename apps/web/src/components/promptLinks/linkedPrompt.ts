@@ -8,8 +8,8 @@ export function warnAboutHiddenCharacters(prompt: LinkedPrompt): void {
   if (prompt.hiddenCharacters === 0) return;
   toastManager.add({
     type: "warning",
-    title: "This prompt had hidden characters, it may be malicious",
-    description: `Leonidas removed ${prompt.hiddenCharacters} hidden character${prompt.hiddenCharacters === 1 ? "" : "s"}. Read the prompt before you send it.`,
+    title: "Hidden characters removed",
+    description: "Read the prompt before you send it.",
     timeout: 0,
   });
 }

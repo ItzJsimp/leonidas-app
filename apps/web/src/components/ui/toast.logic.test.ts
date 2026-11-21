@@ -5,6 +5,7 @@ import {
   hasVisibleToastAction,
   shouldHideCollapsedToastContent,
   shouldRenderThreadScopedToast,
+  toastBody,
 } from "./toast.logic";
 
 describe("hasVisibleToastAction", () => {
@@ -171,5 +172,21 @@ describe("shouldRenderThreadScopedToast", () => {
       ),
       true,
     );
+  });
+});
+
+describe("toastBody", () => {
+  it("keeps a short body whole", () => {
+    assert.equal(toastBody("Fix the sidebar", 0), "Fix the sidebar");
+  });
+
+  it("cuts a long body to 80 characters", () => {
+    const body = toastBody("x".repeat(300), 0);
+    assert.equal(body.length, 80);
+    assert.equal(body.endsWith("..."), true);
+  });
+
+  it("counts the alerts it replaced", () => {
+    assert.equal(toastBody("Fix the sidebar", 2), "Fix the sidebar and 2 more");
   });
 });
