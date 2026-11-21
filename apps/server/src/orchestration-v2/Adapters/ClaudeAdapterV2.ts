@@ -135,6 +135,7 @@ import { expandSkillsInAnswers } from "@t3tools/provider-core/server/skillMentio
 import {
   claudeLaunchArgDirectories,
   discoverClaudeSkills,
+  resolveCorePluginDirectory,
 } from "../../provider/Drivers/ClaudeSkills.ts";
 import {
   compileClaudeModelSelection,
@@ -1397,6 +1398,8 @@ export function makeClaudeQueryOptions(input: {
   /** Lean persona start: own prompt, no setting sources (no CLAUDE.md chain). */
   readonly persona?: Pick<OrchestrationV2ThreadPersona, "systemPrompt">;
   readonly appendSystemPromptFileText?: string;
+  /** Local Claude plugin that holds the core skills (ADR-0102). A lean persona start skips it. */
+  readonly corePluginDir?: string;
 }): ClaudeAgentSdkQueryOptions {
   const compiledSelection = compileClaudeModelSelection(input.modelSelection);
   const {
@@ -1489,6 +1492,9 @@ export function makeClaudeQueryOptions(input: {
       ? {}
       : { env: withInstalledClaudeOnPath(input.environment) }),
     ...(input.mcpServers === undefined ? {} : { mcpServers: input.mcpServers }),
+    ...(input.corePluginDir === undefined || input.persona !== undefined
+      ? {}
+      : { plugins: [{ type: "local" as const, path: input.corePluginDir }] }),
     ...(input.persona === undefined
       ? {
           systemPrompt: {
@@ -9723,6 +9729,18 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                   policyTools: queryPolicy.tools,
                   mcpServers: mcpOverrides.mcpServers,
                 });
+          // The bundled core skills (ADR-0102). A lean persona start skips them.
+          const corePluginDir =
+            personaShape === undefined
+              ? yield* resolveCorePluginDirectory(
+                  adapterOptions.settings,
+                  turnInput.runtimePolicy.cwd ?? undefined,
+                  adapterOptions.environment,
+                ).pipe(
+                  Effect.provideService(FileSystem.FileSystem, fileSystem),
+                  Effect.provideService(Path.Path, path),
+                )
+              : undefined;
           const queryOptions = makeClaudeQueryOptions({
             modelSelection: turnInput.modelSelection,
             nativeThreadId,
@@ -9732,6 +9750,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             replyStyle: turnInput.runtimePolicy.replyStyle,
             homeAgent: turnInput.runtimePolicy.homeAgent,
             attachmentsDir,
+            ...(corePluginDir === undefined ? {} : { corePluginDir }),
             settings: adapterOptions.settings,
             environment: claudeTurnEnvironment(adapterOptions.environment, {
               model: turnInput.modelSelection.model,

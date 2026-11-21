@@ -913,6 +913,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       "!apps/desktop/resources/scribe-engine/**/*",
       "!apps/desktop/prod-resources/scribe-engine",
       "!apps/desktop/prod-resources/scribe-engine/**/*",
+      "!apps/desktop/prod-resources/core-skills-plugin",
+      "!apps/desktop/prod-resources/core-skills-plugin/**/*",
       "!apps/desktop/gnome-extension",
       "!apps/desktop/gnome-extension/**/*",
     ]);
@@ -2779,6 +2781,10 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       {
         from: "apps/desktop/prod-resources/resource-monitor",
         to: "resource-monitor",
+      },
+      {
+        from: "apps/desktop/prod-resources/core-skills-plugin",
+        to: "core-skills-plugin",
       },
     ]);
     assert.deepStrictEqual(resolveResourceMonitorRustTargets("mac", "universal"), [

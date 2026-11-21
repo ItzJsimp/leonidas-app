@@ -1505,6 +1505,55 @@ describe("DesktopBackendConfiguration", () => {
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
   );
 
+  it.effect("points the server at the bundled core skills plugin in a packaged build", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const baseDir = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-desktop-backend-config-test-",
+      });
+      const resourcesPath = path.join(baseDir, "resources");
+      const dirname = `${resourcesPath}/app.asar/apps/desktop/dist-electron`;
+      const pluginPath = path.join(resourcesPath, "core-skills-plugin");
+      yield* fileSystem.makeDirectory(path.join(pluginPath, ".claude-plugin"), { recursive: true });
+      yield* fileSystem.writeFileString(
+        path.join(pluginPath, ".claude-plugin", "plugin.json"),
+        "{}",
+      );
+      yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          const previous = process.env.LEONIDAS_CORE_SKILLS_PLUGIN_DIR;
+          delete process.env.LEONIDAS_CORE_SKILLS_PLUGIN_DIR;
+          return previous;
+        }),
+        (previous) => Effect.sync(() => restoreEnv("LEONIDAS_CORE_SKILLS_PLUGIN_DIR", previous)),
+      );
+
+      yield* Effect.gen(function* () {
+        const configuration = yield* DesktopBackendConfiguration.DesktopBackendConfiguration;
+        const config = yield* configuration.resolvePrimary;
+        assert.equal(config.env.LEONIDAS_CORE_SKILLS_PLUGIN_DIR, pluginPath);
+      }).pipe(
+        Effect.provide(
+          layerBackendConfiguration().pipe(
+            Layer.provideMerge(layerServerExposure),
+            Layer.provideMerge(DesktopAppSettings.layerTest()),
+            Layer.provideMerge(DesktopWslServerTree.layerTest()),
+            Layer.provideMerge(DesktopWslEnvironment.layerTest()),
+            Layer.provideMerge(
+              layerEnvironment(baseDir, {
+                appPath: `${resourcesPath}/app.asar`,
+                dirname,
+                isPackaged: true,
+                resourcesPath,
+              }),
+            ),
+          ),
+        ),
+      );
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+  );
+
   it.effect("points the server at the bundled Scribe engine in a packaged Windows build", () =>
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;

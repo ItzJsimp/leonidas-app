@@ -19,6 +19,8 @@ type ClaudeSkillRoot = {
   readonly directory: string;
   readonly scope: ClaudeSkillScope;
   readonly prefix?: string;
+  /** The bundled core plugin: a user or project skill of the same name replaces its skill. */
+  readonly core?: true;
 };
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
@@ -438,6 +440,90 @@ const discoverPluginSkillRoots = Effect.fn("discoverPluginSkillRoots")(function*
   return roots;
 });
 
+// The core skills ship as a local plugin (ADR-0102). Claude lists them as `<plugin>:<skill>`.
+const readCorePlugin = Effect.fn("readCorePlugin")(function* () {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const directory = (yield* HostProcess.Environment).LEONIDAS_CORE_SKILLS_PLUGIN_DIR?.trim();
+  if (!directory) return undefined;
+  const manifest = yield* fileSystem
+    .readFileString(path.join(directory, ".claude-plugin", "plugin.json"))
+    .pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(PluginManifest)),
+      Effect.orElseSucceed(() => undefined),
+    );
+  return manifest?.name === undefined ? undefined : { directory, prefix: manifest.name };
+});
+
+const discoverCorePluginRoots = Effect.fn("discoverCorePluginRoots")(function* () {
+  const path = yield* Path.Path;
+  const core = yield* readCorePlugin();
+  return core === undefined
+    ? []
+    : [
+        {
+          directory: path.join(core.directory, "skills"),
+          scope: "user" as const,
+          prefix: core.prefix,
+          core: true,
+        } satisfies ClaudeSkillRoot,
+      ];
+});
+
+// A skill folder per shadow set, made once per server run (the OS clears the temp folder).
+const coreSkillViews = new Map<string, string>();
+
+/**
+ * The plugin folder to load for a session. A user or project skill with the same name replaces the
+ * core skill (ADR-0102), so the model sees each name once: the full plugin when nothing is replaced,
+ * none when everything is, otherwise a copy that holds only the skills that stay.
+ */
+export const resolveCorePluginDirectory = Effect.fn("resolveCorePluginDirectory")(function* (
+  config: Pick<ClaudeSettings, "homePath"> & Partial<Pick<ClaudeSettings, "launchArgs">>,
+  cwd?: string,
+  environment?: NodeJS.ProcessEnv,
+): Effect.fn.Return<string | undefined, never, FileSystem.FileSystem | Path.Path> {
+  const core = yield* readCorePlugin();
+  if (core === undefined) return undefined;
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const all = [
+    ...(yield* fileSystem
+      .readDirectory(path.join(core.directory, "skills"))
+      .pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []))),
+  ].sort();
+  const listed = new Set(
+    (yield* discoverClaudeSkills(config, cwd, environment)).map((s) => s.name),
+  );
+  const kept = all.filter((name) => listed.has(`${core.prefix}:${name}`));
+  if (kept.length === all.length) return core.directory;
+  if (kept.length === 0) return undefined;
+  const key = `${core.directory}\n${kept.join(",")}`;
+  const cached = coreSkillViews.get(key);
+  if (
+    cached !== undefined &&
+    (yield* fileSystem.exists(cached).pipe(Effect.orElseSucceed(() => false)))
+  ) {
+    return cached;
+  }
+  return yield* Effect.gen(function* () {
+    const view = yield* fileSystem.makeTempDirectory({ prefix: "leonidas-core-skills-" });
+    yield* fileSystem.copy(
+      path.join(core.directory, ".claude-plugin"),
+      path.join(view, ".claude-plugin"),
+    );
+    for (const name of kept) {
+      yield* fileSystem.copy(
+        path.join(core.directory, "skills", name),
+        path.join(view, "skills", name),
+      );
+    }
+    coreSkillViews.set(key, view);
+    return view;
+    // A copy that fails leaves the full plugin: the model then sees a shadowed name twice, nothing breaks.
+  }).pipe(Effect.orElseSucceed(() => core.directory));
+});
+
 const resolveClaudeConfigDirPath = Effect.fn("resolveClaudeConfigDirPath")(function* (
   config: Pick<ClaudeSettings, "homePath">,
   environment: NodeJS.ProcessEnv,
@@ -535,6 +621,7 @@ export const discoverClaudeSkills = Effect.fn("discoverClaudeSkills")(function* 
       enabledPlugins,
       environment ?? process.env,
     )),
+    ...(yield* discoverCorePluginRoots()),
   ];
 
   const skillsByName = new Map<string, ServerProviderSkill>();
@@ -581,7 +668,7 @@ export const discoverClaudeSkills = Effect.fn("discoverClaudeSkills")(function* 
         if (mention?.[2] !== name) continue;
       }
 
-      if (skillsByName.has(name)) {
+      if (skillsByName.has(name) || (root.core && skillsByName.has(directoryName))) {
         continue;
       }
 

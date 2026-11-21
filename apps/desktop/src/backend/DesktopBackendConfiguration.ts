@@ -223,6 +223,23 @@ const resolveScribeEnginePath = Effect.fn("desktop.backendConfiguration.resolveS
   },
 );
 
+// The installed app bundles the core skills as a Claude plugin (ADR-0102); the server hands it to
+// every Claude session. A path the host already set (a dev folder) wins.
+const resolveCoreSkillsPluginPath = Effect.fn(
+  "desktop.backendConfiguration.resolveCoreSkillsPluginPath",
+)(function* () {
+  const environment = yield* DesktopEnvironment.DesktopEnvironment;
+  const fileSystem = yield* FileSystem.FileSystem;
+  if (!environment.isPackaged) return Option.none<string>();
+  if (process.env.LEONIDAS_CORE_SKILLS_PLUGIN_DIR?.trim()) return Option.none<string>();
+  const candidate = environment.path.join(environment.resourcesPath, "core-skills-plugin");
+  return (yield* fileSystem
+    .exists(environment.path.join(candidate, ".claude-plugin", "plugin.json"))
+    .pipe(Effect.orElseSucceed(() => false)))
+    ? Option.some(candidate)
+    : Option.none<string>();
+});
+
 const readPersistedBackendObservabilitySettings = Effect.gen(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
@@ -520,6 +537,7 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
     input: SharedBootstrapInput & {
       readonly resourceMonitorPath: Option.Option<string>;
       readonly scribeEnginePath: Option.Option<string>;
+      readonly coreSkillsPluginPath: Option.Option<string>;
       readonly cliPath: Option.Option<string>;
       readonly shellEnvironmentPrepared: boolean;
     },
@@ -576,6 +594,12 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
         ...Option.match(input.scribeEnginePath, {
           onNone: () => ({}),
           onSome: (scribeEnginePath) => ({ LEONIDAS_SCRIBE_ENGINE_BIN: scribeEnginePath }),
+        }),
+        ...Option.match(input.coreSkillsPluginPath, {
+          onNone: () => ({}),
+          onSome: (coreSkillsPluginPath) => ({
+            LEONIDAS_CORE_SKILLS_PLUGIN_DIR: coreSkillsPluginPath,
+          }),
         }),
       },
       extendEnv: true,
@@ -845,6 +869,10 @@ export const make = Effect.gen(function* () {
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(DesktopEnvironment.DesktopEnvironment, environment),
     );
+    const coreSkillsPluginPath = yield* resolveCoreSkillsPluginPath().pipe(
+      Effect.provideService(FileSystem.FileSystem, fileSystem),
+      Effect.provideService(DesktopEnvironment.DesktopEnvironment, environment),
+    );
     const cliPath = yield* DesktopCliShim.install.pipe(
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(DesktopEnvironment.DesktopEnvironment, environment),
@@ -854,6 +882,7 @@ export const make = Effect.gen(function* () {
       ...shared,
       resourceMonitorPath,
       scribeEnginePath,
+      coreSkillsPluginPath,
       cliPath,
       shellEnvironmentPrepared,
     }).pipe(

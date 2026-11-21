@@ -34,6 +34,25 @@ describe("ClaudeAdapterV2 persona start (ADR-0082)", () => {
     assert.isUndefined(options.settingSources);
   });
 
+  it("loads the core skills plugin in a normal thread and skips it for a persona (ADR-0102)", () => {
+    const base = {
+      modelSelection: selection,
+      nativeThreadId: "core-thread",
+      resume: false,
+      cwd: "/workspace",
+      corePluginDir: "/app/resources/core-skills-plugin",
+    } as const;
+    assert.deepEqual(ClaudeAdapterV2.makeClaudeQueryOptions(base).plugins, [
+      { type: "local", path: "/app/resources/core-skills-plugin" },
+    ]);
+    assert.isUndefined(
+      ClaudeAdapterV2.makeClaudeQueryOptions({ ...base, persona: { systemPrompt: "Lean." } })
+        .plugins,
+    );
+    const { corePluginDir: _unset, ...withoutPlugin } = base;
+    assert.isUndefined(ClaudeAdapterV2.makeClaudeQueryOptions(withoutPlugin).plugins);
+  });
+
   it("drops the app MCP server when the persona lists none of its tools", () => {
     const shape = ClaudeAdapterV2.claudePersonaToolShape({
       persona: { tools: ["Read", "Grep"] },

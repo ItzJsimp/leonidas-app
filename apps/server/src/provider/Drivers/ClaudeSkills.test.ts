@@ -4,8 +4,13 @@ import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 
-import { discoverClaudeSkills, skillOverrideSettingsPaths } from "./ClaudeSkills.ts";
+import {
+  discoverClaudeSkills,
+  resolveCorePluginDirectory,
+  skillOverrideSettingsPaths,
+} from "./ClaudeSkills.ts";
 import { planClaudeSkillDispatch } from "./ClaudeSkillDispatch.ts";
 
 // `approxTokens` tracks file length, so these assertions compare the rest.
@@ -247,6 +252,85 @@ it.layer(NodeServices.layer)("discoverClaudeSkills", (it) => {
         skills.map((skill) => skill.name),
         ["plugin:alias", "plugin:review"],
       );
+    }),
+  );
+
+  // ADR-0102: the core skills ship as a local plugin. A user or project skill of the same name wins.
+  const setupCore = Effect.fn(function* (shadowed: ReadonlyArray<string>) {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const workspace = yield* fs.makeTempDirectoryScoped({ prefix: "t3-claude-skills-" });
+    const core = path.join(workspace, "core-skills-plugin");
+    yield* fs.makeDirectory(path.join(workspace, "config"));
+    for (const name of ["tdd", "to-spec"]) {
+      yield* writeSkill(
+        path.join(core, "skills"),
+        name,
+        `---\nname: ${name}\ndescription: Core ${name}.\n---\n`,
+      );
+    }
+    for (const name of shadowed) {
+      yield* writeSkill(
+        path.join(workspace, ".claude", "skills"),
+        name,
+        `---\nname: ${name}\n---\n`,
+      );
+    }
+    yield* fs.makeDirectory(path.join(core, ".claude-plugin"), { recursive: true });
+    yield* fs.writeFileString(
+      path.join(core, ".claude-plugin", "plugin.json"),
+      '{"name":"leonidas"}',
+    );
+    return { workspace, core, config: { homePath: path.join(workspace, "config") } };
+  });
+  const withCore = (core: string) =>
+    Effect.provideService(HostProcess.Environment, { LEONIDAS_CORE_SKILLS_PLUGIN_DIR: core });
+
+  it.effect(
+    "lists the bundled core skills as <plugin>:<skill> and lets a project skill replace one",
+    () =>
+      Effect.gen(function* () {
+        const { workspace, core, config } = yield* setupCore(["tdd"]);
+        const names = (yield* discoverClaudeSkills(config, workspace).pipe(withCore(core))).map(
+          (skill) => skill.name,
+        );
+        assert.deepEqual(names, ["leonidas:to-spec", "tdd"]);
+        const none = yield* discoverClaudeSkills(config, workspace).pipe(
+          Effect.provideService(HostProcess.Environment, {}),
+        );
+        assert.deepEqual(
+          none.map((skill) => skill.name),
+          ["tdd"],
+        );
+      }),
+  );
+
+  it.effect("loads the whole core plugin, none of it, or a copy without the replaced skills", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const resolve = (setup: { workspace: string; core: string; config: { homePath: string } }) =>
+        resolveCorePluginDirectory(setup.config, setup.workspace).pipe(withCore(setup.core));
+
+      const untouched = yield* setupCore([]);
+      assert.equal(yield* resolve(untouched), untouched.core);
+
+      const allReplaced = yield* setupCore(["tdd", "to-spec"]);
+      assert.isUndefined(yield* resolve(allReplaced));
+
+      const partial = yield* setupCore(["tdd"]);
+      const view = yield* resolve(partial);
+      assert.isString(view);
+      assert.notEqual(view, partial.core);
+      assert.deepEqual(yield* fs.readDirectory(path.join(view!, "skills")), ["to-spec"]);
+      assert.isTrue(yield* fs.exists(path.join(view!, ".claude-plugin", "plugin.json")));
+      // The same shadow set reuses the copy.
+      assert.equal(yield* resolve(partial), view);
+
+      const unset = yield* resolveCorePluginDirectory(partial.config, partial.workspace).pipe(
+        Effect.provideService(HostProcess.Environment, {}),
+      );
+      assert.isUndefined(unset);
     }),
   );
 
