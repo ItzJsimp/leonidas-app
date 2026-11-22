@@ -30,7 +30,7 @@ import {
   updateReleasePackageVersions,
 } from "./update-release-package-versions.ts";
 import { applyWebBrandAssets } from "./apply-web-brand-assets.ts";
-import { CORE_SKILLS_PLUGIN_DIRECTORY, stageCoreSkillsPlugin } from "./core-skills-plugin.ts";
+import { CORE_SKILLS_BUNDLE_FILE, writeCoreSkillsBundle } from "./core-skills-plugin.ts";
 import {
   BRAND_ASSET_PATHS,
   resolveWebAssetBrandForChannel,
@@ -1030,9 +1030,8 @@ export const DESKTOP_FILE_EXCLUSIONS = [
   "!apps/desktop/resources/scribe-engine/**/*",
   "!apps/desktop/prod-resources/scribe-engine",
   "!apps/desktop/prod-resources/scribe-engine/**/*",
-  // The core skills ship once as resources/core-skills-plugin (ADR-0102).
-  `!apps/desktop/prod-resources/${CORE_SKILLS_PLUGIN_DIRECTORY}`,
-  `!apps/desktop/prod-resources/${CORE_SKILLS_PLUGIN_DIRECTORY}/**/*`,
+  // The core skills ship once as the bundle file resources/core-skills-plugin.json (ADR-0102).
+  `!apps/desktop/prod-resources/${CORE_SKILLS_BUNDLE_FILE}`,
   "!apps/desktop/gnome-extension",
   "!apps/desktop/gnome-extension/**/*",
 ] as const;
@@ -1152,8 +1151,8 @@ export const DESKTOP_EXTRA_RESOURCES = [
     to: "resource-monitor",
   },
   {
-    from: `apps/desktop/prod-resources/${CORE_SKILLS_PLUGIN_DIRECTORY}`,
-    to: CORE_SKILLS_PLUGIN_DIRECTORY,
+    from: `apps/desktop/prod-resources/${CORE_SKILLS_BUNDLE_FILE}`,
+    to: CORE_SKILLS_BUNDLE_FILE,
   },
 ] as const;
 export const LINUX_CAPTURE_EXTRA_RESOURCES = [
@@ -4141,9 +4140,9 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
     path.join(stageProdResourcesDir, "cursor-sdk"),
   );
   yield* Effect.sync(() =>
-    stageCoreSkillsPlugin({
+    writeCoreSkillsBundle({
       repoRoot,
-      outDir: path.join(stageProdResourcesDir, CORE_SKILLS_PLUGIN_DIRECTORY),
+      outFile: path.join(stageProdResourcesDir, CORE_SKILLS_BUNDLE_FILE),
       version: appVersion,
     }),
   );

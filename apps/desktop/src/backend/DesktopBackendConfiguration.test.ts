@@ -1514,11 +1514,17 @@ describe("DesktopBackendConfiguration", () => {
       });
       const resourcesPath = path.join(baseDir, "resources");
       const dirname = `${resourcesPath}/app.asar/apps/desktop/dist-electron`;
-      const pluginPath = path.join(resourcesPath, "core-skills-plugin");
-      yield* fileSystem.makeDirectory(path.join(pluginPath, ".claude-plugin"), { recursive: true });
+      yield* fileSystem.makeDirectory(resourcesPath, { recursive: true });
+      // One bundle file, as scripts/core-skills-plugin.ts writes it.
       yield* fileSystem.writeFileString(
-        path.join(pluginPath, ".claude-plugin", "plugin.json"),
-        "{}",
+        path.join(resourcesPath, "core-skills-plugin.json"),
+        JSON.stringify({
+          id: "0123456789abcdef",
+          files: {
+            ".claude-plugin/plugin.json": Buffer.from('{"name":"leonidas"}').toString("base64"),
+            "skills/tdd/SKILL.md": Buffer.from("---\nname: tdd\n---\n").toString("base64"),
+          },
+        }),
       );
       yield* Effect.acquireRelease(
         Effect.sync(() => {
@@ -1532,7 +1538,16 @@ describe("DesktopBackendConfiguration", () => {
       yield* Effect.gen(function* () {
         const configuration = yield* DesktopBackendConfiguration.DesktopBackendConfiguration;
         const config = yield* configuration.resolvePrimary;
-        assert.equal(config.env.LEONIDAS_CORE_SKILLS_PLUGIN_DIR, pluginPath);
+        const pluginPath = config.env.LEONIDAS_CORE_SKILLS_PLUGIN_DIR ?? "";
+        assert.equal(path.basename(pluginPath), "0123456789abcdef");
+        assert.isFalse(pluginPath.startsWith(resourcesPath));
+        assert.equal(
+          yield* fileSystem.readFileString(path.join(pluginPath, "skills", "tdd", "SKILL.md")),
+          "---\nname: tdd\n---\n",
+        );
+        // A second start reuses the unpacked folder.
+        const again = yield* configuration.resolvePrimary;
+        assert.equal(again.env.LEONIDAS_CORE_SKILLS_PLUGIN_DIR, pluginPath);
       }).pipe(
         Effect.provide(
           layerBackendConfiguration().pipe(

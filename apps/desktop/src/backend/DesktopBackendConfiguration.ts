@@ -10,6 +10,7 @@ import * as Hex from "effect/encoding/Hex";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Path from "effect/Path";
 import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 import * as SynchronizedRef from "effect/SynchronizedRef";
@@ -17,6 +18,7 @@ import * as SynchronizedRef from "effect/SynchronizedRef";
 import serverPackageJson from "../../../server/package.json" with { type: "json" };
 
 import * as DesktopBackendManager from "./DesktopBackendManager.ts";
+import { CORE_SKILLS_BUNDLE_FILE, unpackCoreSkillsBundle } from "./coreSkillsBundle.ts";
 import * as DesktopCliShim from "../app/DesktopCliShim.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopServerExposure from "./DesktopServerExposure.ts";
@@ -223,8 +225,9 @@ const resolveScribeEnginePath = Effect.fn("desktop.backendConfiguration.resolveS
   },
 );
 
-// The installed app bundles the core skills as a Claude plugin (ADR-0102); the server hands it to
-// every Claude session. A path the host already set (a dev folder) wins.
+// The installed app bundles the core skills as a Claude plugin (ADR-0102), packed in one file so the
+// Windows payload stays under its file limit. The desktop unpacks it into the state folder and the
+// server hands the folder to every Claude session. A path the host already set (a dev folder) wins.
 const resolveCoreSkillsPluginPath = Effect.fn(
   "desktop.backendConfiguration.resolveCoreSkillsPluginPath",
 )(function* () {
@@ -232,12 +235,23 @@ const resolveCoreSkillsPluginPath = Effect.fn(
   const fileSystem = yield* FileSystem.FileSystem;
   if (!environment.isPackaged) return Option.none<string>();
   if (process.env.LEONIDAS_CORE_SKILLS_PLUGIN_DIR?.trim()) return Option.none<string>();
-  const candidate = environment.path.join(environment.resourcesPath, "core-skills-plugin");
-  return (yield* fileSystem
-    .exists(environment.path.join(candidate, ".claude-plugin", "plugin.json"))
-    .pipe(Effect.orElseSucceed(() => false)))
-    ? Option.some(candidate)
-    : Option.none<string>();
+  const bundlePath = environment.path.join(environment.resourcesPath, CORE_SKILLS_BUNDLE_FILE);
+  if (!(yield* fileSystem.exists(bundlePath).pipe(Effect.orElseSucceed(() => false)))) {
+    return Option.none<string>();
+  }
+  return yield* unpackCoreSkillsBundle({
+    bundlePath,
+    cacheDir: environment.path.join(environment.stateDir, "core-skills-plugin"),
+  }).pipe(
+    Effect.provideService(Path.Path, environment.path),
+    Effect.map(Option.some),
+    // Claude threads still start without the core skills; the log names the cause.
+    Effect.catch((cause) =>
+      Effect.logWarning("core skills bundle could not be unpacked", cause).pipe(
+        Effect.as(Option.none<string>()),
+      ),
+    ),
+  );
 });
 
 const readPersistedBackendObservabilitySettings = Effect.gen(function* () {

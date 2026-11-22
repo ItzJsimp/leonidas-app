@@ -9,6 +9,7 @@ import {
   CORE_SKILLS_PLUGIN_NAME,
   coreSkillNames,
   stageCoreSkillsPlugin,
+  writeCoreSkillsBundle,
 } from "./core-skills-plugin.ts";
 
 describe("core skills plugin", () => {
@@ -57,6 +58,27 @@ describe("core skills plugin", () => {
     expect(NodeFS.readdirSync(NodePath.join(dir, "out/skills"))).toEqual(["tdd"]);
     expect(NodeFS.existsSync(NodePath.join(dir, "out/skills/tdd/refs/a.md"))).toBe(true);
     expect(NodeFS.existsSync(NodePath.join(dir, "out/skills/tdd/__pycache__"))).toBe(false);
+  });
+
+  it("packs the plugin into one file that holds every staged file", () => {
+    library([{ name: "tdd", pack: "core" }]);
+    write(".agents/skills/tdd/SKILL.md", "---\nname: tdd\n---\n");
+    write(".agents/skills/tdd/refs/a.md", "a");
+    const outFile = NodePath.join(dir, "out", "core-skills-plugin.json");
+    writeCoreSkillsBundle({ repoRoot: dir, outFile, version: "1.0.0" });
+    const bundle = JSON.parse(NodeFS.readFileSync(outFile, "utf8")) as {
+      id: string;
+      files: Record<string, string>;
+    };
+    expect(bundle.id).toMatch(/^[0-9a-f]{16}$/);
+    expect(Object.keys(bundle.files)).toEqual([
+      ".claude-plugin/plugin.json",
+      "skills/tdd/SKILL.md",
+      "skills/tdd/refs/a.md",
+    ]);
+    expect(Buffer.from(bundle.files["skills/tdd/refs/a.md"]!, "base64").toString()).toBe("a");
+    // The stage folder is temporary: only the bundle stays.
+    expect(NodeFS.readdirSync(NodePath.join(dir, "out"))).toEqual(["core-skills-plugin.json"]);
   });
 
   it("fails when the core pack is empty or a core skill is missing", () => {
