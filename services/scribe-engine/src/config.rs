@@ -151,6 +151,9 @@ pub struct BackupConfig {
     pub gemini_polish_model: String,
     /// Base timeout of one backup speech request. Half the audio length is added.
     pub speech_timeout_s: u64,
+    /// Start the next speech provider when the first has not answered in this time (plus 1 s per
+    /// 50 s of audio). The first good reply wins. 0 turns the hedge off.
+    pub speech_hedge_ms: u64,
 }
 
 impl Default for BackupConfig {
@@ -165,6 +168,7 @@ impl Default for BackupConfig {
             gemini_openai_url: "https://generativelanguage.googleapis.com/v1beta/openai".into(),
             gemini_polish_model: "gemini-3.5-flash-lite".into(),
             speech_timeout_s: 15,
+            speech_hedge_ms: 800,
         }
     }
 }
@@ -263,6 +267,7 @@ mod tests {
         assert_eq!(c.bindings.cancel, vec!["Escape"]);
         assert_eq!(c.bindings.rewrite, vec!["Ctrl + Shift + A"]);
         assert_eq!(c.groq.hedge_ms, 800);
+        assert_eq!(c.backup.speech_hedge_ms, 800);
     }
 
     #[test]

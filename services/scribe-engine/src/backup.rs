@@ -14,6 +14,8 @@ use crate::groq::{CloudFailure, GroqClient};
 use crate::local_stt::Cloud;
 use crate::polish::SharedDictionary;
 use serde_json::{json, Value};
+use std::collections::VecDeque;
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -285,21 +287,34 @@ impl Cloud for GeminiSpeech {
 
 /// Speech providers in order. The first reply wins. When all fail, the first failure is
 /// reported, and `offline` lets the local model still try.
-/// shortcut: providers run one after another, so a Groq that stalls (not one that refuses)
-/// holds the backup until Groq's own timeout. Upgrade to a hedged start if stalls show up
-/// in the `speech: groq failed` log lines.
-pub struct CloudChain(pub Vec<(String, Arc<dyn Cloud>)>);
+///
+/// With a hedge (`speech_hedge_ms`), the next provider starts when the one before it has not
+/// answered in time, and the first good reply wins. A provider that fails starts the next one
+/// at once, with or without a hedge. A stalled provider no longer holds the backup until its
+/// own timeout.
+pub struct CloudChain(pub Vec<(String, Arc<dyn Cloud>)>, pub Option<Duration>);
 
-impl Cloud for CloudChain {
-    fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure> {
-        let mut first: Option<CloudFailure> = None;
-        let ready: Vec<_> = self.0.iter().filter(|(_, c)| c.ready()).collect();
-        // With no key anywhere, the first provider still runs, so its "no key" message shows.
-        let members = if ready.is_empty() {
-            self.0.iter().take(1).collect()
+type Member = (String, Arc<dyn Cloud>);
+
+impl CloudChain {
+    /// A chain that tries one provider after another.
+    pub fn new(members: Vec<Member>) -> Self {
+        Self(members, None)
+    }
+
+    /// The members that have a key. With no key anywhere, the first one still runs, so its
+    /// "no key" message shows.
+    fn members(&self) -> Vec<Member> {
+        let ready: Vec<_> = self.0.iter().filter(|(_, c)| c.ready()).cloned().collect();
+        if ready.is_empty() {
+            self.0.iter().take(1).cloned().collect()
         } else {
             ready
-        };
+        }
+    }
+
+    fn in_order(members: Vec<Member>, audio: &EncodedAudio) -> Result<Transcription, CloudFailure> {
+        let mut first: Option<CloudFailure> = None;
         for (name, cloud) in members {
             match cloud.transcribe_cloud(audio) {
                 Ok(done) => {
@@ -314,10 +329,88 @@ impl Cloud for CloudChain {
                 }
             }
         }
-        Err(first.unwrap_or(CloudFailure {
-            message: "No speech provider is set up.".into(),
-            offline: true,
-        }))
+        Err(first.unwrap_or_else(none_set_up))
+    }
+
+    fn hedged(
+        members: Vec<Member>,
+        audio: &EncodedAudio,
+        hedge: Duration,
+    ) -> Result<Transcription, CloudFailure> {
+        // A stuck worker must never hold the dictation: give up when every request is far
+        // past its own timeout.
+        let guard = Duration::from_secs(120) + Duration::from_millis(audio.duration_ms);
+        let audio = Arc::new(audio.clone());
+        let (tx, rx) = mpsc::channel();
+        let mut queue: VecDeque<(usize, Member)> = members.into_iter().enumerate().collect();
+        let mut failures: Vec<(usize, CloudFailure)> = Vec::new();
+        let mut pending = 0usize;
+        let start_next = |queue: &mut VecDeque<(usize, Member)>, pending: &mut usize| {
+            let Some((index, (name, cloud))) = queue.pop_front() else {
+                return;
+            };
+            let (audio, tx) = (audio.clone(), tx.clone());
+            let spawned = std::thread::Builder::new()
+                .name("scribe-speech".into())
+                .spawn(move || {
+                    let _ = tx.send((index, name, cloud.transcribe_cloud(&audio)));
+                });
+            if spawned.is_ok() {
+                *pending += 1;
+            }
+        };
+        start_next(&mut queue, &mut pending);
+        while pending > 0 {
+            let wait = if queue.is_empty() { guard } else { hedge };
+            match rx.recv_timeout(wait) {
+                Ok((index, name, Ok(done))) => {
+                    if index > 0 {
+                        eprintln!("speech: served by backup {name}");
+                    }
+                    return Ok(done);
+                }
+                Ok((index, name, Err(failure))) => {
+                    pending -= 1;
+                    eprintln!("speech: {name} failed: {}", failure.message);
+                    failures.push((index, failure));
+                    if pending == 0 {
+                        start_next(&mut queue, &mut pending);
+                    }
+                }
+                Err(RecvTimeoutError::Timeout) if !queue.is_empty() => {
+                    eprintln!("speech: hedge, starting the next provider");
+                    start_next(&mut queue, &mut pending);
+                }
+                Err(_) => break,
+            }
+        }
+        failures.sort_by_key(|(index, _)| *index);
+        Err(failures
+            .into_iter()
+            .next()
+            .map(|(_, failure)| failure)
+            .unwrap_or_else(none_set_up))
+    }
+}
+
+fn none_set_up() -> CloudFailure {
+    CloudFailure {
+        message: "No speech provider is set up.".into(),
+        offline: true,
+    }
+}
+
+impl Cloud for CloudChain {
+    fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure> {
+        let members = self.members();
+        match self.1 {
+            Some(base) if members.len() > 1 => {
+                // Long takes take longer: add 1 s per 50 s of audio.
+                let hedge = base + Duration::from_millis(audio.duration_ms / 50);
+                Self::hedged(members, audio, hedge)
+            }
+            _ => Self::in_order(members, audio),
+        }
     }
 }
 
@@ -349,7 +442,8 @@ pub fn speech_chain(
         };
         chain.push((name.clone(), cloud));
     }
-    CloudChain(chain)
+    let hedge = (backup.speech_hedge_ms > 0).then(|| Duration::from_millis(backup.speech_hedge_ms));
+    CloudChain(chain, hedge)
 }
 
 /// Polish clients after Groq, in `cfg.backup.polish` order (`groq` itself is skipped).
@@ -478,6 +572,95 @@ mod tests {
         }
     }
 
+    /// Answers `text` after `delay`, and counts its calls.
+    struct Timed {
+        delay: Duration,
+        text: &'static str,
+        calls: std::sync::atomic::AtomicUsize,
+    }
+    impl Timed {
+        fn new(delay_ms: u64, text: &'static str) -> Arc<Self> {
+            Arc::new(Self {
+                delay: Duration::from_millis(delay_ms),
+                text,
+                calls: Default::default(),
+            })
+        }
+    }
+    impl Cloud for Timed {
+        fn transcribe_cloud(&self, _: &EncodedAudio) -> Result<Transcription, CloudFailure> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            std::thread::sleep(self.delay);
+            Ok(Transcription {
+                text: self.text.into(),
+                engine: SttEngine::Groq,
+                private: false,
+                source: format!("test/{}", self.text),
+            })
+        }
+    }
+
+    #[test]
+    fn a_stalled_provider_loses_to_the_hedged_backup() {
+        let chain = CloudChain(
+            vec![
+                ("deepgram".into(), Timed::new(1500, "slow")),
+                ("groq".into(), Timed::new(20, "fast")),
+            ],
+            Some(Duration::from_millis(100)),
+        );
+        let start = std::time::Instant::now();
+        let done = chain.transcribe_cloud(&audio()).unwrap();
+        assert_eq!(done.text, "fast");
+        assert!(start.elapsed() < Duration::from_millis(1000));
+    }
+
+    #[test]
+    fn a_fast_first_provider_never_starts_the_backup() {
+        let backup = Timed::new(0, "backup");
+        let chain = CloudChain(
+            vec![
+                ("deepgram".into(), Timed::new(10, "first")),
+                ("groq".into(), backup.clone()),
+            ],
+            Some(Duration::from_millis(300)),
+        );
+        assert_eq!(chain.transcribe_cloud(&audio()).unwrap().text, "first");
+        std::thread::sleep(Duration::from_millis(400));
+        assert_eq!(backup.calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn without_a_hedge_the_chain_waits_for_the_first_provider() {
+        let chain = CloudChain::new(vec![
+            ("deepgram".into(), Timed::new(300, "slow")),
+            ("groq".into(), Timed::new(0, "fast")),
+        ]);
+        assert_eq!(chain.transcribe_cloud(&audio()).unwrap().text, "slow");
+    }
+
+    #[test]
+    fn a_failed_first_provider_starts_the_backup_at_once_and_the_first_failure_wins() {
+        let chain = CloudChain(
+            vec![
+                ("groq".into(), Arc::new(Fails)),
+                ("gemini".into(), Timed::new(20, "served")),
+            ],
+            Some(Duration::from_secs(30)),
+        );
+        let start = std::time::Instant::now();
+        assert_eq!(chain.transcribe_cloud(&audio()).unwrap().text, "served");
+        assert!(start.elapsed() < Duration::from_secs(5));
+        let all_fail = CloudChain(
+            vec![("a".into(), Arc::new(Fails)), ("b".into(), Arc::new(Fails))],
+            Some(Duration::from_millis(50)),
+        );
+        assert_eq!(
+            all_fail.transcribe_cloud(&audio()).unwrap_err().message,
+            "first failed"
+        );
+    }
+
     #[test]
     fn chain_falls_through_to_the_backup() {
         let server = Server::start(|_| {
@@ -486,7 +669,7 @@ mod tests {
                 r#"{"results":{"channels":[{"alternatives":[{"transcript":"from backup"}]}]}}"#,
             )
         });
-        let chain = CloudChain(vec![
+        let chain = CloudChain::new(vec![
             ("groq".into(), Arc::new(Fails)),
             (
                 "deepgram".into(),
@@ -504,7 +687,7 @@ mod tests {
 
     #[test]
     fn chain_reports_the_first_failure_when_all_fail() {
-        let chain = CloudChain(vec![
+        let chain = CloudChain::new(vec![
             ("groq".into(), Arc::new(Fails)),
             (
                 "deepgram".into(),
@@ -534,7 +717,7 @@ mod tests {
                 r#"{"candidates":[{"content":{"parts":[{"text":"served"}]}}]}"#,
             )
         });
-        let chain = CloudChain(vec![
+        let chain = CloudChain::new(vec![
             ("deepgram".into(), Arc::new(keyless)),
             (
                 "gemini".into(),
