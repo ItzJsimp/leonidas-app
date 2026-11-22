@@ -12,6 +12,7 @@
 - [Appearance and themes](./user/appearance.md)
 - [Connect a calendar](./user/calendar.md)
 - [Keyboard shortcuts](./user/keybindings.md)
+- [Scribe: dictate and rewrite](./user/scribe.md)
 - [SnapShots](./user/snap-shot.md)
 - [Visual replies](./user/html-renders.md)
 - [Images](./user/images.md)
@@ -57,6 +58,7 @@ source alone does not explain. Most code changes do not need an internal documen
 - [Terminal runtime](./internals/terminal-runtime.md)
 - [Devices](./internals/devices.md)
 - [Voice input](./internals/voice-input.md)
+- [Scribe (dictation and rewrite)](./internals/scribe/README.md)
 
 ### Runbooks
 

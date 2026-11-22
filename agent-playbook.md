@@ -63,6 +63,8 @@ verified: 2026-10-11
 
 All other traps (install, Git, release, tests, Scribe engine, dev copy, laptop, phone, upstream ports, server HTTP API) are in [project/agent-gotchas.md](./project/agent-gotchas.md). Search it with `rg` before you touch that area.
 
+Scribe (dictation, rewrite, engine, vendors, presets): start at [docs/internals/scribe/README.md](./docs/internals/scribe/README.md).
+
 ## 6. Why it is this way
 
 Moved to [project/agent-gotchas.md](./project/agent-gotchas.md#why-it-is-this-way) (dev branch, native tasks, roadmap keys, updater, thin rebrand).
