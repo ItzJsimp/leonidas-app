@@ -18,10 +18,10 @@ Data lives in `%APPDATA%\Leonidas\scribe-engine`: `config.json`, `dictionary.jso
 
 1. The engine installs keyboard and mouse hooks. `hotkeys.rs:300` (`spawn`) starts them. `hotkeys.rs:457` (`dispatch`) reads each input.
 2. A match becomes `HoldDown`, `HoldUp` or `Toggle` at `hotkeys.rs:242`. Defaults are in `config.rs` (`Bindings`).
-3. The hotkey thread (`main.rs:265`) runs `on_hotkey` (`main.rs:349`) for each event.
+3. The hotkey thread (`main.rs:263`) runs `on_hotkey` (`main.rs:347`) for each event.
 4. `Engine::start` (`engine.rs:396`) opens the microphone through cpal. The code is `CpalRecorder::start` at `audio.rs:122`.
 5. After the mic opens, the engine reads the app in front. It does this last, so the read never delays capture.
-6. The same key press warms the vendor connections: `groq.warm()` and `speech.warm()` at `main.rs:332`. Deepgram warm is in `backup.rs` (`DeepgramSpeech::warm`).
+6. The same key press warms the vendor connections: `groq.warm()` and `speech.warm()` at `main.rs:330`. Deepgram warm is in `backup.rs` (`DeepgramSpeech::warm`).
 7. Samples stay in memory until stop. `audio.maxRecordSeconds` caps the take (default 600 s).
 8. Key release, or a second toggle press, calls `Engine::stop` (`engine.rs:440`). A take under `audio.minRecordMs` (250 ms) is dropped.
 9. `CpalRecorder::stop` (`audio.rs:181`) closes the mic. `encode` (`audio.rs:344`) resamples to 16 kHz mono (`audio.rs:301`) and writes FLAC.
@@ -45,7 +45,7 @@ Data lives in `%APPDATA%\Leonidas\scribe-engine`: `config.json`, `dictionary.jso
 ## Trace 2: one rewrite
 
 1. The user selects text in any app and presses the rewrite chord (default Ctrl + Shift + A). The hook emits `HotkeyEvent::Rewrite`.
-2. The hotkey thread (`main.rs:265`) allows one picker at a time.
+2. The hotkey thread (`main.rs:263`) allows one picker at a time.
 3. The engine reads the window in front, then copies the selection with Ctrl+C (`paste.rs:59`). With no selection it reports "Select text first".
 4. `rewrite::presets` (`rewrite.rs:46`) reads `presets.rewrite` from `config.json`. It falls back to the built-in `DEFAULTS` (`rewrite.rs:15`). A row without a name or an instruction voids the whole list.
 5. The picker (`hud/picker.rs:372`, `pick`) shows each name and its `summary` line (`rewrite.rs:18`). The keys 1 to 9 pick a preset.
