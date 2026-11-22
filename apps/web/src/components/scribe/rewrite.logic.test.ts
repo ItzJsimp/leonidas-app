@@ -20,8 +20,13 @@ describe("DEFAULT_REWRITE_PRESETS", () => {
       "Shorter",
       "Friendly",
       "Prompt",
+      "Slack",
+      "Email",
     ]);
+    expect(DEFAULT_REWRITE_PRESETS.length).toBeLessThanOrEqual(MAX_REWRITE_PRESETS);
     for (const preset of DEFAULT_REWRITE_PRESETS) {
+      expect(preset.description?.length ?? 0).toBeGreaterThan(0);
+      expect(preset.description?.length ?? 0).toBeLessThanOrEqual(MAX_DESCRIPTION);
       expect(preset.instruction.trim().length).toBeGreaterThan(40);
       expect(preset.instruction).not.toMatch(/AIOS|Em-Dash|em dash|—/);
     }
