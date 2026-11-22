@@ -153,6 +153,18 @@ fn strip_think(text: &str) -> String {
     out
 }
 
+/// Replace the em dash (U+2014) with a comma. The prompts forbid it, but a model sometimes writes
+/// one anyway, so the rule is enforced here on every model reply.
+pub(crate) fn no_em_dash(text: &str) -> String {
+    if !text.contains('\u{2014}') {
+        return text.to_owned();
+    }
+    text.replace(" \u{2014} ", ", ")
+        .replace(" \u{2014}", ",")
+        .replace("\u{2014} ", ", ")
+        .replace('\u{2014}', ", ")
+}
+
 fn wrapped_in_quotes(text: &str) -> bool {
     let t = text.trim();
     t.chars().count() > 1
@@ -187,7 +199,7 @@ impl CallError {
 
 /// Check and clean one model reply. `input` is the text that was sent for polish.
 fn accept_reply(reply: &str, input: &str) -> Result<String, CallError> {
-    let mut content = strip_think(reply).trim().to_owned();
+    let mut content = no_em_dash(strip_think(reply).trim()).trim().to_owned();
     if content.is_empty() {
         return Err(CallError::Rejected);
     }
@@ -511,7 +523,7 @@ fn call_model(
     }
     let content = choice["message"]["content"].as_str().unwrap_or_default();
     if prompt.rewrite {
-        let mut text = strip_think(content).trim().to_owned();
+        let mut text = no_em_dash(strip_think(content).trim()).trim().to_owned();
         if wrapped_in_quotes(&text) && !wrapped_in_quotes(&prompt.input) {
             text = text
                 .chars()
@@ -949,6 +961,21 @@ mod tests {
         );
         assert_eq!(server.chat_models().len(), 2);
         std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn an_em_dash_in_a_model_reply_becomes_a_comma() {
+        assert_eq!(no_em_dash("Fix it \u{2014} now."), "Fix it, now.");
+        assert_eq!(no_em_dash("Fix it\u{2014}now."), "Fix it, now.");
+        assert_eq!(no_em_dash("Fix it now \u{2014}"), "Fix it now,");
+        assert_eq!(
+            no_em_dash("No dash here - or here."),
+            "No dash here - or here."
+        );
+        assert_eq!(
+            accept_reply("Send the report \u{2014} today.", "send the report today").unwrap(),
+            "Send the report, today."
+        );
     }
 
     #[test]
