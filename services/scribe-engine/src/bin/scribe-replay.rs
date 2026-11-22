@@ -2,6 +2,7 @@
 //! dictation does, and print p50 and p90 of transcribeMs, polishMs and totalMs.
 //!
 //! Usage: `scribe-replay <dir of .flac or .wav> [--config <config.json>] [--out <file.jsonl>]`.
+//! Add `--warm` to open the speech connections before each clip, as a hotkey press does.
 //! Or: `scribe-replay <replay.jsonl> [--config ..] [--out ..] [--gap-ms N]` polishes the saved
 //! `raw` texts of an earlier `--out` file only, to compare polish providers on the same input.
 //! It reads keys and the dictionary like the engine, and uses the same speech chain and
@@ -60,8 +61,11 @@ fn run() -> Result<(), String> {
     let dir: PathBuf = args.next().ok_or("give a folder of recordings")?.into();
     let (mut config_path, mut out_path) = (None, None);
     let mut gap_ms = 0u64;
+    let mut warm = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            // Warm the speech connections 400 ms before each clip, as a hotkey press does.
+            "--warm" => warm = true,
             "--config" => {
                 config_path = Some(PathBuf::from(args.next().ok_or("--config needs a path")?))
             }
@@ -131,6 +135,10 @@ fn run() -> Result<(), String> {
     for file in &files {
         // A gap keeps free rate limits (Groq: 20 speech requests a minute) out of the numbers.
         std::thread::sleep(std::time::Duration::from_millis(gap_ms));
+        if warm {
+            scribe_engine::local_stt::Cloud::warm(&speech);
+            std::thread::sleep(std::time::Duration::from_millis(400));
+        }
         let bytes = std::fs::read(file).map_err(|e| format!("{}: {e}", file.display()))?;
         let flac = file.extension().is_some_and(|e| e == "flac");
         let audio = EncodedAudio {

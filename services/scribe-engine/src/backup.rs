@@ -172,6 +172,32 @@ impl Cloud for DeepgramSpeech {
     fn ready(&self) -> bool {
         self.key.get().is_some()
     }
+    /// A free key check on the same host. It opens the pooled connection and bills nothing.
+    fn warm(&self) {
+        let Some(key) = self.key.get() else { return };
+        let (agent, url) = (
+            self.agent.clone(),
+            format!(
+                "{}/auth/token",
+                self.cfg.deepgram_base_url.trim_end_matches('/')
+            ),
+        );
+        let _ = std::thread::Builder::new()
+            .name("scribe-warm-dg".into())
+            .spawn(move || {
+                let sent = agent
+                    .get(url)
+                    .header("Authorization", format!("Token {key}"))
+                    .config()
+                    .timeout_global(Some(Duration::from_millis(2500)))
+                    .build()
+                    .call();
+                // Read the body so the connection goes back to the pool.
+                if let Ok(mut response) = sent {
+                    let _ = response.body_mut().read_to_string();
+                }
+            });
+    }
     fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure> {
         const NAME: &str = "Deepgram";
         let key = self.key.get().ok_or_else(|| no_key(NAME))?;
@@ -412,6 +438,14 @@ impl Cloud for CloudChain {
             _ => Self::in_order(members, audio),
         }
     }
+    /// Warm the providers that have a key. Groq is left to the engine, which warms it for polish.
+    fn warm(&self) {
+        for (name, cloud) in &self.0 {
+            if name != "groq" && cloud.ready() {
+                cloud.warm();
+            }
+        }
+    }
 }
 
 /// The speech chain in `cfg.backup.speech` order. Unknown names are skipped.
@@ -572,10 +606,11 @@ mod tests {
         }
     }
 
-    /// Answers `text` after `delay`, and counts its calls.
+    /// Answers `text` after `delay`, and counts its warm-up calls.
     struct Timed {
         delay: Duration,
         text: &'static str,
+        warms: std::sync::atomic::AtomicUsize,
         calls: std::sync::atomic::AtomicUsize,
     }
     impl Timed {
@@ -583,6 +618,7 @@ mod tests {
             Arc::new(Self {
                 delay: Duration::from_millis(delay_ms),
                 text,
+                warms: Default::default(),
                 calls: Default::default(),
             })
         }
@@ -597,6 +633,9 @@ mod tests {
                 private: false,
                 source: format!("test/{}", self.text),
             })
+        }
+        fn warm(&self) {
+            self.warms.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
     }
 
@@ -659,6 +698,104 @@ mod tests {
             all_fail.transcribe_cloud(&audio()).unwrap_err().message,
             "first failed"
         );
+    }
+
+    #[test]
+    fn warm_opens_the_providers_but_leaves_groq_to_the_engine() {
+        let (deepgram, groq) = (Timed::new(0, "a"), Timed::new(0, "b"));
+        let chain = CloudChain::new(vec![
+            ("deepgram".into(), deepgram.clone()),
+            ("groq".into(), groq.clone()),
+        ]);
+        chain.warm();
+        assert_eq!(deepgram.warms.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(groq.warms.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn deepgram_warm_sends_a_keyed_get_to_the_auth_check() {
+        let server = Server::start(|_| Reply::json(200, "{}"));
+        let speech = DeepgramSpeech::new(&cfg(&server.base_url()), key("dg-key"), dictionary());
+        speech.warm();
+        for _ in 0..50 {
+            if !server.log.lock().unwrap().is_empty() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let log = server.log.lock().unwrap();
+        assert_eq!(log.len(), 1);
+        assert!(log[0].path.ends_with("/auth/token"));
+        assert_eq!(log[0].header("authorization"), Some("Token dg-key"));
+    }
+
+    /// The warm-up only helps when the next speech request reuses its connection. A keep-alive
+    /// server counts the TCP connections that one warm-up and one transcription open.
+    #[test]
+    fn the_warm_connection_is_reused_by_the_next_speech_request() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}/v1", listener.local_addr().unwrap());
+        let connections = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let served = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let (count, done) = (connections.clone(), served.clone());
+        std::thread::spawn(move || {
+            for mut stream in listener.incoming().flatten() {
+                count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                let done = done.clone();
+                std::thread::spawn(move || {
+                    let mut data = Vec::new();
+                    let mut chunk = [0u8; 4096];
+                    loop {
+                        // One request: the head, then the body the head promises.
+                        let want = loop {
+                            if let Some(at) = data.windows(4).position(|w| w == b"\r\n\r\n") {
+                                let head = String::from_utf8_lossy(&data[..at]).to_lowercase();
+                                let length = head
+                                    .lines()
+                                    .find_map(|l| l.strip_prefix("content-length:"))
+                                    .and_then(|v| v.trim().parse::<usize>().ok())
+                                    .unwrap_or(0);
+                                break at + 4 + length;
+                            }
+                            match stream.read(&mut chunk) {
+                                Ok(0) | Err(_) => return,
+                                Ok(n) => data.extend_from_slice(&chunk[..n]),
+                            }
+                        };
+                        while data.len() < want {
+                            match stream.read(&mut chunk) {
+                                Ok(0) | Err(_) => return,
+                                Ok(n) => data.extend_from_slice(&chunk[..n]),
+                            }
+                        }
+                        data.drain(..want);
+                        let body =
+                            r#"{"results":{"channels":[{"alternatives":[{"transcript":"ok"}]}]}}"#;
+                        let reply = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+                            body.len()
+                        );
+                        if stream.write_all(reply.as_bytes()).is_err() {
+                            return;
+                        }
+                        done.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    }
+                });
+            }
+        });
+        let mut config = cfg(&base);
+        config.deepgram_base_url = base;
+        let speech = DeepgramSpeech::new(&config, key("dg-key"), dictionary());
+        speech.warm();
+        for _ in 0..100 {
+            if served.load(std::sync::atomic::Ordering::SeqCst) >= 1 {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(speech.transcribe_cloud(&audio()).unwrap().text, "ok");
+        assert_eq!(connections.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
     #[test]

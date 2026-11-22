@@ -47,11 +47,17 @@ pub trait Cloud: Send + Sync {
     fn ready(&self) -> bool {
         true
     }
+    /// Open a pooled connection in the background, so the next request skips the TLS handshake.
+    /// The default does nothing.
+    fn warm(&self) {}
 }
 
 impl Cloud for GroqClient {
     fn transcribe_cloud(&self, audio: &EncodedAudio) -> Result<Transcription, CloudFailure> {
         GroqClient::transcribe_cloud(self, audio)
+    }
+    fn warm(&self) {
+        GroqClient::warm(self)
     }
 }
 

@@ -20,7 +20,7 @@ use scribe_engine::hotkeys::{self, HotkeyEvent};
 use scribe_engine::http;
 #[cfg(windows)]
 use scribe_engine::hud::window::Hud;
-use scribe_engine::local_stt::{LocalModel, Router, WhisperLocal};
+use scribe_engine::local_stt::{Cloud, LocalModel, Router, WhisperLocal};
 use scribe_engine::paste::ClipboardPaster;
 use scribe_engine::polish::{GroqPolisher, SharedDictionary};
 use scribe_engine::settings::Settings;
@@ -123,15 +123,12 @@ fn run() -> Result<(), String> {
     if cfg.private_mode {
         local.ensure_downloaded();
     }
-    let router = Arc::new(Router::new(
-        Arc::new(scribe_engine::backup::speech_chain(
-            &cfg,
-            &groq,
-            &dictionary,
-        )),
-        local.clone(),
-        cfg.private_mode,
+    let speech = Arc::new(scribe_engine::backup::speech_chain(
+        &cfg,
+        &groq,
+        &dictionary,
     ));
+    let router = Arc::new(Router::new(speech.clone(), local.clone(), cfg.private_mode));
     let transcriber: Box<dyn Transcriber> = Box::new(router.clone());
     let (recorder, level): (Box<dyn Recorder>, _) = if null_audio {
         (Box::new(NullRecorder::default()), Default::default())
@@ -330,6 +327,7 @@ fn run() -> Result<(), String> {
                 on_hotkey(&engine, event, || {
                     if !settings.current().private_mode {
                         groq.warm();
+                        speech.warm();
                     }
                 });
             }
