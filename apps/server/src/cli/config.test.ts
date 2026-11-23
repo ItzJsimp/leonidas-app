@@ -2,6 +2,7 @@
 import * as NodeChildProcess from "node:child_process";
 import * as NodeEvents from "node:events";
 import * as NodeFS from "node:fs";
+import * as NodeNet from "node:net";
 import * as NodeOS from "node:os";
 
 import { assert, expect, it } from "@effect/vitest";
@@ -77,6 +78,17 @@ const liveProcess = Effect.acquireRelease(
     }),
 );
 
+// A port that really listens: the preflight refuses only a record whose server still answers.
+const listeningPort = Effect.acquireRelease(
+  Effect.promise(async () => {
+    const server = NodeNet.createServer();
+    server.listen(0, "127.0.0.1");
+    await NodeEvents.EventEmitter.once(server, "listening");
+    return server;
+  }),
+  (server) => Effect.promise(() => new Promise<void>((resolve) => server.close(() => resolve()))),
+).pipe(Effect.map((server) => (server.address() as NodeNet.AddressInfo).port));
+
 it.layer(NodeServices.layer)("cli config resolution", (it) => {
   const defaultObservabilityConfig = {
     traceMinLevel: "Info",
@@ -122,6 +134,8 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cli-preflight-" });
       const child = yield* liveProcess;
       assert(child.pid !== undefined);
+      // A listening port, so each case is skipped for its own reason, not for a closed port.
+      const port = yield* listeningPort;
       for (const [name, pid, mode, rejectRunningServer] of [
         ["stale", 2_147_483_647, "web", true],
         ["own-pid", process.pid, "web", true],
@@ -136,8 +150,8 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
           yield* encodeUnknownJson({
             version: 1,
             pid,
-            port: 3773,
-            origin: "http://127.0.0.1:3773",
+            port,
+            origin: `http://127.0.0.1:${port}`,
             startedAt: "2026-10-01T00:00:00.000Z",
           }),
         );
@@ -176,6 +190,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
         const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cli-preflight-live-" });
         const child = yield* liveProcess;
         assert(child.pid !== undefined);
+        const port = yield* listeningPort;
         const stateDir = path.join(baseDir, "userdata");
         yield* fs.makeDirectory(stateDir, { recursive: true });
         yield* fs.writeFileString(
@@ -183,8 +198,8 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
           yield* encodeUnknownJson({
             version: 1,
             pid: child.pid,
-            port: 3773,
-            origin: "http://127.0.0.1:3773",
+            port,
+            origin: `http://127.0.0.1:${port}`,
             startedAt: "2026-10-01T00:00:00.000Z",
           }),
         );
@@ -202,7 +217,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
           ),
           Effect.flip,
         );
-        expect(String(error)).toContain("A T3 Code server is already running");
+        expect(String(error)).toContain("A Leonidas server is already running");
         expect(String(error)).toContain(`pid ${child.pid}`);
         expect(yield* fs.exists(cwd)).toBe(false);
       }),

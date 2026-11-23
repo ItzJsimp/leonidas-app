@@ -339,9 +339,11 @@ export const resolveServerConfig = (
     // and supervisor handoff are separate; this preflight cannot arbitrate two starts.
     if (options?.rejectRunningServer && mode === "web") {
       const runtime = yield* readPersistedServerRuntimeState(derivedPaths.serverRuntimeStatePath);
+      // A killed container can leave a record with the new server's own PID.
       if (
         Option.isSome(runtime) &&
         runtime.value.pid > 0 &&
+        runtime.value.pid !== process.pid &&
         isProcessAlive(runtime.value.pid) &&
         (yield* Effect.promise(() => isPortListening(runtime.value.port)))
       ) {
