@@ -4916,7 +4916,9 @@ describe("CodexAdapterV2 post-settle continuation", () => {
   it.effect("streams Codex command output while the command runs", () =>
     Effect.gen(function* () {
       const entries = [...backgroundExecTranscript.entries];
-      const started = entries.findIndex((entry) => entry.label === "item/started/command");
+      const started = entries.findIndex(
+        (entry) => "label" in entry && entry.label === "item/started/command",
+      );
       entries.splice(started + 1, 0, {
         type: "emit_inbound",
         label: "item/commandExecution/outputDelta",
