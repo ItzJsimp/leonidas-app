@@ -1173,6 +1173,7 @@ function codexUsageLimitError(
 }
 
 interface ActiveCodexTurnContext {
+  closedCommandItemIds?: ReadonlySet<string>;
   latestProviderFailure?: {
     readonly nativeMessage: string;
     readonly failure: OrchestrationV2ProviderFailure;
@@ -4344,6 +4345,27 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           }),
         );
 
+        yield* client.handleServerNotification("item/commandExecution/outputDelta", (payload) =>
+          Effect.gen(function* () {
+            // A delta always follows its item/started, so the turn is already
+            // known; background commands keep printing after it settles.
+            const context =
+              (yield* Ref.get(activeTurns)).get(payload.turnId) ??
+              (yield* Ref.get(settledTurns)).get(payload.turnId);
+            if (context === undefined) return;
+            yield* emitProviderEvent({
+              type: "command_output.delta",
+              driver: CODEX_PROVIDER,
+              threadId: context.projectionThreadId,
+              itemId: idAllocator.derive.turnItemFromProviderItem({
+                driver: CODEX_PROVIDER,
+                nativeItemId: payload.itemId,
+              }),
+              chunk: payload.delta,
+            });
+          }),
+        );
+
         yield* client.handleServerNotification("item/reasoning/summaryTextDelta", (payload) =>
           appendReasoning(payload, "summary", payload.summaryIndex),
         );
@@ -4732,6 +4754,35 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           });
         });
 
+        // Unloading an idle thread kills its terminals without completing
+        // their command items, while the shared provider session stays alive.
+        yield* client.handleServerNotification("thread/closed", (payload) =>
+          Effect.gen(function* () {
+            const completedAt = yield* DateTime.now;
+            for (const context of (yield* Ref.get(settledTurns)).values()) {
+              if (context.providerThread.nativeThreadRef?.nativeId !== payload.threadId) continue;
+              const commands = (yield* Ref.get(runningCommandItemsByTurn)).get(
+                context.nativeTurnId,
+              );
+              if (commands !== undefined) {
+                context.closedCommandItemIds = new Set(commands.keys());
+              }
+              yield* terminalizeRunningCommandItems(
+                context,
+                context.nativeTurnId,
+                "interrupted",
+                completedAt,
+              );
+              yield* Ref.update(runningCommandItemsByTurn, (current) => {
+                const updated = new Map(current);
+                updated.delete(context.nativeTurnId);
+                return updated;
+              });
+              yield* releaseSettledTurnIfIdle(context.nativeTurnId);
+            }
+          }).pipe(Effect.orDie, turnTerminalizationPermit.withPermits(1)),
+        );
+
         yield* client.handleServerNotification("item/started", (payload) =>
           Effect.gen(function* () {
             const context = yield* awaitActiveTurn(payload.turnId);
@@ -4911,6 +4962,8 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
 
             if (payload.item.type === "commandExecution") {
+              // Other tools can retain the context after thread closure.
+              if (context.closedCommandItemIds?.has(payload.item.id)) return;
               const turnDrained = yield* clearRunningCommandItem(payload.turnId, payload.item.id);
               const artifacts = yield* buildCommandExecutionArtifacts(context, payload.item);
               yield* emitProviderEvent({
