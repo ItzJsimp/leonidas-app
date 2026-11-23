@@ -23,6 +23,7 @@ import {
 import * as Duration from "effect/Duration";
 import * as Clock from "effect/Clock";
 import * as Deferred from "effect/Deferred";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
@@ -2394,8 +2395,9 @@ describe("UsageService", () => {
       const { transcript, settings, home } = yield* setup;
       // Saved usage is kept for 92 days on the real clock, so the record must be recent:
       // a fixed date made this test fail once it was 92 days old.
+      const today = yield* DateTime.now;
       const dayAt = (offsetDays: number) =>
-        UsageDay.make(new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10));
+        UsageDay.make(DateTime.formatIso(DateTime.add(today, { days: offsetDays })).slice(0, 10));
       const recordDay = dayAt(-20);
       yield* Effect.promise(async () => {
         await NodeFSP.writeFile(
