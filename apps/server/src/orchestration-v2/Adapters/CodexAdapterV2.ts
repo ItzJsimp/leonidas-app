@@ -23,6 +23,7 @@ import type { ManagedServerProvider } from "@t3tools/provider-core/server/snapsh
 import type { CodexEffectiveRuntime } from "../../provider/CodexManagedRuntime.ts";
 import {
   buildCodexInitializeParams,
+  codexDefaultReasoningEffortOverride,
   parseCodexSkillsListResponse,
 } from "../../provider/CodexProvider.ts";
 import {
@@ -752,10 +753,10 @@ export function buildCodexTurnStartParams(input: {
       input.runtimePolicy.sandboxPolicy === undefined
         ? runtimeModeDefaults.sandboxPolicy
         : yield* decodeTurnSandboxPolicy(input.runtimePolicy.sandboxPolicy);
-    const selectedEffort = getModelSelectionStringOptionValue(
-      input.modelSelection,
-      "reasoningEffort",
-    );
+    // The picker shows the override as the default, so a turn with no choice must send it.
+    const selectedEffort =
+      getModelSelectionStringOptionValue(input.modelSelection, "reasoningEffort") ??
+      codexDefaultReasoningEffortOverride(input.modelSelection.model);
     const effort =
       selectedEffort === undefined ? undefined : yield* decodeTurnReasoningEffort(selectedEffort);
     const serviceTier =
@@ -784,7 +785,7 @@ export function buildCodexTurnStartParams(input: {
         ? buildCodexAdditionalContext(
             {
               model: input.modelSelection.model,
-              reasoningEffort: effort ?? "medium",
+              ...(effort == null ? {} : { reasoningEffort: effort }),
               replyStyle: input.runtimePolicy.replyStyle,
               homeAgent: input.runtimePolicy.homeAgent,
             },
