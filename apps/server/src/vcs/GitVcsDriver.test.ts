@@ -1492,7 +1492,7 @@ it.effect.each(["win32", "linux"] as const)(
     }).pipe(Effect.scoped, Effect.provide(layerGitContract)),
 );
 
-it.effect.skipIf(process.platform === "win32")(
+it.effect.skipIf(HostProcess.Platform.defaultValue() === "win32")(
   "GitVcsDriver detects a repository whose path contains a newline",
   () =>
     Effect.gen(function* () {
