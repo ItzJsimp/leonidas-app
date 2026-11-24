@@ -530,7 +530,8 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
       expect(accountChangedFailure).toMatchObject({
         status: "warning",
         auth: { status: "unknown" },
-        message: "Claude Agent CLI failed while checking account status.",
+        message:
+          "Claude is installed, but Leonidas could not read its sign-in yet. Refresh in a few seconds. If this stays, sign in again.",
       });
       expect(accountChangedFailure.checkedAt).not.toBe(first.checkedAt);
       expect(accountChangedFailure.usageLimits).toBeUndefined();
@@ -569,7 +570,8 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
       expect(repeatedFailure).toMatchObject({
         status: "warning",
         auth: { status: "unknown" },
-        message: "Claude Agent CLI failed while checking account status.",
+        message:
+          "Claude is installed, but Leonidas could not read its sign-in yet. Refresh in a few seconds. If this stays, sign in again.",
       });
       expect(repeatedFailure.slashCommands).not.toEqual(
         expect.arrayContaining([expect.objectContaining({ name: "recovered" })]),
