@@ -53,6 +53,7 @@ import { cn } from "~/lib/utils";
 import { TimelineSystemDivider } from "./TimelineSystemDivider";
 import { Button, InlineButton } from "../ui/button";
 import { T3Wordmark } from "../T3Wordmark";
+import { compactionReceiptDetail, handoffStrategyLabel } from "./contextReceipt";
 
 const LIFECYCLE_TYPES = new Set<OrchestrationV2TurnItem["type"]>([
   "run_interrupt_request",
@@ -111,10 +112,7 @@ export function V2LifecycleRow(props: {
     );
   }
   if (item.type === "compaction") {
-    const tokenDetail =
-      item.beforeTokenCount === undefined && item.afterTokenCount === undefined
-        ? null
-        : `${item.beforeTokenCount ?? "?"} → ${item.afterTokenCount ?? "?"} tokens`;
+    const tokenDetail = compactionReceiptDetail(item.beforeTokenCount, item.afterTokenCount);
     const label =
       item.status === "failed"
         ? "Could not shorten the history"
@@ -124,7 +122,11 @@ export function V2LifecycleRow(props: {
             ? "Shortening the history"
             : "History shortened";
     return (
-      <TimelineSystemDivider label={label} detail={item.summary ?? tokenDetail} icon={MinusIcon} />
+      <TimelineSystemDivider
+        label={label}
+        detail={[tokenDetail, item.summary].filter(Boolean).join(" · ") || null}
+        icon={MinusIcon}
+      />
     );
   }
   if (item.type === "handoff") {
@@ -169,6 +171,9 @@ export function V2LifecycleRow(props: {
               instanceId={item.toProviderInstanceId}
               model={to.model}
             />
+            <span className="text-muted-foreground/70">
+              · {handoffStrategyLabel(item.strategy)}
+            </span>
           </span>
         }
       />

@@ -68,7 +68,7 @@ export function usePendingCacheNote(usage: ContextWindowSnapshot | null, waiting
   return note;
 }
 
-function cacheObservation(usage: ContextWindowSnapshot | null): CacheObservation | null {
+export function cacheObservation(usage: ContextWindowSnapshot | null): CacheObservation | null {
   return usage
     ? {
         inputTokens: usage.inputTokens,
