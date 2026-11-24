@@ -71,6 +71,7 @@ describe("file chip downloads", () => {
     ],
     ["/tmp/take%2520%23one.mp4:12", "/tmp/take%20#one.mp4", "video/mp4"],
     ["/tmp/report.pdf", "/tmp/report.pdf", "application/pdf"],
+    ["/tmp/archive.zip", "/tmp/archive.zip", "application/zip"],
     ["screens/image.PNG", "/repo/screens/image.PNG", "image/png"],
   ])("offers a host download for %s", (href, path, mimeType) => {
     const target = resolveFileChipTarget(href, "/repo")!;
@@ -94,7 +95,7 @@ describe("file chip downloads", () => {
   });
 
   it("does not offer downloads the host asset endpoint cannot serve", () => {
-    for (const href of ["src/app.ts", "/tmp/archive.zip", "/tmp/clip.mp4.txt"]) {
+    for (const href of ["src/app.ts", "/tmp/archive.rar", "/tmp/clip.mp4.txt"]) {
       const target = resolveFileChipTarget(href, "/repo")!;
       expect(fileChipShareSource(target, threadId)).toBeNull();
       expect(fileChipMenu(target).actions.some(({ id }) => id === "save")).toBe(false);

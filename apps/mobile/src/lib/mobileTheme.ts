@@ -388,8 +388,9 @@ export function getMobileThemeVariables(
   overrides: Partial<MobileThemeVariables> | null = null,
 ): MobileThemeVariables {
   const colors = getMobileThemeColors(themeId, appearance);
+  // t3-original is the upstream default palette, so it keeps the default's grouped-card role.
   const groupedCard =
-    themeId === DEFAULT_MOBILE_THEME_ID
+    themeId === DEFAULT_MOBILE_THEME_ID || themeId === "t3-original"
       ? appearance === "light"
         ? colors.toolbarControlHover
         : colors.sidebarRowActive
