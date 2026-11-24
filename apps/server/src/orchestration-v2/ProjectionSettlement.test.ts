@@ -518,6 +518,9 @@ it.effect("shell failure lookups stay on the thread's own turn items", () =>
     const itemLookups = plan.filter((row) => row.detail.startsWith("SEARCH item "));
     assert.lengthOf(itemLookups, 2);
     assert.isTrue(itemLookups.every((row) => row.detail.includes("turn_items_failed_error_idx")));
+    const activityLookups = plan.filter((row) => row.detail.startsWith("SEARCH activity "));
+    assert.lengthOf(activityLookups, 2);
+    assert.isTrue(activityLookups.every((row) => row.detail.includes("turn_items_thread_run_idx")));
     const secretLookups = plan.filter((row) => row.detail.startsWith("SEARCH secret "));
     assert.lengthOf(secretLookups, 1);
     assert.include(secretLookups[0]!.detail, "turn_items_thread_run_idx");

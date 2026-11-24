@@ -5833,25 +5833,25 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                 SELECT json_object(
                   'text', substr(json_extract(step.value, '$.text'), 1, 160),
                   'currentStep', CAST(step.key AS INTEGER) + 1,
-                  'totalSteps', json_array_length(item.payload_json, '$.steps'),
-                  'completedSteps', (SELECT COUNT(*) FROM json_each(item.payload_json, '$.steps') done
+                  'totalSteps', json_array_length(activity.payload_json, '$.steps'),
+                  'completedSteps', (SELECT COUNT(*) FROM json_each(activity.payload_json, '$.steps') done
                     WHERE json_extract(done.value, '$.status') = 'completed')
                 )
                 FROM orchestration_v2_projection_runs live
-                CROSS JOIN orchestration_v2_projection_turn_items item
+                CROSS JOIN orchestration_v2_projection_turn_items activity
                   INDEXED BY orchestration_v2_projection_turn_items_thread_run_idx
-                CROSS JOIN json_each(item.payload_json, '$.steps') step
+                CROSS JOIN json_each(activity.payload_json, '$.steps') step
                 WHERE live.run_id = (
                   SELECT r.run_id FROM orchestration_v2_projection_runs r
                   WHERE r.thread_id = t.thread_id AND r.status IN ('preparing', 'starting', 'running', 'waiting')
                   ORDER BY r.ordinal DESC, r.run_id DESC LIMIT 1
                 )
-                  AND item.thread_id = t.thread_id AND item.run_id = live.run_id
-                  AND (item.node_id IS json_extract(live.payload_json, '$.rootNodeId')
-                    OR (item.provider_thread_id IS NOT NULL AND item.provider_thread_id IS json_extract(live.payload_json, '$.providerThreadId')))
-                  AND item.type = 'todo_list'
+                  AND activity.thread_id = t.thread_id AND activity.run_id = live.run_id
+                  AND (activity.node_id IS json_extract(live.payload_json, '$.rootNodeId')
+                    OR (activity.provider_thread_id IS NOT NULL AND activity.provider_thread_id IS json_extract(live.payload_json, '$.providerThreadId')))
+                  AND activity.type = 'todo_list'
                   AND json_extract(step.value, '$.status') = 'running'
-                  AND item.turn_item_id = (
+                  AND activity.turn_item_id = (
                     SELECT latest.turn_item_id FROM orchestration_v2_projection_turn_items latest
                     WHERE latest.thread_id = t.thread_id AND latest.run_id = live.run_id
                       AND (latest.node_id IS json_extract(live.payload_json, '$.rootNodeId')
@@ -5864,33 +5864,33 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                     WHERE steer.thread_id = t.thread_id AND steer.run_id = live.run_id
                       AND steer.node_id IS json_extract(live.payload_json, '$.rootNodeId') AND steer.type = 'user_message'
                       AND json_extract(steer.payload_json, '$.inputIntent') IN ('steer', 'promoted_queued_to_steer')
-                      AND steer.updated_at >= item.updated_at
+                      AND steer.updated_at >= activity.updated_at
                   )
                 ORDER BY CAST(step.key AS INTEGER) LIMIT 1
               ), (
-                SELECT json_object('text', substr(COALESCE(NULLIF(json_extract(item.payload_json, '$.title'), ''), 'Using a tool'), 1, 160),
+                SELECT json_object('text', substr(COALESCE(NULLIF(json_extract(activity.payload_json, '$.title'), ''), 'Using a tool'), 1, 160),
                   'completedSteps', 0, 'totalSteps', 0, 'currentStep', NULL)
                 FROM orchestration_v2_projection_runs live
-                CROSS JOIN orchestration_v2_projection_turn_items item
+                CROSS JOIN orchestration_v2_projection_turn_items activity
                   INDEXED BY orchestration_v2_projection_turn_items_thread_run_idx
                 WHERE live.run_id = (
                   SELECT r.run_id FROM orchestration_v2_projection_runs r
                   WHERE r.thread_id = t.thread_id AND r.status IN ('preparing', 'starting', 'running', 'waiting')
                   ORDER BY r.ordinal DESC, r.run_id DESC LIMIT 1
                 )
-                  AND item.thread_id = t.thread_id AND item.run_id = live.run_id
-                  AND (item.node_id IS json_extract(live.payload_json, '$.rootNodeId')
-                    OR (item.provider_thread_id IS NOT NULL AND item.provider_thread_id IS json_extract(live.payload_json, '$.providerThreadId')))
-                  AND item.status = 'running'
-                  AND item.type IN ('dynamic_tool', 'command_execution', 'file_search', 'web_search', 'file_change')
+                  AND activity.thread_id = t.thread_id AND activity.run_id = live.run_id
+                  AND (activity.node_id IS json_extract(live.payload_json, '$.rootNodeId')
+                    OR (activity.provider_thread_id IS NOT NULL AND activity.provider_thread_id IS json_extract(live.payload_json, '$.providerThreadId')))
+                  AND activity.status = 'running'
+                  AND activity.type IN ('dynamic_tool', 'command_execution', 'file_search', 'web_search', 'file_change')
                   AND NOT EXISTS (
                     SELECT 1 FROM orchestration_v2_projection_turn_items steer
                     WHERE steer.thread_id = t.thread_id AND steer.run_id = live.run_id
                       AND steer.node_id IS json_extract(live.payload_json, '$.rootNodeId') AND steer.type = 'user_message'
                       AND json_extract(steer.payload_json, '$.inputIntent') IN ('steer', 'promoted_queued_to_steer')
-                      AND steer.updated_at >= item.updated_at
+                      AND steer.updated_at >= activity.updated_at
                   )
-                ORDER BY item.updated_at DESC, item.ordinal DESC, item.turn_item_id DESC LIMIT 1
+                ORDER BY activity.updated_at DESC, activity.ordinal DESC, activity.turn_item_id DESC LIMIT 1
               )) AS activity_summary_json,
               (
                 SELECT json_extract(session.payload_json, '$.lastError')
