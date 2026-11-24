@@ -132,10 +132,15 @@ describe("applyActions", () => {
   });
 
   it("handles 100 messages with 3 actions each in under 150 ms", async () => {
+    const batch = () =>
+      Array.from({ length: 100 }, (_, i) => inboxMsg({ id: `m${i}`, threadId: `t${i}` }));
+    // One untimed pass on its own setup, so the limit measures steady work, not JIT warm-up.
+    const warm = setup();
+    const warmMessages = batch();
+    warm.provider.seed(warmMessages);
+    for (const m of warmMessages) await applyActions(warm.deps, m, plan3);
     const { provider, deps } = setup();
-    const messages = Array.from({ length: 100 }, (_, i) =>
-      inboxMsg({ id: `m${i}`, threadId: `t${i}` }),
-    );
+    const messages = batch();
     provider.seed(messages);
     const t0 = performance.now();
     for (const m of messages) await applyActions(deps, m, plan3);
