@@ -242,7 +242,7 @@ it.effect("keeps disconnect causes in structured logs and out of console warning
       Effect.sync(() => {
         assert.lengthOf(warnings, 2);
         const warningText = warnings.flat().map(String).join("\n");
-        assert.include(warningText, "running server could not stop its tunnel");
+        assert.include(warningText, "running server could not stop it");
         assert.include(warningText, "Could not revoke the relay-side environment record");
         assert.notInclude(warningText, liveFailure);
         assert.notInclude(warningText, relayFailure);
@@ -302,7 +302,7 @@ it.effect("warns to deregister when unlink has no stored CLI authorization", () 
       lines.map((line) => line.stream),
       ["log", "warn"],
     );
-    assert.equal(lines[0]?.text, "T3 Connect is disabled locally.");
+    assert.equal(lines[0]?.text, "Remote access is disabled on this computer.");
     assert.include(lines[1]?.text, "The relay-side environment record was not revoked.");
     assert.include(lines[1]?.text, "T3 Connect page of your T3 account");
     assert.include(lines[1]?.text, "`t3 connect login`");
@@ -319,7 +319,7 @@ it.effect("points a failed relay unlink at retry and account deregistration", ()
     });
     const warning = lines.find((line) => line.stream === "warn")?.text ?? "";
 
-    assert.equal(lines[0]?.text, "T3 Connect is disabled locally.");
+    assert.equal(lines[0]?.text, "Remote access is disabled on this computer.");
     assert.include(warning, "Run `t3 connect unlink` again when the relay is reachable");
     assert.include(warning, "deregister it from the T3 Connect page of your T3 account");
     assert.notInclude(warning, "relay unreachable");
