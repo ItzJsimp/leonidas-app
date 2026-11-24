@@ -247,7 +247,7 @@ const scenarioExpectations = {
     approvalRequestCount: 0,
   },
   command_output_streaming: {
-    outgoing: ["initialize", "initialized", "thread/start", "turn/start"],
+    outgoing: ["initialize", "initialized", "thread/start", "skills/list", "turn/start"],
     incoming: [
       "turn/started",
       "item/started",

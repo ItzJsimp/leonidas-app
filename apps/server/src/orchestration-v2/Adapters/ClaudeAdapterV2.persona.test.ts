@@ -19,7 +19,9 @@ describe("ClaudeAdapterV2 persona start (ADR-0082)", () => {
       cwd: "/workspace",
       persona: { systemPrompt: "You design front-end UI." },
     });
-    assert.equal(options.systemPrompt, "You design front-end UI.");
+    // A string prompt replaces the preset; the reply style follows the persona text.
+    assert.isString(options.systemPrompt);
+    assert.isTrue((options.systemPrompt as string).startsWith("You design front-end UI.\n\n"));
     assert.deepEqual(options.settingSources, []);
   });
 
