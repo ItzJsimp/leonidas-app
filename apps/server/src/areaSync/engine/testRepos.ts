@@ -4,6 +4,8 @@ import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
+import { realGit, type Git } from "./git.ts";
+
 const ENV = {
   ...process.env,
   GIT_AUTHOR_NAME: "Test",
@@ -12,6 +14,10 @@ const ENV = {
   GIT_COMMITTER_EMAIL: "test@example.invalid",
   LC_ALL: "C",
 };
+
+/** realGit with the fixture identity. A CI runner has no git user, and a sync commits. */
+export const testGit: Git = (args, cwd) =>
+  realGit(["-c", "user.name=Test", "-c", "user.email=test@example.invalid", ...args], cwd);
 
 /** Sync git for fixtures only. Throws on failure so a broken fixture fails loudly. */
 export const g = (cwd: string, ...args: string[]) =>

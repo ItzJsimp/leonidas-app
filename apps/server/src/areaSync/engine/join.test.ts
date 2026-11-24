@@ -4,9 +4,18 @@ import * as NodePath from "node:path";
 
 import { afterEach, assert, describe, it } from "@effect/vitest";
 
-import { realGit, classifyFailure, remoteBaseOf } from "./git.ts";
+import { classifyFailure, remoteBaseOf } from "./git.ts";
 import { AREAS_DIR, areasOnDisk, ensureAreasIgnored, joinWorkspace } from "./join.ts";
-import { cleanTemp, g, makeRemote, makeWorkspace, read, tempDir, write } from "./testRepos.ts";
+import {
+  cleanTemp,
+  g,
+  makeRemote,
+  makeWorkspace,
+  read,
+  tempDir,
+  testGit,
+  write,
+} from "./testRepos.ts";
 
 afterEach(cleanTemp);
 
@@ -29,7 +38,7 @@ const setup = () => {
 describe("joinWorkspace", () => {
   it("clones granted Areas, marks the refused one locked, skips archived (T1)", async () => {
     const { root } = setup();
-    const { results } = await joinWorkspace({ root, git: realGit });
+    const { results } = await joinWorkspace({ root, git: testGit });
     const state = Object.fromEntries(results.map((r) => [r.slug, r.state]));
     assert.deepStrictEqual(state, { sales: "joined", content: "joined", finance: "locked" });
     assert.strictEqual(read(root, "areas/sales/README.md"), "sales\n");
@@ -39,10 +48,10 @@ describe("joinWorkspace", () => {
 
   it("changes nothing when run twice (T2)", async () => {
     const { root } = setup();
-    await joinWorkspace({ root, git: realGit });
+    await joinWorkspace({ root, git: testGit });
     const head = g(NodePath.join(root, "areas", "sales"), "rev-parse", "HEAD");
     write(root, "areas/sales/notes.md", "local note\n");
-    const { results } = await joinWorkspace({ root, git: realGit });
+    const { results } = await joinWorkspace({ root, git: testGit });
     const state = Object.fromEntries(results.map((r) => [r.slug, r.state]));
     assert.deepStrictEqual(state, { sales: "present", content: "present", finance: "locked" });
     assert.strictEqual(g(NodePath.join(root, "areas", "sales"), "rev-parse", "HEAD"), head);
@@ -51,8 +60,8 @@ describe("joinWorkspace", () => {
 
   it("makes Home ignore areas/ exactly once (T11)", async () => {
     const { root } = setup();
-    const first = await joinWorkspace({ root, git: realGit });
-    const second = await joinWorkspace({ root, git: realGit });
+    const first = await joinWorkspace({ root, git: testGit });
+    const second = await joinWorkspace({ root, git: testGit });
     assert.isTrue(first.ignoreAdded);
     assert.isFalse(second.ignoreAdded);
     assert.strictEqual(
@@ -67,14 +76,14 @@ describe("joinWorkspace", () => {
   it("leaves a non-repo folder in the way untouched and reports failed", async () => {
     const { root } = setup();
     write(root, "areas/sales/mine.txt", "keep me\n");
-    const { results } = await joinWorkspace({ root, git: realGit });
+    const { results } = await joinWorkspace({ root, git: testGit });
     assert.strictEqual(results.find((r) => r.slug === "sales")?.state, "failed");
     assert.strictEqual(read(root, "areas/sales/mine.txt"), "keep me\n");
   });
 
   it("finds the Area repos from the origin of Home when no base is given", async () => {
     const { root } = setup();
-    const { results } = await joinWorkspace({ root, git: realGit });
+    const { results } = await joinWorkspace({ root, git: testGit });
     assert.strictEqual(results.find((r) => r.slug === "content")?.state, "joined");
     assert.deepStrictEqual([...areasOnDisk(root)].toSorted(), ["content", "sales"]);
   });
@@ -82,7 +91,7 @@ describe("joinWorkspace", () => {
   it("throws when org/areas.md is missing", async () => {
     const root = tempDir("empty-");
     let message = "";
-    await joinWorkspace({ root, git: realGit }).catch((error: Error) => (message = error.message));
+    await joinWorkspace({ root, git: testGit }).catch((error: Error) => (message = error.message));
     assert.include(message, "org/areas.md");
   });
 });
