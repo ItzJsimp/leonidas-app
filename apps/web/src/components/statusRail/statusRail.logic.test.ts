@@ -10,6 +10,7 @@ import {
   deriveAgentsRailStatus,
   deriveEnvironmentRailStatus,
   deriveGameModeRailStatus,
+  describeGameMode,
   deriveProvidersRailStatus,
   deriveScribeRailStatus,
   deriveUpdateRailStatus,
@@ -200,36 +201,83 @@ describe("deriveAgentsRailStatus & deriveUpdateRailStatus", () => {
 });
 
 describe("deriveGameModeRailStatus", () => {
-  it("formats auto, on, off, and error states", () => {
+  const base = {
+    mode: "auto",
+    level: "soft",
+    watcher: true,
+    throttled: 0,
+    virtualDisplay: "off",
+    active: false,
+    game: null,
+    gameSource: null,
+    forcedUntil: null,
+    error: null,
+  } as const;
+
+  it("shows Auto as Off while it waits, and as On with the game it found", () => {
+    expect(deriveGameModeRailStatus(base)).toMatchObject({
+      tone: "success",
+      label: "Game Mode: Auto, Off",
+    });
     expect(
       deriveGameModeRailStatus({
-        mode: "auto",
-        level: "soft",
-        watcher: true,
-        throttled: 0,
-        virtualDisplay: "off",
-        error: null,
+        ...base,
+        active: true,
+        game: "cs2",
+        gameSource: "name",
+        throttled: 6,
       }),
-    ).toMatchObject({ tone: "success", label: "Game Mode: Auto" });
+    ).toMatchObject({ tone: "info", label: "Game Mode: Auto, On (cs2)" });
+  });
+
+  it("formats on, off, and error states", () => {
     expect(
-      deriveGameModeRailStatus({
-        mode: "on",
-        level: "strict",
-        watcher: true,
-        throttled: 2,
-        virtualDisplay: "on",
-        error: null,
-      }),
+      deriveGameModeRailStatus({ ...base, mode: "on", level: "strict", active: true }),
     ).toMatchObject({ tone: "info", label: "Game Mode: On" });
+    expect(deriveGameModeRailStatus({ ...base, mode: "off" })).toMatchObject({
+      tone: "muted",
+      label: "Game Mode: Off",
+    });
+    expect(deriveGameModeRailStatus({ ...base, watcher: false, error: "Failed" })).toMatchObject({
+      tone: "warning",
+      label: "Game Mode: Issue",
+    });
+  });
+});
+
+describe("describeGameMode", () => {
+  const base = {
+    mode: "auto",
+    level: "soft",
+    watcher: true,
+    throttled: 0,
+    virtualDisplay: "off",
+    active: false,
+    game: null,
+    gameSource: null,
+    forcedUntil: null,
+    error: null,
+  } as const;
+
+  it("says what Auto decided and why", () => {
+    expect(describeGameMode(base)).toBe("Auto: off, waiting for a game");
     expect(
-      deriveGameModeRailStatus({
-        mode: "auto",
-        level: "soft",
-        watcher: false,
-        throttled: 0,
-        virtualDisplay: "off",
-        error: "Failed",
+      describeGameMode({ ...base, active: true, game: "Valorant", gameSource: "game folder" }),
+    ).toBe("Auto: on, found Valorant (game folder)");
+    expect(describeGameMode({ ...base, watcher: false })).toBe(
+      "The Game Mode watcher is not running",
+    );
+  });
+
+  it("says when a forced on ends", () => {
+    expect(describeGameMode({ ...base, mode: "on", active: true })).toBe("Forced on");
+    expect(
+      describeGameMode({
+        ...base,
+        mode: "on",
+        active: true,
+        forcedUntil: "2026-11-25T19:19:00-07:00",
       }),
-    ).toMatchObject({ tone: "warning", label: "Game Mode: Issue" });
+    ).toMatch(/^Forced on until .*, then Auto$/);
   });
 });

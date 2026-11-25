@@ -12,8 +12,26 @@ describe("Game Mode runner", () => {
       watcher: true,
       throttled: 12,
       virtualDisplay: "off",
+      active: true,
+      game: null,
+      gameSource: null,
+      forcedUntil: null,
       error: null,
     });
+  });
+
+  it("reads the detected game and the end of a forced on", () => {
+    const auto =
+      '{"mode":"auto","level":"soft","watcher":true,"throttled":4,"virtualDisplay":"on","active":true,"game":"cs2","why":"name","forcedUntil":null}';
+    expect(parseStatus(auto)).toMatchObject({ active: true, game: "cs2", gameSource: "name" });
+    const idle = auto.replace(
+      '"active":true,"game":"cs2","why":"name"',
+      '"active":false,"game":null,"why":null',
+    );
+    expect(parseStatus(idle)).toMatchObject({ active: false, game: null, gameSource: null });
+    const forced =
+      '{"mode":"on","watcher":true,"throttled":1,"virtualDisplay":"on","active":true,"forcedUntil":"2026-11-25T19:19:00.0000000-07:00"}';
+    expect(parseStatus(forced).forcedUntil).toBe("2026-11-25T19:19:00.0000000-07:00");
   });
 
   it("reads the level, and treats a script without one as soft", () => {

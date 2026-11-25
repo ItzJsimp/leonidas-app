@@ -38,13 +38,24 @@ const UNKNOWN: Omit<GameModeStatus, "error"> = {
   watcher: false,
   throttled: 0,
   virtualDisplay: "on",
+  active: false,
+  game: null,
+  gameSource: null,
+  forcedUntil: null,
 };
 
 /** The control script prints one JSON line last. Anything before it is ignored. */
 export function parseStatus(stdout: string): GameModeStatus {
   const line = stdout.trim().split(/\r?\n/).at(-1) ?? "";
-  const value = JSON.parse(line) as Omit<GameModeStatus, "error" | "level"> & {
+  const value = JSON.parse(line) as Omit<
+    GameModeStatus,
+    "error" | "level" | "active" | "game" | "gameSource" | "forcedUntil"
+  > & {
     readonly level?: GameModeStatus["level"];
+    readonly active?: boolean;
+    readonly game?: string | null;
+    readonly why?: string | null;
+    readonly forcedUntil?: string | null;
   };
   return {
     mode: value.mode,
@@ -53,6 +64,11 @@ export function parseStatus(stdout: string): GameModeStatus {
     watcher: value.watcher,
     throttled: value.throttled,
     virtualDisplay: value.virtualDisplay,
+    // Scripts older than game detection print no `active`: only a forced `on` held work back.
+    active: value.active ?? value.mode === "on",
+    game: value.game ?? null,
+    gameSource: value.why ?? null,
+    forcedUntil: value.forcedUntil ?? null,
     error: null,
   };
 }

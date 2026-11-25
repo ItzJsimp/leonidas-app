@@ -367,7 +367,7 @@ export function deriveGameModeRailStatus(status: GameModeStatus | null): GameMod
     return {
       tone: "info",
       label: `Game Mode: ${GAME_MODE_LABEL[status.mode]}`,
-      tooltip: `Game Mode is On (${status.level}). Select to adjust mode.`,
+      tooltip: `${describeGameMode(status)} (${status.level}). Select to adjust mode.`,
     };
   }
   if (status.mode === "off") {
@@ -377,11 +377,27 @@ export function deriveGameModeRailStatus(status: GameModeStatus | null): GameMod
       tooltip: "Game Mode is Off. Select to turn Auto or On back on.",
     };
   }
+  // Auto shows what it decided: On with the game it found, or Off while it waits.
   return {
-    tone: status.watcher ? "success" : "muted",
-    label: `Game Mode: ${GAME_MODE_LABEL[status.mode]}`,
-    tooltip: status.watcher
-      ? `Game Mode is Auto (${status.level}). Select to change.`
-      : "Game Mode is Auto (watcher paused). Select to inspect.",
+    tone: !status.watcher ? "muted" : status.active ? "info" : "success",
+    label: `Game Mode: Auto, ${status.active ? `On${status.game ? ` (${status.game})` : ""}` : "Off"}`,
+    tooltip: `${describeGameMode(status)} (${status.level}). Select to change.`,
   };
+}
+
+/** One plain sentence on what Game Mode is doing now, for the rail tooltip, the popover and the card. */
+export function describeGameMode(status: GameModeStatus): string {
+  if (status.mode === "off") return "Off, even while a game runs";
+  if (status.mode === "on") {
+    if (status.forcedUntil === null) return "Forced on";
+    const until = new Date(status.forcedUntil);
+    return Number.isNaN(until.getTime())
+      ? "Forced on"
+      : `Forced on until ${until.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}, then Auto`;
+  }
+  if (!status.watcher) return "The Game Mode watcher is not running";
+  if (!status.active) return "Auto: off, waiting for a game";
+  return status.game === null
+    ? "Auto: on, a game is running"
+    : `Auto: on, found ${status.game}${status.gameSource === null ? "" : ` (${status.gameSource})`}`;
 }

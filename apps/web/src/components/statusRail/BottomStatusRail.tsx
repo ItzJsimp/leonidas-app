@@ -45,6 +45,7 @@ import {
   deriveAgentsRailStatus,
   deriveEnvironmentRailStatus,
   deriveGameModeRailStatus,
+  describeGameMode,
   deriveProvidersRailStatus,
   deriveScribeRailStatus,
   deriveUpdateRailStatus,
@@ -446,9 +447,9 @@ function GameModeRailItem({ environmentId }: { readonly environmentId: Environme
                     onAct={(action) => void act(action)}
                   />
                 </div>
+                <p className="text-xs font-medium text-foreground">{describeGameMode(status)}</p>
                 <p className="text-xs text-muted-foreground">
                   {LEVELS.find((item) => item.level === status.level)?.hint}
-                  {status.watcher ? "" : ". The Game Mode watcher is not running."}
                 </p>
               </>
             )}

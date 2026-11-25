@@ -2,7 +2,6 @@ import {
   AuthGameModeControlScope,
   type EnvironmentId,
   type GameModeAction,
-  type GameModeMode,
 } from "@t3tools/contracts";
 import { useEffect, useState } from "react";
 
@@ -13,6 +12,8 @@ import { useEnvironmentQuery } from "~/state/query";
 import { useScribeToggle } from "~/components/scribe/useScribeToggle";
 import { useEnvironmentScope } from "~/state/session";
 import { useAtomCommand } from "~/state/use-atom-command";
+
+import { describeGameMode } from "~/components/statusRail/statusRail.logic";
 
 import { GameModeControls, MODES } from "./GameModeControls";
 import { BigNumber, HomeWidget, WidgetError, WidgetSkeleton } from "./HomeWidget";
@@ -40,12 +41,6 @@ function ScribeToggle({ environmentId }: { readonly environmentId: EnvironmentId
 }
 
 const POLL_MS = 10_000;
-
-const NOTE: Record<GameModeMode, string> = {
-  auto: "Waits for a game, then holds back background work",
-  on: "Holding back background work now",
-  off: "Off, even while a game runs",
-};
 
 /**
  * Game Mode: how many background processes it holds back, the mode, and the virtual display.
@@ -93,11 +88,7 @@ export function GameModeCard() {
         <WidgetError message={status.error} onRetry={refresh} />
       ) : (
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <BigNumber
-            value={status.throttled}
-            unit="held back"
-            note={status.watcher ? NOTE[status.mode] : "The Game Mode watcher is not running"}
-          />
+          <BigNumber value={status.throttled} unit="held back" note={describeGameMode(status)} />
           <div className="flex flex-wrap items-center gap-2">
             <GameModeControls status={status} busy={busy} onAct={(action) => void act(action)} />
             <Button
