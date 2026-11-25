@@ -22,6 +22,17 @@ import { describe, expect } from "vite-plus/test";
 import { makeCli } from "../binCli.ts";
 import { PersistedServerRuntimeState } from "../serverRuntimeState.ts";
 
+// A port that really listens: the preflight refuses only a record whose server still answers.
+const listeningPort = Effect.acquireRelease(
+  Effect.promise(async () => {
+    const server = NodeNet.createServer();
+    server.listen(0, "127.0.0.1");
+    await NodeEvents.EventEmitter.once(server, "listening");
+    return server;
+  }),
+  (server) => Effect.promise(() => new Promise<void>((resolve) => server.close(() => resolve()))),
+).pipe(Effect.map((server) => (server.address() as NodeNet.AddressInfo).port));
+
 const liveProcess = Effect.acquireRelease(
   Effect.promise(async () => {
     const child = NodeChildProcess.spawn(process.execPath, ["-e", "process.stdin.resume()"], {
@@ -185,11 +196,12 @@ describe("t3 server command safety", () => {
         const statePath = NodePath.join(stateDir, "server-runtime.json");
         const child = yield* liveProcess;
         assert(child.pid !== undefined);
+        const port = yield* listeningPort;
         const record = yield* encodeRuntimeState({
           version: 1,
           pid: child.pid,
-          port: 3773,
-          origin: "http://127.0.0.1:3773",
+          port,
+          origin: `http://127.0.0.1:${port}`,
           startedAt: "2026-10-01T00:00:00.000Z",
           serviceManaged: true,
         });
