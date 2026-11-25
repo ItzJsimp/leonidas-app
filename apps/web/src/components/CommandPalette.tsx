@@ -1372,7 +1372,7 @@ function OpenCommandPaletteDialog(props: {
           size="icon-xs"
           aria-label={`Remove project ${project.displayName}`}
           title="Remove project (files stay on disk)"
-          className="ml-auto shrink-0 opacity-0 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 [[data-slot=command-item]:hover_&]:opacity-100 [[data-slot=command-item][data-highlighted]_&]:opacity-100"
+          className="ml-auto shrink-0 opacity-0 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 [@media(hover:none)]:opacity-100 [[data-slot=command-item]:hover_&]:opacity-100 [[data-slot=command-item][data-highlighted]_&]:opacity-100"
           onClick={(event) => {
             event.stopPropagation();
             void removeProject(
