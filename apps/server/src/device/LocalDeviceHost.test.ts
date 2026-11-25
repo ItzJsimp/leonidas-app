@@ -526,6 +526,7 @@ it.effect.each([
   },
 ])("configures supported emulator cameras for $name", ({ front, back, code, extra, expected }) =>
   Effect.gen(function* () {
+    const path = yield* Path.Path.pipe(Effect.provide(NodeServices.layer));
     const result = yield* LocalDeviceHost.__testing
       .hubEnvironment({ ANDROID_HOME: "/sdk", EXPO_DEVICE_HUB_EMULATOR_EXTRA_ARGS: extra })
       .pipe(
@@ -533,7 +534,7 @@ it.effect.each([
         Effect.provideService(HostProcess.UserId, 1000),
         Effect.provideService(ProcessRunner.ProcessRunner, {
           run: (input) => {
-            expect(input.command).toBe("/sdk/emulator/emulator");
+            expect(input.command).toBe(path.join("/sdk", "emulator", "emulator"));
             expect(input.args[0]).toMatch(/^-help-camera-(front|back)$/);
             return Effect.succeed(
               processOutput(code, input.args[0] === "-help-camera-front" ? front : back),
