@@ -29,7 +29,13 @@ describe("PonytailEnsure", () => {
     expect(claudeConfigDirOf({})).toBe(NodePath.join(NodeOS.homedir(), ".claude"));
   });
 
-  const optIn = (dir: string) => ({ CLAUDE_CONFIG_DIR: dir, [PONYTAIL_INSTALL_OPT_IN_ENV]: "1" });
+  // The install first checks that `node` runs, so the folder of the running Node is on PATH.
+  // A real caller passes its whole environment; this one lists only what the test needs.
+  const optIn = (dir: string) => ({
+    CLAUDE_CONFIG_DIR: dir,
+    PATH: NodePath.dirname(process.execPath),
+    [PONYTAIL_INSTALL_OPT_IN_ENV]: "1",
+  });
 
   it("does nothing until the user opts in", async () => {
     const dir = tempDir();

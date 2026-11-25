@@ -430,7 +430,9 @@ it.effect("auto-bootstrap tells the web gate when it created the project and thr
           cwd: "/tmp/startup-project",
           autoBootstrapProjectFromCwd: true,
         } as never),
-        Effect.provideService(Crypto.Crypto, { randomUUIDv4: Effect.succeed("id-1") } as never),
+        Effect.provideService(Crypto.Crypto, {
+          randomUUIDv4: () => Effect.succeed("id-1"),
+        } as never),
         Effect.provideService(Path.Path, { basename: () => "startup-project" } as never),
         Effect.provideService(ProjectService.ProjectService, {
           bootstrap: () => Effect.succeed({ project: { id: "project-1" }, created }),
