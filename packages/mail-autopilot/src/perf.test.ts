@@ -31,14 +31,19 @@ describe("performance", () => {
     );
     // Warm-up: the first pass compiles each keyword once and warms the JIT (about 136 ms cold on the dev PC).
     for (const m of messages.slice(0, 20)) classify(m, bigPack);
-    const t = performance.now();
-    let reviews = 0;
-    for (const m of messages) {
-      const d = classify(m, bigPack);
-      if (plan(m, d, bigPack, 2).length > 0) reviews += 1;
+    // The median of 7 runs: one sample on a shared CI runner caught a pause (231 ms on CI)
+    // and failed with no code change. The limit stays at 200 ms.
+    const samples: number[] = [];
+    for (let run = 0; run < 7; run++) {
+      const t = performance.now();
+      let reviews = 0;
+      for (const m of messages) {
+        const d = classify(m, bigPack);
+        if (plan(m, d, bigPack, 2).length > 0) reviews += 1;
+      }
+      samples.push(performance.now() - t);
+      assert.strictEqual(reviews, 1000);
     }
-    const ms = performance.now() - t;
-    assert.strictEqual(reviews, 1000);
-    assert.isBelow(ms, 200);
+    assert.isBelow(samples.toSorted((x, y) => x - y)[3]!, 200);
   });
 });
