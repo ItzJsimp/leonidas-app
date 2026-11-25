@@ -20,6 +20,7 @@ import {
 import * as Cache from "effect/Cache";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
+import * as Exit from "effect/Exit";
 import * as Crypto from "effect/Crypto";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
@@ -251,10 +252,8 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
 
       // Per-instance capabilities cache: keyed on binary + resolved HOME so
       // account-specific probes never share auth metadata across instances.
-      const capabilitiesProbeCache = yield* Cache.make({
-        capacity: 1,
-        timeToLive: CAPABILITIES_PROBE_TTL,
-        lookup: () =>
+      const capabilitiesProbeCache = yield* Cache.makeWith(
+        () =>
           Effect.all([
             probeClaudeCapabilities(effectiveConfig, processEnv, stateDir),
             ClaudeResetCredits.readClaudeOrganizationId(accountConfigPath),
@@ -265,7 +264,15 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
             Effect.provideService(FileSystem.FileSystem, fileSystem),
             Effect.provideService(Path.Path, path),
           ),
-      });
+        {
+          capacity: 1,
+          // Only fresh usage earns the TTL; a failed probe or one without usage retries.
+          timeToLive: (exit) =>
+            Exit.isSuccess(exit) && exit.value?.usage !== undefined
+              ? CAPABILITIES_PROBE_TTL
+              : Duration.zero,
+        },
+      );
       const capabilitiesCacheKey = yield* makeClaudeCapabilitiesCacheKey(
         effectiveConfig,
         stateDir,
@@ -317,6 +324,11 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
                     Effect.provideService(Path.Path, path),
                   ),
               ),
+            ),
+            Effect.tap((provider) =>
+              provider.auth.status === "unauthenticated"
+                ? Cache.invalidateAll(capabilitiesProbeCache)
+                : Effect.void,
             ),
             Effect.map(stampIdentity),
             Effect.tap((draft) =>
