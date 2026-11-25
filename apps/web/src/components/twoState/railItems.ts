@@ -28,7 +28,7 @@ export type RailTo =
   | "/usage"
   | "/settings";
 
-/** The flat rail groups, in order (DESIGN.md "Rail groups"). */
+/** The flat rail groups, in order (docs/design/navigation.md). */
 export type RailGroup =
   | "home"
   | "work"

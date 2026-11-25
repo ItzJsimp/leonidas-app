@@ -327,6 +327,11 @@ export default defineConfig({
         rules: { "shadcn/no-raw-colors": "error" },
       },
       {
+        files: ["apps/web/src/**"],
+        excludeFiles: ["**/*.{test,spec}.{ts,tsx}"],
+        rules: { "t3code/no-typed-design-values": "error" },
+      },
+      {
         // Third-party marks (brand logos, the macOS permission panes, Codex's Computer Use
         // mark) must keep their exact colors, so the files that hold them are exempt.
         files: ["apps/web/src/components/Icons.tsx", "apps/web/src/components/JetBrainsIcons.tsx"],
