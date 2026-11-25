@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off - The test builds real hook stub files in a temp folder.
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
