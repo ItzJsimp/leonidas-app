@@ -4864,6 +4864,37 @@ describe("CodexAdapterV2 post-settle continuation", () => {
       );
     },
   );
+  it.effect("stops one background command by its item id", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const harness = yield* makeCodexReplayHarness(makeBackgroundStopTranscript(true));
+        const now = yield* DateTime.now;
+        yield* harness.runtime.startTurn(
+          makeCodexTestTurnInput({
+            threadId: harness.threadId,
+            providerThread: harness.providerThread,
+            now,
+            attemptId: RunAttemptId.make("attempt-codex-bg-stop-task"),
+            text: BG_PROMPT,
+          }),
+        );
+        yield* harness.firstTerminal;
+        const missing = yield* harness.runtime.stopTask!({
+          providerThread: harness.providerThread,
+          taskId: "unknown",
+        }).pipe(Effect.exit);
+        assert.equal(missing._tag, "Failure");
+        yield* harness.runtime.stopTask!({
+          providerThread: harness.providerThread,
+          taskId: BG_COMMAND_ITEM,
+        });
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+        ),
+      ),
+    ),
+  );
   it.effect("interrupts a completed run's background command through orchestration", () => {
     const transcript = makeBackgroundStopTranscript(true);
     return Effect.scoped(

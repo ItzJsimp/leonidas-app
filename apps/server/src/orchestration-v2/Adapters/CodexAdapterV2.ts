@@ -6840,6 +6840,30 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                     }),
               ),
             ),
+          // The limit service names a command by its native item id. A command without a
+          // process id has no handle to stop, so it fails loudly instead of claiming success.
+          stopTask: ({ providerThread, taskId }) =>
+            Effect.gen(function* () {
+              const nativeThreadId = yield* getNativeThreadId(providerThread);
+              const running = yield* Ref.get(runningCommandItemsByTurn);
+              for (const items of running.values()) {
+                const processId = items.get(taskId)?.processId;
+                if (processId !== undefined) {
+                  return yield* terminateBackgroundTerminal(nativeThreadId, processId);
+                }
+              }
+              return yield* toProtocolError(`No running Codex command ${taskId} to stop.`);
+            }).pipe(
+              Effect.mapError((cause) =>
+                cause._tag === "ProviderAdapterProtocolError"
+                  ? cause
+                  : new ProviderAdapter.ProviderAdapterProtocolError({
+                      driver: CODEX_PROVIDER,
+                      detail: `Failed to stop Codex command ${taskId}`,
+                      cause: normalizeCodexCause(cause),
+                    }),
+              ),
+            ),
           interruptTurn: (requestedInput) =>
             Effect.gen(function* () {
               const { turnInput, goalTurns } = yield* resolveGoalStopTarget(requestedInput);
