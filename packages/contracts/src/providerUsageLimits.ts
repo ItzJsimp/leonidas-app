@@ -59,6 +59,8 @@ export const ServerProviderUsageLimits = Schema.Struct({
   resetCredits: Schema.optional(ServerProviderResetCredits),
   /** True when the live read failed and these windows are an older cached reading. */
   cached: Schema.optional(Schema.Boolean),
+  /** When the provider said it may be asked again, after it refused a live read. */
+  retryAt: Schema.optional(IsoDateTime),
   /** Provider-owned usage settings when quota windows are not available to the client. */
   externalUsage: Schema.optional(
     Schema.Struct({

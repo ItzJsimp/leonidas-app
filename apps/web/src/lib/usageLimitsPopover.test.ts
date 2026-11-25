@@ -23,7 +23,9 @@ import {
   shortPlanName,
   splitAccountHeader,
   splitFamilyWindowLabel,
+  usageRetryLabel,
   usageSeverity,
+  windowRunOutForecast,
   withKnownContextWindow,
 } from "./usageLimitsPopover";
 
@@ -411,5 +413,50 @@ describe("limitsFreshness", () => {
   it("says nothing without a usable read time", () => {
     expect(limitsFreshness([], now)).toBeNull();
     expect(limitsFreshness(["not a date"], now)).toBeNull();
+  });
+});
+
+describe("windowRunOutForecast", () => {
+  const at = Date.parse("2026-09-22T12:00:00.000Z");
+  const base = {
+    ...window("five", "session", "5-hour"),
+    resetsAt: "2026-09-22T17:00:00.000Z",
+  };
+
+  it("says when a window runs out, assuming an even burn until the reset", () => {
+    const forecast = windowRunOutForecast(
+      { ...base, usedPercent: 40, projectedUsedPercentAtReset: 160 },
+      at,
+    );
+    // 60 of the 120 points to go: halfway through the 5 hours left.
+    expect(forecast?.runsOutInMs).toBe(2.5 * 60 * 60_000);
+    expect(forecast?.label).toBe("On pace to run out in 2h 30m, before it resets");
+  });
+
+  it("stays quiet when the pace is safe, unknown, spent or already reset", () => {
+    expect(
+      windowRunOutForecast({ ...base, usedPercent: 40, projectedUsedPercentAtReset: 90 }, at),
+    ).toBeNull();
+    expect(windowRunOutForecast({ ...base, usedPercent: 40 }, at)).toBeNull();
+    expect(
+      windowRunOutForecast({ ...base, usedPercent: 100, projectedUsedPercentAtReset: 120 }, at),
+    ).toBeNull();
+    expect(
+      windowRunOutForecast(
+        { ...base, usedPercent: 40, projectedUsedPercentAtReset: 160 },
+        at + 6 * 60 * 60_000,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("usageRetryLabel", () => {
+  const at = Date.parse("2026-09-22T12:00:00.000Z");
+
+  it("counts down to the next allowed read and clears afterwards", () => {
+    expect(usageRetryLabel("2026-09-22T12:03:00.000Z", at)).toBe("Next read in 3m");
+    expect(usageRetryLabel("2026-09-22T11:59:00.000Z", at)).toBeNull();
+    expect(usageRetryLabel(undefined, at)).toBeNull();
+    expect(usageRetryLabel("bad", at)).toBeNull();
   });
 });

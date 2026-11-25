@@ -319,6 +319,15 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
               ),
             ),
             Effect.map(stampIdentity),
+            // A live read the provider refused: tell clients when the next one is allowed.
+            Effect.map((draft) => {
+              const retryAt = draft.usageLimits?.cached
+                ? ClaudeResetCredits.claudeUsageRetryAt(configDir, Date.parse(draft.checkedAt))
+                : undefined;
+              return retryAt && draft.usageLimits
+                ? { ...draft, usageLimits: { ...draft.usageLimits, retryAt } }
+                : draft;
+            }),
             Effect.tap((draft) =>
               authEvents.observe({
                 authStatus: draft.auth.status,
