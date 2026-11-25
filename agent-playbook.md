@@ -73,3 +73,7 @@ Moved to [project/agent-gotchas.md](./project/agent-gotchas.md#why-it-is-this-wa
 
 - Session notes live in [project/agent-gotchas.md](./project/agent-gotchas.md#session-notes-newest-first-keep-10-older-in-session-notes-archivemd) (newest 10) and [project/session-notes-archive.md](./project/session-notes-archive.md) (older). Add a new note there, not here.
 - This file loads in every session. Keep it under 12 KB (test: `scripts/agent-playbook-budget.test.ts`). A new trap goes to `project/agent-gotchas.md`. Put it in the top 10 here only when it costs more than one that is here now, and move that one out.
+
+## 8. Guardrails (hooks and lint rules)
+
+The register and the quality bar live in [.agents/rules/guardrails.md](./.agents/rules/guardrails.md). Add a row there in the same commit as a new hook or lint rule.

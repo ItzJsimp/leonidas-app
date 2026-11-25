@@ -151,6 +151,16 @@ Read this before you change anything. Every session updates it before the sessio
 ## 7. Session notes (newest first, one line each, keep 10)
 
 - **{{DATE}}:** Project created from the AIOS project template.
+
+## 8. Guardrails (hooks and lint rules)
+
+One row per hook or lint rule. Standard: \`standards/hooks-and-lint-standard.md\` in the AIOS. Add the row in the same commit as the guardrail.
+
+| Guardrail | Kind | Engine or tool | Event or scope | What it stops | Test |
+| --- | --- | --- | --- | --- | --- |
+| TODO | hook, lint or git hook | TODO | TODO | TODO | TODO |
+
+Mistakes this project watches for: TODO: one line each. A mistake that happens twice gets a guardrail.
 `,
   ],
   [
@@ -181,6 +191,7 @@ Read this file when you start a session or when a rule in [AGENTS.md](../../AGEN
 - Make the smallest change that solves the task.
 - Save a decision the owner makes in \`spec.md\` or \`agent-playbook.md\` in the same turn.
 - Put a task you will not finish now on a task card. Do not leave it in chat.
+- Same mistake twice: add a hook or lint rule and log it in section 8 of \`agent-playbook.md\`. Never weaken one to pass a change.
 
 ## End a session
 
