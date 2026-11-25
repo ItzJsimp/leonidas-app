@@ -70,6 +70,8 @@ export const ServerProviderUsageLimits = Schema.Struct({
     Schema.Struct({
       reason: Schema.Literals(["unsupported", "probeFailed"]),
       message: Schema.optional(TrimmedNonEmptyString),
+      /** The provider has no reading yet, not a failed one: the first streamed update clears it. */
+      awaitingReading: Schema.optional(Schema.Boolean),
     }),
   ),
 });
