@@ -721,7 +721,11 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
   const usage = directUsage ?? capabilities.usage;
   // A cached reading is stamped with when it was read, not with this check.
   const usageCheckedAt = directUsage ? checkedAt : (capabilities.usageCheckedAt ?? checkedAt);
-  const fromCache = Boolean(triedDirect) && directUsage === undefined && usage !== undefined;
+  // The check start is taken before the probe runs, so a reading from this check is not older.
+  const readThisCheck =
+    capabilities.usageCheckedAt !== undefined && capabilities.usageCheckedAt >= checkedAt;
+  const fromCache =
+    Boolean(triedDirect) && directUsage === undefined && usage !== undefined && !readThisCheck;
   const usageLimits = unsupportedUsageMessage
     ? makeUnavailableUsageLimits({
         checkedAt,

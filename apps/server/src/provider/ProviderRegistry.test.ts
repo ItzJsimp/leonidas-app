@@ -192,6 +192,11 @@ type TestClaudeCapabilities = {
   readonly apiKeySource: string | undefined;
   readonly apiProvider: string | undefined;
   readonly slashCommands: ReadonlyArray<ServerProviderSlashCommand>;
+  readonly usage?: {
+    readonly rate_limits_available: boolean;
+    readonly rate_limits: Record<string, { utilization: number | null; resets_at: string | null }>;
+  };
+  readonly usageCheckedAt?: string;
 };
 
 function claudeCapabilities(overrides: Partial<TestClaudeCapabilities> = {}) {
@@ -4308,6 +4313,45 @@ it.layer(
         assert.strictEqual(status.auth.status, "authenticated");
         assert.strictEqual(status.auth.type, "bedrock");
         assert.strictEqual(status.auth.label, "Amazon Bedrock");
+      }).pipe(
+        Effect.provide(
+          layerMockSpawner((args) => {
+            const joined = args.join(" ");
+            if (joined === "--version") return { stdout: "1.0.0\n", stderr: "", code: 0 };
+            throw new Error(`Unexpected args: ${joined}`);
+          }),
+        ),
+      ),
+    );
+
+    // A reading from a cached probe is older than what a poll or a turn published, so it is
+    // marked cached. A reading taken while this check ran (a fresh probe) is not.
+    it.effect.each([
+      { name: "an earlier check", usageCheckedAt: "1969-12-31T00:00:00.000Z", cached: true },
+      { name: "this check", usageCheckedAt: "2999-01-01T00:00:00.000Z", cached: false },
+    ])("marks a usage reading from $name as cached only when it is older", (testCase) =>
+      Effect.gen(function* () {
+        const status = yield* checkClaudeProviderStatus(
+          defaultClaudeSettings,
+          claudeCapabilities({
+            subscriptionType: "pro",
+            tokenSource: "oauth",
+            usage: {
+              rate_limits_available: true,
+              rate_limits: { five_hour: { utilization: 40, resets_at: null } },
+            },
+            usageCheckedAt: testCase.usageCheckedAt,
+          }),
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          // The direct usage read found nothing, so the probe's reading is the fallback.
+          () => Effect.succeed(undefined),
+        );
+        assert.strictEqual(status.usageLimits?.cached === true, testCase.cached);
+        assert.strictEqual(status.usageLimits?.windows[0]?.usedPercent, 40);
       }).pipe(
         Effect.provide(
           layerMockSpawner((args) => {
