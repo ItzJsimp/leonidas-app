@@ -1,5 +1,4 @@
 import type { FoldedFeedEvent } from "@t3tools/contracts";
-import { useMemo } from "react";
 
 import { countOpenChats, groupCommandCenterThreads } from "~/commandCenter";
 import { useActiveAiosWorkspace } from "~/components/workspace/useActiveAiosWorkspace";
@@ -11,7 +10,7 @@ import { useEnvironmentQuery } from "~/state/query";
 import { taskBoardHomeQuery } from "~/state/taskBoard";
 
 import type { StatusCounts } from "./copy";
-import { isNeedsYou } from "./railFeed";
+import { isEventRead, isNeedsYou, mergeDuplicateEvents, type MergedFeedEvent } from "./railFeed";
 
 const NO_EVENTS: ReadonlyArray<FoldedFeedEvent> = [];
 
@@ -23,7 +22,7 @@ export function useAiosHome() {
   );
 }
 
-/** The feed read: events the user has not dismissed or turned off (newest first), plus its load state. */
+/** The feed read: merged visible events (newest first), plus raw feed and load state. */
 export function useFeedStatus() {
   const { environmentId, scope, scopeReady } = useActiveAiosWorkspace();
   const feed = useEnvironmentQuery(
@@ -32,9 +31,9 @@ export function useFeedStatus() {
   const marks = useEventFeedStore((store) => store.marks);
   const rules = useEventFeedStore((store) => store.typeRules);
   const all = feed.data?.events ?? NO_EVENTS;
-  const events = useMemo(
-    () => all.filter((event) => !marks[event.id]?.dismissed && isShown(event, rules)),
-    [all, marks, rules],
+  const events = mergeDuplicateEvents(
+    all.filter((event) => !marks[event.id]?.dismissed && isShown(event, rules)),
+    marks,
   );
   return {
     events,
@@ -47,8 +46,8 @@ export function useFeedStatus() {
   };
 }
 
-/** Feed events the user has not dismissed, newest first. */
-export function useFeedEvents(): ReadonlyArray<FoldedFeedEvent> {
+/** Merged feed events the user has not dismissed, newest first. */
+export function useFeedEvents(): ReadonlyArray<MergedFeedEvent> {
   return useFeedStatus().events;
 }
 
@@ -60,21 +59,11 @@ export function useTwoStateCounts(): StatusCounts {
   const threads = useThreadShells();
   const threadsLoaded = useAllEnvironmentShellsBootstrapped();
   const home = useAiosHome().data;
-  const needsYou = useMemo(
-    () =>
-      feed.loaded
-        ? events.filter((event) => isNeedsYou(event, marks[event.id]?.read === true)).length
-        : null,
-    [feed.loaded, events, marks],
-  );
-  const running = useMemo(
-    () => (threadsLoaded ? groupCommandCenterThreads(threads).running.length : null),
-    [threadsLoaded, threads],
-  );
-  const openChats = useMemo(
-    () => (threadsLoaded ? countOpenChats(threads) : null),
-    [threadsLoaded, threads],
-  );
+  const needsYou = feed.loaded
+    ? events.filter((event) => isNeedsYou(event, isEventRead(event, marks))).length
+    : null;
+  const running = threadsLoaded ? groupCommandCenterThreads(threads).running.length : null;
+  const openChats = threadsLoaded ? countOpenChats(threads) : null;
   const priorities = home?.brief?.priorities;
   const today = priorities
     ? { done: priorities.filter((priority) => priority.done).length, total: priorities.length }

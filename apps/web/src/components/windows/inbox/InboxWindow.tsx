@@ -1,41 +1,42 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { BellIcon, RefreshCwIcon } from "lucide-react";
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDownIcon, RefreshCwIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
+import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "~/components/ui/menu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { toastManager } from "~/components/ui/toast";
 import { openFeedEvent } from "~/eventFeedOpen";
 import { useEventFeedStore } from "~/eventFeedStore";
 import { useNowMinute } from "~/hooks/useNowMinute";
-import { RightPanelResizeHandle } from "~/components/preview/RightPanelResizeHandle";
-import { RESIZABLE_WIDTH_PROPERTY, useResizableWidth } from "~/hooks/useResizableWidth";
 import { observeResize } from "~/lib/observeResize";
+import { useProjects, useThreadShells } from "~/state/entities";
 
 import { changedLabel } from "../../twoState/areaRows";
-import { RailWindow, WindowEmpty, WindowError } from "../../twoState/RailWindow";
-import { useFeedStatus } from "../../twoState/useTwoStateData";
+import { RailWindow, WindowError } from "../../twoState/RailWindow";
 import { Tip } from "../../twoState/Tip";
-import { useInboxUnread } from "../../twoState/useInboxUnread";
+import { actionLabel, eventIds, isEventRead, type MergedFeedEvent } from "../../twoState/railFeed";
+import { useFeedStatus } from "../../twoState/useTwoStateData";
 import { InboxDetail } from "./InboxDetail";
 import { InboxList } from "./InboxList";
 import { NotificationRules } from "./NotificationRules";
 import {
-  filterInbox,
-  groupBySource,
+  CLEAR_OLDER_OPTIONS,
+  filterInboxEvents,
   groupInbox,
-  inboxCounts,
   inboxEmptyText,
+  linkedThreadId,
   neighborRowId,
+  olderThanIds,
+  projectOptions,
   rowsOf,
-  searchInbox,
   unreadIds,
-  type InboxFilter,
-  type InboxGrouping,
+  type InboxSourceMeta,
+  type InboxTypeFilter,
 } from "./inbox.logic";
 import { useInboxFeed } from "./useInboxFeed";
 
-/** Below this pane width the list and the message take turns. */
+/** Below this pane width the inspector replaces the stream. */
 const NARROW_PANE = 640;
 
 const TABS = [
@@ -43,30 +44,37 @@ const TABS = [
   { id: "rules", label: "Rules" },
 ] as const;
 
-/** The Inbox window: what needs you and what finished, with the message beside the list. */
+function isEditableElement(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+}
+
+/** Quiet, scannable Notifications window: full-width urgency stream + on-demand inspector + unified rules. */
 export function InboxWindow() {
   const feed = useInboxFeed();
   const marks = useEventFeedStore((store) => store.marks);
   const markRead = useEventFeedStore((store) => store.markRead);
-  const dismiss = useEventFeedStore((store) => store.dismiss);
   const dismissAll = useEventFeedStore((store) => store.dismissAll);
   const restoreMarks = useEventFeedStore((store) => store.restoreMarks);
   const allEvents = useFeedStatus().all;
+  const threads = useThreadShells();
+  const projects = useProjects();
   const onRules = (useSearch({ strict: false }) as { readonly tab?: unknown }).tab === "rules";
   const navigate = useNavigate();
-  const railUnread = useInboxUnread();
   const minute = useNowMinute();
   const now = Date.parse(`${minute}Z`);
 
-  const [filter, setFilter] = useState<InboxFilter>("all");
-  const [grouping, setGrouping] = useState<InboxGrouping>("time");
+  const [typeFilter, setTypeFilter] = useState<InboxTypeFilter>("all");
+  const [projectFilter, setProjectFilter] = useState("all");
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | undefined>();
-  const [detailOpen, setDetailOpen] = useState(false);
   const [narrow, setNarrow] = useState(false);
   const [frame, setFrame] = useState<HTMLDivElement | null>(null);
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const heading = useRef<HTMLHeadingElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
 
   useEffect(() => {
     if (!frame) return;
@@ -76,61 +84,104 @@ export function InboxWindow() {
     });
   }, [frame]);
 
-  const counts = useMemo(() => inboxCounts(feed.events, marks), [feed.events, marks]);
-  const groups = useMemo(() => {
-    const shown = filterInbox(searchInbox(feed.events, query), marks, filter);
-    return grouping === "source" ? groupBySource(shown) : groupInbox(shown, marks, now);
-  }, [feed.events, query, marks, now, filter, grouping]);
+  useEffect(() => {
+    if (onRules) return;
+    const onGlobalKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        if (isEditableElement(event.target)) return;
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onGlobalKeyDown);
+    return () => window.removeEventListener("keydown", onGlobalKeyDown);
+  }, [onRules]);
+
+  const projectById = new Map<string, string>();
+  for (const project of projects) projectById.set(project.id, project.title);
+
+  const threadById = new Map<string, { readonly title: string; readonly projectId: string }>();
+  for (const thread of threads) {
+    threadById.set(thread.id, { title: thread.title, projectId: thread.projectId });
+  }
+
+  const resolveSource = (event: MergedFeedEvent): InboxSourceMeta => {
+    const threadId = linkedThreadId(event);
+    const thread = threadId ? threadById.get(threadId) : undefined;
+    if (thread) {
+      return {
+        project: projectById.get(thread.projectId) ?? event.actor.name,
+        threadTitle: thread.title,
+      };
+    }
+    return { project: event.actor.name, threadTitle: null };
+  };
+
+  const availableProjects = projectOptions(feed.events, resolveSource);
+
+  const activeProject =
+    projectFilter !== "all" && !availableProjects.includes(projectFilter) ? "all" : projectFilter;
+
+  const hasActiveFilters =
+    typeFilter !== "all" || activeProject !== "all" || unreadOnly || query.trim() !== "";
+
+  const filtered = filterInboxEvents(
+    feed.events,
+    marks,
+    { type: typeFilter, project: activeProject, unreadOnly, query },
+    resolveSource,
+  );
+  const groups = groupInbox(filtered, marks, now);
   const rows = rowsOf(groups);
-  const selected = rows.find((row) => row.id === selectedId) ?? (narrow ? undefined : rows[0]);
-  const showDetail = !narrow || (detailOpen && selected !== undefined);
+  const selected = selectedId ? rows.find((row) => row.id === selectedId) : undefined;
+  const showDetail = selected !== undefined;
   const showList = !narrow || !showDetail;
 
-  const closeDetail = () => {
-    setDetailOpen(false);
-    requestAnimationFrame(() => {
-      const index = rows.findIndex((row) => row.id === selected?.id);
-      rowRefs.current[Math.max(index, 0)]?.focus();
-    });
-  };
-  const openRow = (id: string) => {
-    setSelectedId(id);
-    setDetailOpen(true);
-    if (narrow) requestAnimationFrame(() => heading.current?.focus());
-  };
-  const open = () => {
-    if (!selected || !feed.environmentId) return;
-    markRead([selected.id]);
-    openFeedEvent(selected, feed.environmentId, navigate);
-  };
-  // The Mark as read button leaves the page, so focus goes to the next row (narrow: the heading).
-  const markSelectedRead = () => {
-    if (!selected) return;
-    const target = neighborRowId(rows, selected.id);
-    markRead([selected.id]);
-    if (narrow || !target) {
-      requestAnimationFrame(() => heading.current?.focus());
-      return;
-    }
-    setSelectedId(target);
-    requestAnimationFrame(() =>
-      rowRefs.current.find((element) => element?.dataset.rowId === target)?.focus(),
-    );
-  };
-  const dismissSelected = () => {
-    if (!selected) return;
-    dismiss(selected.id);
-    if (narrow) closeDetail();
+  const allUnreadIds = unreadIds(feed.events, marks);
+  const olderBuckets = CLEAR_OLDER_OPTIONS.map((option) => ({
+    ...option,
+    ...olderThanIds(feed.events, option.ms, now),
+  }));
+
+  const resetFilters = () => {
+    setTypeFilter("all");
+    setProjectFilter("all");
+    setUnreadOnly(false);
+    setQuery("");
   };
 
-  const markAllDone = () => {
-    const ids = rows.map((row) => row.id);
+  const closeDetail = () => {
+    const lastId = selected?.id;
+    setSelectedId(undefined);
+    requestAnimationFrame(() => {
+      if (lastId) {
+        rowRefs.current.find((element) => element?.dataset.rowId === lastId)?.focus();
+      }
+    });
+  };
+
+  const selectRow = (event: MergedFeedEvent) => {
+    setSelectedId(event.id);
+    if (narrow) requestAnimationFrame(() => headingRef.current?.focus());
+  };
+
+  const primaryAction = (event: MergedFeedEvent) => {
+    const label = actionLabel(event);
+    if (label !== null && feed.environmentId) {
+      markRead(eventIds(event));
+      openFeedEvent(event, feed.environmentId, navigate);
+      return;
+    }
+    selectRow(event);
+  };
+
+  const dismissEventsWithUndo = (ids: ReadonlyArray<string>, rowCount: number) => {
     if (ids.length === 0) return;
     const before = Object.fromEntries(ids.map((id) => [id, marks[id]]));
     dismissAll(ids);
     const toastId = toastManager.add({
       type: "success",
-      title: `${ids.length} ${ids.length === 1 ? "message" : "messages"} done`,
+      title: `Cleared ${rowCount} ${rowCount === 1 ? "notification" : "notifications"}`,
       actionProps: {
         children: "Undo",
         onClick: () => {
@@ -141,36 +192,79 @@ export function InboxWindow() {
     });
   };
 
-  // Long titles are cut at the default width, so the list column can be dragged wider.
-  const list = useResizableWidth({
-    storageKey: "leonidas.notifications.listWidth",
-    defaultWidth: 360,
-    minWidth: 260,
-    maxWidth: 720,
-    edge: "right",
-  });
+  const dismissRow = (event: MergedFeedEvent) => {
+    const target = neighborRowId(rows, event.id);
+    dismissEventsWithUndo(eventIds(event), 1);
+    if (selectedId === event.id) {
+      setSelectedId(narrow ? undefined : target);
+    }
+    requestAnimationFrame(() => {
+      if (target) {
+        rowRefs.current.find((element) => element?.dataset.rowId === target)?.focus();
+      }
+    });
+  };
+
+  const markRowRead = (event: MergedFeedEvent) => {
+    markRead(eventIds(event));
+  };
+
+  const visibleIds = rows.flatMap((row) => eventIds(row));
 
   const actions = (
     <>
       {feed.updatedAt > 0 ? (
-        <Tip text={`Check for new messages. Updated ${changedLabel(feed.updatedAt, now)}.`}>
+        <Tip text={`Refresh notifications. Updated ${changedLabel(feed.updatedAt, now)}.`}>
           <Button size="xs" variant="ghost-muted" onClick={feed.refresh}>
             <RefreshCwIcon aria-hidden />
-            {/* Phones keep the icon, so both Mark all buttons fit on one row. */}
             <span className="max-sm:sr-only">Updated {changedLabel(feed.updatedAt, now)}</span>
           </Button>
         </Tip>
       ) : null}
+      <Menu>
+        <MenuTrigger
+          render={
+            <Button size="xs" variant="outline" disabled={feed.events.length === 0}>
+              Clear older
+              <ChevronDownIcon aria-hidden className="size-3.5" />
+            </Button>
+          }
+        />
+        <MenuPopup align="end">
+          {olderBuckets.map((bucket) => (
+            <MenuItem
+              key={bucket.id}
+              disabled={bucket.rows === 0}
+              onClick={() => dismissEventsWithUndo(bucket.ids, bucket.rows)}
+              className="justify-between"
+            >
+              <span>{bucket.label}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{bucket.rows}</span>
+            </MenuItem>
+          ))}
+          <MenuSeparator />
+          <MenuItem
+            disabled={rows.length === 0}
+            onClick={() => dismissEventsWithUndo(visibleIds, rows.length)}
+            className="justify-between"
+          >
+            <span>All visible</span>
+            <span className="text-xs text-muted-foreground tabular-nums">{rows.length}</span>
+          </MenuItem>
+        </MenuPopup>
+      </Menu>
       <Button
         size="xs"
         variant="ghost-muted"
-        disabled={railUnread === 0}
-        onClick={() => markRead(unreadIds(feed.events, marks))}
+        disabled={allUnreadIds.length === 0}
+        onClick={() => markRead(allUnreadIds)}
       >
-        Mark all as read
+        Mark all read
       </Button>
     </>
   );
+
+  const empty = inboxEmptyText(feed.bad);
 
   return (
     <RailWindow title="Notifications" actions={onRules ? undefined : actions} tabs={TABS}>
@@ -178,90 +272,82 @@ export function InboxWindow() {
         tab === "rules" ? (
           <NotificationRules events={allEvents} now={now} />
         ) : feed.loading ? (
-          <div
-            role="status"
-            aria-label="Loading your notifications"
-            className="flex flex-col gap-3"
-          >
+          <div role="status" aria-label="Loading notifications" className="flex flex-col gap-2">
             {[0, 1, 2, 3, 4].map((key) => (
-              <Skeleton key={key} className="h-12 w-full" shape="card" />
+              <Skeleton key={key} className="h-11 w-full" shape="card" />
             ))}
           </div>
         ) : feed.failed ? (
-          <WindowError
-            message="Your notifications did not load. Check that Leonidas is running, then try again."
-            onRetry={feed.refresh}
-          />
+          <WindowError message="Could not load notifications." onRetry={feed.refresh} />
         ) : feed.events.length === 0 ? (
-          <WindowEmpty icon={BellIcon} {...inboxEmptyText(feed.bad)} />
+          <div className="flex flex-col items-center justify-center gap-1 py-16 text-center">
+            <p className="text-sm text-muted-foreground">{empty.title}</p>
+            {empty.line ? (
+              <p className="max-w-md text-xs text-muted-foreground">{empty.line}</p>
+            ) : null}
+          </div>
         ) : (
-          // The window body pads its content; the two panes sit flush against its edges.
           <div
             ref={setFrame}
             onKeyDown={(event) => {
-              if (event.key === "Escape" && narrow && showDetail) closeDetail();
+              if (event.key === "Escape" && showDetail) {
+                event.preventDefault();
+                closeDetail();
+              }
             }}
             className="-m-4 flex h-[calc(100%+2rem)] min-h-0 border-t border-border"
           >
-            <div
-              // The detail keeps at least 20rem however wide the list is dragged.
-              style={
-                showList && !narrow
-                  ? ({
-                      [RESIZABLE_WIDTH_PROPERTY]: `${list.width}px`,
-                      width: `min(var(${RESIZABLE_WIDTH_PROPERTY}), calc(100% - 20rem))`,
-                    } as CSSProperties)
-                  : undefined
-              }
-              className={
-                !showList
-                  ? "hidden"
-                  : narrow
-                    ? "flex min-h-0 w-full flex-col"
-                    : "relative flex min-h-0 shrink-0 flex-col border-r border-border"
-              }
-            >
+            <div className={showList ? "flex min-h-0 min-w-0 flex-1 flex-col" : "hidden"}>
               <InboxList
                 groups={groups}
-                counts={counts}
-                unread={railUnread}
-                filter={filter}
-                onFilter={setFilter}
-                grouping={grouping}
-                onGrouping={setGrouping}
-                onMarkAllDone={markAllDone}
+                typeFilter={typeFilter}
+                onTypeFilter={setTypeFilter}
+                projectFilter={activeProject}
+                onProjectFilter={setProjectFilter}
+                projects={availableProjects}
+                unreadOnly={unreadOnly}
+                onUnreadOnly={setUnreadOnly}
                 query={query}
                 onQuery={setQuery}
+                hasActiveFilters={hasActiveFilters}
+                onResetFilters={resetFilters}
                 selectedId={selected?.id}
-                onSelect={(event) => setSelectedId(event.id)}
-                onOpen={(event) => openRow(event.id)}
+                onSelectRow={selectRow}
+                onPrimaryAction={primaryAction}
+                onMarkRowRead={markRowRead}
+                onDismissRow={dismissRow}
+                resolveSource={resolveSource}
                 marks={marks}
                 now={now}
+                compact={narrow || showDetail}
+                narrow={narrow}
                 rowRefs={rowRefs}
+                searchRef={searchRef}
               />
-              {showList && !narrow ? (
-                <RightPanelResizeHandle handlers={list.handlers} className="-right-1 left-auto" />
-              ) : null}
             </div>
             {showDetail ? (
-              selected ? (
+              <div
+                className={
+                  narrow
+                    ? "flex min-h-0 w-full flex-col"
+                    : "flex min-h-0 w-[380px] shrink-0 flex-col border-l border-border"
+                }
+              >
                 <InboxDetail
                   key={selected.id}
                   event={selected}
-                  read={marks[selected.id]?.read === true}
+                  source={resolveSource(selected)}
+                  read={isEventRead(selected, marks)}
                   now={now}
                   environmentId={feed.environmentId}
-                  onBack={narrow ? closeDetail : null}
-                  onOpen={open}
-                  onMarkRead={markSelectedRead}
-                  onDismiss={dismissSelected}
-                  headingRef={heading}
+                  narrow={narrow}
+                  onClose={closeDetail}
+                  onOpen={() => primaryAction(selected)}
+                  onMarkRead={() => markRowRead(selected)}
+                  onDismiss={() => dismissRow(selected)}
+                  headingRef={headingRef}
                 />
-              ) : (
-                <p className="m-auto px-6 text-sm text-muted-foreground">
-                  Pick a message to read it here.
-                </p>
-              )
+              </div>
             ) : null}
           </div>
         )

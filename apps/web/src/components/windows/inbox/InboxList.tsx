@@ -1,263 +1,425 @@
-import type { FoldedFeedEvent } from "@t3tools/contracts";
 import {
-  AppWindowIcon,
-  EyeIcon,
+  AlertCircleIcon,
+  BellIcon,
+  CheckCircle2Icon,
+  CheckIcon,
+  GaugeIcon,
   MessageSquareIcon,
-  PuzzleIcon,
-  TerminalSquareIcon,
-  UserIcon,
+  ShieldAlertIcon,
+  XIcon,
   type LucideIcon,
 } from "lucide-react";
-import type { KeyboardEvent, MutableRefObject } from "react";
+import type { KeyboardEvent, MutableRefObject, RefObject } from "react";
 
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import type { EventMark } from "~/eventFeedStore";
 import { cn } from "~/lib/utils";
 
-import { FailedTag } from "../../twoState/FailedTag";
 import { changedLabel } from "../../twoState/areaRows";
 import { plainEventTitle } from "../../twoState/eventText";
-import { isNeedsYou } from "../../twoState/railFeed";
+import { actionLabel, isEventRead, type MergedFeedEvent } from "../../twoState/railFeed";
 import { Tip } from "../../twoState/Tip";
 import {
-  INBOX_FILTERS,
-  INBOX_GROUPINGS,
+  eventKind,
+  formatInboxTitle,
+  INBOX_TYPE_FILTERS,
   nextRowIndex,
   rowsOf,
-  sourceLabel,
-  type InboxFilter,
+  type EventKind,
   type InboxGroup,
-  type InboxGrouping,
+  type InboxSourceMeta,
+  type InboxTypeFilter,
 } from "./inbox.logic";
 
-const SOURCE_ICON: Readonly<Record<FoldedFeedEvent["actor"]["kind"], LucideIcon>> = {
-  agent: MessageSquareIcon,
-  script: TerminalSquareIcon,
-  app: AppWindowIcon,
-  watcher: EyeIcon,
-  member: UserIcon,
-  mod: PuzzleIcon,
+const KIND_ICON: Readonly<Record<EventKind, LucideIcon>> = {
+  failed: AlertCircleIcon,
+  approval: ShieldAlertIcon,
+  input: MessageSquareIcon,
+  limit: GaugeIcon,
+  finished: CheckCircle2Icon,
+  update: BellIcon,
 };
 
-const EMPTY_FILTER_LINE: Readonly<Record<InboxFilter, string>> = {
-  all: "Nothing matches.",
-  "needs-you": "Nothing needs you.",
-  finished: "Nothing finished yet.",
+const KIND_TONE: Readonly<Record<EventKind, string>> = {
+  failed: "bg-destructive/15 text-destructive-foreground",
+  approval: "bg-warning/15 text-warning-foreground",
+  input: "bg-warning/15 text-warning-foreground",
+  limit: "bg-warning/15 text-warning-foreground",
+  finished: "bg-success/15 text-success-foreground",
+  update: "bg-info/15 text-info-foreground",
 };
 
-const pill = (active: boolean) =>
-  cn(
-    "rounded-full border px-2.5 py-0.5 text-xs transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
-    active
-      ? "border-border bg-surface-raised font-medium text-foreground"
-      : "border-border/60 text-muted-foreground hover:text-foreground",
-  );
+const KIND_LABEL: Readonly<Record<EventKind, string>> = {
+  failed: "Failed",
+  approval: "Approval needed",
+  input: "Input needed",
+  limit: "Usage limit",
+  finished: "Finished",
+  update: "Update",
+};
 
-interface Counts {
-  readonly all: number;
-  readonly needsYou: number;
-  readonly finished: number;
-}
-
-/** Search, filter pills with counts, then the rows in groups. Arrow keys move through the rows. */
+/** Compact filter bar plus urgency-grouped notification stream with fast keyboard triage. */
 export function InboxList({
   groups,
-  counts,
-  unread,
-  filter,
-  onFilter,
-  grouping,
-  onGrouping,
-  onMarkAllDone,
+  typeFilter,
+  onTypeFilter,
+  projectFilter,
+  onProjectFilter,
+  projects,
+  unreadOnly,
+  onUnreadOnly,
   query,
   onQuery,
+  hasActiveFilters,
+  onResetFilters,
   selectedId,
-  onSelect,
-  onOpen,
+  onSelectRow,
+  onPrimaryAction,
+  onMarkRowRead,
+  onDismissRow,
+  resolveSource,
   marks,
   now,
+  compact,
+  narrow,
   rowRefs,
+  searchRef,
 }: {
   readonly groups: ReadonlyArray<InboxGroup>;
-  readonly counts: Counts;
-  /** The rail badge number. */
-  readonly unread: number;
-  readonly filter: InboxFilter;
-  readonly onFilter: (filter: InboxFilter) => void;
-  readonly grouping: InboxGrouping;
-  readonly onGrouping: (grouping: InboxGrouping) => void;
-  /** Clears the rows this view shows: the filter and the search apply. */
-  readonly onMarkAllDone: () => void;
+  readonly typeFilter: InboxTypeFilter;
+  readonly onTypeFilter: (value: InboxTypeFilter) => void;
+  readonly projectFilter: string;
+  readonly onProjectFilter: (value: string) => void;
+  readonly projects: ReadonlyArray<string>;
+  readonly unreadOnly: boolean;
+  readonly onUnreadOnly: (value: boolean) => void;
   readonly query: string;
-  readonly onQuery: (query: string) => void;
+  readonly onQuery: (value: string) => void;
+  readonly hasActiveFilters: boolean;
+  readonly onResetFilters: () => void;
   readonly selectedId: string | undefined;
-  readonly onSelect: (event: FoldedFeedEvent) => void;
-  readonly onOpen: (event: FoldedFeedEvent) => void;
+  readonly onSelectRow: (event: MergedFeedEvent) => void;
+  readonly onPrimaryAction: (event: MergedFeedEvent) => void;
+  readonly onMarkRowRead: (event: MergedFeedEvent) => void;
+  readonly onDismissRow: (event: MergedFeedEvent) => void;
+  readonly resolveSource: (event: MergedFeedEvent) => InboxSourceMeta;
   readonly marks: Readonly<Record<string, EventMark>>;
   readonly now: number;
+  /** True when the inspector is open or the viewport is narrow so rows wrap cleanly. */
+  readonly compact: boolean;
+  readonly narrow: boolean;
   readonly rowRefs: MutableRefObject<Array<HTMLButtonElement | null>>;
+  readonly searchRef: RefObject<HTMLInputElement | null>;
 }) {
   const rows = rowsOf(groups);
-  const count = (id: InboxFilter) =>
-    id === "all" ? counts.all : id === "needs-you" ? counts.needsYou : counts.finished;
-  const onKeyDown = (event: KeyboardEvent, index: number) => {
-    const next = nextRowIndex(event.key, index, rows.length);
-    if (next === null) return;
-    event.preventDefault();
-    rowRefs.current[next]?.focus();
-    const row = rows[next];
-    if (row) onSelect(row);
+  const typeLabel = INBOX_TYPE_FILTERS.find((item) => item.id === typeFilter)?.label ?? "All types";
+  const projectLabel = projectFilter === "all" ? "All projects" : projectFilter;
+
+  const onRowKeyDown = (keyEvent: KeyboardEvent, index: number, row: MergedFeedEvent) => {
+    const next = nextRowIndex(keyEvent.key, index, rows.length);
+    if (next !== null) {
+      keyEvent.preventDefault();
+      rowRefs.current[next]?.focus();
+      return;
+    }
+    if (keyEvent.key === "Enter") {
+      keyEvent.preventDefault();
+      onPrimaryAction(row);
+      return;
+    }
+    if (keyEvent.key === "Delete" || keyEvent.key === "Backspace") {
+      keyEvent.preventDefault();
+      onDismissRow(row);
+    }
   };
-  // One row is in the Tab order; the arrow keys reach the rest.
+
   const tabStop = Math.max(
     0,
     rows.findIndex((row) => row.id === selectedId),
   );
-  let index = -1;
+  const rowIndexById = new Map(rows.map((row, idx) => [row.id, idx]));
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-col gap-2 p-3">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
         <Input
+          ref={searchRef}
           type="search"
+          size="sm"
           aria-label="Search notifications"
           placeholder="Search notifications"
           value={query}
           onChange={(event) => onQuery(event.target.value)}
+          className="w-full sm:w-56"
         />
-        <div className="flex flex-wrap items-center justify-between gap-1.5">
-          <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
-            {INBOX_FILTERS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                aria-pressed={filter === item.id}
-                onClick={() => onFilter(item.id)}
-                className={pill(filter === item.id)}
-              >
-                {item.label} <span className="tabular-nums">{count(item.id)}</span>
-              </button>
-            ))}
-          </div>
-          <div role="group" aria-label="Group" className="flex gap-1.5">
-            {INBOX_GROUPINGS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                aria-pressed={grouping === item.id}
-                onClick={() => onGrouping(item.id)}
-                className={pill(grouping === item.id)}
-              >
+        <Select
+          value={typeFilter}
+          onValueChange={(value) => {
+            if (
+              value === "all" ||
+              value === "needs-you" ||
+              value === "failed" ||
+              value === "updates"
+            ) {
+              onTypeFilter(value);
+            }
+          }}
+        >
+          <SelectTrigger size="sm" className="w-auto min-w-28" aria-label="Filter by type">
+            <SelectValue>{typeLabel}</SelectValue>
+          </SelectTrigger>
+          <SelectPopup align="start" alignItemWithTrigger={false}>
+            {INBOX_TYPE_FILTERS.map((item) => (
+              <SelectItem key={item.id} hideIndicator value={item.id}>
                 {item.label}
-              </button>
+              </SelectItem>
             ))}
+          </SelectPopup>
+        </Select>
+        <Select
+          value={projectFilter}
+          onValueChange={(value) => {
+            if (value) onProjectFilter(value);
+          }}
+        >
+          <SelectTrigger
+            size="sm"
+            className="w-auto min-w-32 max-w-48"
+            aria-label="Filter by project"
+          >
+            <SelectValue>{projectLabel}</SelectValue>
+          </SelectTrigger>
+          <SelectPopup align="start" alignItemWithTrigger={false}>
+            <SelectItem hideIndicator value="all">
+              All projects
+            </SelectItem>
+            {projects.map((project) => (
+              <SelectItem key={project} hideIndicator value={project}>
+                {project}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+        <Button
+          size="sm"
+          variant={unreadOnly ? "secondary" : "outline"}
+          aria-pressed={unreadOnly}
+          onClick={() => onUnreadOnly(!unreadOnly)}
+        >
+          Unread
+        </Button>
+        {hasActiveFilters ? (
+          <Button size="sm" variant="ghost-muted" onClick={onResetFilters}>
+            Clear filters
+          </Button>
+        ) : null}
+        {compact ? null : (
+          <div
+            aria-hidden
+            className="ml-auto hidden items-center gap-1.5 text-2xs text-muted-foreground lg:flex"
+          >
+            <kbd className="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-3xs">
+              Up/Down
+            </kbd>
+            <kbd className="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-3xs">
+              Enter
+            </kbd>
+            <kbd className="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-3xs">
+              Del
+            </kbd>
+            <kbd className="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-3xs">
+              /
+            </kbd>
           </div>
-        </div>
-        <div className="flex min-h-6 items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground tabular-nums" role="status">
-            {unread === 0 ? "All read" : `${unread} unread`}
-          </p>
-          <Tip text="Clears every message in this view from the list. You can undo it.">
-            <Button
-              size="xs"
-              variant="ghost-muted"
-              disabled={rows.length === 0}
-              onClick={onMarkAllDone}
-            >
-              Mark all done
-            </Button>
-          </Tip>
-        </div>
+        )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {rows.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            {query.trim() === "" ? EMPTY_FILTER_LINE[filter] : "No messages match your search."}
-          </p>
+          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+            <p className="text-sm text-muted-foreground">No notifications match.</p>
+            {hasActiveFilters ? (
+              <Button size="xs" variant="outline" onClick={onResetFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
         ) : (
-          groups.map((group) => (
-            <section key={group.key} aria-label={group.label}>
-              <h2 className="flex gap-1.5 px-4 pt-2 pb-1 text-xs font-medium text-muted-foreground">
-                <span className="min-w-0 truncate">{group.label}</span>
-                <span className="font-normal tabular-nums">{group.events.length}</span>
-              </h2>
-              <ul>
-                {group.events.map((event) => {
-                  index += 1;
-                  const at = index;
-                  const read = marks[event.id]?.read === true;
-                  const needsYou = isNeedsYou(event, read);
-                  const Icon = SOURCE_ICON[event.actor.kind];
-                  const active = event.id === selectedId;
-                  return (
-                    <li key={event.id}>
-                      <button
-                        type="button"
-                        ref={(element) => {
-                          rowRefs.current[at] = element;
-                        }}
-                        data-row-id={event.id}
-                        tabIndex={at === tabStop ? 0 : -1}
-                        aria-current={active ? "true" : undefined}
-                        onClick={() => onOpen(event)}
-                        onKeyDown={(key) => onKeyDown(key, at)}
-                        className={cn(
-                          "relative flex w-full min-w-0 items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface-raised/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none",
-                          active && "bg-surface-raised",
-                        )}
-                      >
-                        {active ? (
-                          <span
-                            aria-hidden
-                            className="absolute inset-y-0 left-0 w-0.5 bg-foreground"
-                          />
-                        ) : null}
-                        <span className="relative mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-surface-raised text-muted-foreground">
-                          <Icon aria-hidden className="size-4" />
-                          {needsYou ? (
-                            <span
-                              aria-hidden
-                              className={cn(
-                                "absolute -top-0.5 -left-0.5 size-2 rounded-full",
-                                event.level === "failed" ? "bg-destructive" : "bg-warning",
-                              )}
-                            />
-                          ) : null}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          {needsYou && event.level !== "failed" ? (
-                            <span className="sr-only">Needs you: </span>
-                          ) : null}
-                          <span
+          <div className="flex flex-col gap-5">
+            {groups.map((group) => (
+              <section key={group.key} aria-label={group.label} className="flex flex-col gap-1.5">
+                <h2
+                  className={cn(
+                    "flex items-center gap-1.5 px-1 text-2xs font-semibold tracking-wider uppercase",
+                    group.key === "needs-you"
+                      ? "text-destructive-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <span>{group.label}</span>
+                  <span className="font-normal tabular-nums">{group.events.length}</span>
+                </h2>
+                <ul className="flex flex-col gap-1">
+                  {group.events.map((event) => {
+                    const at = rowIndexById.get(event.id) ?? 0;
+                    const read = isEventRead(event, marks);
+                    const kind = eventKind(event);
+                    const Icon = KIND_ICON[kind];
+                    const active = event.id === selectedId;
+                    const fullTitle = plainEventTitle(event.title);
+                    const shortTitle = formatInboxTitle(event.title, 60);
+                    const source = resolveSource(event);
+                    const sourceText = source.threadTitle
+                      ? `${source.project} · ${source.threadTitle}`
+                      : source.project;
+                    const primaryLabel = actionLabel(event) ?? "Inspect";
+                    const timeText = changedLabel(Date.parse(event.ts), now);
+
+                    return (
+                      <li key={event.id}>
+                        <div
+                          className={cn(
+                            "group relative flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2 transition-colors motion-reduce:transition-none",
+                            active
+                              ? "border-ring bg-accent"
+                              : read
+                                ? "border-border/60 bg-background hover:bg-surface-raised/60"
+                                : "border-border bg-card hover:bg-surface-raised/80",
+                            narrow && "flex-col items-stretch gap-y-2",
+                          )}
+                        >
+                          <button
+                            type="button"
+                            ref={(element) => {
+                              rowRefs.current[at] = element;
+                            }}
+                            data-row-id={event.id}
+                            tabIndex={at === tabStop ? 0 : -1}
+                            aria-current={active ? "true" : undefined}
+                            onClick={() => onSelectRow(event)}
+                            onKeyDown={(keyEvent) => onRowKeyDown(keyEvent, at, event)}
                             className={cn(
-                              "line-clamp-2 text-sm wrap-anywhere",
-                              read ? "text-muted-foreground" : "font-medium text-foreground",
+                              "flex min-w-0 items-center gap-2.5 rounded-sm text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                              narrow ? "w-full" : "flex-1",
                             )}
                           >
-                            {event.level === "failed" ? <FailedTag /> : null}
-                            {plainEventTitle(event.title)}
-                          </span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {sourceLabel(event)}
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 flex-col items-end gap-1.5 text-xs text-muted-foreground">
-                          <span className="tabular-nums">
-                            {changedLabel(Date.parse(event.ts), now)}
-                          </span>
-                          {read ? null : (
-                            <>
-                              <span className="sr-only">Unread</span>
-                            </>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))
+                            <span
+                              className={cn(
+                                "grid size-7 shrink-0 place-items-center rounded-md",
+                                KIND_TONE[kind],
+                              )}
+                            >
+                              <Icon aria-hidden className="size-3.5" />
+                              <span className="sr-only">{KIND_LABEL[kind]}</span>
+                            </span>
+                            <span
+                              className={cn(
+                                "flex min-w-0 flex-1 gap-x-2.5 gap-y-0.5",
+                                compact ? "flex-col items-start" : "items-center",
+                              )}
+                            >
+                              <span className="flex min-w-0 max-w-full items-center gap-1.5">
+                                {shortTitle !== fullTitle ? (
+                                  <Tip text={fullTitle}>
+                                    <span
+                                      className={cn(
+                                        "truncate text-sm",
+                                        read
+                                          ? "font-normal text-muted-foreground"
+                                          : "font-medium text-foreground",
+                                      )}
+                                    >
+                                      {shortTitle}
+                                    </span>
+                                  </Tip>
+                                ) : (
+                                  <span
+                                    className={cn(
+                                      "truncate text-sm",
+                                      read
+                                        ? "font-normal text-muted-foreground"
+                                        : "font-medium text-foreground",
+                                    )}
+                                  >
+                                    {shortTitle}
+                                  </span>
+                                )}
+                                {event.count > 1 ? (
+                                  <Badge
+                                    size="sm"
+                                    variant={kind === "failed" ? "error" : "secondary"}
+                                  >
+                                    x{event.count}
+                                  </Badge>
+                                ) : null}
+                              </span>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {sourceText}
+                              </span>
+                            </span>
+                            {read ? null : <span className="sr-only">Unread</span>}
+                          </button>
+
+                          <div
+                            className={cn(
+                              "flex shrink-0 items-center gap-1.5",
+                              narrow && "w-full justify-between pl-9.5",
+                            )}
+                          >
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {timeText}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 max-sm:opacity-100 motion-reduce:transition-none">
+                                {read ? null : (
+                                  <Tip text="Mark read">
+                                    <Button
+                                      size="icon-xs"
+                                      variant="ghost"
+                                      aria-label={`Mark "${shortTitle}" as read`}
+                                      onClick={() => onMarkRowRead(event)}
+                                    >
+                                      <CheckIcon aria-hidden />
+                                    </Button>
+                                  </Tip>
+                                )}
+                                <Tip text="Dismiss">
+                                  <Button
+                                    size="icon-xs"
+                                    variant="ghost"
+                                    aria-label={`Dismiss "${shortTitle}"`}
+                                    onClick={() => onDismissRow(event)}
+                                  >
+                                    <XIcon aria-hidden />
+                                  </Button>
+                                </Tip>
+                              </div>
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => onPrimaryAction(event)}
+                              >
+                                {primaryLabel}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
         )}
       </div>
     </div>

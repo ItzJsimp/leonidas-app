@@ -16,8 +16,8 @@ vi.mock("~/state/query", () => ({
 }));
 vi.mock("../../twoState/useTwoStateData", () => ({ useFeedEvents: () => [] }));
 
-import { useInboxFeed } from "./useInboxFeed";
 import { inboxEmptyText } from "./inbox.logic";
+import { useInboxFeed } from "./useInboxFeed";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -31,7 +31,7 @@ describe("inbox empty state", () => {
     const root = createRoot(container);
     try {
       act(() => root.render(<Probe />));
-      expect(container.textContent).toBe("Your inbox is empty");
+      expect(container.textContent).toBe("No notifications.");
       state.events = [];
       act(() => root.render(<Probe />));
       expect(container.textContent).toBe("No events could be read");

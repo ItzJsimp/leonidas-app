@@ -1,5 +1,4 @@
 import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
-import type { FoldedFeedEvent } from "@t3tools/contracts";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { CircleCheckIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -15,7 +14,7 @@ import { useAllEnvironmentShellsBootstrapped, useThreadShells } from "~/state/en
 import { buildThreadRouteParams } from "~/threadRoutes";
 
 import { changedLabel } from "../twoState/areaRows";
-import { actionLabel, splitFeed } from "../twoState/railFeed";
+import { actionLabel, eventIds, splitFeed, type MergedFeedEvent } from "../twoState/railFeed";
 import { useCodeForward } from "../twoState/codeForwardContext";
 import { useFeedStatus } from "../twoState/useTwoStateData";
 import { PriorityChecklist } from "../windows/today/PriorityChecklist";
@@ -105,18 +104,18 @@ function NeedsYouCard({ className }: { readonly className?: string }) {
   const { shown, hidden } = capRows(needsYou, NEEDS_YOU_ROWS);
   const oldest = oldestAt(needsYou);
 
-  const open = (event: FoldedFeedEvent) => {
+  const open = (event: MergedFeedEvent) => {
     if (!environmentId) return;
-    markRead([event.id]);
+    markRead(eventIds(event));
     openFeedEvent(event, environmentId, navigate);
   };
   const markAllDone = () => {
-    const ids = needsYou.map((event) => event.id);
+    const ids = needsYou.flatMap(eventIds);
     const before = Object.fromEntries(ids.map((id) => [id, marks[id]]));
     dismissAll(ids);
     const toastId = toastManager.add({
       type: "success",
-      title: `${ids.length} ${plural(ids.length, "item", "items")} done`,
+      title: `${needsYou.length} ${plural(needsYou.length, "item", "items")} done`,
       actionProps: {
         children: "Undo",
         onClick: () => {
@@ -178,7 +177,9 @@ function NeedsYouCard({ className }: { readonly className?: string }) {
                       </span>
                       <span className="block truncate text-sm font-medium">{line.primary}</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {line.secondary} · {changedLabel(Date.parse(event.ts), now)}
+                        {line.secondary}
+                        {event.count > 1 ? ` · x${event.count}` : ""} ·{" "}
+                        {changedLabel(Date.parse(event.ts), now)}
                       </span>
                     </span>
                     {label !== null ? (
