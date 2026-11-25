@@ -4,6 +4,8 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
+import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+
 import {
   CORE_SKILLS_MANIFEST_FILE,
   CORE_SKILLS_STAGING_DIR,
@@ -87,6 +89,22 @@ it.layer(NodeServices.layer)("CoreSkillLinks", (it) => {
           expect(yield* t.read("home/skills/alpha/SKILL.md")).toBe("user alpha");
           const manifest = JSON.parse(yield* t.read(`home/skills/${CORE_SKILLS_MANIFEST_FILE}`));
           expect(manifest.skills).toEqual({});
+        }),
+      ),
+    );
+
+    it.effect.skipIf(!symlinksSupported)("leaves a linked skill folder alone", () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const t = yield* setup();
+          yield* t.write("source/alpha/SKILL.md", "alpha");
+          yield* t.write("repo/keep.md", "keep");
+          yield* t.fileSystem.makeDirectory(t.path.join(t.root, "home"), { recursive: true });
+          yield* t.fileSystem.symlink(t.path.join(t.root, "repo"), t.targetDir);
+          expect(t.actions(yield* t.sync())).toEqual({});
+          expect(yield* t.fileSystem.readDirectory(t.path.join(t.root, "repo"))).toEqual([
+            "keep.md",
+          ]);
         }),
       ),
     );

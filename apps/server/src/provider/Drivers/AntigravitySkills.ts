@@ -6,6 +6,7 @@ import type * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { parse as parseYamlDocument } from "yaml";
+import { readCoreSkillNames } from "../CoreSkillLinks.ts";
 
 /**
  * The home directory the agent expands `~` against, matching Python's
@@ -176,6 +177,9 @@ export const discoverAntigravitySkills = Effect.fn("discoverAntigravitySkills")(
     remainingEntries: MAX_SCAN_ENTRIES,
   };
   const skillsByName = new Map<string, ServerProviderSkill>();
+  // The app copies the core skills into the user folder. A project skill replaces them (ADR-0102).
+  const coreFolders = yield* readCoreSkillNames(configSkills);
+  const coreSkills = new Set<string>();
 
   const scanDirectory = Effect.fn("scanAntigravitySkillDirectory")(function* (
     directory: string,
@@ -202,7 +206,13 @@ export const discoverAntigravitySkills = Effect.fn("discoverAntigravitySkills")(
       const contents = yield* readSkill(skillPath, budget);
       if (contents === undefined) return;
       const skill = parseSkillFrontmatter(contents, skillFileName);
-      if (!skill || skillsByName.has(skill.name)) return;
+      if (!skill) return;
+      if (skillsByName.has(skill.name) && !(scope === "project" && coreSkills.delete(skill.name))) {
+        return;
+      }
+      if (path.dirname(directory) === configSkills && coreFolders.has(path.basename(directory))) {
+        coreSkills.add(skill.name);
+      }
       skillsByName.set(skill.name, {
         ...skill,
         path: skillPath,

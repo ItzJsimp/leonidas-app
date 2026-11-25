@@ -70,7 +70,12 @@ import {
 } from "@t3tools/provider-core/server/driver";
 import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/instanceEnvironment";
 import { withInstanceIdentity } from "@t3tools/provider-core/server/instanceIdentity";
-import { discoverAntigravitySkills, resolveAntigravityUserHome } from "./AntigravitySkills.ts";
+import {
+  antigravityUserSkillDirectories,
+  discoverAntigravitySkills,
+  resolveAntigravityUserHome,
+} from "./AntigravitySkills.ts";
+import { syncProviderCoreSkills } from "../CoreSkillLinks.ts";
 
 const DRIVER = ProviderDriverKind.make("antigravity");
 const decodeSettings = Schema.decodeSync(AntigravitySettings);
@@ -134,6 +139,15 @@ export const AntigravityDriver: ProviderDriver<
       processEnvironment,
       yield* HostProcess.HomeDirectory,
     );
+    if (enabled) {
+      // The private profile links this folder, so the agent reads the core skills too.
+      const [configSkills] = antigravityUserSkillDirectories(path, path.join(userHome, ".gemini"));
+      yield* syncProviderCoreSkills({ provider: "Antigravity", targetDir: configSkills }).pipe(
+        Effect.provideService(FileSystem.FileSystem, fileSystem),
+        Effect.provideService(Path.Path, path),
+        Effect.forkScoped,
+      );
+    }
     const directories = yield* resolveAntigravityInstanceDirectories(
       host.paths.stateDir,
       instanceId,
