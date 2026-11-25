@@ -14,7 +14,7 @@ import * as Option from "effect/Option";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, it } from "vite-plus/test";
 
-import { createRunningThreadKeepAliveAtom } from "./threads";
+import { createRunningThreadKeepAliveAtom, isInterruptedByRestart } from "./threads";
 
 const LOCAL = EnvironmentId.make("local");
 const REMOTE = EnvironmentId.make("remote");
@@ -171,5 +171,22 @@ describe("createRunningThreadKeepAliveAtom", () => {
     expect(h.openStreams()).toEqual(["remote:d"]);
     h.registry.set(h.environmentIds, [LOCAL]);
     expect(h.openStreams()).toEqual([]);
+  });
+});
+
+describe("isInterruptedByRestart", () => {
+  const stopped = (service: boolean) => ({
+    status: "idle" as const,
+    pendingBackgroundTasks: [{ taskId: "shell", kind: "command" as const, service }],
+  });
+
+  it("counts a stopped thread with a live task command, not a service command", () => {
+    expect(isInterruptedByRestart(stopped(false), true)).toBe(true);
+    expect(isInterruptedByRestart(stopped(true), true)).toBe(false);
+  });
+
+  it("counts only active runs while the switch is off", () => {
+    expect(isInterruptedByRestart(stopped(false))).toBe(false);
+    expect(isInterruptedByRestart({ status: "running", pendingBackgroundTasks: [] })).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
 import { MCP_SERVER_NAME, toCurrentMcpToolRule } from "@t3tools/shared/mcpServerName";
+import { isServiceCommand } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { makeProviderTextDeltaCoalescer } from "./ProviderTextDeltaCoalescer.ts";
 import { claudeTurnEnvironment } from "./claudeFreeModelRetries.ts";
 import { claudeTaskOutputRoot, tailClaudeTaskOutput } from "./ClaudeTaskOutputTail.ts";
@@ -2529,16 +2530,22 @@ function claudePendingBackgroundTask(input: {
   // that started it tells it apart from a background Bash command.
   readonly startedByMonitor: boolean;
   readonly description: string | undefined;
+  /** The shell text, when the starting tool call is known. */
+  readonly command?: string | undefined;
   // Undeclared SDK field: the subagent whose own background work this is.
   readonly parentTaskId: unknown;
 }): OrchestrationV2PendingBackgroundTask {
+  const kind = input.startedByMonitor
+    ? "monitor"
+    : ((input.taskType === null
+        ? undefined
+        : CLAUDE_OPAQUE_BACKGROUND_TASK_KINDS.get(input.taskType)) ?? "background_task");
   return {
     taskId: input.taskId,
-    kind: input.startedByMonitor
-      ? "monitor"
-      : ((input.taskType === null
-          ? undefined
-          : CLAUDE_OPAQUE_BACKGROUND_TASK_KINDS.get(input.taskType)) ?? "background_task"),
+    kind,
+    ...(kind === "command" && input.command !== undefined && isServiceCommand(input.command)
+      ? { service: true }
+      : {}),
     ...(input.description !== undefined && input.description.trim().length > 0
       ? { description: input.description }
       : {}),
@@ -2550,9 +2557,13 @@ function claudePendingBackgroundTask(input: {
 
 const BACKGROUND_COMMAND_LABEL_LIMIT = 200;
 
+function claudeToolCommand(call: ActiveClaudeToolCall | undefined): string | undefined {
+  return call === undefined ? undefined : firstStringInputField(call.input, ["command"]);
+}
+
 /** A background command's own text, so the user can see what the agent is waiting on. */
 function claudeBackgroundCommandLabel(call: ActiveClaudeToolCall | undefined): string | undefined {
-  const command = call === undefined ? undefined : firstStringInputField(call.input, ["command"]);
+  const command = claudeToolCommand(call);
   if (command === undefined) return undefined;
   const oneLine = command.replace(/\s+/g, " ");
   return oneLine.length > BACKGROUND_COMMAND_LABEL_LIMIT
@@ -7594,12 +7605,15 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               const task = parseClaudeBackgroundTaskEntry(entry, monitorTasks);
               if (task !== null) {
                 // The snapshot may omit the description the launch already supplied.
-                const known = knownTasks.get(task.taskId)?.description;
-                nextTasks.push(
-                  task.description === undefined && known !== undefined
-                    ? { ...task, description: known }
-                    : task,
-                );
+                // It never carries the command, so the launch's service mark stays too.
+                const known = knownTasks.get(task.taskId);
+                nextTasks.push({
+                  ...task,
+                  ...(task.description === undefined && known?.description !== undefined
+                    ? { description: known.description }
+                    : {}),
+                  ...(known?.kind === "command" && known.service === true ? { service: true } : {}),
+                });
               }
             }
             yield* replacePendingBackgroundTasks(input.nativeThreadId, nextTasks);
@@ -7626,6 +7640,11 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                           ? undefined
                           : input.activeContext?.toolCalls.get(message.tool_use_id),
                       ),
+                command: claudeToolCommand(
+                  message.tool_use_id === undefined
+                    ? undefined
+                    : input.activeContext?.toolCalls.get(message.tool_use_id),
+                ),
                 parentTaskId: Reflect.get(message, "parent_task_id"),
               }),
             );
