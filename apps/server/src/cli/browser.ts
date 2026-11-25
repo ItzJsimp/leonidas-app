@@ -157,7 +157,7 @@ const browserSetupCommand = Command.make("setup", { baseDir: baseDirFlag }).pipe
         }
         if (needsFonts) {
           yield* Console.log(
-            "T3's browser needs fontconfig and system fonts; setup installs them.",
+            "Leonidas's browser needs fontconfig and system fonts; setup installs them.",
           );
         }
         return yield* Console.log(`\nThis needs root. Run:\n\n  ${setupCommand}\n`);
@@ -193,7 +193,7 @@ const browserSetupCommand = Command.make("setup", { baseDir: baseDirFlag }).pipe
         }
         if (needsFonts) {
           yield* Console.log(
-            "T3's browser needs fontconfig and system fonts. Install them with your package manager, then run this again.",
+            "Leonidas's browser needs fontconfig and system fonts. Install them with your package manager, then run this again.",
           );
         }
         return;
