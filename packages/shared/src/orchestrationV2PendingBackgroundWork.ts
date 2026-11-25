@@ -96,7 +96,7 @@ export function deriveBlockedOnThreadWait(input: {
  * Off switch for decision 0103 (task commands hold a thread in Waiting and delay updates).
  * It stays false until time limits and cleanup ship, so a stuck command cannot hold forever.
  */
-const TASK_COMMAND_HOLD_ENABLED: boolean = false;
+export const TASK_COMMAND_HOLD_ENABLED: boolean = false;
 
 // ponytail: patterns only. The agent declaration and the user toggle override this later.
 const SERVICE_COMMAND_PATTERNS: ReadonlyArray<RegExp> = [

@@ -1,5 +1,8 @@
 import { MCP_SERVER_NAME, toCurrentMcpToolRule } from "@t3tools/shared/mcpServerName";
-import { isServiceCommand } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
+import {
+  isServiceCommand,
+  TASK_COMMAND_HOLD_ENABLED,
+} from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { makeProviderTextDeltaCoalescer } from "./ProviderTextDeltaCoalescer.ts";
 import { claudeTurnEnvironment } from "./claudeFreeModelRetries.ts";
 import { claudeTaskOutputRoot, tailClaudeTaskOutput } from "./ClaudeTaskOutputTail.ts";
@@ -2532,6 +2535,7 @@ function claudePendingBackgroundTask(input: {
   readonly description: string | undefined;
   /** The shell text, when the starting tool call is known. */
   readonly command?: string | undefined;
+  readonly timeoutMs?: number | undefined;
   // Undeclared SDK field: the subagent whose own background work this is.
   readonly parentTaskId: unknown;
 }): OrchestrationV2PendingBackgroundTask {
@@ -2546,6 +2550,7 @@ function claudePendingBackgroundTask(input: {
     ...(kind === "command" && input.command !== undefined && isServiceCommand(input.command)
       ? { service: true }
       : {}),
+    ...(kind === "command" && input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
     ...(input.description !== undefined && input.description.trim().length > 0
       ? { description: input.description }
       : {}),
@@ -2556,6 +2561,16 @@ function claudePendingBackgroundTask(input: {
 }
 
 const BACKGROUND_COMMAND_LABEL_LIMIT = 200;
+
+/** The `timeout` the agent passed to Bash, in milliseconds. */
+function claudeToolTimeoutMs(call: ActiveClaudeToolCall | undefined): number | undefined {
+  const input = call?.input;
+  const timeout =
+    typeof input === "object" && input !== null ? Reflect.get(input, "timeout") : undefined;
+  return typeof timeout === "number" && Number.isInteger(timeout) && timeout > 0
+    ? timeout
+    : undefined;
+}
 
 function claudeToolCommand(call: ActiveClaudeToolCall | undefined): string | undefined {
   return call === undefined ? undefined : firstStringInputField(call.input, ["command"]);
@@ -4064,6 +4079,8 @@ export function claudeProposedPlan(input: unknown): string | null {
 }
 
 export interface ClaudeAdapterV2Options {
+  /** Decision 0103. Defaults to the shared off switch. */
+  readonly stopBackgroundShellsOnClose?: boolean | undefined;
   readonly instanceId: ProviderInstanceId;
   readonly driver?: ProviderDriverKind | undefined;
   readonly settings: ClaudeSettings;
@@ -7613,6 +7630,9 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                     ? { description: known.description }
                     : {}),
                   ...(known?.kind === "command" && known.service === true ? { service: true } : {}),
+                  ...(known?.kind === "command" && known.timeoutMs !== undefined
+                    ? { timeoutMs: known.timeoutMs }
+                    : {}),
                 });
               }
             }
@@ -7641,6 +7661,11 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                           : input.activeContext?.toolCalls.get(message.tool_use_id),
                       ),
                 command: claudeToolCommand(
+                  message.tool_use_id === undefined
+                    ? undefined
+                    : input.activeContext?.toolCalls.get(message.tool_use_id),
+                ),
+                timeoutMs: claudeToolTimeoutMs(
                   message.tool_use_id === undefined
                     ? undefined
                     : input.activeContext?.toolCalls.get(message.tool_use_id),
@@ -10445,9 +10470,30 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             ),
         );
 
+        // Only the live CLI can end the trees of its shells. Windows has no process group to
+        // sweep afterwards, so they would outlive the session.
+        const stopBackgroundShells = Effect.fnUntraced(function* (live: {
+          readonly nativeThreadId: string;
+          readonly query: ClaudeAgentSdkQuerySession;
+        }) {
+          if (!(adapterOptions.stopBackgroundShellsOnClose ?? TASK_COMMAND_HOLD_ENABLED)) return;
+          const roster = rosterForNativeThread(
+            yield* Ref.get(pendingBackgroundTasksByNativeThread),
+            live.nativeThreadId,
+          );
+          yield* Effect.forEach(
+            [...roster.values()].filter((task) => task.kind !== "subagent"),
+            (task) =>
+              live.query.stopTask(task.taskId).pipe(Effect.timeout("5 seconds"), Effect.ignore),
+            { concurrency: "unbounded", discard: true },
+          );
+        });
+
         const closeSession = Effect.fnUntraced(function* () {
           const existing = yield* Ref.get(queryContext);
           if (existing !== null) {
+            existing.stopping = true;
+            yield* stopBackgroundShells(existing);
             yield* existing.query.close.pipe(Effect.ignore);
           }
           yield* Effect.yieldNow;
@@ -10468,6 +10514,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           }
 
           existing.stopping = true;
+          yield* stopBackgroundShells(existing);
           yield* existing.query.close.pipe(Effect.ignore);
           const closed = yield* Deferred.await(existing.closed).pipe(
             Effect.timeoutOption("10 seconds"),
