@@ -253,7 +253,7 @@ function nonEmptyProbeString(value: string): string | undefined {
   return candidate ? candidate : undefined;
 }
 
-type ClaudeCapabilitiesProbe = {
+export type ClaudeCapabilitiesProbe = {
   readonly connectionIssue?: ServerProvider["connectionIssue"];
   readonly email: string | undefined;
   readonly workspaceId?: string | undefined;
