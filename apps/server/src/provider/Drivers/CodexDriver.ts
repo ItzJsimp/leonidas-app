@@ -52,7 +52,7 @@ import {
   resolveCodexHomeLayout,
 } from "./CodexHomeLayout.ts";
 import { makeManagedCodexProvider } from "./CodexManagedProvider.ts";
-import { syncCodexCoreSkills } from "../CoreSkillLinks.ts";
+import { syncProviderCoreSkills } from "../CoreSkillLinks.ts";
 import { codexUsageReader } from "./codexUsage.ts";
 import * as CodexInstallation from "../CodexInstallation.ts";
 import * as ServerSecretStore from "../../auth/ServerSecretStore.ts";
@@ -159,8 +159,6 @@ export const CodexDriver: ProviderDriver<
           }),
       ),
     );
-    // The first install copies about 160 files, so it must not delay the start of Codex.
-    yield* syncCodexCoreSkills(homeLayout.sharedHomePath).pipe(Effect.forkScoped);
     const effectiveConfig = {
       ...config,
       enabled,
@@ -168,6 +166,11 @@ export const CodexDriver: ProviderDriver<
       homePath: homeLayout.effectiveHomePath ?? "",
     } satisfies CodexSettings;
     if (enabled) {
+      // The first install copies about 160 files, so it must not delay the start of Codex.
+      yield* syncProviderCoreSkills({
+        provider: "Codex",
+        targetDir: pathService.join(homeLayout.sharedHomePath, "skills"),
+      }).pipe(Effect.forkScoped);
       scheduleCodexPonytail({
         binaryPath: effectiveConfig.binaryPath,
         env: { ...processEnv, CODEX_HOME: homeLayout.sharedHomePath },

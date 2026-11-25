@@ -1,4 +1,4 @@
-// Delivers the core skills (ADR-0102) to providers that have no plugin option, such as Codex.
+// Delivers the core skills (ADR-0102) to providers that have no plugin option, such as Codex and Antigravity.
 // Each core skill is copied into the user skill folder and tracked in a hash manifest, the way
 // Hermes Agent ships its bundled skills. The app only touches a folder that it wrote and that the
 // user has not changed. It never follows a link and never removes a skill it did not install.
@@ -100,6 +100,13 @@ const readManifest = Effect.fn("CoreSkillLinks.readManifest")(function* (file: s
   return rows;
 });
 
+/** The skills in `targetDir` that the app installed. */
+export const readCoreSkillNames = Effect.fn("readCoreSkillNames")(function* (targetDir: string) {
+  const path = yield* Path.Path;
+  const rows = yield* readManifest(path.join(targetDir, CORE_SKILLS_MANIFEST_FILE));
+  return new Set(Object.keys(rows));
+});
+
 /**
  * Brings `targetDir` in line with the skills under `sourceDir` (one folder per skill).
  * - A new skill is copied and recorded.
@@ -107,6 +114,7 @@ const readManifest = Effect.fn("CoreSkillLinks.readManifest")(function* (file: s
  * - An installed skill that the user edited is kept, and the report says so.
  * - A skill that left the source is removed when untouched. Its manifest row always goes.
  * - A folder with the same name that the app did not install is never touched.
+ * - A skill folder that is itself a link is left alone, because it can point into a user repo.
  * The app can stop at any point: a skill folder moves in or out with one rename, and the manifest
  * row is saved before the folder appears. The next run then finishes the work.
  */
@@ -117,6 +125,10 @@ export const syncCoreSkillLinks = Effect.fn("syncCoreSkillLinks")(function* (inp
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const outcomes: CoreSkillLinkOutcome[] = [];
+  if (yield* isLink(input.targetDir)) {
+    yield* Effect.logInfo(`Core skills not copied: ${input.targetDir} is a link.`);
+    return { outcomes };
+  }
   const names = (yield* fileSystem.readDirectory(input.sourceDir))
     .filter((name) => manifestRowPattern.test(name))
     .toSorted();
@@ -196,33 +208,36 @@ export const syncCoreSkillLinks = Effect.fn("syncCoreSkillLinks")(function* (inp
   return { outcomes };
 });
 
-// Two Codex instances can share one home, so only one sync runs at a time.
+// Provider instances can share one home, so only one sync runs at a time.
 const syncLock = Semaphore.makeUnsafe(1);
 
 /**
- * Syncs the core skills into the shared Codex home, from the plugin folder the desktop unpacked.
- * It does nothing without that folder (dev builds, WSL, tests). A failure only logs a warning, so a
- * skill problem never stops Codex from starting.
+ * Syncs the core skills into a provider's user skill folder, from the plugin folder the desktop
+ * unpacked. It does nothing without that folder (dev builds, WSL, tests). A failure only logs a
+ * warning, so a skill problem never stops the provider from starting.
  */
-export const syncCodexCoreSkills = Effect.fn("syncCodexCoreSkills")(function* (
-  sharedHomePath: string,
-) {
+export const syncProviderCoreSkills = Effect.fn("syncProviderCoreSkills")(function* (input: {
+  readonly provider: "Codex" | "Antigravity";
+  readonly targetDir: string;
+}) {
   const path = yield* Path.Path;
   const pluginDir = (yield* HostProcess.Environment).LEONIDAS_CORE_SKILLS_PLUGIN_DIR?.trim();
   if (!pluginDir) return;
   const report = yield* syncCoreSkillLinks({
     sourceDir: path.join(pluginDir, "skills"),
-    targetDir: path.join(sharedHomePath, "skills"),
+    targetDir: input.targetDir,
   }).pipe(
     syncLock.withPermit,
-    Effect.tapError((cause) => Effect.logWarning("Could not sync the core skills to Codex", cause)),
+    Effect.tapError((cause) =>
+      Effect.logWarning(`Could not sync the core skills to ${input.provider}`, cause),
+    ),
     Effect.option,
   );
   if (report._tag === "None") return;
   const kept = report.value.outcomes.filter((o) => o.action === "kept-edited");
   if (kept.length > 0) {
     yield* Effect.logInfo(
-      `Codex core skills left as you edited them: ${kept.map((o) => o.name).join(", ")}`,
+      `${input.provider} core skills left as you edited them: ${kept.map((o) => o.name).join(", ")}`,
     );
   }
 });

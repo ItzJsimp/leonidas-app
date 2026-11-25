@@ -65,6 +65,34 @@ it.layer(NodeServices.layer)("discoverAntigravitySkills", (it) => {
     }),
   );
 
+  it.effect("lets a project skill replace a core copy, but not a user skill", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const input = yield* makeWorkspace();
+      const userSkills = path.join(input.userHome, ".gemini", "config", "skills");
+      for (const name of ["core", "mine"]) {
+        yield* writeSkill(path.join(userSkills, name), `---\nname: ${name}\n---\n`);
+        yield* writeSkill(
+          path.join(input.cwd, ".agents", "skills", name),
+          `---\nname: ${name}\n---\n`,
+        );
+      }
+      yield* fileSystem.writeFileString(
+        path.join(userSkills, ".leonidas-core-skills.json"),
+        '{"version":1,"skills":{"core":"hash"}}',
+      );
+
+      assert.deepEqual(
+        (yield* discoverAntigravitySkills(input)).map((skill) => [skill.name, skill.scope]),
+        [
+          ["core", "project"],
+          ["mine", "user"],
+        ],
+      );
+    }),
+  );
+
   it.effect("reads skill names, descriptions and paths from the current native roots", () =>
     Effect.gen(function* () {
       const path = yield* Path.Path;
