@@ -17,8 +17,10 @@ import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import { HttpClient } from "effect/http";
 
 import { withClaudeUserBinOnPath } from "./Drivers/ClaudeExecutable.ts";
+import { downloadClaudeRelease } from "./ClaudeReleaseDownload.ts";
 
 const DRIVER = ProviderDriverKind.make("claudeAgent");
 const MESSAGE_TAIL = 400;
@@ -33,24 +35,6 @@ export class ClaudeInstallationError extends Schema.TaggedError<ClaudeInstallati
 
 const installationError = (operation: string, detail: string) =>
   new ClaudeInstallationError({ operation, detail });
-
-/** The official installer command for each platform. Anthropic hosts both scripts. */
-export const claudeInstallerCommand = (
-  platform: NodeJS.Platform,
-): { readonly command: string; readonly args: ReadonlyArray<string> } =>
-  platform === "win32"
-    ? {
-        command: "powershell.exe",
-        args: [
-          "-NoProfile",
-          "-NonInteractive",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-Command",
-          "irm https://claude.ai/install.ps1 | iex",
-        ],
-      }
-    : { command: "bash", args: ["-c", "curl -fsSL https://claude.ai/install.sh | bash"] };
 
 /** First line of `claude --version` output, for example `2.1.300 (Claude Code)`. */
 export const parseClaudeVersion = (output: string): string | null =>
@@ -88,12 +72,14 @@ const isRunning = (state: ProviderInstallState) =>
  */
 const makeClaudeInstallation = Effect.fn("makeClaudeInstallation")(function* () {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+  const http = yield* HttpClient.HttpClient;
   const crypto = yield* Crypto.Crypto;
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const serviceScope = yield* Effect.scope;
   const platform = yield* HostProcess.Platform;
   const home = yield* HostProcess.HomeDirectory;
+  const arch = yield* HostProcess.Architecture;
   const environment = yield* HostProcess.Environment;
   const env = withClaudeUserBinOnPath(environment, home, platform);
   const gate = yield* Semaphore.make(1);
@@ -175,8 +161,37 @@ const makeClaudeInstallation = Effect.fn("makeClaudeInstallation")(function* () 
   });
 
   const install = Effect.fn("ClaudeInstallation.install")(function* (operationId: string) {
-    const installer = claudeInstallerCommand(platform);
-    const result = yield* run(installer.command, installer.args, INSTALL_TIMEOUT).pipe(
+    const release = yield* downloadClaudeRelease({
+      directory: path.join(home, ".cache", "leonidas", "claude-repair"),
+      platform,
+      arch,
+      onProgress: (downloadedBytes, totalBytes) =>
+        SubscriptionRef.update(state, (current) =>
+          current.operationId === operationId
+            ? { ...current, downloadedBytes, totalBytes }
+            : current,
+        ),
+    }).pipe(
+      Effect.provideService(HttpClient.HttpClient, http),
+      Effect.provideService(FileSystem.FileSystem, fileSystem),
+      Effect.provideService(Path.Path, path),
+      Effect.mapError((error) => installationError("download", error.detail)),
+    );
+    yield* SubscriptionRef.update(state, (current): ProviderInstallState =>
+      current.operationId === operationId
+        ? {
+            ...current,
+            phase: "verifying",
+            version: release.version,
+            message: "Repairing Claude. Your accounts stay unchanged.",
+          }
+        : current,
+    );
+    const result = yield* run(
+      release.executablePath,
+      ["install", release.version],
+      INSTALL_TIMEOUT,
+    ).pipe(
       Effect.catch(() =>
         // The installer may finish its work and still not exit. Trust the result.
         detect.pipe(
@@ -197,7 +212,7 @@ const makeClaudeInstallation = Effect.fn("makeClaudeInstallation")(function* () 
       const tail = (result.stderr || result.stdout).trim().slice(-MESSAGE_TAIL);
       return yield* installationError(
         "install",
-        `The Claude installer stopped with an error.${tail ? ` ${tail}` : ""}`,
+        `Claude repair failed. Check the connection and system security history, then select Repair Claude.${tail ? ` ${tail}` : ""}`,
       );
     }
     yield* SubscriptionRef.update(state, (current): ProviderInstallState =>

@@ -51,7 +51,7 @@ export const CLAUDE_INSTALL_PROMPT =
 export const CLAUDE_INSTALLED_ELSEWHERE_MESSAGE =
   "Claude is installed, but this account uses a different program path. Open its Settings and clear Binary path.";
 export const CLAUDE_INSTALLING_MESSAGE =
-  "Installing Claude. This takes about 1 minute. You can continue: setup keeps going.";
+  "Installing Claude. You can continue while the download completes.";
 /** The install message with a running clock, so a slow download never looks frozen. */
 export function describeClaudeInstalling(elapsedSeconds: number): string {
   if (elapsedSeconds < 1) return CLAUDE_INSTALLING_MESSAGE;
@@ -72,19 +72,19 @@ export type ClaudeInstallView =
 
 /**
  * Choose what the Claude card shows while Claude is not installed.
- * `requested` hides an old failed attempt on a new visit.
+ * Keep failed automatic attempts visible when another client opens the card.
  */
 export function getClaudeInstallView(input: {
   readonly installation: ProviderInstallState | null | undefined;
   readonly requested: boolean;
 }): ClaudeInstallView {
-  const { installation, requested } = input;
+  const { installation } = input;
   const phase = installation?.phase ?? "idle";
   if (phase === "downloading" || phase === "extracting" || phase === "verifying") {
     return { kind: "installing", operationId: installation?.operationId ?? null };
   }
   if (phase === "succeeded") return { kind: "installed" };
-  if (requested && (phase === "failed" || phase === "cancelled")) {
+  if (phase === "failed" || phase === "cancelled") {
     return {
       kind: "failed",
       message:

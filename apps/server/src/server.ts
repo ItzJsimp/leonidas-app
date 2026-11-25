@@ -19,7 +19,6 @@ import * as ScribeEngine from "./scribe/ScribeEngine.ts";
 import * as VoiceLogMemory from "./scribe/VoiceLogMemory.ts";
 import * as ScribeStatus from "./scribe/ScribeStatus.ts";
 import * as ScribeSupervisor from "./scribe/ScribeSupervisor.ts";
-import * as Clock from "effect/Clock";
 import * as Random from "effect/Random";
 import * as DatabaseStorage from "./persistence/DatabaseStorage.ts";
 import * as StorageCleanup from "./storageCleanup.ts";
@@ -117,6 +116,7 @@ import * as ProjectEnrichmentService from "./project/ProjectEnrichmentService.ts
 import * as NativeAppIconResolver from "./assets/NativeAppIconResolver.ts";
 import * as AntigravityInstallation from "./provider/AntigravityInstallation.ts";
 import * as ClaudeInstallation from "./provider/ClaudeInstallation.ts";
+import { makeClaudeAutomaticRepair } from "./provider/ClaudeAutomaticRepair.ts";
 import * as CodexInstallation from "./provider/CodexInstallation.ts";
 import * as ProviderInstanceRegistry from "./provider/ProviderInstanceRegistry.ts";
 import * as ProviderAdapterRegistry from "./orchestration-v2/ProviderAdapterRegistry.ts";
@@ -610,6 +610,19 @@ const layerProviderInstallationRefresh = Layer.effectDiscard(
     const codex = yield* CodexInstallation.CodexInstallation;
     const instances = yield* ProviderInstanceRegistry.ProviderInstanceRegistry;
     const providers = yield* ProviderRegistry.ProviderRegistry;
+    const settings = yield* ServerSettings.ServerSettingsService;
+    const repairClaude = yield* makeClaudeAutomaticRepair(claude.start);
+    yield* Stream.concat(Stream.fromEffect(providers.getProviders), providers.streamChanges).pipe(
+      Stream.runForEach((snapshot) =>
+        settings.getSettings.pipe(
+          Effect.flatMap((current) => repairClaude(snapshot, current.providerInstances)),
+          Effect.catchCause((cause) =>
+            Effect.logWarning("Automatic Claude repair could not start.", { cause }),
+          ),
+        ),
+      ),
+      Effect.forkScoped,
+    );
     yield* Stream.merge(
       antigravity.changes.pipe(
         Stream.changesWith((a, b) => a.installedVersion === b.installedVersion),
@@ -617,8 +630,8 @@ const layerProviderInstallationRefresh = Layer.effectDiscard(
       ),
       Stream.merge(
         claude.changes.pipe(
-          Stream.changesWith((a, b) => a.installedVersion === b.installedVersion),
           Stream.drop(1),
+          Stream.filter((state) => state.phase === "succeeded"),
         ),
         codex.changes.pipe(
           Stream.changesWith((a, b) => a.installedVersion === b.installedVersion),

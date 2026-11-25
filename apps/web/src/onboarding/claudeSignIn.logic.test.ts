@@ -140,10 +140,11 @@ describe("getClaudeInstallView", () => {
     ).toEqual({ kind: "installed" });
   });
 
-  it("hides an old failure until this client asks again", () => {
+  it("keeps a failed repair visible when the dialog opens again", () => {
     const failed = { ...base, phase: "failed" as const, message: "No internet." };
     expect(getClaudeInstallView({ installation: failed, requested: false })).toEqual({
-      kind: "idle",
+      kind: "failed",
+      message: "No internet.",
     });
     expect(getClaudeInstallView({ installation: failed, requested: true })).toEqual({
       kind: "failed",

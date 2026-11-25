@@ -31,10 +31,9 @@ import {
 } from "@t3tools/shared/backgroundActivitySettings";
 import * as Arr from "effect/Array";
 import * as Duration from "effect/Duration";
-import * as Equal from "effect/Equal";
 import * as Result from "effect/Result";
 import { PlusIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { isDesktopLocalConnectionTarget } from "../../connection/desktopLocal";
 import {
@@ -104,6 +103,7 @@ import { CONNECT_CHOICES, type ConnectChoice } from "./ConnectAccountDialog.logi
 import { ClaudeSignInDialog, ConnectTiles, TextValueDialog } from "./ProviderAccountDialogs";
 import { ProviderAccountGroups, type AccountRowView } from "./ProviderAccountGroups";
 import { accountUsage, describeAccount, groupAccountRows } from "./providerAccounts.logic";
+import { ClaudeRuntimeRepair } from "./ClaudeRuntimeRepair";
 import { ExpandableText } from "./ExpandableText";
 import { ProviderInstanceCard, providerInstanceNeedsApiKey } from "./ProviderInstanceCard";
 import { sharedLoginPeerNames, sharedLoginWarning } from "../chat/signInAgain";
@@ -313,10 +313,10 @@ function ProviderSettingsPanelContent(target: ProviderSettingsTarget) {
   const { environments, isReady } = useEnvironments();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const searchTargetId = useSettingsSearchTargetId();
-  const options = useMemo(
-    () =>
-      buildProviderEnvironmentOptions(environments, primaryEnvironmentId, target.environmentIds),
-    [environments, primaryEnvironmentId, target.environmentIds],
+  const options = buildProviderEnvironmentOptions(
+    environments,
+    primaryEnvironmentId,
+    target.environmentIds,
   );
   // Raw user intent; the effective selection is re-derived every render so a
   // device that drops out of the catalog falls back without erasing the pick —
@@ -354,34 +354,26 @@ function ProviderSettingsPanelContent(target: ProviderSettingsTarget) {
         hasServerConfig: true,
       }),
   )?.environmentId;
-  useEffect(() => {
-    if (
-      !target.scoped &&
-      searchTargetId === searchableSetting("cursor-keychain-usage").id &&
-      (!selectedEnvironmentCanRenderSettings ||
-        selectedEnvironment?.serverConfig?.environment.platform.os !== "darwin") &&
-      searchableCursorEnvironmentId !== undefined
-    ) {
-      setSelectedEnvironmentId(searchableCursorEnvironmentId);
-      return;
-    }
-    if (
-      !target.scoped &&
-      (searchTargetId === searchableSetting("provider-health-check-interval").id ||
-        searchTargetId === searchableSetting("usage-providers").id) &&
-      !selectedEnvironmentCanRenderSettings &&
-      searchableEnvironmentId !== undefined
-    ) {
-      setSelectedEnvironmentId(searchableEnvironmentId);
-    }
-  }, [
-    searchTargetId,
-    searchableCursorEnvironmentId,
-    searchableEnvironmentId,
-    selectedEnvironment,
-    selectedEnvironmentCanRenderSettings,
-    target.scoped,
-  ]);
+  const searchEnvironmentSelection =
+    !target.scoped &&
+    searchTargetId === searchableSetting("cursor-keychain-usage").id &&
+    (!selectedEnvironmentCanRenderSettings ||
+      selectedEnvironment?.serverConfig?.environment.platform.os !== "darwin") &&
+    searchableCursorEnvironmentId !== undefined
+      ? searchableCursorEnvironmentId
+      : !target.scoped &&
+          (searchTargetId === searchableSetting("provider-health-check-interval").id ||
+            searchTargetId === searchableSetting("usage-providers").id) &&
+          !selectedEnvironmentCanRenderSettings &&
+          searchableEnvironmentId !== undefined
+        ? searchableEnvironmentId
+        : undefined;
+  if (
+    searchEnvironmentSelection !== undefined &&
+    searchEnvironmentSelection !== selectedEnvironmentId
+  ) {
+    setSelectedEnvironmentId(searchEnvironmentSelection);
+  }
   const onlyPrimaryDevice =
     options.length === 1 && options[0]?.entry.target._tag === "PrimaryConnectionTarget";
   const deviceTabs =
@@ -609,41 +601,37 @@ export function EnvironmentProviderSettings({
   const refreshingRef = useRef(false);
   const updatingInstanceIdsRef = useRef<Set<ProviderInstanceId>>(new Set());
 
-  const acceptUrlAuthentication = useCallback(
-    (instanceId: ProviderInstanceId, action: AcpRegistryUrlAuthAction) => {
-      void acceptAcpRegistryUrlAuth({
-        environmentId,
-        input: { instanceId, elicitationId: action.elicitationId },
-      }).then((result) => {
-        if (result._tag === "Success" && !result.value.accepted) {
-          toastManager.add({
-            type: "warning",
-            title: "The sign-in request ran out of time",
-            description: "Refresh the AI service and start the sign-in again.",
-          });
-          return;
-        }
-        if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-          const error = squashAtomCommandFailure(result);
-          toastManager.add({
-            type: "error",
-            title: "Could not continue sign-in",
-            ...userErrorToastFields(error),
-          });
-        }
-      });
-    },
-    [acceptAcpRegistryUrlAuth, environmentId],
-  );
+  const acceptUrlAuthentication = (
+    instanceId: ProviderInstanceId,
+    action: AcpRegistryUrlAuthAction,
+  ) => {
+    void acceptAcpRegistryUrlAuth({
+      environmentId,
+      input: { instanceId, elicitationId: action.elicitationId },
+    }).then((result) => {
+      if (result._tag === "Success" && !result.value.accepted) {
+        toastManager.add({
+          type: "warning",
+          title: "The sign-in request ran out of time",
+          description: "Refresh the AI service and start the sign-in again.",
+        });
+        return;
+      }
+      if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+        const error = squashAtomCommandFailure(result);
+        toastManager.add({
+          type: "error",
+          title: "Could not continue sign-in",
+          ...userErrorToastFields(error),
+        });
+      }
+    });
+  };
 
-  const providerUpdateCandidateByInstanceId = useMemo(
-    () =>
-      new Map(
-        serverProviders
-          .filter(isProviderSettingsUpdateCandidate)
-          .map((candidate) => [candidate.instanceId, candidate]),
-      ),
-    [serverProviders],
+  const providerUpdateCandidateByInstanceId = new Map(
+    serverProviders
+      .filter(isProviderSettingsUpdateCandidate)
+      .map((candidate) => [candidate.instanceId, candidate]),
   );
   const visibleProviderSettings = PROVIDER_SETTINGS.filter(
     (providerSettings) =>
@@ -671,7 +659,7 @@ export function EnvironmentProviderSettings({
         )
       : null;
 
-  const refreshProviders = useCallback(() => {
+  const refreshProviders = () => {
     if (refreshingRef.current || !readEnvironmentScope(environmentId, AuthOrchestrationReadScope))
       return;
     refreshingRef.current = true;
@@ -691,52 +679,49 @@ export function EnvironmentProviderSettings({
         });
       }
     })();
-  }, [environmentId, refreshServerProviders]);
+  };
 
-  const runProviderUpdate = useCallback(
-    async (
-      candidate: Pick<ProviderSettingsUpdateCandidate, "driver" | "instanceId">,
-      targetVersion?: string,
-    ) => {
-      if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;
-      // Ref-based re-entry guard, mirroring refreshProviders: a state updater
-      // may run after this function returns, so it cannot gate the dispatch.
-      if (updatingInstanceIdsRef.current.has(candidate.instanceId)) {
-        return;
-      }
-      updatingInstanceIdsRef.current.add(candidate.instanceId);
-      setUpdatingProviderInstanceIds((previous) => new Set(previous).add(candidate.instanceId));
+  const runProviderUpdate = async (
+    candidate: Pick<ProviderSettingsUpdateCandidate, "driver" | "instanceId">,
+    targetVersion?: string,
+  ) => {
+    if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;
+    // Ref-based re-entry guard, mirroring refreshProviders: a state updater
+    // may run after this function returns, so it cannot gate the dispatch.
+    if (updatingInstanceIdsRef.current.has(candidate.instanceId)) {
+      return;
+    }
+    updatingInstanceIdsRef.current.add(candidate.instanceId);
+    setUpdatingProviderInstanceIds((previous) => new Set(previous).add(candidate.instanceId));
 
-      const result = await updateProvider({
-        environmentId,
-        input: {
-          provider: candidate.driver,
-          instanceId: candidate.instanceId,
-          ...(targetVersion ? { targetVersion } : {}),
-        },
-      });
-      if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-        const error = squashAtomCommandFailure(result);
-        toastManager.add(
-          stackedThreadToast({
-            type: "error",
-            title: `Could not update ${PROVIDER_DISPLAY_NAMES[candidate.driver] ?? candidate.driver}`,
-            ...userErrorToastFields(error),
-          }),
-        );
+    const result = await updateProvider({
+      environmentId,
+      input: {
+        provider: candidate.driver,
+        instanceId: candidate.instanceId,
+        ...(targetVersion ? { targetVersion } : {}),
+      },
+    });
+    if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+      const error = squashAtomCommandFailure(result);
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: `Could not update ${PROVIDER_DISPLAY_NAMES[candidate.driver] ?? candidate.driver}`,
+          ...userErrorToastFields(error),
+        }),
+      );
+    }
+    updatingInstanceIdsRef.current.delete(candidate.instanceId);
+    setUpdatingProviderInstanceIds((previous) => {
+      if (!previous.has(candidate.instanceId)) {
+        return previous;
       }
-      updatingInstanceIdsRef.current.delete(candidate.instanceId);
-      setUpdatingProviderInstanceIds((previous) => {
-        if (!previous.has(candidate.instanceId)) {
-          return previous;
-        }
-        const next = new Set(previous);
-        next.delete(candidate.instanceId);
-        return next;
-      });
-    },
-    [environmentId, updateProvider],
-  );
+      const next = new Set(previous);
+      next.delete(candidate.instanceId);
+      return next;
+    });
+  };
 
   interface InstanceRow {
     readonly instanceId: ProviderInstanceId;
@@ -1127,6 +1112,22 @@ export function EnvironmentProviderSettings({
     };
   });
   const panelRow = accountPanel ? rowById.get(accountPanel.instanceId) : undefined;
+  const missingClaude = serverProviders.find((provider) => {
+    if (
+      provider.driver !== "claudeAgent" ||
+      !provider.enabled ||
+      provider.installed ||
+      provider.status !== "error"
+    )
+      return false;
+    const row = rowById.get(provider.instanceId);
+    const config = row?.instance.config;
+    const binary =
+      config && typeof config === "object" && "binaryPath" in config
+        ? config.binaryPath
+        : undefined;
+    return binary === undefined || binary === "" || binary === "claude" || binary === "claude.exe";
+  });
   const panelProvider = panelRow
     ? serverProviders.find((candidate) => candidate.instanceId === panelRow.instanceId)
     : undefined;
@@ -1215,37 +1216,46 @@ export function EnvironmentProviderSettings({
             onMore={() => setIsAdvancedAddOpen(true)}
           />
           {accountGroups.length > 0 ? (
-            <ProviderAccountGroups
-              groups={accountGroups}
-              readOnly={readOnly}
-              onAction={(account, action) => {
-                const row = rowById.get(account.instanceId);
-                if (!row) return;
-                if (action === "addKey") {
-                  setAccountPanel({ kind: "apiKey", instanceId: row.instanceId });
-                } else if (
-                  (action === "install" || action === "signIn") &&
-                  row.driver === "claudeAgent"
-                ) {
-                  setAccountPanel({ kind: "signIn", instanceId: row.instanceId });
-                } else {
-                  setAccountPanel({ kind: "settings", instanceId: row.instanceId });
+            <>
+              {missingClaude ? (
+                <ClaudeRuntimeRepair
+                  environmentId={environmentId}
+                  instanceId={missingClaude.instanceId}
+                  readOnly={readOnly}
+                />
+              ) : null}
+              <ProviderAccountGroups
+                groups={accountGroups}
+                readOnly={readOnly}
+                onAction={(account, action) => {
+                  const row = rowById.get(account.instanceId);
+                  if (!row) return;
+                  if (action === "addKey") {
+                    setAccountPanel({ kind: "apiKey", instanceId: row.instanceId });
+                  } else if (
+                    (action === "install" || action === "signIn") &&
+                    row.driver === "claudeAgent"
+                  ) {
+                    setAccountPanel({ kind: "signIn", instanceId: row.instanceId });
+                  } else {
+                    setAccountPanel({ kind: "settings", instanceId: row.instanceId });
+                  }
+                }}
+                onRename={(account) =>
+                  setAccountPanel({ kind: "rename", instanceId: account.instanceId })
                 }
-              }}
-              onRename={(account) =>
-                setAccountPanel({ kind: "rename", instanceId: account.instanceId })
-              }
-              onToggle={(account, enabled) => {
-                const row = rowById.get(account.instanceId);
-                if (row) applyInstanceUpdate(row, { ...row.instance, enabled });
-              }}
-              onRemove={(account) =>
-                setAccountPanel({ kind: "remove", instanceId: account.instanceId })
-              }
-              onSettings={(account) =>
-                setAccountPanel({ kind: "settings", instanceId: account.instanceId })
-              }
-            />
+                onToggle={(account, enabled) => {
+                  const row = rowById.get(account.instanceId);
+                  if (row) applyInstanceUpdate(row, { ...row.instance, enabled });
+                }}
+                onRemove={(account) =>
+                  setAccountPanel({ kind: "remove", instanceId: account.instanceId })
+                }
+                onSettings={(account) =>
+                  setAccountPanel({ kind: "settings", instanceId: account.instanceId })
+                }
+              />
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">
               Connect an account to start. Use the plan you already pay for.
