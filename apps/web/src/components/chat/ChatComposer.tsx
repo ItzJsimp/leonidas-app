@@ -1,10 +1,12 @@
 import { cacheActionImpact } from "@t3tools/client-runtime/cache-awareness";
 import { useBenchmarkUi } from "../../benchmarkUiStore";
+import { useStaleCacheBanner, useStaleCacheTokens } from "./staleCacheBanner";
 import { useModelBenchmarkIndex } from "../../hooks/useModelBenchmarkIndex";
 import { useEnvironmentSettings } from "../../hooks/useSettings";
 import { pickerModelStats } from "../../lib/pickerModelStats";
 import { estimateSwitchCost, withSwitchCost } from "../../lib/switchCost";
 import {
+  cacheObservation,
   CacheConfigurationNotice,
   useCacheActionWarning,
   usePendingCacheNote,
@@ -3528,6 +3530,17 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     pendingUserInputs.length,
     phase,
   ]);
+  const staleTokens = useStaleCacheTokens({
+    observation: cacheObservation(activeContextWindow),
+    usedTokens: activeContextWindow?.usedTokens,
+    enabled: compactCommandAvailable,
+  });
+  const staleCacheBanner = useStaleCacheBanner({
+    chatKey: activeThreadId ?? "",
+    tokens: staleTokens,
+    disabled: compactDisabled || phase === "running" || isSendBusy,
+    onCompact: compactThreadContext,
+  });
   const expandMobileComposer = useCallback(() => {
     if (composerBlurFrameRef.current !== null) {
       window.cancelAnimationFrame(composerBlurFrameRef.current);
@@ -4334,7 +4347,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     }
     setIsStashMenuOpen((open) => !open);
   }, [expandMobileComposer, isComposerCollapsedMobile]);
-  const hasBannerItems = props.bannerItems.length > 0;
+  const hasBannerItems = props.bannerItems.length > 0 || staleCacheBanner !== null;
   const hasBlockingComposerTopDrawer =
     activePendingApproval !== null || pendingUserInputs.length > 0;
   const showInlineTasksBadge =
@@ -4863,9 +4876,12 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         content: activityStackContent,
       }
     : null;
-  const bannerStackItems = activityStackItem
-    ? [activityStackItem, ...props.bannerItems]
+  const composerBannerItems = staleCacheBanner
+    ? [...props.bannerItems, staleCacheBanner]
     : props.bannerItems;
+  const bannerStackItems = activityStackItem
+    ? [activityStackItem, ...composerBannerItems]
+    : composerBannerItems;
 
   // Close the stash menu whenever the trigger-driven command menu opens so
   // the two popovers never stack in the same layer, and when the user
