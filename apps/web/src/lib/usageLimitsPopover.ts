@@ -313,6 +313,46 @@ export function formatResetCountdown(
   return compact ? text : `Resets in ${text}`;
 }
 
+function durationText(ms: number): string {
+  const totalMinutes = Math.max(1, Math.ceil(ms / MINUTE));
+  const days = Math.floor(totalMinutes / (DAY / MINUTE));
+  const hours = Math.floor((totalMinutes % (DAY / MINUTE)) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  return `${minutes}m`;
+}
+
+/**
+ * Pace forecast for one window: when it runs out, if the server's projection says
+ * it lands at or above 100% before it resets. Null when the pace is safe or unknown.
+ * The run-out time assumes the burn stays even until the reset.
+ */
+export function windowRunOutForecast(
+  window: ServerProviderUsageWindow,
+  now: number,
+): { readonly runsOutInMs: number; readonly label: string } | null {
+  const projected = window.projectedUsedPercentAtReset;
+  if (projected === undefined || window.resetsAt === undefined) return null;
+  const resetAt = Date.parse(window.resetsAt);
+  if (!Number.isFinite(resetAt) || resetAt <= now) return null;
+  if (window.usedPercent >= 100 || projected < 100 || projected <= window.usedPercent) return null;
+  const share = (100 - window.usedPercent) / (projected - window.usedPercent);
+  const runsOutInMs = Math.min(share, 1) * (resetAt - now);
+  return {
+    runsOutInMs,
+    label: `On pace to run out in ${durationText(runsOutInMs)}, before it resets`,
+  };
+}
+
+/** "Next read in 3m" while the provider has asked to be left alone; null otherwise. */
+export function usageRetryLabel(retryAt: string | undefined, now: number): string | null {
+  if (retryAt === undefined) return null;
+  const at = Date.parse(retryAt);
+  if (!Number.isFinite(at) || at <= now) return null;
+  return `Next read in ${durationText(at - now)}`;
+}
+
 function sessionHours(window: ServerProviderUsageWindow): number | null {
   const mins = window.windowDurationMins;
   return mins !== undefined && mins > 0 && mins < DAY / MINUTE && mins % 60 === 0

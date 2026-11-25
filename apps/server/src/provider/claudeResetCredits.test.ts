@@ -286,4 +286,44 @@ effectIt.layer(NodeServices.layer)("readClaudeOauthUsage", (it) => {
       expect([limited, darwin]).toEqual([undefined, undefined]);
     }),
   );
+
+  it.effect("leaves the endpoint alone until the Retry-After time passes", () =>
+    Effect.gen(function* () {
+      const { configDir } = yield* writeLogin;
+      let calls = 0;
+      const limited = HttpClient.make((request) => {
+        calls += 1;
+        return Effect.succeed(
+          HttpClientResponse.fromWeb(
+            request,
+            new Response("{}", { status: 429, headers: { "retry-after": "120" } }),
+          ),
+        );
+      });
+      const read = () =>
+        ClaudeResetCredits.readClaudeOauthUsage(configDir, "2.1.0").pipe(
+          Effect.provideService(HostProcess.Platform, "linux"),
+          Effect.provideService(HttpClient.HttpClient, limited),
+        );
+      yield* read();
+      expect(ClaudeResetCredits.claudeUsageRetryAt(configDir, 0)).toBe("1970-01-01T00:02:00.000Z");
+      yield* read();
+      expect(calls).toBe(1);
+      yield* TestClock.adjust("121 seconds");
+      yield* read();
+      expect(calls).toBe(2);
+    }),
+  );
+});
+
+describe("parseRetryAfterMs", () => {
+  it("reads seconds and dates, and keeps every wait between 30 seconds and 30 minutes", () => {
+    expect(ClaudeResetCredits.parseRetryAfterMs("120", NOW)).toBe(120_000);
+    expect(ClaudeResetCredits.parseRetryAfterMs("1", NOW)).toBe(30_000);
+    expect(ClaudeResetCredits.parseRetryAfterMs("999999", NOW)).toBe(30 * 60_000);
+    // 90 seconds after NOW, as the HTTP date a server would send.
+    expect(ClaudeResetCredits.parseRetryAfterMs("Tue, 22 Sep 2026 12:01:30 GMT", NOW)).toBe(90_000);
+    expect(ClaudeResetCredits.parseRetryAfterMs(undefined, NOW)).toBe(5 * 60_000);
+    expect(ClaudeResetCredits.parseRetryAfterMs("soon", NOW)).toBe(5 * 60_000);
+  });
 });

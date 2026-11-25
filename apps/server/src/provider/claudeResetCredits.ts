@@ -13,6 +13,7 @@ import type {
   ServerProviderResetCredits,
 } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -195,8 +196,55 @@ export const readClaudeResetCredits = Effect.fn("readClaudeResetCredits")(
  * no message sent yet in this session). Same shape as the SDK's `rate_limits`.
  * Any failure reads as "unknown" and the caller keeps its own answer.
  */
+/** Fallback wait after a 429 with no usable `Retry-After`. */
+const USAGE_RETRY_DEFAULT_MS = 5 * 60_000;
+const USAGE_RETRY_MIN_MS = 30_000;
+const USAGE_RETRY_MAX_MS = 30 * 60_000;
+
+/** Per login: the earliest time the usage endpoint may be asked again after a 429. */
+const usageRetryAt = new Map<string, number>();
+
+/**
+ * `Retry-After` is whole seconds or an HTTP date. Anything unreadable gets the
+ * default wait, and every wait stays between 30 seconds and 30 minutes so one
+ * odd header can neither hammer the endpoint nor lock it out for hours.
+ */
+export function parseRetryAfterMs(header: string | undefined, now: number): number {
+  const value = header?.trim();
+  let waitMs = USAGE_RETRY_DEFAULT_MS;
+  if (value) {
+    if (/^\d+$/.test(value)) waitMs = Number(value) * 1000;
+    else {
+      const at = Date.parse(value);
+      if (Number.isFinite(at)) waitMs = at - now;
+    }
+  }
+  return Math.min(Math.max(waitMs, USAGE_RETRY_MIN_MS), USAGE_RETRY_MAX_MS);
+}
+
+/** ISO time of the next allowed usage read for this login, or undefined when none is waiting. */
+export function claudeUsageRetryAt(configDir: string, now: number): string | undefined {
+  const at = usageRetryAt.get(configDir);
+  if (at === undefined) return undefined;
+  if (at <= now) {
+    usageRetryAt.delete(configDir);
+    return undefined;
+  }
+  return DateTime.formatIso(DateTime.makeUnsafe(at));
+}
+
+/**
+ * The subscription windows straight from the usage endpoint the CLI itself
+ * reads, for a login whose SDK `get_usage` came back empty (rate limited, or
+ * no message sent yet in this session). Same shape as the SDK's `rate_limits`.
+ * Any failure reads as "unknown" and the caller keeps its own answer. After a
+ * 429 the endpoint is left alone until its `Retry-After` time passes.
+ */
 export const readClaudeOauthUsage = Effect.fn("readClaudeOauthUsage")(
   function* (configDir: string, version: string) {
+    if (claudeUsageRetryAt(configDir, yield* Clock.currentTimeMillis) !== undefined) {
+      return undefined;
+    }
     const token = yield* readAccessToken(configDir);
     if (!token) return undefined;
     const client = yield* HttpClient.HttpClient;
@@ -205,9 +253,15 @@ export const readClaudeOauthUsage = Effect.fn("readClaudeOauthUsage")(
         urlParams: { skip_spend: "1" },
       }).pipe(withClaudeHeaders(token, version)),
     );
+    if (response.status === 429) {
+      const now = yield* Clock.currentTimeMillis;
+      usageRetryAt.set(configDir, now + parseRetryAfterMs(response.headers["retry-after"], now));
+      return undefined;
+    }
     const body = yield* HttpClientResponse.schemaBodyJson(Schema.Unknown)(
       yield* HttpClientResponse.filterStatusOk(response),
     );
+    usageRetryAt.delete(configDir);
     return typeof body === "object" && body !== null
       ? ({ rate_limits_available: true, rate_limits: body } as ClaudeUsageResponse)
       : undefined;

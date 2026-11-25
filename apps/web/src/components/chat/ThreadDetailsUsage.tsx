@@ -27,6 +27,8 @@ import {
   percentText,
   splitAccountHeader,
   usedPercentLabel,
+  usageRetryLabel,
+  windowRunOutForecast,
 } from "../../lib/usageLimitsPopover";
 import { cn } from "../../lib/utils";
 import { serverEnvironment } from "../../state/server";
@@ -174,6 +176,7 @@ function LimitCell({
   }
   const used = `${usedPercentLabel(window.usedPercent)}%`;
   const fullReset = formatResetCountdown(window.resetsAt, now, false);
+  const runOut = windowRunOutForecast(window, now);
   return (
     <Tooltip>
       <TooltipTrigger
@@ -182,7 +185,14 @@ function LimitCell({
         {showLabel && shortLabel !== column ? (
           <span className="truncate text-3xs leading-3 text-muted-foreground">{shortLabel}</span>
         ) : null}
-        <span className="text-2xs font-semibold leading-3 text-foreground">{used}</span>
+        <span
+          className={cn(
+            "text-2xs font-semibold leading-3",
+            runOut ? "text-warning-foreground" : "text-foreground",
+          )}
+        >
+          {used}
+        </span>
         <UsageBar
           fill="used"
           usedPercent={window.usedPercent}
@@ -198,6 +208,7 @@ function LimitCell({
       <TooltipPopup side="top">
         {shortLabel}: {percentText(window.usedPercent, "used")}
         {fullReset ? ` · ${fullReset}` : ""}
+        {runOut ? ` · ${runOut.label}` : ""}
       </TooltipPopup>
     </Tooltip>
   );
@@ -220,6 +231,7 @@ function AccountRows({
   const rows = glanceLimitRows(account.limits.windows, now);
   const notice = limitsNotice(account.limits);
   const age = accountFreshnessLabel(account.limits.checkedAt, now);
+  const retry = usageRetryLabel(account.limits.retryAt, now);
   const extraRows = extraUsageWindowRows(account.limits.windows, rows, now);
   const creditsText =
     account.limits.resetCredits && account.limits.resetCredits.availableCount > 0
@@ -256,6 +268,7 @@ function AccountRows({
               <TooltipPopup side="top">
                 {title}
                 {age ? ` · ${age}` : ""}
+                {retry ? ` · Rate limited. ${retry}` : ""}
               </TooltipPopup>
             </Tooltip>
             {active ? (
@@ -445,6 +458,10 @@ export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUs
     now,
     "updated",
   );
+  const retryLines = accounts.flatMap((account) => {
+    const retry = usageRetryLabel(account.limits.retryAt, now);
+    return retry ? [`${titleOf(account)}: rate limited. ${retry}.`] : [];
+  });
   const openUsagePage = () => {
     saveUsagePagePreferences({ ...readUsagePagePreferences(), metric: "tokens" });
     void navigate({ to: "/usage" });
@@ -532,9 +549,11 @@ export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUs
                 {freshness.label}
               </TooltipTrigger>
               <TooltipPopup side="top">
-                {freshness.stale
-                  ? "These limits are over 10 minutes old. Refresh reads them again."
-                  : "Read from each AI account's own limits"}
+                {retryLines.length > 0
+                  ? retryLines.join(" ")
+                  : freshness.stale
+                    ? "These limits are over 10 minutes old. Refresh reads them again."
+                    : "Read from each AI account's own limits"}
               </TooltipPopup>
             </Tooltip>
           ) : null}
@@ -607,7 +626,11 @@ export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUs
               <RefreshIcon size="xs" refreshing={refreshing} />
               <span>Refresh</span>
             </TooltipTrigger>
-            <TooltipPopup side="top">Read the limits of every AI account again now</TooltipPopup>
+            <TooltipPopup side="top">
+              {retryLines.length > 0
+                ? `${retryLines.join(" ")} Refresh skips them until then.`
+                : "Read the limits of every AI account again now"}
+            </TooltipPopup>
           </Tooltip>
           <UsageBenchmarks compact />
           <Tooltip>
