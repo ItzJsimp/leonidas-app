@@ -2888,6 +2888,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
     readonly freshQueueOnReopen?: boolean;
     readonly forkSession?: ClaudeAdapterV2.ClaudeAgentSdkQueryRunnerShape["forkSession"];
     readonly allocateSessionId?: Effect.Effect<string>;
+    readonly stopBackgroundShellsOnClose?: boolean;
   }) =>
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
@@ -2937,6 +2938,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         >();
       let openedOptions: ClaudeAdapterV2.ClaudeAgentSdkQueryOptions | undefined;
       const adapter = yield* ClaudeAdapterV2.makeClaudeAdapterV2({
+        stopBackgroundShellsOnClose: options?.stopBackgroundShellsOnClose,
         instanceId: ClaudeAdapterV2.CLAUDE_DEFAULT_INSTANCE_ID,
         settings: options?.settings ?? DEFAULT_CLAUDE_SETTINGS,
         environment: options?.environment ?? {},
@@ -7521,6 +7523,39 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       ),
     ),
   );
+
+  it.effect("stops its background shells before the session closes", () => {
+    const stopped: Array<string> = [];
+    return Effect.gen(function* () {
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const harness = yield* makeWakeHarnessWithOptions({
+            stopBackgroundShellsOnClose: true,
+            stopTask: (taskId) => Effect.sync(() => void stopped.push(taskId)),
+          });
+          yield* harness.runtime.startTurn(
+            makeClaudeTestTurnInput({
+              threadId: harness.threadId,
+              providerThread: harness.providerThread,
+              now: yield* DateTime.now,
+              attemptId: RunAttemptId.make("attempt-claude-close-shells"),
+              text: "Run the build in the background.",
+              attachments: [],
+            }),
+          );
+          yield* Queue.offer(harness.sdkMessages, wakeTaskStarted);
+          yield* Queue.offer(harness.sdkMessages, turnOneResult);
+          yield* awaitUntil(() => harness.terminalEvents().length === 1, "first turn terminal");
+          assert.deepEqual(stopped, []);
+        }),
+      );
+      assert.deepEqual(stopped, [WAKE_TASK_ID]);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+      ),
+    );
+  });
 
   it.effect(
     "uses task_started as an incremental roster fallback and clears on empty snapshot",

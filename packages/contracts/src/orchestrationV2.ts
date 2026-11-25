@@ -892,6 +892,8 @@ export const OrchestrationV2PendingBackgroundTask = kindUnionWithFallback(
       kind: Schema.Literal("command"),
       /** Runs until someone stops it (a dev server), so it never holds the thread in Waiting. */
       service: Schema.optional(Schema.Boolean),
+      /** The time limit the agent set when it started the command. */
+      timeoutMs: Schema.optional(Schema.Int),
     }),
     Schema.Struct({ ...PendingBackgroundTaskFields, kind: Schema.Literal("monitor") }),
     Schema.Struct({ ...PendingBackgroundTaskFields, kind: Schema.Literal("background_task") }),
