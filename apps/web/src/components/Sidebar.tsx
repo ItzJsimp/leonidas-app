@@ -1151,6 +1151,25 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
     () => setWorkingShelfExpanded((value) => !value),
     [setWorkingShelfExpanded],
   );
+  // A chat that newly enters Working folds the shelf shut, so the user never
+  // has to collapse it by hand. The first run only records the current set.
+  const seenWorkingKeysRef = useRef<ReadonlySet<string> | null>(null);
+  useEffect(() => {
+    const keys = new Set(
+      workingThreads.map((thread) =>
+        scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
+      ),
+    );
+    const previous = seenWorkingKeysRef.current;
+    seenWorkingKeysRef.current = keys;
+    if (previous === null) return;
+    for (const key of keys) {
+      if (!previous.has(key)) {
+        setWorkingShelfExpanded(false);
+        return;
+      }
+    }
+  }, [setWorkingShelfExpanded, workingThreads]);
   const visibleWorkingThreads = useMemo(() => {
     if (workingShelfExpanded) return workingThreads;
     if (routeThreadKey === null) return EMPTY_THREADS;
@@ -3827,7 +3846,26 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
                               onDraftContextMenu={handleDraftContextMenu}
                             />,
                           ];
+                          let bottomSpacerAdded = false;
                           for (const item of sidebarListItems) {
+                            // Working, Snoozed and Archive sit at the bottom of the sidebar.
+                            if (
+                              !bottomSpacerAdded &&
+                              item.kind === "marker" &&
+                              (item.marker === "working-header" ||
+                                item.marker === "snoozed-header" ||
+                                item.marker === "settled-header")
+                            ) {
+                              bottomSpacerAdded = true;
+                              items.push(
+                                <li
+                                  key="bottom-shelf-spacer"
+                                  aria-hidden
+                                  role="presentation"
+                                  className="pointer-events-none min-h-0 flex-1 list-none"
+                                />,
+                              );
+                            }
                             if (item.kind === "thread") {
                               items.push(renderThreadRow(threadByKey.get(item.key)!, item.section));
                               continue;
