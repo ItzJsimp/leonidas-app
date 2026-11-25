@@ -10,6 +10,7 @@ import {
   createThreadEnvironmentAtoms,
 } from "@t3tools/client-runtime/state/threads";
 import type { EnvironmentId, OrchestrationV2ThreadShell, ThreadId } from "@t3tools/contracts";
+import { hasHoldingTaskCommand } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/reactivity";
 
@@ -52,6 +53,13 @@ export function useEnvironmentThread(
 
 const isRunning = (status: string) =>
   status === "preparing" || status === "queued" || status === "starting" || status === "running";
+
+export const isInterruptedByRestart = (
+  thread: Pick<OrchestrationV2ThreadShell, "status" | "pendingBackgroundTasks">,
+  holdTaskCommands?: boolean,
+) =>
+  isRunning(thread.status) ||
+  hasHoldingTaskCommand(thread.pendingBackgroundTasks ?? [], holdTaskCommands);
 
 type KeptThreads = ReadonlyMap<EnvironmentId, ReadonlySet<ThreadId>>;
 
@@ -136,14 +144,17 @@ export const runningThreadKeepAliveAtom = createRunningThreadKeepAliveAtom({
   stateAtom: environmentThreads.stateAtom,
 });
 
-const runningThreadIdsAtom = createRunningThreadIdsAtom(
-  environmentThreadShells.environmentThreadsAtom,
-);
-
-/** Threads preparing, starting, or running across every enabled environment. */
+/**
+ * Threads an app restart would interrupt, across every enabled environment: preparing, starting
+ * or running, plus stopped threads whose task command is still live.
+ */
 export const runningThreadCountAtom = Atom.make((get) =>
   get(enabledEnvironmentIdsAtom).reduce(
-    (count, environmentId) => count + get(runningThreadIdsAtom(environmentId)).length,
+    (count, environmentId) =>
+      count +
+      get(environmentThreadShells.environmentThreadsAtom(environmentId)).filter((thread) =>
+        isInterruptedByRestart(thread),
+      ).length,
     0,
   ),
 ).pipe(Atom.withLabel("web-running-thread-count"));

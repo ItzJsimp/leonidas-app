@@ -92,16 +92,53 @@ export function deriveBlockedOnThreadWait(input: {
   return hasWait;
 }
 
-export function backgroundWorkHoldsCompletion(
-  tasks: ReadonlyArray<Pick<PendingBackgroundWorkTask, "kind">>,
-): boolean {
-  return tasks.some((task) => backgroundWorkKindHoldsCompletion(task.kind));
+/**
+ * Off switch for decision 0103 (task commands hold a thread in Waiting and delay updates).
+ * It stays false until time limits and cleanup ship, so a stuck command cannot hold forever.
+ */
+const TASK_COMMAND_HOLD_ENABLED: boolean = false;
+
+// ponytail: patterns only. The agent declaration and the user toggle override this later.
+const SERVICE_COMMAND_PATTERNS: ReadonlyArray<RegExp> = [
+  /(?:^|[;&|]\s*)(?:npm|pnpm|yarn|bun|vp)(?:\s+run)?\s+(?:dev|start|serve|watch|preview)(?![\w:-])/u,
+  /(?:^|[;&|]\s*)(?:(?:npx|pnpm exec|bunx)\s+)?(?:vite|next dev|nodemon)(?:\s+(?:dev|serve|preview|-)|\s*$)/u,
+  /\s--watch(?:All)?(?![\w-])/u,
+  /(?:^|[;&|]\s*)tail\s+(?:-\S+\s+)*-[a-zA-Z]*[fF](?![\w-])/u,
+  /(?:^|[;&|]\s*)docker(?:\s+|-)compose\s+up(?!.*\s(?:-d|--detach)(?![\w-]))/u,
+  /(?:^|[;&|]\s*)(?:python3?|py)\s+-m\s+http\.server/u,
+];
+
+/** True for a command that runs until someone stops it. */
+export function isServiceCommand(command: string): boolean {
+  return SERVICE_COMMAND_PATTERNS.some((pattern) => pattern.test(command.trim()));
 }
 
-function backgroundWorkKindHoldsCompletion(kind: PendingBackgroundWorkTask["kind"]): boolean {
-  switch (kind) {
+type HoldCandidate = {
+  readonly kind: PendingBackgroundWorkTask["kind"];
+  readonly service?: boolean | undefined;
+};
+
+export function backgroundWorkHoldsCompletion(
+  tasks: ReadonlyArray<HoldCandidate>,
+  holdTaskCommands: boolean = TASK_COMMAND_HOLD_ENABLED,
+): boolean {
+  return tasks.some((task) => backgroundTaskHoldsCompletion(task, holdTaskCommands));
+}
+
+/** A live command that ends on its own, so a restart now would lose its work. */
+export function hasHoldingTaskCommand(
+  tasks: ReadonlyArray<HoldCandidate>,
+  holdTaskCommands: boolean = TASK_COMMAND_HOLD_ENABLED,
+): boolean {
+  return tasks.some(
+    (task) => task.kind === "command" && backgroundTaskHoldsCompletion(task, holdTaskCommands),
+  );
+}
+
+function backgroundTaskHoldsCompletion(task: HoldCandidate, holdTaskCommands: boolean): boolean {
+  switch (task.kind) {
     case "command":
-      return false;
+      return holdTaskCommands && task.service !== true;
     case "subagent":
     case "monitor":
     case "background_task":
@@ -191,7 +228,13 @@ function pendingTaskFromTurnItem(
         ...(item.childThreadId == null ? {} : { childThreadId: item.childThreadId }),
       };
     case "command_execution":
-      return { ...named, kind: "command" };
+      return {
+        ...named,
+        kind: "command",
+        ...(typeof item.input === "string" && isServiceCommand(item.input)
+          ? { service: true }
+          : {}),
+      };
     default:
       return { ...named, kind: "background_task" };
   }

@@ -7466,6 +7466,62 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       > => event.type === "provider_thread.updated",
     );
 
+  it.effect("keeps a dev server marked as a service command across roster snapshots", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const harness = yield* makeWakeHarness;
+        yield* harness.runtime.startTurn(
+          makeClaudeTestTurnInput({
+            threadId: harness.threadId,
+            providerThread: harness.providerThread,
+            now: yield* DateTime.now,
+            attemptId: RunAttemptId.make("attempt-claude-service-command"),
+            text: "Start the dev server in the background.",
+            attachments: [],
+          }),
+        );
+        const toolUse = claudeSdkFrame({
+          type: "assistant",
+          uuid: "00000000-0000-4000-8000-000000000210",
+          session_id: WAKE_NATIVE_SESSION,
+          parent_tool_use_id: null,
+          message: {
+            id: "service-message",
+            model: "claude-test",
+            content: [
+              {
+                type: "tool_use",
+                id: WAKE_TOOL_USE_ID,
+                name: "Bash",
+                input: { command: "pnpm dev", run_in_background: true },
+              },
+            ],
+          },
+        });
+        const snapshot = claudeSdkFrame({
+          type: "system",
+          subtype: "background_tasks_changed",
+          tasks: [{ task_id: WAKE_TASK_ID, task_type: "local_bash", description: "Dev server" }],
+          uuid: "00000000-0000-4000-8000-000000000211",
+          session_id: WAKE_NATIVE_SESSION,
+        });
+        for (const frame of [toolUse, wakeTaskStarted, snapshot, turnOneResult]) {
+          yield* Queue.offer(harness.sdkMessages, frame);
+        }
+        yield* awaitUntil(() => harness.terminalEvents().length === 1, "first turn terminal");
+
+        const latest = providerThreadRosterEvents(harness.events).at(-1)?.providerThread
+          .pendingBackgroundTasks?.[0];
+        assert.equal(latest?.description, "Dev server");
+        assert.isTrue(latest?.kind === "command" && latest.service === true);
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+        ),
+      ),
+    ),
+  );
+
   it.effect(
     "uses task_started as an incremental roster fallback and clears on empty snapshot",
     () =>

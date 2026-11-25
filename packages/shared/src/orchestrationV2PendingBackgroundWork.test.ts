@@ -7,6 +7,8 @@ import {
 import {
   backgroundWorkHoldsCompletion,
   derivePendingBackgroundWork,
+  hasHoldingTaskCommand,
+  isServiceCommand,
   turnItemUpdateCanEndBackgroundWork,
 } from "./orchestrationV2PendingBackgroundWork.ts";
 
@@ -40,6 +42,67 @@ describe("backgroundWorkHoldsCompletion", () => {
     ["work the provider cannot name", true, [task("opaque", "background_task")]],
   ] as const)("with %s pending, holds completion: %s", (_case, holds, tasks) => {
     expect(backgroundWorkHoldsCompletion(tasks)).toBe(holds);
+  });
+});
+
+describe("isServiceCommand", () => {
+  it.each([
+    "pnpm dev",
+    "npm run start",
+    "cd apps/web && vp dev --port 5733",
+    "npx vite",
+    "tsc --noEmit --watch",
+    "tail -f server.log",
+    "docker compose up",
+    "python -m http.server 8000",
+    "next dev",
+  ])("runs until stopped: %s", (command) => {
+    expect(isServiceCommand(command)).toBe(true);
+  });
+
+  it.each([
+    "vp test run src/a.test.ts",
+    "pnpm install --frozen-lockfile",
+    "pnpm run build",
+    "vite build",
+    "docker compose up -d",
+    "git push origin main",
+    "gh run watch 123",
+    "rg dev apps",
+  ])("ends on its own: %s", (command) => {
+    expect(isServiceCommand(command)).toBe(false);
+  });
+});
+
+describe("task command hold", () => {
+  const tests = { taskId: "tests", kind: "command" } as const;
+  const server = { taskId: "dev", kind: "command", service: true } as const;
+
+  it("holds completion for a task command, not a service command", () => {
+    expect(backgroundWorkHoldsCompletion([tests], true)).toBe(true);
+    expect(backgroundWorkHoldsCompletion([server], true)).toBe(false);
+    expect(hasHoldingTaskCommand([server, tests], true)).toBe(true);
+    expect(hasHoldingTaskCommand([server, { kind: "monitor" }], true)).toBe(false);
+  });
+
+  it("holds nothing for commands while the switch is off", () => {
+    expect(backgroundWorkHoldsCompletion([tests])).toBe(false);
+    expect(hasHoldingTaskCommand([tests])).toBe(false);
+  });
+
+  it("marks a running dev server item as a service command", () => {
+    const tasks = derivePendingBackgroundWork({
+      latestRun: { id: "run-1" as never, ordinal: 1, status: "completed" },
+      providerThreads: [],
+      turnItems: [
+        { id: "a", type: "command_execution", status: "running", title: null, input: "pnpm dev" },
+        { id: "b", type: "command_execution", status: "running", title: null, input: "pnpm build" },
+      ],
+    });
+    expect(tasks).toEqual([
+      { taskId: "a", kind: "command", description: "pnpm dev", service: true },
+      { taskId: "b", kind: "command", description: "pnpm build" },
+    ]);
   });
 });
 
