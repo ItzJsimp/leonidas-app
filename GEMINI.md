@@ -35,6 +35,7 @@ This project lives inside its builder's AI operating system at `../../`. If `../
 | Pushing, branching, roadmap lanes, versions, release notes, dev copy                                                  | [team-workflow](./.agents/rules/team-workflow.md)                      |
 | Starting or closing work, task cards                                                                                  | [task-driven-work](./.agents/rules/task-driven-work.md)                |
 | Hooks, skills, config, or how Claude, Codex and the app layer together                                                | [harness-layers](./.agents/rules/harness-layers.md)                    |
+| Adding or changing a hook or lint rule; the register of existing ones                                                 | [guardrails](./.agents/rules/guardrails.md)                            |
 | Delegating to another model                                                                                           | [tiered-models](./.agents/rules/tiered-models.md)                      |
 | Reply format additions (pushed-to-main banner)                                                                        | [output-standard](./.agents/rules/output-standard.md)                  |
 | Module map, data sources, cheap verify loop, top 10 traps                                                             | [agent-playbook](./agent-playbook.md)                                  |
