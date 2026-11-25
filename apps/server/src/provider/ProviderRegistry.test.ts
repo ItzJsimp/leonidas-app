@@ -72,7 +72,10 @@ import {
   resolveProviderStatusCachePath,
   writeProviderStatusCache,
 } from "./providerStatusCache.ts";
-import { COMPACT_SLASH_COMMAND } from "@t3tools/provider-core/server/snapshotProbe";
+import {
+  COMPACT_SLASH_COMMAND,
+  DEFAULT_TIMEOUT_MS,
+} from "@t3tools/provider-core/server/snapshotProbe";
 import type {
   ProviderInstance,
   ProviderWorkspaceSnapshot,
@@ -666,7 +669,8 @@ it.layer(
           Effect.forkChild,
         );
         yield* Deferred.await(started);
-        yield* TestClock.adjust("4 seconds");
+        // The --version deadline is the shared probe timeout (30 s since 1c9a7557e1).
+        yield* TestClock.adjust(DEFAULT_TIMEOUT_MS);
         const status = yield* Fiber.join(fiber);
         assert.strictEqual(status.version, null);
         assert.strictEqual(status.status, "error");
@@ -4240,7 +4244,7 @@ it.layer(
       {
         name: "bounds a hung claude --version probe",
         answer: Effect.never,
-        elapsed: 21_000,
+        elapsed: DEFAULT_TIMEOUT_MS,
         status: "error",
         version: null,
       },
