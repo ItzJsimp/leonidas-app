@@ -130,6 +130,8 @@ import {
 } from "@t3tools/provider-core/server/subagentProjection";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 
+const encodeToolInputJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
 export const ACP_PROTOCOL = "acp.ndjson-jsonrpc" as const;
 
 /**
@@ -2404,7 +2406,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           let toolChars = 0;
           for (const tool of context.tools.values()) {
             const raw = tool.data.rawInput;
-            const s = typeof raw === "string" ? raw : raw != null ? JSON.stringify(raw) : "";
+            const s = typeof raw === "string" ? raw : raw != null ? encodeToolInputJson(raw) : "";
             if (s !== "{}") toolChars += s.length;
           }
           const aLen =

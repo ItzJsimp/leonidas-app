@@ -322,6 +322,19 @@ it.effect("a webhook run never launches with full access", () =>
   ),
 );
 
+// Whoever can reach the sender writes part of the prompt, so the run waits for approval.
+it.effect("a webhook run never launches with full access", () =>
+  withService(({ service, launches }) =>
+    Effect.gen(function* () {
+      const { task } = yield* service.upsert(yield* webhookTaskInput());
+      assert.equal(task.runtimeMode, "full-access");
+      yield* service.triggerWebhook(requestFor(task));
+      const launched = yield* Queue.take(launches);
+      assert.equal(launched.runtimeMode, "approval-required");
+    }),
+  ),
+);
+
 it("builds the relay hook URL from the managed tunnel's key, never the environment id", () => {
   const relayUrl = "https://relay.example.com/";
   assert.equal(

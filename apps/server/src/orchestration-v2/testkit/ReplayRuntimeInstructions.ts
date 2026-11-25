@@ -6,6 +6,8 @@ export function materializeReplayTranscriptRuntimeInstructions(
   transcript: ProviderReplayTranscript,
   runtime: { readonly driver: ProviderDriverKind; readonly model: string },
 ): ProviderReplayTranscript {
+  if (runtime.driver === "muse")
+    return materializeMuseRuntimeInstructions(transcript, runtime.model);
   const harness =
     runtime.driver === "cursor"
       ? "Cursor"
@@ -64,6 +66,45 @@ export function materializeReplayTranscriptRuntimeInstructions(
         };
       }
       return entry;
+    }),
+  };
+}
+
+// Muse sends the runtime instructions as the first input part of each turn/start. Rebuilding
+// them here keeps recorded fixtures from failing on every edit to the instruction text.
+function materializeMuseRuntimeInstructions(
+  transcript: ProviderReplayTranscript,
+  model: string,
+): ProviderReplayTranscript {
+  return {
+    ...transcript,
+    entries: transcript.entries.map((entry) => {
+      if (entry.type !== "expect_outbound") return entry;
+      const frame = entry.frame as {
+        readonly method?: unknown;
+        readonly params?: { readonly input?: unknown; readonly reasoningEffort?: unknown };
+      } | null;
+      if (frame?.method !== "turn/start" || !Array.isArray(frame.params?.input)) return entry;
+      const [first, ...rest]: ReadonlyArray<unknown> = frame.params.input;
+      if (
+        typeof first !== "object" ||
+        first === null ||
+        !("text" in first) ||
+        typeof first.text !== "string" ||
+        !first.text.startsWith("<runtime_info>")
+      ) {
+        return entry;
+      }
+      const reasoningEffort = frame.params.reasoningEffort;
+      const text = buildRuntimeInstructions({
+        harness: "Muse Code",
+        model,
+        ...(typeof reasoningEffort === "string" ? { reasoningEffort } : {}),
+      });
+      return {
+        ...entry,
+        frame: { ...frame, params: { ...frame.params, input: [{ ...first, text }, ...rest] } },
+      };
     }),
   };
 }

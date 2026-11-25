@@ -562,12 +562,24 @@ const resolveEditorLaunch = Effect.fn("resolveEditorLaunch")(function* (
   };
 });
 
+// Explorer needs its /select argument passed verbatim through PowerShell because
+// Node's argument quoting changes how Explorer parses it.
+function startExplorerSelect(explorerCommand: string, target: string): string {
+  return `Start-Process ${escapePowerShellStringLiteral(explorerCommand)} -ArgumentList ('/select,"' + ${escapePowerShellStringLiteral(target)} + '"')`;
+}
+
 // A replacement manager registers a default Directory shell verb; stock Windows
-// uses "none". Explorer needs its /select argument passed verbatim through
-// PowerShell because Node's argument quoting changes how Explorer parses it.
+// uses "none". A replacement gets the parent folder, Explorer gets /select.
 function buildFileManagerRevealPowerShellSource(target: string, parent: string): string {
-  const literal = escapePowerShellStringLiteral(target);
-  return `$ProgressPreference = 'SilentlyContinue'; $folderVerb = (Get-ItemProperty -LiteralPath 'Registry::HKEY_CLASSES_ROOT\\Directory\\shell' -ErrorAction SilentlyContinue).'(default)'; if ($folderVerb -and $folderVerb -ne 'none') { Invoke-Item -LiteralPath ${escapePowerShellStringLiteral(parent)} } else { Start-Process 'explorer.exe' -ArgumentList ('/select,"' + ${literal} + '"') }`;
+  return `$ProgressPreference = 'SilentlyContinue'; $folderVerb = (Get-ItemProperty -LiteralPath 'Registry::HKEY_CLASSES_ROOT\\Directory\\shell' -ErrorAction SilentlyContinue).'(default)'; if ($folderVerb -and $folderVerb -ne 'none') { Invoke-Item -LiteralPath ${escapePowerShellStringLiteral(parent)} } else { ${startExplorerSelect("explorer.exe", target)} }`;
+}
+
+/** The Explorer branch alone, for a smoke test with a stand-in explorer command. */
+export function buildFileExplorerRevealPowerShellSource(
+  explorerCommand: string,
+  target: string,
+): string {
+  return `$ProgressPreference = 'SilentlyContinue'; ${startExplorerSelect(explorerCommand, target)}`;
 }
 
 function powerShellFileManagerLaunch(
@@ -580,29 +592,6 @@ function powerShellFileManagerLaunch(
     target,
     command: powershellCommand,
     args: [...POWERSHELL_ARGUMENTS_PREFIX, encodeUtf16LeBase64(source)],
-  };
-}
-
-export function buildFileExplorerRevealPowerShellSource(
-  explorerCommand: string,
-  target: string,
-): string {
-  return `$ProgressPreference = 'SilentlyContinue'; Start-Process ${escapePowerShellStringLiteral(explorerCommand)} -ArgumentList ('/select,"' + ${escapePowerShellStringLiteral(target)} + '"')`;
-}
-
-function fileExplorerRevealLaunch(
-  target: string,
-  explorerTarget: string,
-  powershellCommand: string,
-): EditorLaunch {
-  return {
-    editor: "file-manager",
-    target,
-    command: powershellCommand,
-    args: [
-      ...POWERSHELL_ARGUMENTS_PREFIX,
-      encodeUtf16LeBase64(buildFileExplorerRevealPowerShellSource("explorer.exe", explorerTarget)),
-    ],
   };
 }
 
@@ -683,9 +672,19 @@ const resolveFileManagerRevealLaunch = Effect.fn("resolveFileManagerRevealLaunch
             buildFileExplorerOpenFolderPowerShellSource("explorer.exe", existing.path),
           ),
         ],
+        detached: WINDOWS_POWERSHELL_DETACHED,
       };
     }
-    return fileExplorerRevealLaunch(target, existing?.path ?? windowsTarget, powershellCommand);
+    const revealPath = existing?.path ?? windowsTarget;
+    const windowsPath = yield* Path.Path.pipe(Effect.provide(NodePath.layerWin32));
+    return {
+      ...powerShellFileManagerLaunch(
+        target,
+        buildFileManagerRevealPowerShellSource(revealPath, windowsPath.dirname(revealPath)),
+        powershellCommand,
+      ),
+      detached: WINDOWS_POWERSHELL_DETACHED,
+    };
   }
 
   if (
@@ -840,17 +839,17 @@ const launchEditorProcess = Effect.fn("externalLauncher.launchEditorProcess")(fu
     return yield* new ExternalLauncherUnsupportedTargetError({ editor: launch.editor });
   }
   // A detached (console-less) Windows PowerShell cannot hand the window to
-  // Explorer: the reveal silently does nothing. Keep it attached and hidden;
-  // the handle is still unref'd so the server never waits on it.
-  const isPowerShellReveal =
-    launch.editor === "file-manager" && spawnCommand.args.includes("-EncodedCommand");
+  // Explorer: the reveal silently does nothing. Native Windows reveals stay
+  // attached and hidden; the handle is still unref'd so the server never waits.
+  // WSL interop PowerShell starts from a Linux process and stays detached.
+  const attached = launch.detached === false;
   yield* launchAndUnref(
     {
       command: spawnCommand.command,
       args: spawnCommand.args,
       options: {
-        detached: !isPowerShellReveal,
-        ...(isPowerShellReveal ? { windowsHide: true } : {}),
+        detached: !attached,
+        ...(attached ? { windowsHide: true } : {}),
         shell: spawnCommand.shell,
         stdin: "ignore",
         stdout: "ignore",

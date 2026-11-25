@@ -166,7 +166,7 @@ describe("scan cache round trip", () => {
   });
 
   it.each([5, 6])(
-    "retains v%s history and compatible positions but invalidates obsolete state",
+    "retains v%s history but re-parses live files for the missing tool call counts and effort",
     (version) => {
       const original = cacheWith([["/gone.jsonl", 100, [record({ speed: "fast" })]]]);
       original.set("/gone-codex.jsonl", {
@@ -215,22 +215,17 @@ describe("scan cache round trip", () => {
         },
       };
 
+      // Leonidas records tool call counts and effort that older entries lack, so every older
+      // entry keeps its history but its live file re-parses whole: size -1, a position that
+      // cannot resume.
       const restored = decodeScanCache(JSON.parse(JSON.stringify(legacy)), TEST_FORMAT_MAP);
-      expect(restored.get("/gone.jsonl")).toEqual(original.get("/gone.jsonl"));
-      expect(restored.get("/gone-codex.jsonl")).toEqual({
-        ...original.get("/gone-codex.jsonl"),
-        size: -1,
-        position: { resumeOffset: 0, guardLength: 0, guardHash: 0, state: null },
-      });
-      expect(restored.get("/gone-pi.jsonl")).toEqual(
-        version === 6
-          ? original.get("/gone-pi.jsonl")
-          : {
-              ...original.get("/gone-pi.jsonl"),
-              size: -1,
-              position: { resumeOffset: 0, guardLength: 0, guardHash: 0, state: null },
-            },
-      );
+      for (const path of ["/gone.jsonl", "/gone-codex.jsonl", "/gone-pi.jsonl"]) {
+        expect(restored.get(path)).toEqual({
+          ...original.get(path),
+          size: -1,
+          position: { resumeOffset: 0, guardLength: 0, guardHash: 0, state: null },
+        });
+      }
     },
   );
 

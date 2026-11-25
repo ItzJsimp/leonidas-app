@@ -30,15 +30,15 @@ The conductor. It holds no phase instructions: each phase command holds its own.
    - **Bug with unknown cause:** load `diagnosing-bugs` first, then return here as XS or S.
 3. **Run the phases in order.** Before each phase, write `Phase N/7: <name>`. Read the `SKILL.md` of a user-started step (`to-spec`, `to-tickets`, `implement`) and follow it. Never call a user-started step through the Skill tool. Load an auto skill (`grilling`, `review-two-axis`, `ship`) with the Skill tool.
 
-   | #   | Phase  | Read or load                                          | Exit condition                         |
-   | --- | ------ | ----------------------------------------------------- | -------------------------------------- |
-   | 1   | Define | `grilling`                                            | every open question answered           |
-   | 2   | Spec   | `to-spec`                                             | spec approved (Gate 1)                 |
-   | 3   | Plan   | `to-tickets`                                          | tickets written with acceptance checks |
-   | 4   | Build  | `implement` steps 1 to 4, once per ticket in blocking order, with no stop between tickets | every ticket committed |
-   | 5   | Verify | `implement` step 5                                    | PASS                                   |
-   | 6   | Review | `review-two-axis`, from the commit before Phase 4     | no Critical or Required findings       |
-   | 7   | Ship   | `ship`                                                | user approved (Gate 2), shipped        |
+   | #   | Phase  | Read or load                                                                              | Exit condition                         |
+   | --- | ------ | ----------------------------------------------------------------------------------------- | -------------------------------------- |
+   | 1   | Define | `grilling`                                                                                | every open question answered           |
+   | 2   | Spec   | `to-spec`                                                                                 | spec approved (Gate 1)                 |
+   | 3   | Plan   | `to-tickets`                                                                              | tickets written with acceptance checks |
+   | 4   | Build  | `implement` steps 1 to 4, once per ticket in blocking order, with no stop between tickets | every ticket committed                 |
+   | 5   | Verify | `implement` step 5                                                                        | PASS                                   |
+   | 6   | Review | `review-two-axis`, from the commit before Phase 4                                         | no Critical or Required findings       |
+   | 7   | Ship   | `ship`                                                                                    | user approved (Gate 2), shipped        |
 
 4. **Stop only for these:** Phase 1 questions that only the user can answer, Gate 1 (the spec), Gate 2 (before push, merge, publish or release), the stop rules in `implement`, and the 3-loop limit in step 5. At a gate, accept only a clear yes ("yes", "go", "approve"). A hedged answer is not a yes.
 5. **Loop on failure.** A FAIL from Verify or Review goes back to Phase 4. Write each finding as a fix slice on the spec card, so `implement` has a pending slice. After 3 loops on the same failure, stop and report.

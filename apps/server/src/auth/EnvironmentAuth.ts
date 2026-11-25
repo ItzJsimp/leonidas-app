@@ -1235,43 +1235,6 @@ export const make = Effect.gen(function* () {
   ) =>
     authenticateRequest(request).pipe(Effect.withSpan("EnvironmentAuth.authenticateHttpRequest"));
 
-  /** True when `authenticateRequest` would pick a browser cookie for this request. */
-  const usesCookieCredential = (request: HttpServerRequest.HttpServerRequest): boolean => {
-    const selected = selectRequestCredential(
-      request,
-      sessions.cookieName,
-      sessions.legacyCookieName,
-    );
-    if (selected !== undefined) {
-      return selected.source === "cookie" || selected.source === "legacy-cookie";
-    }
-    return (
-      request.headers.authorization === undefined &&
-      devAuth !== undefined &&
-      request.cookies[devAuth.cookieName] !== undefined
-    );
-  };
-
-  /**
-   * Cookies are not port-scoped and every localhost port is the same site, so a page on
-   * another local port can open `/ws` with the user's cookie. Browsers always send Origin
-   * on a WebSocket upgrade; accept only this server's own origin and the dev web origin.
-   */
-  const isTrustedBrowserOrigin = (request: HttpServerRequest.HttpServerRequest): boolean => {
-    const origin = request.headers.origin;
-    if (origin === undefined) return true;
-    let originUrl: URL;
-    try {
-      originUrl = new URL(origin);
-    } catch {
-      return false;
-    }
-    if (config.devUrl !== undefined && originUrl.origin === config.devUrl.origin) return true;
-    // A tunnel or proxy can forward a list; the first entry is the client-facing host.
-    const hosts = [request.headers.host, request.headers["x-forwarded-host"]?.split(",")[0]];
-    return hosts.some((host) => host?.trim().toLowerCase() === originUrl.host);
-  };
-
   const authenticateWebSocketUpgrade: EnvironmentAuth["Service"]["authenticateWebSocketUpgrade"] =
     Effect.fn("EnvironmentAuth.authenticateWebSocketUpgrade")(function* (request) {
       const requestUrl = HttpServerRequest.toURL(request);
@@ -1292,11 +1255,7 @@ export const make = Effect.gen(function* () {
         }
       }
 
-      if (usesCookieCredential(request) && !isTrustedBrowserOrigin(request)) {
-        return yield* new ServerAuthInvalidCredentialError({
-          diagnostic: "Cookie WebSocket upgrade from an untrusted origin.",
-        });
-      }
+      // authenticateRequest refuses cookie sessions from other origins (isBrowserOriginAllowed).
       return yield* authenticateRequest(request);
     });
 

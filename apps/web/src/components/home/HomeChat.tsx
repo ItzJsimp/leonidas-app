@@ -23,7 +23,7 @@ import { agentThreadId, findAiosProject, homeModelSelection, homeThreadId } from
  * only opens it. The user picks its model with the normal model picker. This hook makes or opens the
  * thread and returns its id, or a plain message when it cannot.
  */
-export function useHomeThread() {
+function useHomeThread() {
   return useProfileThread(null);
 }
 

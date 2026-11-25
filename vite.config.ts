@@ -1,4 +1,5 @@
 import "vite-plus/test/config";
+import { REACT_COMPILER_BAILOUTS } from "./apps/web/src/reactCompilerBailouts.ts";
 import { defineConfig } from "vite-plus";
 import * as NodeURL from "node:url";
 
@@ -136,6 +137,8 @@ export default defineConfig({
     ignorePatterns: [
       ".repos",
       ".repos/**",
+      // A link to .agents/skills: linting it counts the same files twice.
+      ".claude/skills/**",
       "dist",
       "dist-electron",
       "node_modules",
@@ -399,6 +402,12 @@ export default defineConfig({
           "react/unsupported-syntax": "error",
           "t3code/no-manual-memo": "error",
         },
+      },
+      {
+        // The compiler cannot compile these files yet, so their manual memos are the only
+        // memoization. Directives stay banned. The list shrinks as files compile.
+        files: REACT_COMPILER_BAILOUTS.map((file) => `apps/web/src/${file}`),
+        rules: { "t3code/no-manual-memo": ["error", { allowMemoHooks: true }] },
       },
       {
         // The sign-in masthead is T3 brand artwork: fixed gradients, not theme surfaces.

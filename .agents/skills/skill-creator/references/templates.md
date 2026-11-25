@@ -85,10 +85,10 @@ Guides the operator to the right specialized skill for the active task.
 
 ## Routing ladder
 
-| Condition or task type | Skill | Invocation |
-| --- | --- | --- |
-| Specific task A | child-skill-a | /child-skill-a |
-| Specific task B | child-skill-b | /child-skill-b |
+| Condition or task type | Skill         | Invocation     |
+| ---------------------- | ------------- | -------------- |
+| Specific task A        | child-skill-a | /child-skill-a |
+| Specific task B        | child-skill-b | /child-skill-b |
 
 ## Procedure
 

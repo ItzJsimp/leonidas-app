@@ -182,6 +182,7 @@ import {
   useThreadJumpHintVisibility,
   type SidebarListItem,
   type SidebarSection,
+  sidebarClockNow,
 } from "./Sidebar.logic";
 
 import {
@@ -524,10 +525,9 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
   const changeRequestSnapshotByKey = useAtomValue(threadChangeRequestSnapshotsAtom);
   // Snooze wake times are second-precise, so classifying with the quantized
   // minute would hold a woken thread on the shelf for up to a minute. The
-  // tick is a plain counter bumped exactly at the next wake boundary (armed
-  // below, after the partition knows the boundary); the partition reads a
-  // fresh clock whenever it recomputes.
-  const [snoozeWakeTick, bumpSnoozeWakeTick] = useState(0);
+  // wake timer (armed below, after the partition knows the boundary) stores
+  // the instant it fired, and memos read time only through sidebarClockNow.
+  const [snoozeWakeAt, setSnoozeWakeAt] = useState<string | null>(null);
 
   // Project scope: one menu above the list. Scoping filters the list without
   // making the header width depend on the number or length of project names.
@@ -649,7 +649,6 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
     [projectGroups, projectScopeKeys],
   );
   const needsYouByProject = useMemo(() => {
-    void nowMinute;
     const groupKeyByProjectRef = new Map<string, string>();
     for (const group of projectGroups) {
       for (const ref of group.memberProjectRefs) {
@@ -657,7 +656,7 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
       }
     }
     const counts = new Map<string, number>();
-    const now = new Date().toISOString();
+    const now = sidebarClockNow(nowMinute, snoozeWakeAt);
     for (const thread of filterSidebarV2VisibleThreads(threads, null)) {
       if (thread.settledOverride === "settled") continue;
       const needsUser =
@@ -668,7 +667,7 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
       if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
     }
     return counts;
-  }, [nowMinute, projectGroups, threads]);
+  }, [nowMinute, projectGroups, snoozeWakeAt, threads]);
   const scopedProjectKeys = useMemo(
     () =>
       scopedProjectGroups.length === 0
@@ -818,10 +817,9 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
   } = useMemo(() => {
     // Snooze classification uses a REAL clock, not the quantized minute:
     // wake times are second-precise and a woken thread must not linger on
-    // the shelf for the rest of the minute. snoozeWakeTick re-runs this
+    // the shelf for the rest of the minute. snoozeWakeAt re-runs this
     // memo exactly at the next wake boundary.
-    void snoozeWakeTick;
-    const preciseNow = new Date().toISOString();
+    const preciseNow = sidebarClockNow(nowMinute, snoozeWakeAt);
     // Subagent child threads live in the parent's Agents surface, not the
     // sidebar roster (v2 models them as real threads with lineage).
     const baseVisible = filterSidebarV2VisibleThreads(threads, scopedProjectKeys);
@@ -952,15 +950,13 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
     optimisticDrop,
     scopedProjectKeys,
     serverConfigs,
-    snoozeWakeTick,
+    snoozeWakeAt,
     threads,
     workingShelfEnabled,
   ]);
 
   const { unreadThreads, unreadCount } = useMemo(() => {
-    void nowMinute;
-    void snoozeWakeTick;
-    const now = new Date().toISOString();
+    const now = sidebarClockNow(nowMinute, snoozeWakeAt);
     const visible = filterSidebarV2VisibleThreads(threads, scopedProjectKeys);
     const list: Array<{ thread: EnvironmentThreadShell; wokeAt: string | null }> = [];
     for (const thread of visible) {
@@ -979,7 +975,7 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
       }
     }
     return { unreadThreads: list, unreadCount: list.length };
-  }, [lastVisitedAtById, nowMinute, scopedProjectKeys, snoozeWakeTick, threads]);
+  }, [lastVisitedAtById, nowMinute, scopedProjectKeys, snoozeWakeAt, threads]);
 
   const handleMarkAllRead = useCallback(() => {
     const nowMs = Date.now();
@@ -1057,7 +1053,7 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
     // synced from elsewhere) into a tight re-arm loop. Clamped, the timer
     // just re-arms every ~24.8 days until the wake is in range.
     const delayMs = Math.min(Math.max(0, nextWakeAtMs - Date.now()) + 50, 2_147_483_647);
-    const id = window.setTimeout(() => bumpSnoozeWakeTick((tick) => tick + 1), delayMs);
+    const id = window.setTimeout(() => setSnoozeWakeAt(new Date().toISOString()), delayMs);
     return () => window.clearTimeout(id);
   }, [snoozedThreads]);
 
@@ -1163,7 +1159,6 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
 
   const activeGroups = useMemo(() => {
     if (!groupedSidebar) return [];
-    void nowMinute;
     const projectKeyByRef =
       sidebarView.groupBy === "project"
         ? new Map(
@@ -1176,7 +1171,7 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
         : null;
     return groupSidebarThreads(activeThreads, {
       groupBy: sidebarView.groupBy,
-      now: new Date(),
+      now: new Date(sidebarClockNow(nowMinute, snoozeWakeAt)),
       projects: projectGroups.map((project) => ({
         key: project.projectKey,
         label: project.displayName,
@@ -1224,6 +1219,7 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
     providerEntriesByEnvironment,
     sidebarView.groupBy,
     snoozeNow,
+    snoozeWakeAt,
     threadSortOrder,
   ]);
   const visiblePinnedThreads = useMemo(() => {
@@ -1590,13 +1586,14 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
 
   const attemptSettle = useCallback(
     (threadRef: ScopedThreadRef, opts: { coSettlingKeys?: ReadonlySet<string> } = {}) => {
-      void (async () => {
-        const threadKey = scopedThreadKey(threadRef);
-        if (settlingThreadKeysRef.current.has(threadKey)) return;
-        settlingThreadKeysRef.current.add(threadKey);
-        try {
-          const navigateAfterSettle = planForwardNavigation(threadKey, opts.coSettlingKeys);
-          const result = await settleThread(threadRef);
+      const threadKey = scopedThreadKey(threadRef);
+      if (settlingThreadKeysRef.current.has(threadKey)) return;
+      const navigateAfterSettle = planForwardNavigation(threadKey, opts.coSettlingKeys);
+      settlingThreadKeysRef.current.add(threadKey);
+      // A promise chain, not try/finally: the React Compiler and its lint rules cannot read
+      // dependencies used inside try/finally.
+      void settleThread(threadRef)
+        .then((result) => {
           if (result._tag === "Failure") {
             // Never navigate away from a thread that did not settle.
             if (!isAtomCommandInterrupted(result)) {
@@ -1624,10 +1621,10 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
           ) {
             navigateAfterSettle?.();
           }
-        } finally {
+        })
+        .finally(() => {
           settlingThreadKeysRef.current.delete(threadKey);
-        }
-      })();
+        });
     },
     [planForwardNavigation, settleThread],
   );
@@ -2475,35 +2472,37 @@ export default function Sidebar({ embedded = false }: { readonly embedded?: bool
       if (snoozingThreadKeysRef.current.has(threadKey)) {
         return { status: "skipped" } as const;
       }
+      // Snoozing the open thread moves you forward, same as settle —
+      // both park the thread you're done with for now.
+      const navigateAfterSnooze = planForwardNavigation(threadKey, opts.coSnoozingKeys);
       snoozingThreadKeysRef.current.add(threadKey);
-      try {
-        // Snoozing the open thread moves you forward, same as settle —
-        // both park the thread you're done with for now.
-        const navigateAfterSnooze = planForwardNavigation(threadKey, opts.coSnoozingKeys);
-        const result = await snoozeThread(threadRef, preset.snoozedUntil);
-        if (result._tag === "Failure") {
-          // Never navigate away from a thread that did not snooze.
-          return isAtomCommandInterrupted(result)
-            ? ({ status: "interrupted" } as const)
-            : ({ status: "failure", error: squashAtomCommandFailure(result) } as const);
-        }
-        // Only move forward if the user is still on the snoozed thread —
-        // a navigation made during the await wins over ours.
-        if (
-          shouldNavigateAfterThreadPark({
-            threadKey,
-            currentThreadKey: routeThreadKeyRef.current,
-            action: "snooze",
-            now: new Date().toISOString(),
-            thread: readThreadShell(threadRef),
-          })
-        ) {
-          navigateAfterSnooze?.();
-        }
-        return { status: "success" } as const;
-      } finally {
-        snoozingThreadKeysRef.current.delete(threadKey);
-      }
+      // A promise chain, not try/finally, for the same reason as attemptSettle.
+      return snoozeThread(threadRef, preset.snoozedUntil)
+        .then((result) => {
+          if (result._tag === "Failure") {
+            // Never navigate away from a thread that did not snooze.
+            return isAtomCommandInterrupted(result)
+              ? ({ status: "interrupted" } as const)
+              : ({ status: "failure", error: squashAtomCommandFailure(result) } as const);
+          }
+          // Only move forward if the user is still on the snoozed thread —
+          // a navigation made during the await wins over ours.
+          if (
+            shouldNavigateAfterThreadPark({
+              threadKey,
+              currentThreadKey: routeThreadKeyRef.current,
+              action: "snooze",
+              now: new Date().toISOString(),
+              thread: readThreadShell(threadRef),
+            })
+          ) {
+            navigateAfterSnooze?.();
+          }
+          return { status: "success" } as const;
+        })
+        .finally(() => {
+          snoozingThreadKeysRef.current.delete(threadKey);
+        });
     },
     [planForwardNavigation, snoozeThread],
   );

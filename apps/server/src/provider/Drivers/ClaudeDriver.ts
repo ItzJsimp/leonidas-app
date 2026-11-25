@@ -20,6 +20,8 @@ import {
 import * as Cache from "effect/Cache";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
+import * as Exit from "effect/Exit";
+import * as Ref from "effect/Ref";
 import * as Crypto from "effect/Crypto";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
@@ -48,6 +50,7 @@ import { makeChatQuotaRecorder } from "../../usage/ChatQuotaLog.ts";
 import * as ClaudeResetCredits from "../claudeResetCredits.ts";
 import * as ResetCreditCoordinator from "../resetCreditCoordinator.ts";
 import {
+  type ClaudeCapabilitiesProbe,
   checkClaudeProviderStatus,
   makePendingClaudeProvider,
   probeClaudeCapabilities,
@@ -88,6 +91,12 @@ const decodeClaudeSettings = Schema.decodeSync(ClaudeSettings);
 const DRIVER_KIND = ProviderDriverKind.make("claudeAgent");
 const RESET_CREDITS_GRACE_MS = 30 * 60_000;
 const CAPABILITIES_PROBE_TTL = Duration.minutes(5);
+
+const withoutUsage = (capabilities: ClaudeCapabilitiesProbe): ClaudeCapabilitiesProbe => {
+  const result = { ...capabilities };
+  delete result.usage;
+  return result;
+};
 // Limit bars refresh on their own faster cadence: one cheap HTTP read per account,
 // never the CLI spawn the full health check costs.
 const USAGE_POLL_INTERVAL = Duration.seconds(60);
@@ -251,21 +260,44 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
 
       // Per-instance capabilities cache: keyed on binary + resolved HOME so
       // account-specific probes never share auth metadata across instances.
-      const capabilitiesProbeCache = yield* Cache.make({
-        capacity: 1,
-        timeToLive: CAPABILITIES_PROBE_TTL,
-        lookup: () =>
+      // A transient miss may reuse the last account once, without its usage numbers.
+      const lastGoodCapabilities = yield* Ref.make<ClaudeCapabilitiesProbe | undefined>(undefined);
+      const capabilitiesProbeCache = yield* Cache.makeWith(
+        () =>
           Effect.all([
             probeClaudeCapabilities(effectiveConfig, processEnv, stateDir),
             ClaudeResetCredits.readClaudeOrganizationId(accountConfigPath),
           ]).pipe(
-            Effect.map(([capabilities, workspaceId]) =>
-              capabilities && workspaceId ? { ...capabilities, workspaceId } : capabilities,
-            ),
+            Effect.flatMap(([capabilities, workspaceId]) => {
+              const fresh =
+                capabilities && workspaceId ? { ...capabilities, workspaceId } : capabilities;
+              if (fresh !== undefined) {
+                return (
+                  fresh.connectionIssue === undefined
+                    ? Ref.set(lastGoodCapabilities, fresh)
+                    : Effect.void
+                ).pipe(Effect.as(fresh));
+              }
+              return Ref.getAndSet(lastGoodCapabilities, undefined).pipe(
+                Effect.map((last) =>
+                  last !== undefined && workspaceId === last.workspaceId
+                    ? withoutUsage(last)
+                    : undefined,
+                ),
+              );
+            }),
             Effect.provideService(FileSystem.FileSystem, fileSystem),
             Effect.provideService(Path.Path, path),
           ),
-      });
+        {
+          capacity: 1,
+          // Only fresh usage earns the TTL; a failed probe or one without usage retries.
+          timeToLive: (exit) =>
+            Exit.isSuccess(exit) && exit.value?.usage !== undefined
+              ? CAPABILITIES_PROBE_TTL
+              : Duration.zero,
+        },
+      );
       const capabilitiesCacheKey = yield* makeClaudeCapabilitiesCacheKey(
         effectiveConfig,
         stateDir,
@@ -317,6 +349,11 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
                     Effect.provideService(Path.Path, path),
                   ),
               ),
+            ),
+            Effect.tap((provider) =>
+              provider.auth.status === "unauthenticated"
+                ? Cache.invalidateAll(capabilitiesProbeCache)
+                : Effect.void,
             ),
             Effect.map(stampIdentity),
             Effect.tap((draft) =>

@@ -93,17 +93,6 @@ function lookup(root: unknown, segments: ReadonlyArray<string>): unknown {
   return current;
 }
 
-const UNTRUSTED_CLOSE_TAG = /<\/untrusted_webhook_data>/gi;
-
-/**
- * Anyone who can reach the sender (an issue author, for example) controls these
- * values, so the agent gets each one marked as data, never as instructions.
- */
-function fenceUntrusted(text: string): string {
-  // Providers trim a prompt before they count it; trimming here keeps padding free.
-  return `<untrusted_webhook_data>\n${text.replace(UNTRUSTED_CLOSE_TAG, "").trim()}\n</untrusted_webhook_data>`;
-}
-
 function stringify(value: unknown): string | undefined {
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);

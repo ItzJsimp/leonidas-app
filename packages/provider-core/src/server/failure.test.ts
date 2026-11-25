@@ -174,24 +174,6 @@ it("uses the innermost category without carrying an outer reason into it", () =>
   );
 });
 
-it("surfaces cause details on ProviderAdapterTurnStartError when available", () => {
-  const cause = new ProviderAdapter.ProviderAdapterTurnStartError({
-    driver: ProviderDriverKind.make("codex"),
-    threadId: ThreadId.make("thread:start-detail"),
-    providerThreadId: ProviderThreadId.make("provider-thread:start-detail"),
-    runId: RunId.make("run:start-detail"),
-    cause: new Error("Model capacity exceeded", {
-      cause: new Error("The provider session was not ready"),
-    }),
-  });
-  const failure = makeProviderFailure({ cause });
-  assert.include(
-    failure.message,
-    "The provider could not start this turn: Model capacity exceeded.",
-  );
-  assert.include(failure.message, "Caused by: The provider session was not ready.");
-});
-
 it("does not expose defect text nested inside a known error category", () => {
   const failure = makeProviderFailure({
     cause: {

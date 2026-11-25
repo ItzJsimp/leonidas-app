@@ -286,4 +286,18 @@ effectIt.layer(NodeServices.layer)("readClaudeOauthUsage", (it) => {
       expect([limited, darwin]).toEqual([undefined, undefined]);
     }),
   );
+
+  it.effect("reads nothing when the answer holds no limit windows", () =>
+    Effect.gen(function* () {
+      const { configDir } = yield* writeLogin;
+      const creditsOnly = yield* ClaudeResetCredits.readClaudeOauthUsage(configDir, "2.1.0").pipe(
+        Effect.provideService(HostProcess.Platform, "linux"),
+        Effect.provideService(
+          HttpClient.HttpClient,
+          respond(200, { cedar_ember: { eligible: true, next_grant_id: "grant_a", grants: [] } }),
+        ),
+      );
+      expect(creditsOnly).toBeUndefined();
+    }),
+  );
 });

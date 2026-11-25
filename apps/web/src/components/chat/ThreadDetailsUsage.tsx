@@ -405,16 +405,14 @@ export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUs
   const chatQuotaRefreshKey = active
     .flatMap((account) => account.limits.windows.map((window) => window.usedPercent))
     .join(",");
-  const refreshNow = async () => {
+  const refreshNow = () => {
     if (refreshing) return;
     setRefreshing(true);
-    try {
-      await refreshUsageLimits(environmentId, () => refreshProviders({ environmentId, input: {} }));
-    } catch {
-      // The bars keep their last numbers; the freshness label shows they are old.
-    } finally {
-      setRefreshing(false);
-    }
+    return refreshUsageLimits(environmentId, () => refreshProviders({ environmentId, input: {} }))
+      .catch(() => {
+        // The bars keep their last numbers; the freshness label shows they are old.
+      })
+      .finally(() => setRefreshing(false));
   };
   const nextReset = useMemo(() => {
     const times = accounts

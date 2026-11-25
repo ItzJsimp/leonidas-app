@@ -142,12 +142,14 @@ it("serializes competing maintenance processes after reclaiming a stale lock", a
 (async () => {
   const root = ${JSON.stringify(root)};
   const marker = maintenancePath.join(root, 'critical-section');
+  // The prelude's maintenanceFs is fs/promises; the critical section stays synchronous.
+  const markerFs = require('node:fs');
   for (let attempt = 0; attempt < 8; attempt++) await withToolMaintenance(root, () => {
-    maintenanceFs.writeFileSync(marker, String(process.pid), { flag: 'wx' });
+    markerFs.writeFileSync(marker, String(process.pid), { flag: 'wx' });
     for (let check = 0; check < 100; check++) {
-      if (maintenanceFs.readFileSync(marker, 'utf8') !== String(process.pid)) throw Error('Overlapping maintenance');
+      if (markerFs.readFileSync(marker, 'utf8') !== String(process.pid)) throw Error('Overlapping maintenance');
     }
-    maintenanceFs.unlinkSync(marker);
+    markerFs.unlinkSync(marker);
   });
 })().catch(error => { console.error(error); process.exitCode = 1; });`;
     await Promise.all(Array.from({ length: 6 }, () => exec(process.execPath, ["-e", script])));

@@ -101,6 +101,9 @@ const claudeSystemAppend = () => {
     resume: false,
     cwd: null,
     mcpServers: { leonidas: { type: "http", url: "http://127.0.0.1/mcp" } },
+    // A Claude config folder that does not exist: the user's own plugins (ponytail) must not
+    // change the measure.
+    environment: { CLAUDE_CONFIG_DIR: "t3-agent-context-budget-missing-claude-config" },
   });
   return typeof systemPrompt === "object" && "append" in systemPrompt ? systemPrompt.append : "";
 };

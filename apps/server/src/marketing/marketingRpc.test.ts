@@ -129,6 +129,6 @@ describe("who can approve", () => {
   it("gives agents no tool that decides a ticket", () => {
     const names = Object.keys(MarketingToolkit.tools);
     expect(names.filter((name) => /decide|approve$|reject/.test(name))).toEqual([]);
-    expect(names).toContain("marketing_approval_request");
+    expect(names).toContain("leo_marketing_approval_request");
   });
 });

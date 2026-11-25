@@ -79,7 +79,7 @@ const DAY_FORMAT = new Intl.DateTimeFormat("en-US", {
 export const formatDay = (day: string): string => DAY_FORMAT.format(new Date(`${day}T00:00:00Z`));
 
 /** The time of day as the export wrote it, for example "10:30". */
-export const tradeTime = (at: string): string => at.slice(11, 16);
+const tradeTime = (at: string): string => at.slice(11, 16);
 
 /** "12 trades, Nov 4" or "1 trade, Nov 3 to Nov 4". */
 export function importSummary(file: TradingImportFile): string {

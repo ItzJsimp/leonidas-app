@@ -248,6 +248,7 @@ export function claudeUsageResponseToLimits(input: {
         checkedAt,
         reason: response.rate_limits_available ? "probeFailed" : "unsupported",
         message: "Claude has not reported limits yet. They appear after your next message.",
+        awaitingReading: true,
       }),
       names,
     };

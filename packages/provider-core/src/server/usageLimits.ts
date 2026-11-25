@@ -36,6 +36,7 @@ export function makeUnavailableUsageLimits(input: {
   readonly checkedAt: string;
   readonly reason: "unsupported" | "probeFailed";
   readonly message?: string;
+  readonly awaitingReading?: boolean;
 }): ServerProviderUsageLimits {
   return {
     checkedAt: input.checkedAt,
@@ -43,6 +44,7 @@ export function makeUnavailableUsageLimits(input: {
     unavailable: {
       reason: input.reason,
       ...(input.message ? { message: input.message } : {}),
+      ...(input.awaitingReading ? { awaitingReading: true } : {}),
     },
   };
 }
@@ -78,15 +80,21 @@ export function applyUsageLimitsUpdate(input: {
       changed = true;
     }
   }
-  // A snapshot marked unavailable is replaced even by an unchanged window: the bars can fill now.
-  if (!changed && previous !== undefined && previous.unavailable === undefined) {
+  if (!changed && previous !== undefined) {
     return previous;
   }
+  // A first update with no probe behind it is a partial read. A failed probe stays marked until a
+  // full probe recovers. A probe that only had no reading yet is answered by this update.
+  const unavailable =
+    previous === undefined
+      ? { reason: "probeFailed" as const }
+      : previous.unavailable?.awaitingReading
+        ? undefined
+        : previous.unavailable;
   return {
     ...makeUsageLimits({ checkedAt: input.checkedAt, windows: merged.values() }),
     ...(previous?.resetCredits !== undefined ? { resetCredits: previous.resetCredits } : {}),
-    // A first update with no probe behind it is a partial read; a later update clears it.
-    ...(previous === undefined ? { unavailable: { reason: "probeFailed" as const } } : {}),
+    ...(unavailable !== undefined ? { unavailable } : {}),
   };
 }
 

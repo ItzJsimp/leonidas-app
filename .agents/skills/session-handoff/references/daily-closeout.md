@@ -45,6 +45,7 @@ pwsh -NoProfile -File scripts/Get-DailyCloseoutData.ps1
 ```
 
 The script runs in <1 second and gathers:
+
 - Session window anchor (since today's morning briefing or today's start)
 - Git branch and uncommitted working tree modifications/untracked counts
 - Commits landed during today's window
@@ -65,6 +66,7 @@ To eliminate late-night cognitive friction, intake uses a telemetry-first except
 ### 📋 Daily Closeout Intake
 
 ❓ **Q1 - Today's P0 Outcome:**
+
 - `[A]` Landed (Fully achieved the core target)
 - `[B]` Partial (Meaningful progress, but carryover required)
 - `[C]` Blocked / Missed (External friction, distraction, or blocker)
@@ -75,10 +77,11 @@ Any uncommitted scratch notes, blocker details, or loose ends to log? (Reply wit
 ❓ **Q3 - Tomorrow's Seed P0:**
 What is the single non-negotiable must-win focus for the next working session?
 
-*(Reply like `1A 2: None 3: Finish payment integration` or quick free text)*
+_(Reply like `1A 2: None 3: Finish payment integration` or quick free text)_
 ```
 
 #### Intake Rules:
+
 1. **Never guess P0 status:** If the user does not specify, default to `1B (Partial)` and prompt to confirm.
 2. **Fast-path parsing:** Accept single-line replies or natural conversational dictation.
 
@@ -111,6 +114,7 @@ Synthesize telemetry and operator intake into a dense markdown report and save t
 # 🌙 Daily Closeout : YYYY-MM-DD
 
 ## 🛡️ 1. Substrate Hygiene Gate
+
 - **Git Branch:** `[branch]` | **Tree Status:** [Clean / DIRTY: N modified, M untracked]
 - **Session Window Anchor:** Since [Briefing Name] ([Briefing Date])
 - **ActivityWatch Status:** [Online / Offline]
@@ -118,6 +122,7 @@ Synthesize telemetry and operator intake into a dense markdown report and save t
 ---
 
 ## 🎯 2. Executive Summary
+
 - **P0 Target Outcome:** [Landed / Partial / Blocked] - [Summary note]
 - **Focus Domain:** [Primary domain worked today]
 - **Tasks Landed Today:** [N tasks completed]
@@ -126,25 +131,31 @@ Synthesize telemetry and operator intake into a dense markdown report and save t
 ---
 
 ## 🚀 3. Accomplishments & Shipped Work
+
 ### Landed Commits:
+
 - `[hash]` [Commit message] ([Author])
 
 ### Completed Tasks:
+
 - [x] **[Task Name]** (`[file]`) at [Time]
 
 ---
 
 ## ⚠️ 4. Open Loose Ends & Blockers
+
 - [Carried-over items, uncommitted notes, or "None"]
 
 ---
 
 ## ⚡ 5. Tomorrow's Seed Action Plan
+
 - [ ] **[P0 Seed Task]:** [Specific first executable step]
 - [ ] **[Secondary Priority]:** [Next action]
 ```
 
 After writing the file, rebuild indexes:
+
 ```powershell
 pwsh -NoProfile -File scripts/Build-Index.ps1
 ```

@@ -3,8 +3,10 @@ import { describe, expect, it } from "vite-plus/test";
 import { readDefaultMobileThemeVariables } from "./mobileTheme.test-support";
 import {
   DEFAULT_MOBILE_THEME_ID,
+  getMobileThemeColors,
   getMobileThemeVariables,
   MOBILE_THEME_IDS,
+  themeColorToNativeColor,
   themeColorWithAlpha,
 } from "./mobileTheme";
 import { getMobileThemeRuntimeVariables } from "./mobileThemeVariables";
@@ -84,7 +86,9 @@ describe("mobile theme runtime variables", () => {
           expect(ios["--color-drawer"]).toBe(
             getMobileThemeVariables(DEFAULT_MOBILE_THEME_ID, appearance)["--color-drawer"],
           );
-          expect(ios["--color-thread-canvas"]).toBe("#000000");
+          expect(ios["--color-thread-canvas"]).toBe(
+            themeColorToNativeColor(getMobileThemeColors(DEFAULT_MOBILE_THEME_ID, "dark").canvas),
+          );
         }
         expect(themeColorWithAlpha(ios["--color-thread-hover"], 1)).not.toBe(
           themeColorWithAlpha(ios["--color-drawer"], 1),

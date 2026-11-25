@@ -271,7 +271,8 @@ function makeHarness(options: HarnessOptions = {}) {
               : Option.none(),
         ),
       getByWorkspaceRoot: () => Effect.succeed(Option.some(project)),
-      snapshot: Effect.die("unused"),
+      // SavedItemService reads the snapshot to scope saved items to a workspace.
+      snapshot: Effect.succeed({ projects: [project, otherProject], updatedAt: project.updatedAt }),
       getShell: () => Effect.die("unused"),
       listShells: () => Effect.die("unused"),
     }),

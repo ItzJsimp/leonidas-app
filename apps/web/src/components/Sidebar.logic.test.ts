@@ -65,6 +65,7 @@ import {
   type SidebarSection,
   resolveSidebarDropVerb,
   threadActivityTimestamp,
+  sidebarClockNow,
 } from "./Sidebar.logic";
 import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
 import { EnvironmentId, ProjectId, ProviderInstanceId, RunId, ThreadId } from "@t3tools/contracts";
@@ -2652,5 +2653,17 @@ describe("isSidebarThreadUnreadOrWoke and sidebarThreadNeedsAttention", () => {
         lastVisitedAt: activeSnooze.lastVisitedAt ?? undefined,
       }),
     ).toBe(false);
+  });
+});
+
+describe("sidebarClockNow", () => {
+  it("reads the minute tick as UTC and prefers a later snooze wake", () => {
+    expect(sidebarClockNow("2026-11-21T12:00", null)).toBe("2026-11-21T12:00:00.000Z");
+    expect(sidebarClockNow("2026-11-21T12:00", "2026-11-21T12:00:31.250Z")).toBe(
+      "2026-11-21T12:00:31.250Z",
+    );
+    expect(sidebarClockNow("2026-11-21T12:01", "2026-11-21T12:00:31.250Z")).toBe(
+      "2026-11-21T12:01:00.000Z",
+    );
   });
 });

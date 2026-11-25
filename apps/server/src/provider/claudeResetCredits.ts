@@ -21,6 +21,8 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 
+import { claudeUsageResponseToLimits } from "./claudeUsageLimits.ts";
+
 type ClaudeUsageResponse = Pick<
   SDKControlGetUsageResponse,
   "rate_limits_available" | "rate_limits"
@@ -208,9 +210,11 @@ export const readClaudeOauthUsage = Effect.fn("readClaudeOauthUsage")(
     const body = yield* HttpClientResponse.schemaBodyJson(Schema.Unknown)(
       yield* HttpClientResponse.filterStatusOk(response),
     );
-    return typeof body === "object" && body !== null
-      ? ({ rate_limits_available: true, rate_limits: body } as ClaudeUsageResponse)
-      : undefined;
+    if (typeof body !== "object" || body === null) return undefined;
+    const usage = { rate_limits_available: true, rate_limits: body } as ClaudeUsageResponse;
+    // A body with no limit windows is no reading; it must not replace the SDK's reading.
+    const { limits } = claudeUsageResponseToLimits({ response: usage, checkedAt: "" });
+    return limits.windows.length > 0 ? usage : undefined;
   },
   Effect.timeout("10 seconds"),
   Effect.orElseSucceed(() => undefined),

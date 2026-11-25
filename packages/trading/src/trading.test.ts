@@ -388,10 +388,16 @@ describe("performance", () => {
     assert.strictEqual(events.length, 1000);
     // Warm-up, so the budget measures the steady cost and not the JIT.
     for (let i = 0; i < 5; i++) deriveTradingState({ events, trades, products });
-    const started = performance.now();
-    const state = deriveTradingState({ events, trades, products });
-    const elapsed = performance.now() - started;
+    // The median of 11 runs: one sample on a shared CI runner caught a GC or CPU pause
+    // (51 ms on CI against a 2.8 ms local median) and failed with no code change.
+    const samples: number[] = [];
+    let state = deriveTradingState({ events, trades, products });
+    for (let i = 0; i < 11; i++) {
+      const started = performance.now();
+      state = deriveTradingState({ events, trades, products });
+      samples.push(performance.now() - started);
+    }
     assert.strictEqual(state.passRate.finished, 200);
-    assert.isBelow(elapsed, 50);
+    assert.isBelow(samples.toSorted((x, y) => x - y)[5]!, 50);
   });
 });

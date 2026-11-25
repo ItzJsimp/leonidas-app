@@ -8,10 +8,11 @@
     A check fails only on diagnostics that origin/main (-Base) does not already have.
   - vitest on the changed test files and on the sibling test of each changed source file.
     A test fails the gate only when origin/main (-Base) does not already fail it (compared by test name).
+  - node scripts/lint-ratchet.ts (the CI lint gate), when the script exists.
   - -Keys re-runs only the named checks (used while bisecting to a culprit branch).
   Returns one object: Status (green | red | unavailable), FailKeys, Notes.
   `unavailable` means the gate could not run (no dependencies, install failed); callers fail open.
-  Check keys: `tsc|<package>` and `test|<package>|<test file relative to the package>`.
+  Check keys: `tsc|<package>`, `test|<package>|<test file relative to the package>` and `lint|ratchet`.
 #>
 [CmdletBinding()]
 param(
@@ -130,6 +131,8 @@ else {
     }
     if ($tests.Count -gt $MaxTestFiles) { $notes.Add("test files capped at $MaxTestFiles of $($tests.Count)") }
     $tests | Select-Object -First $MaxTestFiles | ForEach-Object { $plan.Add($_) }
+    # The CI lint gate: any lint error missing from scripts/lint-baseline.json fails the landing.
+    if (Test-Path -LiteralPath (Join-Path $Worktree 'scripts/lint-ratchet.ts')) { $plan.Add('lint|ratchet') }
 }
 
 $fail = [System.Collections.Generic.List[string]]::new()
@@ -164,6 +167,17 @@ foreach ($group in ($plan | Where-Object { $_ -like 'test|*' } | Group-Object { 
         $new = @(if ($names.Count -eq 0 -or $null -eq $known) { $rel } else { $names | Where-Object { $_ -notin $known } })
         if ($new.Count -gt 0) { $fail.Add("test|$pkg|$rel"); $notes.Add("test|$pkg|$rel : $($new.Count) new failure(s), first: $($new[0])") }
         else { $notes.Add("test|$pkg|$rel : only failures origin/main already has") }
+    }
+}
+if ($plan -contains 'lint|ratchet') {
+    $savedPath = $env:PATH
+    $env:PATH = "$(Join-Path $Worktree 'node_modules/.bin');$env:PATH"
+    Push-Location $Worktree
+    try { $out = @(& node scripts/lint-ratchet.ts 2>&1 | ForEach-Object { "$_" }); $code = $LASTEXITCODE }
+    finally { Pop-Location; $env:PATH = $savedPath }
+    if ($code -ne 0) {
+        $fail.Add('lint|ratchet')
+        $notes.Add("lint|ratchet : $(@($out | Where-Object { $_ -match '\S' -and $_ -notmatch 'DeprecationWarning|trace-deprecation' })[0..3] -join ' | ')")
     }
 }
 if ($fail.Count -gt 0) { return Result 'red' $fail }

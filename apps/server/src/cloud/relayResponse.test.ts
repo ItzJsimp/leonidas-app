@@ -54,7 +54,7 @@ it.effect("reports the tunnel limit and relay trace instead of a generic 403", (
 
     expect(error).toMatchObject({ _tag: "RelayRequestError", rejection: "forbidden" });
     expect(error.message).toContain("at most 3 tunnels");
-    expect(error.message).toContain("Unlink an unused environment");
+    expect(error.message).toContain("Remove remote access from an unused computer");
     expect(error.message).toContain("Trace ID: trace-limit");
   }),
 );
@@ -116,7 +116,7 @@ it.effect("reports an unrecognized access denial without printing its response b
 
     expect(error).toMatchObject({ _tag: "RelayRequestError", rejection: "forbidden" });
     expect(error.message).toContain("HTTP 403");
-    expect(error.message).toContain("proxy or firewall");
+    expect(error.message).toContain("Check network access");
     expect(error.message).toContain("Cloudflare Ray ID: abcdef1234-IAD");
     expect(error.message).not.toContain("private upstream details");
   }),

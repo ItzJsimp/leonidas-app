@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off - This test builds temp paths with Node APIs.
 import * as NodeAssert from "node:assert/strict";
 import * as NodePath from "node:path";
 import * as NodeSqlite from "node:sqlite";

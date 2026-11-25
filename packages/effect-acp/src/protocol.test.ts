@@ -283,10 +283,11 @@ it.layer(NodeServices.layer)("effect-acp protocol", (it) => {
       assert.equal(transformCalls, 1);
 
       const decodeFailed = events.find(({ stage }) => stage === "decode_failed");
-      assert.deepInclude(decodeFailed?.payload as object, {
+      // The union also tries the future-variant branch, so the summary can name more issues.
+      expect(decodeFailed?.payload).toMatchObject({
         operation: "decode-notification-payload",
         method: "session/update",
-        issueSummary: "update.used missing",
+        issueSummary: expect.stringContaining("update.used missing"),
       });
       // The repeated bad update is dropped again but warned about once.
       assert.lengthOf(
@@ -294,8 +295,8 @@ it.layer(NodeServices.layer)("effect-acp protocol", (it) => {
         2,
       );
       assert.lengthOf(warnings, 1);
-      assert.deepInclude(warnings[0] as object, {
-        issueSummary: "update.used missing",
+      expect(warnings[0]).toMatchObject({
+        issueSummary: expect.stringContaining("update.used missing"),
       });
       assert.notInclude(encodeUnknownJsonString({ decodeFailed, warnings }), secret);
     }),

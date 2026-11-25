@@ -1,8 +1,18 @@
-import { WORKSPACE_IMAGE_PREVIEW_EXTENSIONS } from "./mediaPreview.ts";
-
 export const PROJECT_FAVICON_FALLBACK_MARKER = "project-favicon-missing";
 
-export const PROJECT_FAVICON_EXTENSIONS = [...WORKSPACE_IMAGE_PREVIEW_EXTENSIONS, ".icns"] as const;
+// Listed, not derived from the preview list: HEIC and TIFF preview in the file viewer but do not
+// draw as an icon.
+export const PROJECT_FAVICON_EXTENSIONS = [
+  ".avif",
+  ".gif",
+  ".ico",
+  ".jpeg",
+  ".jpg",
+  ".png",
+  ".svg",
+  ".webp",
+  ".icns",
+] as const;
 
 export function isProjectFaviconPath(path: string): boolean {
   const literalPath = path.toLowerCase();

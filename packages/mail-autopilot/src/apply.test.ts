@@ -4,7 +4,7 @@ import { MemoryActionLog, parseLog, serializeEntry, type ActionLogEntry } from "
 import { applyActions, type ApplyDeps } from "./apply.ts";
 import { FakeMailProvider } from "./fakeProvider.ts";
 import { ProviderError } from "./provider.ts";
-import { msg } from "./testkit.ts";
+import { machineSlowdown, msg } from "./testkit.ts";
 import type { Action } from "./types.ts";
 
 const setup = () => {
@@ -132,15 +132,20 @@ describe("applyActions", () => {
   });
 
   it("handles 100 messages with 3 actions each in under 150 ms", async () => {
-    const { provider, deps } = setup();
-    const messages = Array.from({ length: 100 }, (_, i) =>
-      inboxMsg({ id: `m${i}`, threadId: `t${i}` }),
-    );
-    provider.seed(messages);
-    const t0 = performance.now();
-    for (const m of messages) await applyActions(deps, m, plan3);
-    const ms = performance.now() - t0;
-    assert.isBelow(ms, 150);
+    // The median of 7 runs, against a limit scaled by this machine's speed: CI measured 216 to
+    // 247 ms where the dev PC takes 15 ms. The limit is 150 ms on a machine as fast as the dev PC.
+    const samples: number[] = [];
+    for (let run = 0; run < 7; run++) {
+      const { provider, deps } = setup();
+      const messages = Array.from({ length: 100 }, (_, i) =>
+        inboxMsg({ id: `m${i}`, threadId: `t${i}` }),
+      );
+      provider.seed(messages);
+      const t0 = performance.now();
+      for (const m of messages) await applyActions(deps, m, plan3);
+      samples.push(performance.now() - t0);
+    }
+    assert.isBelow(samples.toSorted((x, y) => x - y)[3]!, 150 * machineSlowdown());
   });
 });
 

@@ -178,7 +178,8 @@ function codexAccountEmail(account: CodexSchema.V2GetAccountResponse["account"])
   return account.email;
 }
 
-function codexDefaultReasoningEffortOverride(model: string): "medium" | undefined {
+/** The default effort Leonidas shows for a model when Codex reports a different one. */
+export function codexDefaultReasoningEffortOverride(model: string): "medium" | undefined {
   return codexModelFamily(model) === "gpt-6-astra" ? "medium" : undefined;
 }
 

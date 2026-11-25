@@ -2,7 +2,7 @@ import type { TradingCrewCard, TradingCrewResult, TradingShareSettings } from "@
 
 import { formatMoney } from "./dashboard.logic";
 
-export const STAGE_TEXT: Readonly<Record<"sim" | "evaluation" | "funded" | "payouts", string>> = {
+const STAGE_TEXT: Readonly<Record<"sim" | "evaluation" | "funded" | "payouts", string>> = {
   sim: "Sim",
   evaluation: "Evaluation",
   funded: "Funded",
@@ -68,7 +68,7 @@ export function sortCards(
   });
 }
 
-export const passRateText = (passed: number, finished: number): string =>
+const passRateText = (passed: number, finished: number): string =>
   finished === 0
     ? "No finished Attempts"
     : `${Math.round((passed / finished) * 100)}% (${passed} of ${finished})`;

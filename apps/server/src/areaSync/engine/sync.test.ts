@@ -4,7 +4,7 @@ import * as NodePath from "node:path";
 
 import { afterEach, assert, describe, it } from "@effect/vitest";
 
-import { realGit, type Git } from "./git.ts";
+import { type Git } from "./git.ts";
 import { joinWorkspace } from "./join.ts";
 import { isMidMerge, statusAll, syncArea, syncWorkspace } from "./sync.ts";
 import {
@@ -15,6 +15,7 @@ import {
   makeWorkspace,
   read,
   tempDir,
+  testGit,
   write,
 } from "./testRepos.ts";
 
@@ -30,7 +31,7 @@ async function joined(seed: Record<string, string> = { "README.md": "sales\n" })
   const base = tempDir("remotes-");
   const { root } = makeWorkspace(base, ROWS);
   const bare = makeRemote(base, "acme-sales", seed);
-  await joinWorkspace({ root, git: realGit });
+  await joinWorkspace({ root, git: testGit });
   const dir = NodePath.join(root, "areas", "sales");
   const peer = cloneOf(base, "acme-sales");
   const peerPush = (file: string, text: string) => {
@@ -48,7 +49,7 @@ const files = (dir: string) =>
     .toSorted();
 
 const recorder =
-  (calls: string[][], inner: Git = realGit): Git =>
+  (calls: string[][], inner: Git = testGit): Git =>
   (args, cwd) => {
     calls.push([...args]);
     return inner(args, cwd);
@@ -58,7 +59,7 @@ describe("syncArea clean paths", () => {
   it("saves local changes as a commit and pushes them (T3)", async () => {
     const s = await joined();
     write(s.dir, "notes.md", "local\n");
-    const r = await syncArea({ dir: s.dir, git: realGit });
+    const r = await syncArea({ dir: s.dir, git: testGit });
     assert.strictEqual(r.state, "pushed");
     assert.isTrue(r.committed);
     g(s.peer, "pull");
@@ -68,7 +69,7 @@ describe("syncArea clean paths", () => {
   it("pulls what others pushed and commits nothing (T4)", async () => {
     const s = await joined();
     s.peerPush("new.md", "from peer\n");
-    const r = await syncArea({ dir: s.dir, git: realGit });
+    const r = await syncArea({ dir: s.dir, git: testGit });
     assert.strictEqual(r.state, "pulled");
     assert.isFalse(r.committed);
     assert.strictEqual(read(s.dir, "new.md"), "from peer\n");
@@ -78,7 +79,7 @@ describe("syncArea clean paths", () => {
     const s = await joined();
     s.peerPush("a.md", "peer\n");
     write(s.dir, "b.md", "mine\n");
-    const r = await syncArea({ dir: s.dir, git: realGit });
+    const r = await syncArea({ dir: s.dir, git: testGit });
     assert.strictEqual(r.state, "pushed");
     assert.strictEqual(read(s.dir, "a.md"), "peer\n");
     g(s.peer, "pull");
@@ -87,7 +88,7 @@ describe("syncArea clean paths", () => {
 
   it("returns synced when nothing changed", async () => {
     const s = await joined();
-    assert.strictEqual((await syncArea({ dir: s.dir, git: realGit })).state, "synced");
+    assert.strictEqual((await syncArea({ dir: s.dir, git: testGit })).state, "synced");
   });
 
   it("retries once when the remote moves during the push", async () => {
@@ -99,7 +100,7 @@ describe("syncArea clean paths", () => {
         raced = true;
         s.peerPush("race.md", "raced\n");
       }
-      return realGit(args, cwd);
+      return testGit(args, cwd);
     };
     const r = await syncArea({ dir: s.dir, git: racing });
     assert.strictEqual(r.state, "pushed");
@@ -120,7 +121,7 @@ describe("syncArea safety", () => {
   it("aborts a conflict, keeps both sides and leaves a clean tree (T6, rule 4)", async () => {
     const s = await conflictSetup();
     const remoteBefore = g(s.bare, "rev-parse", "main");
-    const r = await syncArea({ dir: s.dir, git: realGit, now: () => 1760000000 });
+    const r = await syncArea({ dir: s.dir, git: testGit, now: () => 1760000000 });
     assert.strictEqual(r.state, "conflict");
     assert.deepStrictEqual(r.conflicts, ["c.md"]);
     assert.strictEqual(r.savedRef, "refs/leonidas/remote-1760000000");
@@ -132,22 +133,22 @@ describe("syncArea safety", () => {
       "one\nPEER\nthree",
     );
     assert.strictEqual(g(s.bare, "rev-parse", "main"), remoteBefore);
-    assert.isFalse(await isMidMerge(realGit, s.dir));
+    assert.isFalse(await isMidMerge(testGit, s.dir));
   });
 
   it("pushes after the agent merges the saved side", async () => {
     const s = await conflictSetup();
-    const r = await syncArea({ dir: s.dir, git: realGit, now: () => 1 });
+    const r = await syncArea({ dir: s.dir, git: testGit, now: () => 1 });
     try {
       g(s.dir, "merge", r.savedRef!);
     } catch {
       // the merge stops on the conflict, which is the point
     }
-    assert.isTrue(await isMidMerge(realGit, s.dir));
+    assert.isTrue(await isMidMerge(testGit, s.dir));
     write(s.dir, "c.md", "one\nMINE and PEER\nthree\n");
     g(s.dir, "add", "-A");
     g(s.dir, "commit", "-m", "merge");
-    const after = await syncArea({ dir: s.dir, git: realGit });
+    const after = await syncArea({ dir: s.dir, git: testGit });
     assert.strictEqual(after.state, "pushed");
     g(s.peer, "pull");
     assert.strictEqual(read(s.peer, "c.md"), "one\nMINE and PEER\nthree\n");
@@ -155,7 +156,7 @@ describe("syncArea safety", () => {
 
   it("never auto-commits a repo in the middle of a merge (T7, rule 7)", async () => {
     const s = await conflictSetup();
-    const r = await syncArea({ dir: s.dir, git: realGit, now: () => 1 });
+    const r = await syncArea({ dir: s.dir, git: testGit, now: () => 1 });
     try {
       g(s.dir, "merge", r.savedRef!);
     } catch {
@@ -163,7 +164,7 @@ describe("syncArea safety", () => {
     }
     const head = g(s.dir, "rev-parse", "HEAD");
     const marked = read(s.dir, "c.md");
-    const again = await syncArea({ dir: s.dir, git: realGit });
+    const again = await syncArea({ dir: s.dir, git: testGit });
     assert.strictEqual(again.state, "merging");
     assert.strictEqual(g(s.dir, "rev-parse", "HEAD"), head);
     assert.strictEqual(read(s.dir, "c.md"), marked);
@@ -175,7 +176,7 @@ describe("syncArea safety", () => {
     write(s.dir, "keep.md", "keep\n");
     g(s.dir, "remote", "set-url", "origin", "https://invalid.invalid/none.git");
     const before = files(s.dir);
-    const r = await syncArea({ dir: s.dir, git: realGit });
+    const r = await syncArea({ dir: s.dir, git: testGit });
     assert.strictEqual(r.state, "offline");
     assert.deepStrictEqual(files(s.dir), before);
     assert.strictEqual(read(s.dir, "keep.md"), "keep\n");
@@ -186,7 +187,7 @@ describe("syncArea safety", () => {
     write(s.dir, "keep.md", "keep\n");
     NodeFS.rmSync(s.bare, { recursive: true, force: true });
     const before = files(s.dir);
-    const r = await syncArea({ dir: s.dir, git: realGit });
+    const r = await syncArea({ dir: s.dir, git: testGit });
     assert.strictEqual(r.state, "locked");
     assert.deepStrictEqual(files(s.dir), before);
     assert.strictEqual(read(s.dir, "keep.md"), "keep\n");
@@ -232,7 +233,7 @@ describe("syncArea safety", () => {
     const s = await joined();
     g(s.dir, "checkout", "--detach");
     write(s.dir, "d.md", "d\n");
-    const r = await syncArea({ dir: s.dir, git: realGit });
+    const r = await syncArea({ dir: s.dir, git: testGit });
     assert.strictEqual(r.state, "error");
     assert.strictEqual(read(s.dir, "d.md"), "d\n");
   });
@@ -242,7 +243,7 @@ describe("statusAll and syncWorkspace", () => {
   it("reports dirty, ahead and behind for Home and each Area without the network", async () => {
     const s = await joined();
     write(s.dir, "dirty.md", "d\n");
-    const rows = await statusAll({ root: s.root, git: realGit });
+    const rows = await statusAll({ root: s.root, git: testGit });
     const sales = rows.find((r) => r.slug === "sales")!;
     assert.isTrue(sales.dirty);
     assert.strictEqual(sales.ahead, 0);
@@ -267,7 +268,7 @@ describe("statusAll and syncWorkspace", () => {
     g(owner, "add", "-A");
     g(owner, "commit", "-m", "add content area");
     g(owner, "push");
-    const r = await syncWorkspace({ root: s.root, git: realGit });
+    const r = await syncWorkspace({ root: s.root, git: testGit });
     assert.deepStrictEqual(r.joined.map((j) => [j.slug, j.state]).toSorted(), [
       ["content", "joined"],
       ["sales", "present"],

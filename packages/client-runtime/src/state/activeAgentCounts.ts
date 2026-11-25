@@ -34,7 +34,7 @@ function isAgentActive(runtime: ThreadRuntimeSummary | null | undefined): boolea
 }
 
 /** A chat that did no work for this long no longer counts toward its account's load. */
-export const ACCOUNT_LOAD_WINDOW_MS = 60 * 60 * 1000;
+const ACCOUNT_LOAD_WINDOW_MS = 60 * 60 * 1000;
 
 export interface AccountLoad {
   /** Chats that worked in the last hour on the account: not archived, and no idle subagent. */
