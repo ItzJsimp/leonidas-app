@@ -6000,6 +6000,23 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       {/* Cards live in their own full-width column; the button bar never shares a row with them. */}
       <>
         <ComposerBanner.Column className="mx-auto -mb-[calc(1rem+1px)] w-[calc(100%-2*var(--chat-composer-drawer-inset))] flex-none">
+          {/* Shoulder tabs (saved drafts, tasks) sit above the status line, never between it and the composer. */}
+          {pendingUserInputs.length === 0 && stashQueue.length > 0 ? (
+            <ComposerBanner.Attachment>
+              <ComposerStashBadge
+                count={stashQueue.length}
+                menuOpen={isStashMenuOpen}
+                pulseKey={stashPulse.key}
+                pulsing={stashPulse.active}
+                onToggleMenu={toggleStashMenu}
+              />
+            </ComposerBanner.Attachment>
+          ) : null}
+          {showTasksTab ? (
+            <ComposerBanner.Attachment>
+              <ComposerTasksBadge progress={activeTasksProgress} />
+            </ComposerBanner.Attachment>
+          ) : null}
           <ComposerBannerStack
             key={activeThreadId}
             className="relative z-0"
@@ -6147,22 +6164,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   </div>
                 ) : null}
               </ComposerBanner.Root>
-            </ComposerBanner.Attachment>
-          ) : null}
-          {showTasksTab ? (
-            <ComposerBanner.Attachment>
-              <ComposerTasksBadge progress={activeTasksProgress} />
-            </ComposerBanner.Attachment>
-          ) : null}
-          {pendingUserInputs.length === 0 && stashQueue.length > 0 ? (
-            <ComposerBanner.Attachment>
-              <ComposerStashBadge
-                count={stashQueue.length}
-                menuOpen={isStashMenuOpen}
-                pulseKey={stashPulse.key}
-                pulsing={stashPulse.active}
-                onToggleMenu={toggleStashMenu}
-              />
             </ComposerBanner.Attachment>
           ) : null}
         </ComposerBanner.Column>
