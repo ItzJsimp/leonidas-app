@@ -88,8 +88,11 @@ export default async function setup() {
     server.once("exit", (code) => fail(new Error(`e2e server exited (${code}):\n${output}`)));
   });
 
-  return () => {
+  return async () => {
+    const exited = new Promise((done) => server.once("exit", done));
     server.kill();
-    NodeFS.rmSync(root, { recursive: true, force: true });
+    await exited;
+    // Windows can hold the SQLite files for a moment after the process exits.
+    NodeFS.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
   };
 }
