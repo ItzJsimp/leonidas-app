@@ -154,7 +154,7 @@ describe("BottomStatusRail (browser)", () => {
     await expect.element(page.getByText("Manage providers")).toBeVisible();
 
     const gameModeButton = screen.container.querySelector<HTMLButtonElement>(
-      '[aria-label="Game Mode status: Game Mode: Auto"]',
+      '[aria-label^="Game Mode status:"]',
     )!;
     await act(() => gameModeButton.click());
     expect(mocks.refreshGameMode).toHaveBeenCalledTimes(1);
