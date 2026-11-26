@@ -1,2 +1,3 @@
 node scripts/guard-unchecked-commit.mjs
+node scripts/guard-staged-policy.mjs
 vp staged

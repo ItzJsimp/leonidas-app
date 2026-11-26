@@ -1,5 +1,5 @@
 {
-  "description": "Shared session start (scripts/Session-Start.ps1) and push-complete signal.",
+  "description": "Shared session start (scripts/Session-Start.ps1), push-complete signal and the agent guard (scripts/agent-guard.mjs).",
   "hooks": {
     "SessionStart": [
       {
@@ -22,6 +22,18 @@
             "type": "command",
             "command": "pwsh -NoProfile -Command \"& (Join-Path (git rev-parse --show-toplevel) 'scripts/Hook-PushCompleteSignal.ps1')\"",
             "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -Command \"$input | & node (Join-Path (git rev-parse --show-toplevel) 'scripts/agent-guard.mjs')\"",
+            "timeout": 10
           }
         ]
       }
