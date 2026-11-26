@@ -95,6 +95,42 @@ describe("mergeDuplicateEvents", () => {
     expect(merged).toHaveLength(2);
     expect(merged.map((item) => item.count)).toEqual([1, 5]);
   });
+
+  it("folds repeated watcher snapshots with changing counts into one current row", () => {
+    const actor = { kind: "script" as const, name: "Repo health" };
+    const older = event(
+      "Repo health: 12 problems",
+      { level: "needs_you", type: "watcher.repo-health", dedupe: "a", actor },
+      1000,
+      2,
+    );
+    const newer = event(
+      "Repo health: 20 problems",
+      { level: "needs_you", type: "watcher.repo-health", dedupe: "b", actor },
+      2000,
+      1,
+    );
+    const merged = mergeDuplicateEvents([older, newer], {});
+    expect(merged).toHaveLength(1);
+    expect([merged[0]!.title, merged[0]!.count]).toEqual(["Repo health: 20 problems", 3]);
+  });
+
+  it("folds multi-turn permission and limit alerts for the same thread into one row", () => {
+    const base = {
+      level: "needs_you" as const,
+      type: "agent.needs_permission",
+      target: { thread: "thr_1" },
+    };
+    const merged = mergeDuplicateEvents(
+      [
+        event("Chat needs permission", { ...base, dedupe: "env:thr_1:r1" }, 1000, 1),
+        event("Chat needs permission", { ...base, dedupe: "env:thr_1:r2" }, 2000, 1),
+      ],
+      {},
+    );
+    expect(merged).toHaveLength(1);
+    expect(merged[0]!.count).toBe(2);
+  });
 });
 
 describe("splitFeed", () => {
@@ -110,6 +146,16 @@ describe("splitFeed", () => {
       "Backup failed",
     ]);
     expect(split.activity.map((item) => item.title)).toEqual(["Leonidas finished", "Old question"]);
+  });
+
+  it("keeps task.worked work logs out of Needs you even when a run failed", () => {
+    const failedWorkLog = event("Chat worked on Card", {
+      level: "failed",
+      type: "task.worked",
+    });
+    const split = splitFeed([failedWorkLog], {});
+    expect(split.needsYou).toHaveLength(0);
+    expect(split.activity).toHaveLength(1);
   });
 
   it("caps Activity so a long feed stays light", () => {

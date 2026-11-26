@@ -25,7 +25,7 @@ export function NotificationSettings() {
       {...searchableSetting("thread-notifications")}
       description={
         permissionMessage ??
-        "System alerts when a chat finishes, fails, or needs your answer or approval. Applies to this device while Leonidas is open."
+        "System alerts when a chat finishes, fails, or needs permission. Applies to this device while Leonidas is open."
       }
       control={
         <Select

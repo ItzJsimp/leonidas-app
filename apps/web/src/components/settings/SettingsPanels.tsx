@@ -2910,7 +2910,7 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
             <UsageWarningSettings />
             <SettingsRow
               {...searchableSetting("in-app-notifications")}
-              description="Show a small notice when another chat finishes, fails, or needs your answer or approval while this app is in front."
+              description="Show a small notice when another chat finishes, fails, or needs permission while this app is in front."
               control={
                 <Switch
                   checked={settings.inAppNotificationsEnabled}

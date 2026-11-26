@@ -30,13 +30,27 @@ export function isEventRead(
   return eventIds(event).every((id) => marks[id]?.read === true);
 }
 
-/** Needs you holds unread `needs_you` and `failed` events. Opening one marks it read. */
+const PER_THREAD_AGENT_TYPES = new Set<string>([
+  "agent.needs_permission",
+  "agent.usage_limit",
+  "agent.failed",
+]);
+
+/** Needs you holds unread `needs_you` and `failed` alerts. Task work logs stay in Activity. */
 export function isNeedsYou(event: FoldedFeedEvent, read: boolean): boolean {
-  return !read && (event.level === "needs_you" || event.level === "failed");
+  if (read || event.type === "task.worked") return false;
+  return event.level === "needs_you" || event.level === "failed";
 }
 
 /** Stable key for merging repeated alerts across time windows into one row. */
 export function duplicateKey(event: FoldedFeedEvent): string {
+  // Built-in watchers report point-in-time state; keep one current row per watcher.
+  if (event.type.startsWith("watcher.")) return `watcher:${event.type}`;
+  // Per-thread chat alerts fold into one latest row per chat instead of one per turn.
+  const threadId = event.target?.thread?.trim();
+  if (threadId && PER_THREAD_AGENT_TYPES.has(event.type)) {
+    return `thread:${event.type}:${threadId}`;
+  }
   const explicit = event.dedupe?.trim();
   if (explicit) return `dedupe:${explicit}`;
   const title = plainEventTitle(event.title).replace(/\s+/g, " ").trim().toLowerCase();

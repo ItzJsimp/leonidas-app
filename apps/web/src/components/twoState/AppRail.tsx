@@ -177,7 +177,7 @@ export function AppRail({ drawer = false }: { readonly drawer?: boolean }) {
         "flex h-full shrink-0 flex-col gap-1 border-r border-border bg-card pb-2",
         // Empty rail space moves the window, as a title bar does. Its links and buttons stay clickable.
         isElectron && "drag-region",
-        wide ? "w-full px-2" : "w-[72px] items-center px-1",
+        wide ? "w-full px-2" : "w-24 min-w-24 items-center px-1",
         isElectron && isMacPlatform(navigator.platform) ? "pt-10" : "pt-2",
       )}
     >
@@ -282,7 +282,7 @@ function RailLink({
     className: cn(
       TARGET_CLASS,
       variant === "wide" && "h-9 w-full justify-start gap-3 px-2.5 hover:bg-accent",
-      variant === "stacked" && "h-10 w-16 flex-col gap-1 px-0.5 hover:bg-accent",
+      variant === "stacked" && "h-11 w-full flex-col gap-1 px-1 hover:bg-accent",
       current && ACTIVE_CLASS,
     ),
   };
@@ -296,7 +296,7 @@ function RailLink({
       {variant === "stacked" ? (
         <span
           className={cn(
-            "max-w-full truncate text-3xs leading-none",
+            "whitespace-nowrap text-3xs leading-none",
             current ? "font-medium text-foreground" : "text-muted-foreground",
           )}
         >
@@ -311,7 +311,7 @@ function RailLink({
             variant === "wide"
               ? "ml-auto"
               : variant === "stacked"
-                ? "absolute top-0.5 right-2.5"
+                ? "absolute top-0.5 right-1"
                 : "absolute -top-1 -right-1",
           )}
         >

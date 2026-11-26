@@ -260,8 +260,18 @@ describe("thread notifications", () => {
     },
   );
 
+  it("does not alert for retired user input status", async () => {
+    await using app = setup();
+    state.mode = "notifications-and-sound";
+    await app.render();
+    state.input = true;
+    await app.render();
+    expect(state.add).not.toHaveBeenCalled();
+    expect(state.notification).not.toHaveBeenCalled();
+    expect(state.sound).not.toHaveBeenCalled();
+  });
+
   it.each([
-    ["input", "Input needed"],
     ["approval", "Approval needed"],
     ["sessionError", "Thread failed"],
     ["turnError", "Thread failed"],
