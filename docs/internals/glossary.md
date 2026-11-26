@@ -28,6 +28,7 @@ Terms whose meaning matters across Leonidas. Architecture and lifecycle constrai
 | Command receipt         | A durable record of a command's result, used to make retries idempotent.                                  |
 | Outbox effect           | Side-effect intent committed with the events, such as starting a provider turn or capturing a checkpoint. |
 | Effect worker           | The worker that runs outbox effects after commit and feeds their results back as commands.                |
+| RPC policy              | The scope and metrics category declared on each WebSocket RPC definition with `defineWsRpc`.              |
 
 ## Providers and checkpoints
 

@@ -96,5 +96,6 @@ export * from "./replyStyle.ts";
 export * from "./subagentSpawn.ts";
 export * from "./threadSweep.ts";
 export * from "./clientRpcPermissions.ts";
+export * from "./rpcPolicy.ts";
 export * from "./workspacePictures.ts";
 export * from "./archive.ts";

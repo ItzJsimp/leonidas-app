@@ -20,12 +20,12 @@ import * as Stream from "effect/Stream";
 import * as Tracer from "effect/Tracer";
 import * as RpcTest from "effect/rpc/RpcTest";
 import * as TestClock from "effect/testing/TestClock";
+import type * as RpcGroup from "effect/rpc/RpcGroup";
 
-import { RPC_REQUIRED_SCOPES } from "../auth/RpcAuthorization.ts";
 import * as RpcAuthorization from "../auth/RpcAuthorization.ts";
 import { RpcInstrumentation, rpcInstrumentationLayer } from "./RpcInstrumentation.ts";
 
-type WsRpcMethod = keyof typeof RPC_REQUIRED_SCOPES;
+type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
 
 const groupOf = <const Tags extends ReadonlyArray<WsRpcMethod>>(...tags: Tags) =>
   WsRpcGroup.omit(

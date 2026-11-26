@@ -1,10 +1,7 @@
-import * as Schema from "effect/Schema";
-import { GitPreparePullRequestThreadInput, GitRunStackedActionInput } from "./git.ts";
 import {
   AuthOrchestrationOperateScope,
   AuthFilesystemReadScope,
   AuthFilesystemWriteScope,
-  AuthOrchestrationReadScope,
   AuthPreviewOperateScope,
   AuthSettingsWriteScope,
   AuthSourceControlWriteScope,
@@ -13,6 +10,7 @@ import {
 } from "./auth.ts";
 import { ORCHESTRATION_V2_WS_METHODS } from "./orchestrationV2.ts";
 import { WS_METHODS } from "./rpc.ts";
+import { preparePullRequestThreadScopes, stackedActionScopes } from "./rpcPolicy.ts";
 
 /** Incremental client enforcement; the server still authorizes every request. */
 export const CLIENT_GUARDED_RPC_SCOPES = {
@@ -127,26 +125,17 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
 } as const;
 export type ClientGuardedRpcTag = keyof typeof CLIENT_GUARDED_RPC_SCOPES;
 
-const decodePrepareThread = Schema.decodeUnknownSync(GitPreparePullRequestThreadInput);
-const decodeStackedAction = Schema.decodeUnknownSync(GitRunStackedActionInput);
-
 export function clientRpcRequiredScopes(
   method: string,
   input: unknown,
 ): readonly AuthEnvironmentScope[] {
-  if (method === WS_METHODS.gitPreparePullRequestThread && input !== undefined) {
-    const payload = decodePrepareThread(input);
-    if (payload.mode === "worktree" && payload.threadId !== undefined)
-      return [AuthSourceControlWriteScope, AuthOrchestrationOperateScope];
-  }
-  if (method === WS_METHODS.gitRunStackedAction && input !== undefined) {
-    const payload = decodeStackedAction(input);
-    if (
-      payload.threadId !== undefined &&
-      (payload.action === "create_pr" || payload.action === "commit_push_pr")
-    )
-      return [AuthSourceControlWriteScope, AuthOrchestrationReadScope];
-  }
+  const payloadScopes =
+    method === WS_METHODS.gitPreparePullRequestThread
+      ? preparePullRequestThreadScopes(input)
+      : method === WS_METHODS.gitRunStackedAction
+        ? stackedActionScopes(input)
+        : undefined;
+  if (payloadScopes !== undefined) return payloadScopes;
   return Object.hasOwn(CLIENT_GUARDED_RPC_SCOPES, method)
     ? [CLIENT_GUARDED_RPC_SCOPES[method as ClientGuardedRpcTag]]
     : [];

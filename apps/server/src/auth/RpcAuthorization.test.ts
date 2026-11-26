@@ -26,18 +26,18 @@ import {
   CommandId,
   ProjectId,
   WsRpcGroup,
+  rpcPolicyOf,
 } from "@t3tools/contracts";
+import type * as RpcGroup from "effect/rpc/RpcGroup";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Stream from "effect/Stream";
 import * as RpcTest from "effect/rpc/RpcTest";
 
-import {
-  RPC_REQUIRED_SCOPES,
-  requiredScopeForRpcMethod,
-  requiredScopeForDeviceList,
-} from "./RpcAuthorization.ts";
+import { requiredScopeForRpcMethod, requiredScopeForDeviceList } from "./RpcAuthorization.ts";
+
+type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
 import * as RpcAuthorization from "./RpcAuthorization.ts";
 
 describe("RPC authorization scopes", () => {
@@ -112,8 +112,10 @@ describe("RPC authorization scopes", () => {
       }),
     ).toEqual(["filesystem:write"]);
   });
-  it("declares exactly one scope for every RPC in the server group", () => {
-    expect(new Set(Object.keys(RPC_REQUIRED_SCOPES))).toEqual(new Set(WsRpcGroup.requests.keys()));
+  it("declares a policy for every RPC in the server group", () => {
+    for (const rpc of WsRpcGroup.requests.values()) {
+      expect(rpcPolicyOf(rpc).category).not.toBe("");
+    }
   });
 
   it("requires operate access to stop a workflow", () => {
@@ -288,9 +290,7 @@ it.effect.each([false, true])(
     Effect.gen(function* () {
       const group = WsRpcGroup.omit(
         ...[...WsRpcGroup.requests.keys()].filter(
-          (
-            tag,
-          ): tag is Exclude<keyof typeof RPC_REQUIRED_SCOPES, typeof WS_METHODS.savedItemsLaunch> =>
+          (tag): tag is Exclude<WsRpcMethod, typeof WS_METHODS.savedItemsLaunch> =>
             tag !== WS_METHODS.savedItemsLaunch,
         ),
       );
@@ -345,9 +345,7 @@ it.effect.each([
   Effect.gen(function* () {
     const group = WsRpcGroup.omit(
       ...[...WsRpcGroup.requests.keys()].filter(
-        (
-          tag,
-        ): tag is Exclude<keyof typeof RPC_REQUIRED_SCOPES, typeof WS_METHODS.scribeGetStatus> =>
+        (tag): tag is Exclude<WsRpcMethod, typeof WS_METHODS.scribeGetStatus> =>
           tag !== WS_METHODS.scribeGetStatus,
       ),
     );
@@ -398,7 +396,7 @@ describe("RPC scope middleware", () => {
   const tested = [WS_METHODS.serverProbe, WS_METHODS.serverRetryResourceTelemetry] as const;
   const group = WsRpcGroup.omit(
     ...[...WsRpcGroup.requests.keys()].filter(
-      (tag): tag is Exclude<keyof typeof RPC_REQUIRED_SCOPES, (typeof tested)[number]> =>
+      (tag): tag is Exclude<WsRpcMethod, (typeof tested)[number]> =>
         !(tested as ReadonlyArray<string>).includes(tag),
     ),
   );
@@ -464,9 +462,7 @@ describe("RPC scope middleware", () => {
 describe("settings mutation authorization", () => {
   const group = WsRpcGroup.omit(
     ...[...WsRpcGroup.requests.keys()].filter(
-      (
-        tag,
-      ): tag is Exclude<keyof typeof RPC_REQUIRED_SCOPES, typeof WS_METHODS.serverUpdateSettings> =>
+      (tag): tag is Exclude<WsRpcMethod, typeof WS_METHODS.serverUpdateSettings> =>
         tag !== WS_METHODS.serverUpdateSettings,
     ),
   );
@@ -534,12 +530,8 @@ it.effect("requires task permission before attaching a prepared worktree to a th
   Effect.gen(function* () {
     const group = WsRpcGroup.omit(
       ...[...WsRpcGroup.requests.keys()].filter(
-        (
-          tag,
-        ): tag is Exclude<
-          keyof typeof RPC_REQUIRED_SCOPES,
-          typeof WS_METHODS.gitPreparePullRequestThread
-        > => tag !== WS_METHODS.gitPreparePullRequestThread,
+        (tag): tag is Exclude<WsRpcMethod, typeof WS_METHODS.gitPreparePullRequestThread> =>
+          tag !== WS_METHODS.gitPreparePullRequestThread,
       ),
     );
     let handled = false;
@@ -570,9 +562,7 @@ it.effect("requires task permission before attaching a prepared worktree to a th
 describe("thread context authorization", () => {
   const group = WsRpcGroup.omit(
     ...[...WsRpcGroup.requests.keys()].filter(
-      (
-        tag,
-      ): tag is Exclude<keyof typeof RPC_REQUIRED_SCOPES, typeof WS_METHODS.gitRunStackedAction> =>
+      (tag): tag is Exclude<WsRpcMethod, typeof WS_METHODS.gitRunStackedAction> =>
         tag !== WS_METHODS.gitRunStackedAction,
     ),
   );
@@ -624,9 +614,7 @@ it.effect("separates host file URLs from readable attachment URLs", () =>
   Effect.gen(function* () {
     const group = WsRpcGroup.omit(
       ...[...WsRpcGroup.requests.keys()].filter(
-        (
-          tag,
-        ): tag is Exclude<keyof typeof RPC_REQUIRED_SCOPES, typeof WS_METHODS.assetsCreateUrl> =>
+        (tag): tag is Exclude<WsRpcMethod, typeof WS_METHODS.assetsCreateUrl> =>
           tag !== WS_METHODS.assetsCreateUrl,
       ),
     );
@@ -667,12 +655,8 @@ it.effect("denies manual cleanup before the handler without settings permission"
   Effect.gen(function* () {
     const group = WsRpcGroup.omit(
       ...[...WsRpcGroup.requests.keys()].filter(
-        (
-          tag,
-        ): tag is Exclude<
-          keyof typeof RPC_REQUIRED_SCOPES,
-          typeof WS_METHODS.serverRunStorageCleanup
-        > => tag !== WS_METHODS.serverRunStorageCleanup,
+        (tag): tag is Exclude<WsRpcMethod, typeof WS_METHODS.serverRunStorageCleanup> =>
+          tag !== WS_METHODS.serverRunStorageCleanup,
       ),
     );
     let handled = false;
