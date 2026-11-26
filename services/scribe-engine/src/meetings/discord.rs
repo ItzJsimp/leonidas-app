@@ -425,8 +425,13 @@ fn person(state: &Value) -> (String, String) {
 
 /// During a Discord meeting: write speaking events to `<dir>/speaking.jsonl` until `stop`.
 /// Errors go to `<dir>/discord-error.txt`; the meeting records either way.
-pub fn record(dir: &Path, keys: Arc<dyn KeyStore>, stop: Arc<AtomicBool>, started: Instant) {
-    if let Err(e) = record_inner(dir, keys.as_ref(), &stop, started) {
+pub fn record(
+    dir: &Path,
+    keys: Arc<dyn KeyStore>,
+    stop: Arc<AtomicBool>,
+    clock: Arc<super::clock::ActiveClock>,
+) {
+    if let Err(e) = record_inner(dir, keys.as_ref(), &stop, &clock) {
         let _ = std::fs::write(dir.join("discord-error.txt"), e);
     }
 }
@@ -435,7 +440,7 @@ fn record_inner(
     dir: &Path,
     keys: &dyn KeyStore,
     stop: &AtomicBool,
-    started: Instant,
+    clock: &super::clock::ActiveClock,
 ) -> Result<(), String> {
     let saved = load(keys).ok_or("Discord is not set up.")?;
     let (mut rpc, _) = Rpc::open(&saved.client_id)?;
@@ -448,7 +453,7 @@ fn record_inner(
     let mut names: std::collections::HashMap<String, String> = Default::default();
     let write =
         |out: &mut File, mut ev: Value, names: &std::collections::HashMap<String, String>| {
-            ev["t"] = json!(started.elapsed().as_secs_f32());
+            ev["t"] = json!(clock.elapsed().as_secs_f32());
             if let Some(name) = ev["user_id"].as_str().and_then(|id| names.get(id)) {
                 ev["name"] = Value::from(name.clone());
             }

@@ -3,6 +3,7 @@
 //! idle RAM and cold start do not change.
 
 pub mod capture;
+pub mod clock;
 pub mod detect;
 pub mod discord;
 pub mod loopback;
@@ -258,6 +259,8 @@ impl Meetings {
                 Err(_) => fail(400, "bad_request", "The start request is not valid."),
             },
             ("POST", ["stop"]) => self.stop(),
+            ("POST", ["pause"]) => self.pause(true),
+            ("POST", ["resume"]) => self.pause(false),
             ("GET", ["live"]) => self.live(),
             ("GET", ["sources"]) => (200, capture::sources_json()),
             ("GET", ["detect"]) => {
@@ -370,7 +373,7 @@ impl Meetings {
         ) {
             Ok(session) => {
                 if wants_discord(&sources.apps) {
-                    self.start_discord(&dir);
+                    self.start_discord(&dir, session.clock());
                 }
                 *active = Some(session);
                 self.set_recording(true);
@@ -390,6 +393,7 @@ impl Meetings {
         };
         if let Some(mut manifest) = read_json(&session.dir.join("manifest.json")) {
             manifest["ended"] = Value::from(crate::now_iso());
+            manifest["paused_ms"] = Value::from(session.clock().paused_ms());
             manifest["state"] = Value::from("processing");
             let _ = write_json(&session.dir.join("manifest.json"), &manifest);
         }
@@ -399,6 +403,17 @@ impl Meetings {
             flag.store(true, Ordering::Release);
         }
         (200, json!({ "id": session.id }))
+    }
+
+    /// `POST /v1/meetings/pause` and `/resume`. Takes effect within 250 ms: `GET live` shows
+    /// `paused` once the capture thread has acted.
+    fn pause(&self, on: bool) -> Reply {
+        let active = self.active.lock().unwrap();
+        let Some(session) = active.as_ref().filter(|s| s.phase() == Phase::Recording) else {
+            return fail(409, "not_recording", "No meeting is recording.");
+        };
+        session.set_paused(on);
+        (200, json!({ "id": session.id, "paused": on }))
     }
 
     fn live(&self) -> Reply {
@@ -499,7 +514,7 @@ impl Meetings {
     }
 
     /// Read Discord speaking events next to a Discord meeting, when Discord is connected.
-    fn start_discord(&self, dir: &Path) {
+    fn start_discord(&self, dir: &Path, clock: Arc<clock::ActiveClock>) {
         let connected =
             discord::load(self.discord_keys.as_ref()).is_some_and(|s| s.access_token.is_some());
         if !connected {
@@ -507,14 +522,10 @@ impl Meetings {
         }
         let stop = Arc::new(AtomicBool::new(false));
         *self.discord_stop.lock().unwrap() = Some(stop.clone());
-        let (dir, keys, started) = (
-            dir.to_path_buf(),
-            self.discord_keys.clone(),
-            std::time::Instant::now(),
-        );
+        let (dir, keys) = (dir.to_path_buf(), self.discord_keys.clone());
         let _ = std::thread::Builder::new()
             .name("meeting-discord".into())
-            .spawn(move || discord::record(&dir, keys, stop, started));
+            .spawn(move || discord::record(&dir, keys, stop, clock));
     }
 }
 
@@ -738,6 +749,9 @@ mod tests {
             400
         );
         assert_eq!(m.handle("PUT", "/v1/meetings/m1", Value::Null).0, 405);
+        // Nothing records: Pause and Resume say so instead of doing nothing.
+        assert_eq!(m.handle("POST", "/v1/meetings/pause", Value::Null).0, 409);
+        assert_eq!(m.handle("POST", "/v1/meetings/resume", Value::Null).0, 409);
         assert_eq!(
             m.handle("GET", "/v1/meetings/discord", Value::Null).1["configured"],
             false

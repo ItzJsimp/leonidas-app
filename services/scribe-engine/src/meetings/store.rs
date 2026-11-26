@@ -104,7 +104,10 @@ impl Store {
             unix_ms_from_iso(&started),
             ended.as_deref().and_then(unix_ms_from_iso),
         ) {
-            (Some(a), Some(b)) if b >= a => Some(b - a),
+            // Paused time is not in the audio, so it is not part of the length.
+            (Some(a), Some(b)) if b >= a => {
+                Some((b - a - manifest["paused_ms"].as_i64().unwrap_or(0)).max(0))
+            }
             _ => None,
         };
         let people: Vec<Value> = manifest["participants"]

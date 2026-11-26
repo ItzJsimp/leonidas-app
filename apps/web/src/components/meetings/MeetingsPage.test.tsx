@@ -259,6 +259,46 @@ describe("MeetingsPage", () => {
     ).not.toBeNull();
   });
 
+  it("pauses and resumes a recording meeting", async () => {
+    let paused = false;
+    const original = mocks.call.getMockImplementation()!;
+    mocks.call.mockImplementation(async (method: string, path: string, body: unknown) => {
+      if (path === "live")
+        return {
+          ok: true,
+          value: {
+            recording: true,
+            phase: "recording",
+            elapsedMs: 5000,
+            paused,
+            levels: { me: 0, them: 0 },
+            segments: [],
+            pending: 0,
+            failed: 0,
+            notices: [],
+          },
+        };
+      if (method === "POST" && (path === "pause" || path === "resume")) {
+        paused = path === "pause";
+        return { ok: true, value: {} };
+      }
+      return original(method, path, body);
+    });
+    await show();
+    const button = (name: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+        (el) => el.textContent === name,
+      );
+    expect(text()).toContain("Recording meeting");
+    await act(async () => button("Pause")?.click());
+    expect(mocks.call).toHaveBeenCalledWith("POST", "pause");
+    expect(text()).toContain("Meeting paused");
+    expect(button("Pause")).toBeUndefined();
+    await act(async () => button("Resume")?.click());
+    expect(mocks.call).toHaveBeenCalledWith("POST", "resume");
+    expect(text()).toContain("Recording meeting");
+  });
+
   it("has one Copy button instead of three", async () => {
     await show();
     const labels = [...container.querySelectorAll("button")].map((el) => el.textContent);
