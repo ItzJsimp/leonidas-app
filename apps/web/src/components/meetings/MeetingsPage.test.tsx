@@ -259,6 +259,48 @@ describe("MeetingsPage", () => {
     ).not.toBeNull();
   });
 
+  it("plays the audio of one transcript line", async () => {
+    const played: string[] = [];
+    vi.stubGlobal(
+      "Audio",
+      class {
+        onended: (() => void) | null = null;
+        constructor(readonly src: string) {}
+        play = async () => void played.push(this.src);
+        pause = () => {};
+      },
+    );
+    vi.stubGlobal(
+      "URL",
+      Object.assign(URL, { createObjectURL: () => "blob:clip", revokeObjectURL: () => {} }),
+    );
+    mocks.items = [{ ...item, hasAudio: true }];
+    const original = mocks.call.getMockImplementation()!;
+    mocks.call.mockImplementation(async (method: string, path: string, body: unknown) => {
+      if (path === "a")
+        return {
+          ok: true,
+          value: {
+            ...detail,
+            hasAudio: true,
+            transcript: [
+              { speaker_key: "Jake", t0: 5, t1: 9, track: "them", text: "Hello there." },
+            ],
+          },
+        };
+      if (method === "POST" && path === "a/clip") return { ok: true, value: { wav: "UklGRg==" } };
+      return original(method, path, body);
+    });
+    await show();
+    await act(async () => tab("transcript")?.click());
+    const play = container.querySelector<HTMLButtonElement>('button[aria-label="Play this line"]');
+    expect(play).not.toBeNull();
+    await act(async () => play?.click());
+    expect(mocks.call).toHaveBeenCalledWith("POST", "a/clip", { from: 5, to: 9, track: "them" });
+    expect(played).toEqual(["blob:clip"]);
+    expect(container.querySelector('button[aria-label="Stop this line"]')).not.toBeNull();
+  });
+
   it("pauses and resumes a recording meeting", async () => {
     let paused = false;
     const original = mocks.call.getMockImplementation()!;

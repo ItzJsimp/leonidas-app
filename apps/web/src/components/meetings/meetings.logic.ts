@@ -26,6 +26,10 @@ export interface MeetingTemplate {
 export interface MeetingSegment {
   readonly speaker: string;
   readonly t0: number;
+  /** End of the line, when the engine saved it. */
+  readonly t1?: number;
+  /** Which recording holds the line: the mic, or the call audio. */
+  readonly track?: "me" | "them";
   readonly text: string;
 }
 
@@ -129,6 +133,8 @@ export function parseMeetingDetail(raw: unknown): MeetingDetail | null {
         {
           speaker: text(item.speaker_key) || "Speaker",
           t0: typeof item.t0 === "number" ? item.t0 : 0,
+          ...(typeof item.t1 === "number" ? { t1: item.t1 } : {}),
+          ...(item.track === "me" || item.track === "them" ? { track: item.track } : {}),
           text: body,
         },
       ];
@@ -165,7 +171,11 @@ export function mergeSegments(segments: readonly MeetingSegment[]): readonly Mee
   for (const segment of segments) {
     const last = merged[merged.length - 1];
     if (last !== undefined && last.speaker === segment.speaker) {
-      merged[merged.length - 1] = { ...last, text: `${last.text} ${segment.text}` };
+      merged[merged.length - 1] = {
+        ...last,
+        ...(segment.t1 !== undefined ? { t1: segment.t1 } : {}),
+        text: `${last.text} ${segment.text}`,
+      };
     } else {
       merged.push(segment);
     }
@@ -520,4 +530,18 @@ export function elapsedLabel(elapsedMs: number): string {
 /** The newest lines for the live view, so a long call does not grow the page. */
 export function liveTail(live: MeetingLive, count: number): readonly MeetingSegment[] {
   return mergeSegments(live.segments).slice(-count);
+}
+
+/** The part of a line the play button plays. A line without an end plays 15 s; none runs past 60 s. */
+export function clipRange(segment: MeetingSegment): { from: number; to: number } {
+  const to = segment.t1 !== undefined && segment.t1 > segment.t0 ? segment.t1 : segment.t0 + 15;
+  return { from: segment.t0, to: Math.min(to, segment.t0 + 60) };
+}
+
+/** Plain bytes from the clip's base64, for an audio element. */
+export function wavBlob(base64: string): Blob {
+  const raw = atob(base64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i);
+  return new Blob([bytes], { type: "audio/wav" });
 }

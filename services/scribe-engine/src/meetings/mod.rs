@@ -3,6 +3,7 @@
 //! idle RAM and cold start do not change.
 
 pub mod capture;
+pub mod clip;
 pub mod clock;
 pub mod detect;
 pub mod discord;
@@ -277,6 +278,7 @@ impl Meetings {
                 200,
                 json!({ "items": notes::TEMPLATES.iter().map(|t| json!({"id": t.id, "name": t.name})).collect::<Vec<_>>() }),
             ),
+            ("POST", [id, "clip"]) => clip::handle(&self.store, id, &body),
             ("POST", [id, "transcribe"]) => self.retranscribe(id),
             ("POST", [id, "summary"]) => {
                 let template = body["template"].as_str().map(str::to_owned);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  clipRange,
+  wavBlob,
   agentMention,
   filterMeetings,
   filterSegments,
@@ -280,5 +282,27 @@ describe("speakers and transcript search", () => {
     expect(filterSegments(lines, "gersi")).toEqual([lines[2]]);
     expect(filterSegments(lines, "")).toBe(lines);
     expect(filterSegments(lines, "nothing here")).toEqual([]);
+  });
+});
+
+describe("clip helpers", () => {
+  it("plays a line from its start to its end, and never over 60 s", () => {
+    expect(clipRange({ speaker: "Me", t0: 5, t1: 9, text: "x" })).toEqual({ from: 5, to: 9 });
+    expect(clipRange({ speaker: "Me", t0: 5, text: "x" })).toEqual({ from: 5, to: 20 });
+    expect(clipRange({ speaker: "Me", t0: 5, t1: 500, text: "x" })).toEqual({ from: 5, to: 65 });
+  });
+
+  it("keeps the end of the last line when lines merge", () => {
+    const merged = mergeSegments([
+      { speaker: "Me", t0: 0, t1: 4, text: "a" },
+      { speaker: "Me", t0: 4, t1: 9, text: "b" },
+    ]);
+    expect(merged).toEqual([{ speaker: "Me", t0: 0, t1: 9, text: "a b" }]);
+  });
+
+  it("decodes a clip", async () => {
+    const blob = wavBlob("UklGRg==");
+    expect(blob.type).toBe("audio/wav");
+    expect(blob.size).toBe(4);
   });
 });

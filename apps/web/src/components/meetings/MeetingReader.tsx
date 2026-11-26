@@ -1,4 +1,4 @@
-import { CopyIcon, Trash2Icon } from "lucide-react";
+import { CopyIcon, LoaderIcon, PlayIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
@@ -35,6 +35,7 @@ import {
 import { MeetingAsk } from "./MeetingsLive";
 import { MeetingTemplatePicker } from "./MeetingTemplatePicker";
 import { SpeakerName } from "./SpeakerName";
+import { useClipPlayer } from "./useClipPlayer";
 import type { Call } from "./useMeetingsCall";
 
 /** A color per speaker. Each also has its own first letter, so color is never the only cue. */
@@ -66,6 +67,7 @@ export function MeetingReader(props: {
   const [nextTemplate, setNextTemplate] = useState<string | null>(null);
   const [writeTemplate, setWriteTemplate] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const clips = useClipPlayer(call, summary.id);
   // The list row changes when the engine finishes a step; read the full meeting again then.
   const version = `${summary.state}|${summary.notesState}|${summary.pinned}|${summary.hasTranscript}|${summary.template}`;
   const latest = useRef(0);
@@ -418,6 +420,30 @@ export function MeetingReader(props: {
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {formatClock(segment.t0)}
                     </span>
+                    {meeting.hasAudio ? (
+                      <Button
+                        size="icon-micro"
+                        variant="ghost"
+                        className="ml-1 align-middle"
+                        aria-label={
+                          clips.playing === String(segment.t0) ? "Stop this line" : "Play this line"
+                        }
+                        disabled={clips.loading !== null}
+                        onClick={() =>
+                          void clips
+                            .play(String(segment.t0), segment)
+                            .then((message) => fail("Could not play this line", message))
+                        }
+                      >
+                        {clips.loading === String(segment.t0) ? (
+                          <LoaderIcon className="animate-spin" />
+                        ) : clips.playing === String(segment.t0) ? (
+                          <SquareIcon />
+                        ) : (
+                          <PlayIcon />
+                        )}
+                      </Button>
+                    ) : null}
                     <br />
                     {segment.text}
                   </p>
