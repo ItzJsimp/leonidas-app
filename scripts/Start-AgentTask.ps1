@@ -98,6 +98,16 @@ if (-not $NoWorktree) {
             & $linker -RepoPath $aios -SourceRoot $aios -ProjectPath $worktree -SkillsOnly *>$null
         }
     } catch { Write-Warning "AIOS skills were not linked into ${worktree}: $($_.Exception.Message)" }
+    # core.hooksPath is .vite-hooks/_, which is gitignored, so copy it so commit-msg and pre-commit run locally.
+    try {
+        $mainRepo = Split-Path $common -Parent
+        $hooksSrc = Join-Path $mainRepo '.vite-hooks/_'
+        $hooksDst = Join-Path $worktree '.vite-hooks/_'
+        if ((Test-Path -LiteralPath $hooksSrc) -and -not (Test-Path -LiteralPath $hooksDst)) {
+            New-Item -ItemType Directory -Force -Path (Split-Path $hooksDst -Parent) | Out-Null
+            Copy-Item -LiteralPath $hooksSrc -Destination $hooksDst -Recurse -Force
+        }
+    } catch { Write-Warning "Git hooks were not copied into ${worktree}: $($_.Exception.Message)" }
 }
 "claimed: $Task by $Owner in $worktree on $branch"
 exit 0

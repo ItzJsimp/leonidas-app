@@ -3,6 +3,13 @@
     "laya": {
       "command": "python",
       "args": [".claude/hooks/laya-mcp.py"]
+    },
+    "reui": {
+      "type": "http",
+      "url": "https://mcp.reui.io",
+      "headers": {
+        "Authorization": "Bearer ${REUI_MCP_TOKEN}"
+      }
     }
   }
 }

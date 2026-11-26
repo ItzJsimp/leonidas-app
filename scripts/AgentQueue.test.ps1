@@ -77,10 +77,14 @@ try {
     Assert (-not (git -C $repo branch --list 'task/*')) 'landing deletes both merged branches'
 
     # 3. A worktree that its agent still uses lands, but the queue does not touch its files.
+    New-Item -ItemType Directory -Force (Join-Path $repo '.vite-hooks/_') | Out-Null
+    Set-Content (Join-Path $repo '.vite-hooks/_/.gitignore') '*'
+    Set-Content (Join-Path $repo '.vite-hooks/_/commit-msg') 'node scripts/guard-commit-message.ts "$1"'
     Push-Location $repo
     try {
         pwsh -NoProfile -File scripts/Start-AgentTask.ps1 -Task delta -Owner agent-5 | Out-Null
         $wtD = Join-Path $env:LEONIDAS_WORKTREE_ROOT 'delta'
+        Assert (Test-Path (Join-Path $wtD '.vite-hooks/_/commit-msg')) 'worktree copies gitignored .vite-hooks/_ from main repo'
         Set-Content (Join-Path $wtD 'delta.txt') 'd'; G $wtD add delta.txt; G $wtD commit -q -m 'delta work'
         New-Item -ItemType Directory (Join-Path $wtD 'node_modules') | Out-Null
         Set-Content (Join-Path $wtD 'node_modules/ignored.txt') 'i'
