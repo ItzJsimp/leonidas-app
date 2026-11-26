@@ -72,7 +72,10 @@ describe("shell frame", () => {
     expect(navs).toHaveLength(1);
     expect(navs[0]?.querySelector("[aria-label='Today']")).not.toBeNull();
     // A pin adds a tab to the chat panel and never removes it from the rail.
-    expect(navs[0]?.querySelector("[aria-label='Notifications, 3 need you']")).not.toBeNull();
+    const inboxLink = navs[0]?.querySelector("[aria-label='Notifications, 3 need you']");
+    expect(inboxLink).not.toBeNull();
+    expect(inboxLink?.textContent).toContain("Notifications");
+    expect(inboxLink?.textContent).not.toContain("Alerts");
     expect(navs[0]?.querySelector("[aria-label='Leonidas Chat']")).not.toBeNull();
   });
 

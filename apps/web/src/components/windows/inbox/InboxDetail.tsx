@@ -8,7 +8,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { toastManager } from "~/components/ui/toast";
 import { useEventFeedStore } from "~/eventFeedStore";
-import { ruleFor, typeLabel } from "~/notificationRules";
+import { ruleFor, typeDescription, typeLabel } from "~/notificationRules";
 import { buildThreadRouteParams } from "~/threadRoutes";
 
 import { changedLabel } from "../../twoState/areaRows";
@@ -52,6 +52,7 @@ export function InboxDetail({
   const rule = useEventFeedStore((store) => ruleFor(event, store.typeRules));
   const setTypeRule = useEventFeedStore((store) => store.setTypeRule);
   const kind = typeLabel(event.type);
+  const kindDescription = typeDescription(event.type, event.actor.name);
   const failed = eventKind(event) === "failed";
   const latestLabel = changedLabel(Date.parse(event.ts), now);
   const firstLabel = changedLabel(Date.parse(event.firstTs), now);
@@ -157,7 +158,7 @@ export function InboxDetail({
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4">
         <div className="min-w-0 flex-1 basis-36">
           <p className="text-xs font-medium text-foreground">{kind}</p>
-          <p className="truncate text-xs text-muted-foreground">{event.actor.name}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{kindDescription}</p>
         </div>
         <RuleControl
           type={event.type}

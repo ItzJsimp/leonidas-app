@@ -63,15 +63,24 @@ function NotificationsBell() {
     <Tip text={label}>
       <Button
         variant="ghost"
-        size="icon-sm"
+        size={count > 0 ? "sm" : "icon-sm"}
         aria-label={label}
-        render={<Link to="/inbox" className="[-webkit-app-region:no-drag]" />}
+        render={
+          <Link
+            to="/inbox"
+            className={
+              count > 0
+                ? "gap-1.5 px-1.5 [-webkit-app-region:no-drag]"
+                : "[-webkit-app-region:no-drag]"
+            }
+          />
+        }
       >
-        <BellIcon className="size-4" />
+        <BellIcon className="size-4 shrink-0" />
         {count > 0 ? (
           <span
             aria-hidden
-            className="absolute -top-1 -right-1 min-w-4 rounded-full bg-warning px-1 text-center text-3xs leading-4 font-semibold text-background tabular-nums"
+            className="min-w-4 rounded-full bg-warning px-1.5 text-center text-3xs leading-4 font-semibold text-background tabular-nums"
           >
             {badgeText(count)}
           </span>

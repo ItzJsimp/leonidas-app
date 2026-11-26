@@ -1,8 +1,16 @@
 import type { FoldedFeedEvent } from "@t3tools/contracts";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
-import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { BellRingIcon, Volume2Icon } from "lucide-react";
+import { type ReactNode, useState } from "react";
 
-import { useClientSettings, useUpdateClientSettings } from "~/hooks/useSettings";
+import {
+  useClientSettings,
+  usePrimarySettings,
+  usePrimarySettingsAvailable,
+  useUpdateClientSettings,
+  useUpdatePrimarySettings,
+} from "~/hooks/useSettings";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
@@ -21,16 +29,47 @@ import {
   hasDesktopNotifications,
   hasNotificationSound,
   NOTIFICATION_MODE_LABELS,
+  playNotificationSound,
   unlockNotificationAudio,
 } from "~/threadNotifications";
 
 import { changedLabel } from "../../twoState/areaRows";
 import { Tip } from "../../twoState/Tip";
 
+const USAGE_WARNING_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "70", label: "At 70%" },
+  { value: "80", label: "At 80%" },
+  { value: "90", label: "At 90%" },
+] as const;
+
 function summarizeLabels(labels: ReadonlyArray<string>, fallback: string): string {
   if (labels.length === 0) return fallback;
   if (labels.length <= 3) return labels.join(", ");
   return `${labels.slice(0, 3).join(", ")} +${labels.length - 3} more`;
+}
+
+function SettingRow({
+  title,
+  description,
+  note,
+  children,
+}: {
+  readonly title: string;
+  readonly description: string;
+  readonly note?: string | null;
+  readonly children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-foreground">{title}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
+        {note ? <p className="mt-0.5 text-xs text-destructive-foreground">{note}</p> : null}
+      </div>
+      {children}
+    </div>
+  );
 }
 
 /** Toast, Inbox only or Off for one event type. The change saves at once. */
@@ -68,7 +107,7 @@ export function RuleControl({
   );
 }
 
-/** Plain summary, quiet settings, and per-type rules in one panel. */
+/** Delivery guide, device alert settings, and per-type notification rules in one panel. */
 export function NotificationRules({
   events,
   now,
@@ -84,7 +123,11 @@ export function NotificationRules({
   const quietStart = useClientSettings((settings) => settings.notificationQuietHoursStart);
   const quietEnd = useClientSettings((settings) => settings.notificationQuietHoursEnd);
   const volume = useClientSettings((settings) => settings.notificationVolume);
+  const usageWarningPercent = useClientSettings((settings) => settings.usageWarningPercent);
+  const snoozeLimitedThreads = usePrimarySettings((settings) => settings.snoozeLimitedThreads);
+  const primarySettingsAvailable = usePrimarySettingsAvailable();
   const updateSettings = useUpdateClientSettings();
+  const updatePrimarySettings = useUpdatePrimarySettings();
 
   const [query, setQuery] = useState("");
   const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
@@ -99,7 +142,6 @@ export function NotificationRules({
       else if (row.rule === "inbox") quiet.push(row.label);
     }
   }
-  const summary = { interrupting, quiet };
 
   const needle = query.trim().toLowerCase();
   const shown =
@@ -109,66 +151,116 @@ export function NotificationRules({
           .map((group) => ({
             ...group,
             rows: group.rows.filter((row) =>
-              [row.label, row.type, group.source].some((text) =>
-                text.toLowerCase().includes(needle),
+              [row.label, row.description, row.type, row.latestTitle ?? "", group.source].some(
+                (text) => text.toLowerCase().includes(needle),
               ),
             ),
           }))
           .filter((group) => group.rows.length > 0);
+
   const custom = Object.keys(rules);
   const interruptsSummary =
     !inAppEnabled && mode === "off"
       ? "Nothing interrupts you right now."
-      : summarizeLabels(summary.interrupting, "No types set to interrupt.");
-  const quietSummary = summarizeLabels(summary.quiet, "None.");
+      : summarizeLabels(interrupting, "No types set to Toast.");
+  const quietSummary = summarizeLabels(quiet, "None.");
   const quietHoursSummary = quietEnabled
     ? `${quietStart} to ${quietEnd} (sounds and system alerts paused)`
     : "Off";
+  const usageWarningValue = usageWarningPercent === null ? "off" : String(usageWarningPercent);
+  const usageWarningLabel =
+    USAGE_WARNING_OPTIONS.find((option) => option.value === usageWarningValue)?.label ??
+    `At ${usageWarningValue}%`;
+
+  const sendTestToast = () => {
+    toastManager.add({
+      type: "info",
+      title: "Sample Leonidas toast",
+      description: "Types set to Toast appear like this while Leonidas is open.",
+      data: {
+        hideCopyButton: true,
+        leadingIcon: <BellRingIcon aria-hidden className="size-4 text-info-foreground" />,
+      },
+    });
+    if (hasNotificationSound(mode)) {
+      unlockNotificationAudio();
+      void playNotificationSound("completion", () => true, volume);
+    }
+  };
+
+  const playTestSound = () => {
+    unlockNotificationAudio();
+    void playNotificationSound("input", () => true, volume);
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-3.5">
-          <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Interrupts you
-          </p>
-          <p className="mt-1 text-sm font-medium text-foreground">{interruptsSummary}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3.5">
-          <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Quiet in inbox
-          </p>
-          <p className="mt-1 text-sm font-medium text-foreground">{quietSummary}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3.5">
-          <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Quiet hours
-          </p>
-          <p className="mt-1 text-sm font-medium text-foreground tabular-nums">
-            {quietHoursSummary}
-          </p>
-        </div>
+        {(
+          [
+            ["Interrupts you", interruptsSummary, false],
+            ["Quiet in inbox", quietSummary, false],
+            ["Quiet hours", quietHoursSummary, true],
+          ] as const
+        ).map(([heading, text, tabular]) => (
+          <div key={heading} className="rounded-xl border border-border bg-card p-3.5">
+            <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+              {heading}
+            </p>
+            <p
+              className={`mt-1 text-sm font-medium text-foreground${tabular ? " tabular-nums" : ""}`}
+            >
+              {text}
+            </p>
+          </div>
+        ))}
       </div>
 
-      <section aria-label="Quiet settings" className="rounded-xl border border-border bg-card">
-        <h2 className="border-b border-border px-4 py-2.5 text-sm font-semibold">Quiet settings</h2>
+      <section
+        aria-label="How delivery rules work"
+        className="rounded-xl border border-border bg-card"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+          <h2 className="text-sm font-semibold">How each delivery rule works</h2>
+          <Button size="xs" variant="outline" onClick={sendTestToast}>
+            <BellRingIcon aria-hidden className="size-3.5" />
+            Send test toast
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          {NOTIFICATION_RULES.map((option) => (
+            <div key={option.id} className="p-3.5">
+              <p className="text-xs font-semibold text-foreground">{option.label}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{option.tip}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section
+        aria-label="Delivery and alert settings"
+        className="rounded-xl border border-border bg-card"
+      >
+        <h2 className="border-b border-border px-4 py-2.5 text-sm font-semibold">
+          Delivery and alert settings
+        </h2>
         <div className="divide-y divide-border/60 px-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <span className="text-sm text-foreground">In-app toasts</span>
+          <SettingRow
+            title="In-app toasts"
+            description="Show pop-up banners inside Leonidas for notification types set to Toast."
+          >
             <Switch
               checked={inAppEnabled}
               onCheckedChange={(checked) => updateSettings({ inAppNotificationsEnabled: checked })}
               aria-label="In-app toasts"
             />
-          </div>
+          </SettingRow>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <div className="min-w-0 flex-1">
-              <span className="text-sm text-foreground">System alerts and sound</span>
-              {permissionMessage ? (
-                <p className="mt-0.5 text-xs text-destructive-foreground">{permissionMessage}</p>
-              ) : null}
-            </div>
+          <SettingRow
+            title="System alerts and sound"
+            description="Desktop alerts when Leonidas is hidden, plus sound for types set to Toast."
+            note={permissionMessage}
+          >
             <Select
               value={mode}
               disabled={requesting}
@@ -218,40 +310,38 @@ export function NotificationRules({
                 ))}
               </SelectPopup>
             </Select>
-          </div>
+          </SettingRow>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <span className="text-sm text-foreground">Quiet hours</span>
+          <SettingRow
+            title="Quiet hours"
+            description="Pause sounds and system alerts during this window. In-app toasts still appear."
+          >
             <div className="flex flex-wrap items-center gap-2">
-              {quietEnabled ? (
-                <>
-                  <Input
-                    type="time"
-                    size="sm"
-                    className="w-28"
-                    value={quietStart}
-                    aria-label="Quiet hours start"
-                    onChange={(event) => {
-                      if (event.currentTarget.value) {
-                        updateSettings({ notificationQuietHoursStart: event.currentTarget.value });
-                      }
-                    }}
-                  />
-                  <span className="text-xs text-muted-foreground">to</span>
-                  <Input
-                    type="time"
-                    size="sm"
-                    className="w-28"
-                    value={quietEnd}
-                    aria-label="Quiet hours end"
-                    onChange={(event) => {
-                      if (event.currentTarget.value) {
-                        updateSettings({ notificationQuietHoursEnd: event.currentTarget.value });
-                      }
-                    }}
-                  />
-                </>
-              ) : null}
+              {quietEnabled
+                ? (
+                    [
+                      ["Quiet hours start", quietStart, "notificationQuietHoursStart"],
+                      ["Quiet hours end", quietEnd, "notificationQuietHoursEnd"],
+                    ] as const
+                  ).map(([label, val, key], index) => (
+                    <span key={key} className="inline-flex items-center gap-2">
+                      {index === 1 ? (
+                        <span className="text-xs text-muted-foreground">to</span>
+                      ) : null}
+                      <Input
+                        type="time"
+                        size="sm"
+                        className="w-28"
+                        value={val}
+                        aria-label={label}
+                        onChange={(event) => {
+                          if (event.currentTarget.value)
+                            updateSettings({ [key]: event.currentTarget.value });
+                        }}
+                      />
+                    </span>
+                  ))
+                : null}
               <Switch
                 checked={quietEnabled}
                 onCheckedChange={(checked) =>
@@ -260,11 +350,13 @@ export function NotificationRules({
                 aria-label="Quiet hours"
               />
             </div>
-          </div>
+          </SettingRow>
 
           {hasNotificationSound(mode) ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <span className="text-sm text-foreground">Sound volume</span>
+            <SettingRow
+              title="Sound volume"
+              description="Volume for notification chimes on this device."
+            >
               <div className="flex items-center gap-2">
                 <input
                   type="range"
@@ -281,9 +373,60 @@ export function NotificationRules({
                 <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
                   {volume}%
                 </span>
+                <Button size="xs" variant="ghost-muted" onClick={playTestSound}>
+                  <Volume2Icon aria-hidden className="size-3.5" />
+                  Test
+                </Button>
               </div>
-            </div>
+            </SettingRow>
           ) : null}
+
+          <SettingRow
+            title="Usage warning banner"
+            description="Show a notice above the chat box when your active AI account approaches its limit."
+          >
+            <Select
+              value={usageWarningValue}
+              onValueChange={(next) => {
+                if (next === "off") updateSettings({ usageWarningPercent: null });
+                else if (next) updateSettings({ usageWarningPercent: Number(next) });
+              }}
+            >
+              <SelectTrigger size="sm" className="w-full sm:w-40" aria-label="Usage warning banner">
+                <SelectValue>{usageWarningLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                {USAGE_WARNING_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} hideIndicator value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
+          </SettingRow>
+
+          <SettingRow
+            title="Auto-snooze rate-limited chats"
+            description="Automatically snooze a chat when it pauses on an AI usage limit so it stops alerting."
+          >
+            <Switch
+              checked={snoozeLimitedThreads}
+              disabled={!primarySettingsAvailable}
+              onCheckedChange={(checked) =>
+                updatePrimarySettings({ snoozeLimitedThreads: checked })
+              }
+              aria-label="Auto-snooze rate-limited chats"
+            />
+          </SettingRow>
+
+          <SettingRow
+            title="Phone notifications"
+            description="Send AI chat activity to phone push notifications and Live Activities via Cloud Link."
+          >
+            <Button size="xs" variant="outline" render={<Link to="/settings/connections" />}>
+              Manage in Connections
+            </Button>
+          </SettingRow>
         </div>
       </section>
 
@@ -291,7 +434,7 @@ export function NotificationRules({
         <Input
           type="search"
           aria-label="Filter notification types"
-          placeholder="Filter types or sources"
+          placeholder="Filter types, descriptions, or sources"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="min-w-0 flex-1"
@@ -329,47 +472,70 @@ export function NotificationRules({
             aria-label={group.source}
             className="rounded-xl border border-border bg-card"
           >
-            <h2 className="flex items-baseline gap-2 border-b border-border px-4 py-2.5 text-sm font-semibold">
-              <span className="min-w-0 truncate">{group.source}</span>
-              <span className="text-xs font-normal text-muted-foreground tabular-nums">
-                {group.rows.length} {group.rows.length === 1 ? "type" : "types"}
-              </span>
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+              <div className="min-w-0 flex-1">
+                <h2 className="flex items-baseline gap-2 text-sm font-semibold">
+                  <span className="min-w-0 truncate">{group.source}</span>
+                  <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                    {group.rows.length} {group.rows.length === 1 ? "type" : "types"}
+                  </span>
+                </h2>
+                {group.description ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">{group.description}</p>
+                ) : null}
+              </div>
+              {group.manageTo && group.manageLabel ? (
+                <Button size="xs" variant="ghost-muted" render={<Link to={group.manageTo} />}>
+                  {group.manageLabel}
+                </Button>
+              ) : null}
+            </div>
             <ul className="divide-y divide-border/60">
-              {group.rows.map((row) => (
-                <li
-                  key={row.type}
-                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
-                >
-                  <div className="min-w-0 flex-1 basis-56">
-                    <p className="text-sm font-medium">
-                      <Tip text={row.type}>
-                        <span
-                          tabIndex={0}
-                          className="rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
-                        >
-                          {row.label}
-                        </span>
-                      </Tip>
-                    </p>
-                    <p className="text-xs text-muted-foreground tabular-nums">
-                      {row.lastAt === null
-                        ? "None yet"
-                        : `${row.count.toLocaleString("en-US")} received · latest ${changedLabel(row.lastAt, now)}`}
-                    </p>
-                  </div>
-                  {row.isDefault ? null : (
-                    <Button
-                      size="xs"
-                      variant="ghost-muted"
-                      onClick={() => setTypeRule(row.type, null)}
-                    >
-                      Reset
-                    </Button>
-                  )}
-                  <RuleControl type={row.type} label={row.label} rule={row.rule} />
-                </li>
-              ))}
+              {group.rows.map((row) => {
+                const showExample =
+                  row.latestTitle !== null &&
+                  row.latestTitle.trim().toLowerCase() !== row.label.trim().toLowerCase() &&
+                  !row.type.startsWith("agent.") &&
+                  !row.type.startsWith("watcher.");
+                return (
+                  <li
+                    key={row.type}
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
+                  >
+                    <div className="min-w-0 flex-1 basis-60">
+                      <p className="text-sm font-medium">
+                        <Tip text={`Event ID: ${row.type}`}>
+                          <span
+                            tabIndex={0}
+                            className="rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+                          >
+                            {row.label}
+                          </span>
+                        </Tip>
+                      </p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                        {row.description}
+                      </p>
+                      <p className="mt-1 text-2xs text-muted-foreground tabular-nums">
+                        {row.lastAt === null
+                          ? "None yet"
+                          : `${row.count.toLocaleString("en-US")} received · latest ${changedLabel(row.lastAt, now)}`}
+                        {showExample ? ` · e.g. ${row.latestTitle}` : ""}
+                      </p>
+                    </div>
+                    {row.isDefault ? null : (
+                      <Button
+                        size="xs"
+                        variant="ghost-muted"
+                        onClick={() => setTypeRule(row.type, null)}
+                      >
+                        Reset
+                      </Button>
+                    )}
+                    <RuleControl type={row.type} label={row.label} rule={row.rule} />
+                  </li>
+                );
+              })}
             </ul>
           </section>
         ))

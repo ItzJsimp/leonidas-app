@@ -289,7 +289,7 @@ describe("chat panel pins", () => {
     expect([short("command-center"), short("chat"), short("inbox")]).toEqual([
       "Command",
       "Chat",
-      "Alerts",
+      undefined,
     ]);
   });
 });

@@ -103,10 +103,7 @@ const MAIN: readonly RailItem[] = [
     short: "Command",
   },
   item("work", "today", "Today", "/today", "your priorities, schedule and briefing"),
-  {
-    ...item("work", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
-    short: "Alerts",
-  },
+  item("work", "inbox", "Notifications", "/inbox", "what needs you and what finished"),
   item("work", "tasks", "Tasks", "/tasks", "what to do and what is in progress"),
   item("work", "projects", "Projects", "/projects", "the projects you work on"),
   item("brain", "memory", "Memory", "/memory", "what Leonidas knows and remembers", ["/brain"]),
