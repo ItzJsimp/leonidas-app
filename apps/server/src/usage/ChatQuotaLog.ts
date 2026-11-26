@@ -1,3 +1,4 @@
+import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
@@ -81,11 +82,16 @@ export const makeChatQuotaRecorder = Effect.fn("makeChatQuotaRecorder")(function
   };
 });
 
-/** Per-chat totals for every account with readings since `sinceMs`, most points first. */
+/**
+ * Per-chat totals for every account with readings since `sinceMs`, most points first. With
+ * `openWindowOnly`, each total counts only the window still open now.
+ */
 export const readChatQuota = Effect.fn("readChatQuota")(function* (
   cacheDir: string,
   sinceMs: number,
+  options?: { readonly openWindowOnly?: boolean },
 ) {
+  const currentWindowAt = options?.openWindowOnly ? yield* Clock.currentTimeMillis : undefined;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const dir = chatQuotaDir(path, cacheDir);
@@ -103,7 +109,7 @@ export const readChatQuota = Effect.fn("readChatQuota")(function* (
       null,
     );
     if (first !== null && (coverageStart === null || first < coverageStart)) coverageStart = first;
-    rows.push(...attributeChatQuota(name.slice(0, -".jsonl".length), readings));
+    rows.push(...attributeChatQuota(name.slice(0, -".jsonl".length), readings, currentWindowAt));
   }
   rows.sort((a, b) => b.weekly.points - a.weekly.points || b.fiveHour.points - a.fiveHour.points);
   return { coverageStart, chats: rows };

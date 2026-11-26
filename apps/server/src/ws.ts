@@ -2774,7 +2774,7 @@ export const layerWsRpc = (
             Effect.provideService(Path.Path, chatQuotaPath),
           ),
         [WS_METHODS.serverGetChatQuota]: (input) =>
-          readChatQuota(config.providerStatusCacheDir, 0).pipe(
+          readChatQuota(config.providerStatusCacheDir, 0, { openWindowOnly: true }).pipe(
             Effect.map(({ coverageStart, chats }) => ({
               coverageStart:
                 coverageStart === null

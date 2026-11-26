@@ -78,6 +78,37 @@ describe("attributeChatQuota", () => {
     expect(rows.a?.lastAt).toBe(at(2));
   });
 
+  it("counts only the open window when a chat spans two windows", () => {
+    const readings = [
+      reading(0, "a", 10, 1),
+      reading(60, "a", 50, 1),
+      reading(300, "a", 5, 1, "2026-11-13T11:00:00.000Z"),
+      reading(310, "a", 12, 1, "2026-11-13T11:00:00.000Z"),
+    ];
+    const open = byThread(attributeChatQuota("x", readings, at(310)));
+    expect(open.a?.fiveHour).toEqual({ points: 12, sharedPoints: 5 });
+    const all = byThread(attributeChatQuota("x", readings));
+    expect(all.a?.fiveHour.points).toBe(52);
+  });
+
+  it("counts nothing when the window has already reset and no newer reading exists", () => {
+    const rows = byThread(
+      attributeChatQuota("x", [reading(0, "a", 10, 1), reading(1, "a", 20, 1)], Date.parse(R5) + 1),
+    );
+    expect(rows.a?.fiveHour).toEqual({ points: 0, sharedPoints: 0 });
+  });
+
+  it("keeps a reading without a reset time in the window before it", () => {
+    const rows = byThread(
+      attributeChatQuota("x", [
+        reading(0, "a", 40, 1),
+        { at: at(1), threadId: "a", fiveHour: { usedPercent: 41 } },
+        reading(2, "a", 42, 1),
+      ]),
+    );
+    expect(rows.a?.fiveHour).toEqual({ points: 2, sharedPoints: 0 });
+  });
+
   it("round-trips a stored line", () => {
     const value = reading(5, "a", 33, 7);
     expect(fromChatQuotaLine(toChatQuotaLine(value))).toEqual(value);

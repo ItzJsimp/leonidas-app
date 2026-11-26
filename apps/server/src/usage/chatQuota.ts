@@ -38,20 +38,36 @@ const WINDOWS = ["fiveHour", "weekly"] as const;
 /** Reset times from the stream and from the usage probe can differ by a few seconds. */
 const SAME_RESET_TOLERANCE_MS = 5 * 60_000;
 
-const sameWindow = (a: ChatQuotaWindowReading, b: ChatQuotaWindowReading): boolean => {
-  if (a.resetsAt === undefined || b.resetsAt === undefined) return a.resetsAt === b.resetsAt;
-  const diff = Math.abs(Date.parse(a.resetsAt) - Date.parse(b.resetsAt));
+const sameReset = (a: string | undefined, b: string | undefined): boolean => {
+  if (a === undefined || b === undefined) return a === b;
+  const diff = Math.abs(Date.parse(a) - Date.parse(b));
   return Number.isFinite(diff) && diff <= SAME_RESET_TOLERANCE_MS;
 };
 
+const sameWindow = (a: ChatQuotaWindowReading, b: ChatQuotaWindowReading): boolean =>
+  sameReset(a.resetsAt, b.resetsAt);
+
 const round1 = (value: number): number => Math.round(value * 10) / 10;
 
-/** Readings of one account, in any order. The first reading of each window is only a baseline. */
+/**
+ * Readings of one account, in any order. The first reading of each window is only a baseline.
+ * With `currentWindowAt`, only rises in the window still open at that time count: the chat's
+ * share of the limit now, not its total across every window it spanned.
+ */
 export function attributeChatQuota(
   providerInstanceId: string,
   readings: ReadonlyArray<ChatQuotaReading>,
+  currentWindowAt?: number,
 ): ChatQuotaTotals[] {
   const sorted = [...readings].sort((a, b) => a.at - b.at);
+  // The reset time of the newest reading for each plan window: the window open now.
+  const openReset: Partial<Record<(typeof WINDOWS)[number], string>> = {};
+  for (const reading of sorted) {
+    for (const id of WINDOWS) {
+      const resetsAt = reading[id]?.resetsAt;
+      if (resetsAt !== undefined) openReset[id] = resetsAt;
+    }
+  }
   const totals = new Map<
     string,
     { five: [number, number]; week: [number, number]; firstAt: number; lastAt: number }
@@ -67,11 +83,22 @@ export function attributeChatQuota(
     }
     entry.lastAt = reading.at;
     for (const id of WINDOWS) {
-      const current = reading[id];
-      if (!current) continue;
+      const reported = reading[id];
+      if (!reported) continue;
       const prior = previous[id];
+      // A reading without a reset time stays in the window the previous reading named.
+      const current: ChatQuotaWindowReading =
+        reported.resetsAt === undefined && prior
+          ? { ...reported, resetsAt: prior.reading.resetsAt }
+          : reported;
       previous[id] = { reading: current, threadId: reading.threadId };
       if (!prior) continue;
+      const open = openReset[id];
+      const outsideOpenWindow =
+        open === undefined ||
+        !sameReset(current.resetsAt, open) ||
+        Date.parse(open) <= (currentWindowAt ?? Number.NEGATIVE_INFINITY);
+      if (currentWindowAt !== undefined && outsideOpenWindow) continue;
       const inWindow = sameWindow(prior.reading, current);
       const delta = inWindow
         ? current.usedPercent - prior.reading.usedPercent
