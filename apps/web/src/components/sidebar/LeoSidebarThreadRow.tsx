@@ -14,7 +14,6 @@ import {
   resolveSidebarRowAccessibility,
   resolveReplyStatusMark,
   resolveWorkingStartedAt,
-  sidebarWorkerRollup,
   useSidebarCacheWarmth,
 } from "../Sidebar.logic";
 import { formatRelativeTimeLabel, parseTimestampDate } from "../../timestampFormat";
@@ -59,8 +58,6 @@ import { ThreadHoverCardPopup, ThreadHoverCard } from "../ThreadHoverCard";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import {
   GitBranchIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
   CircleAlertIcon,
   ArrowRightLeftIcon,
   TerminalIcon,
@@ -498,8 +495,6 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   projectDisplayName: string | null;
   /** False hides the second line that says why a chat is in its state. */
   showActivityLine?: boolean;
-  /** Worker chats that belong to this chat, for the rollup line. */
-  workers?: readonly SidebarThreadSummary[] | undefined;
   providerEntryByInstanceId: ReadonlyMap<string, ProviderInstanceEntry>;
   timestampFormat: TimestampFormat;
   onThreadClick: (event: ReactMouseEvent, threadRef: ScopedThreadRef) => void;
@@ -638,8 +633,6 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   // The line can be hidden from view; screen readers still hear it.
   const visibleActivityLine = props.showActivityLine === false ? null : activityLine;
   const warmth = useSidebarCacheWarmth(thread.contextUsage);
-  const rollup = sidebarWorkerRollup(props.workers, isUnread);
-  const [workersOpen, setWorkersOpen] = useState(false);
   const isWaitingOnUser = status === "waiting" || status === "approval" || status === "input";
   // A working row already shows its ticking duration in the header.
   const rowTime =
@@ -1460,34 +1453,11 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
           <div
             className={cn(
               "relative z-10 px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)",
-              metaLineEmpty
-                ? "h-auto"
-                : visibleActivityLine || rollup
-                  ? "min-h-[5.5rem]"
-                  : "min-h-[3.75rem]",
+              metaLineEmpty ? "h-auto" : visibleActivityLine ? "min-h-[5.5rem]" : "min-h-[3.75rem]",
             )}
           >
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
-              {rollup ? (
-                <button
-                  type="button"
-                  aria-label={workersOpen ? "Hide workers" : "Show workers"}
-                  aria-expanded={workersOpen}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setWorkersOpen((open) => !open);
-                  }}
-                  onDoubleClick={(event) => event.stopPropagation()}
-                  className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
-                >
-                  {workersOpen ? (
-                    <ChevronDownIcon aria-hidden className="size-3.5" />
-                  ) : (
-                    <ChevronRightIcon aria-hidden className="size-3.5" />
-                  )}
-                </button>
-              ) : null}
               {title}
               {pinIndicator}
               {/* The visible state owns this slot's width: status at rest,
@@ -1654,53 +1624,7 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                 ) : null}
               </div>
             ) : null}
-            {rollup ? (
-              <div className="mt-0.5" data-row-part="workers">
-                <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                  <span className="min-w-0 flex-1 truncate">
-                    {rollup.items.length} {rollup.items.length === 1 ? "worker" : "workers"}
-                    {rollup.running > 0
-                      ? ` · ${rollup.done} done · ${rollup.running} running`
-                      : ` finished${rollup.failed ? ` · ${rollup.failed} failed` : ""} · open to review`}
-                  </span>
-                </div>
-                {workersOpen ? (
-                  <ul aria-label="Workers" className="ml-2 mt-1 border-l border-border pl-3">
-                    {rollup.items.map((item) => (
-                      <li key={item.id} className="flex h-6 min-w-0 items-center gap-2 text-xs">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onThreadClick(event, scopeThreadRef(thread.environmentId, item.id));
-                          }}
-                          onDoubleClick={(event) => event.stopPropagation()}
-                          className="min-w-0 flex-1 cursor-pointer truncate rounded-sm text-left text-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                        >
-                          {item.title}
-                        </button>
-                        <span
-                          className={cn(
-                            "shrink-0 text-2xs",
-                            item.state === "running"
-                              ? "font-medium text-state-text"
-                              : item.state === "failed"
-                                ? "text-error-foreground"
-                                : "text-muted-foreground",
-                          )}
-                        >
-                          {item.state === "running"
-                            ? "Running"
-                            : item.state === "failed"
-                              ? "Failed"
-                              : "Done"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ) : visibleActivityLine ? (
+            {visibleActivityLine ? (
               <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                 <span className="min-w-0 flex-1 truncate">{visibleActivityLine.text}</span>
                 {visibleActivityLine.progress ? (

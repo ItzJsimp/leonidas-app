@@ -1476,59 +1476,6 @@ export function sidebarCacheWarmth(usage: SidebarThreadSummary["contextUsage"], 
   };
 }
 
-type WorkerChild = Pick<
-  SidebarThreadSummary,
-  | "id"
-  | "title"
-  | "lineage"
-  | "archivedAt"
-  | "hasPendingApprovals"
-  | "hasPendingUserInput"
-  | "runtime"
->;
-
-/** Worker child threads by parent id, built once per render of the list. */
-export function groupSidebarWorkers<T extends WorkerChild>(threads: readonly T[]) {
-  const byParent = new Map<string, T[]>();
-  for (const thread of threads) {
-    const parent = thread.lineage.parentThreadId;
-    if (thread.archivedAt !== null || thread.lineage.relationshipToParent !== "subagent" || !parent)
-      continue;
-    const list = byParent.get(parent);
-    if (list) list.push(thread);
-    else byParent.set(parent, [thread]);
-  }
-  return byParent;
-}
-
-export type SidebarWorkerState = "running" | "done" | "failed";
-
-/** Counts for a parent row. Shown while a worker runs, then until the user reads the chat. */
-export function sidebarWorkerRollup(
-  workers: readonly WorkerChild[] | undefined,
-  isUnread: boolean,
-) {
-  if (!workers?.length) return null;
-  const items = workers.map((worker) => {
-    const status = resolveSidebarThreadStatus(worker);
-    const state: SidebarWorkerState =
-      status === "working" || status === "approval" || status === "input"
-        ? "running"
-        : status === "failed" || status === "limited"
-          ? "failed"
-          : "done";
-    return { id: worker.id, title: worker.title, state };
-  });
-  const running = items.filter((item) => item.state === "running").length;
-  if (running === 0 && !isUnread) return null;
-  return {
-    items,
-    running,
-    failed: items.filter((item) => item.state === "failed").length,
-    done: items.length - running,
-  };
-}
-
 /** Changes only when the label or the bar step changes, so a clock tick re-renders no other row. */
 export function sidebarCacheWarmthKey(usage: SidebarThreadSummary["contextUsage"], now: number) {
   const warmth = sidebarCacheWarmth(usage, now);

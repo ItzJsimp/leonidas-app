@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import {
-  groupSidebarWorkers,
-  sidebarCacheWarmth,
-  sidebarCacheWarmthKey,
-  sidebarWorkerRollup,
-} from "./Sidebar.logic.ts";
+import { sidebarCacheWarmth, sidebarCacheWarmthKey } from "./Sidebar.logic.ts";
 
 const NOW = Date.parse("2026-11-08T12:00:00.000Z");
 const minutesAgo = (m: number) => new Date(NOW - m * 60_000).toISOString();
@@ -51,38 +46,5 @@ describe("sidebarCacheWarmth", () => {
   it("shows nothing without a lifetime or a report", () => {
     expect(sidebarCacheWarmth(null, NOW)).toBeNull();
     expect(sidebarCacheWarmth({ usedTokens: 5 } as never, NOW)).toBeNull();
-  });
-});
-
-const worker = (id: string, status: string, parent = "p1") =>
-  ({
-    id,
-    title: id,
-    archivedAt: null,
-    hasPendingApprovals: false,
-    hasPendingUserInput: false,
-    lineage: { parentThreadId: parent, relationshipToParent: "subagent", rootThreadId: parent },
-    runtime: { status },
-  }) as never;
-
-describe("sidebarWorkerRollup", () => {
-  const workers = [worker("a", "running"), worker("b", "idle"), worker("c", "idle")];
-  it("groups only subagent children by parent", () => {
-    const fork = {
-      ...(worker("f", "idle") as object),
-      lineage: { parentThreadId: "p1", relationshipToParent: "fork", rootThreadId: "p1" },
-    } as never;
-    expect(groupSidebarWorkers([...workers, fork]).get("p1")).toHaveLength(3);
-  });
-  it("counts running and done while a worker runs", () => {
-    expect(sidebarWorkerRollup(workers, false)).toMatchObject({ running: 1, done: 2, failed: 0 });
-  });
-  it("hides when nothing runs and the chat is read", () => {
-    const finished = [worker("a", "idle"), worker("b", "idle")];
-    expect(sidebarWorkerRollup(finished, false)).toBeNull();
-    expect(sidebarWorkerRollup(finished, true)).toMatchObject({ running: 0, done: 2 });
-  });
-  it("hides when the chat has no workers", () => {
-    expect(sidebarWorkerRollup(undefined, true)).toBeNull();
   });
 });
