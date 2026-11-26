@@ -234,10 +234,12 @@ fn run() -> Result<(), String> {
     // Dictation works without the pill: a HUD failure is logged, not fatal.
     let _hud = if cfg.hud.enabled {
         let trigger = engine.clone();
+        let (shown, clicked) = (meetings.clone(), meetings.clone());
         Hud::spawn(
             engine.subscribe(),
             level,
-            meetings.recording_flag(),
+            move || shown.pill(),
+            move |action| clicked.pill_action(action),
             move || trigger.last_trigger_at(),
         )
         .inspect(|hud| meetings.on_recording_change(Box::new(hud.notifier())))

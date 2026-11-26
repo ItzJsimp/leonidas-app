@@ -9,6 +9,7 @@ pub mod detect;
 pub mod discord;
 pub mod loopback;
 pub mod notes;
+mod pill;
 pub mod rename;
 pub mod retranscribe;
 pub mod session;
@@ -791,7 +792,7 @@ mod tests {
         panic!("the meeting did not finish");
     }
 
-    fn test_meetings(name: &str, opener: TrackOpener) -> Meetings {
+    pub(super) fn test_meetings(name: &str, opener: TrackOpener) -> Meetings {
         Meetings::new(temp_root(name))
             .with_opener(opener)
             .with_speech(Arc::new(session::tests::FakeSegmenter {

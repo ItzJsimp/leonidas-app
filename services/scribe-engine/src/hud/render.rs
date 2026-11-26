@@ -11,12 +11,12 @@ pub const BARS: usize = 12;
 /// Text size in pixels at 100% scale.
 const TEXT_PX: f32 = 13.0;
 
-const BODY: (u8, u8, u8, u8) = (22, 22, 24, 235);
-const WHITE: (u8, u8, u8, u8) = (255, 255, 255, 235);
-const RED: (u8, u8, u8, u8) = (255, 69, 58, 255);
+pub(super) const BODY: (u8, u8, u8, u8) = (22, 22, 24, 235);
+pub(super) const WHITE: (u8, u8, u8, u8) = (255, 255, 255, 235);
+pub(super) const RED: (u8, u8, u8, u8) = (255, 69, 58, 255);
 const GREEN: (u8, u8, u8, u8) = (48, 209, 88, 255);
 /// Thin edge (about 12% white) so the pill reads on dark backgrounds.
-const EDGE: (u8, u8, u8, u8) = (255, 255, 255, 31);
+pub(super) const EDGE: (u8, u8, u8, u8) = (255, 255, 255, 31);
 
 /// A text coverage mask: one alpha byte per pixel, rows top to bottom.
 #[derive(Clone)]
@@ -144,7 +144,7 @@ pub fn render(
 }
 
 /// The pill outline inset by `inset`, with cubic half-circle ends.
-fn pill_outline(w: f32, h: f32, inset: f32) -> PathBuilder {
+pub(super) fn pill_outline(w: f32, h: f32, inset: f32) -> PathBuilder {
     const K: f32 = 0.552_284_8;
     let r = h / 2.0 - inset;
     let (l, rt, cy) = (h / 2.0, (w - h / 2.0).max(h / 2.0), h / 2.0);
@@ -168,7 +168,7 @@ fn paint(c: (u8, u8, u8, u8)) -> Paint<'static> {
     p
 }
 
-fn fill(pixmap: &mut Pixmap, pb: PathBuilder, c: (u8, u8, u8, u8)) {
+pub(super) fn fill(pixmap: &mut Pixmap, pb: PathBuilder, c: (u8, u8, u8, u8)) {
     if let Some(path) = pb.finish() {
         pixmap.fill_path(
             &path,
@@ -180,13 +180,13 @@ fn fill(pixmap: &mut Pixmap, pb: PathBuilder, c: (u8, u8, u8, u8)) {
     }
 }
 
-fn fill_circle(pixmap: &mut Pixmap, x: f32, y: f32, r: f32, c: (u8, u8, u8, u8)) {
+pub(super) fn fill_circle(pixmap: &mut Pixmap, x: f32, y: f32, r: f32, c: (u8, u8, u8, u8)) {
     let mut pb = PathBuilder::new();
     pb.push_circle(x, y, r);
     fill(pixmap, pb, c);
 }
 
-fn stroke(pixmap: &mut Pixmap, pb: PathBuilder, c: (u8, u8, u8, u8), width: f32) {
+pub(super) fn stroke(pixmap: &mut Pixmap, pb: PathBuilder, c: (u8, u8, u8, u8), width: f32) {
     if let Some(path) = pb.finish() {
         let stroke = Stroke {
             width,
@@ -198,7 +198,7 @@ fn stroke(pixmap: &mut Pixmap, pb: PathBuilder, c: (u8, u8, u8, u8), width: f32)
 }
 
 /// Source-over blend of a solid color through a coverage mask.
-fn blit_mask(pixmap: &mut Pixmap, mask: &Mask, x0: i32, y0: i32, c: (u8, u8, u8, u8)) {
+pub(super) fn blit_mask(pixmap: &mut Pixmap, mask: &Mask, x0: i32, y0: i32, c: (u8, u8, u8, u8)) {
     let (pw, ph) = (pixmap.width() as i32, pixmap.height() as i32);
     let pixels = pixmap.pixels_mut();
     for my in 0..mask.height as i32 {

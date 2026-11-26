@@ -4,6 +4,7 @@
 
 #[cfg(windows)]
 pub mod picker;
+pub mod pill;
 pub mod render;
 #[cfg(windows)]
 pub mod window;

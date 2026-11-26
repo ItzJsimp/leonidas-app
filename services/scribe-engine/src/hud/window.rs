@@ -1,8 +1,9 @@
 //! The pill window on Windows: layered (per-pixel alpha), topmost, never activated, and
-//! transparent to the mouse. It runs on its own thread with its own message loop. It reads engine
+//! transparent to the mouse except while the meeting pill shows (its buttons take clicks). It runs on its own thread with its own message loop. It reads engine
 //! events from a channel and never takes the engine lock. The 30 fps timer and the pixel buffer
 //! exist only while the pill is visible.
 
+use super::pill::{self, render_pill, Hit, Meters, PillAction, PillState};
 use super::render::{render, Mask, TextMask, BARS};
 use super::{HudModel, View};
 use crate::{Event, State};
@@ -26,6 +27,8 @@ const WM_HUD_EVENT: u32 = WM_APP + 1;
 const WM_HUD_QUIT: u32 = WM_APP + 2;
 const FRAME_TIMER: usize = 1;
 const FRAME_MS: u32 = 33;
+/// The meeting pill moves slower (timer, meters) and may stay up for hours.
+const MEETING_FRAME_MS: u32 = 100;
 /// Gap between the pill and the bottom of the work area, at 100% scale.
 const BOTTOM_GAP: f32 = 48.0;
 
@@ -49,11 +52,13 @@ impl Hud {
     }
 
     /// `trigger_at` returns the hotkey time of the current recording, for `hotkey_to_pill_ms`.
-    /// `meeting` is true while a meeting records; call `notifier()` after it changes.
+    /// `pill` is the meeting pill state, or `None` when no meeting runs; call `notifier()` after a
+    /// meeting starts. `act` runs a click on a pill button.
     pub fn spawn(
         events: Receiver<Event>,
         level: Level,
-        meeting: Arc<std::sync::atomic::AtomicBool>,
+        pill: impl Fn() -> Option<PillState> + Send + 'static,
+        act: impl Fn(PillAction) + Send + 'static,
         trigger_at: impl Fn() -> Option<Instant> + Send + 'static,
     ) -> Result<Self, String> {
         let queue: Arc<Mutex<VecDeque<Event>>> = Arc::default();
@@ -65,7 +70,7 @@ impl Hud {
                 .spawn(move || match create_window() {
                     Ok(hwnd) => {
                         let _ = ready_tx.send(Ok(hwnd as usize));
-                        run(hwnd, &queue, &level, &meeting, &trigger_at);
+                        run(hwnd, &queue, &level, &pill, &act, &trigger_at);
                         unsafe { DestroyWindow(hwnd) };
                     }
                     Err(e) => {
@@ -316,15 +321,21 @@ struct Frame {
     place: Option<Placement>,
     surface: Option<Surface>,
     timer: bool,
+    timer_ms: u32,
     pill_logged: bool,
     text: CachedText,
+    meters: Meters,
+    /// Button boxes of the meeting pill now on screen.
+    hits: Vec<Hit>,
+    last_key: Option<pill::Key>,
 }
 
 fn run(
     hwnd: HWND,
     queue: &Mutex<VecDeque<Event>>,
     level: &AtomicU32,
-    meeting: &std::sync::atomic::AtomicBool,
+    pill: &dyn Fn() -> Option<PillState>,
+    act: &dyn Fn(PillAction),
     trigger_at: &dyn Fn() -> Option<Instant>,
 ) {
     let mut f = Frame {
@@ -335,8 +346,12 @@ fn run(
         place: None,
         surface: None,
         timer: false,
+        timer_ms: 0,
         pill_logged: false,
         text: CachedText::default(),
+        meters: Meters::default(),
+        hits: Vec::new(),
+        last_key: None,
     };
     let mut msg: MSG = unsafe { std::mem::zeroed() };
     while unsafe { GetMessageW(&mut msg, null_mut(), 0, 0) } > 0 {
@@ -359,12 +374,27 @@ fn run(
                     }
                     f.model.on_event(event, now);
                 }
-                f.model.set_meeting(meeting.load(Ordering::Acquire));
-                frame(hwnd, &mut f, level, trigger_at);
+                let state = pill();
+                f.model.set_meeting(state.is_some());
+                frame(hwnd, &mut f, level, trigger_at, state);
             }
             WM_TIMER if msg.wParam == FRAME_TIMER => {
+                let state = pill();
+                f.model.set_meeting(state.is_some());
                 f.model.tick(Instant::now());
-                frame(hwnd, &mut f, level, trigger_at);
+                frame(hwnd, &mut f, level, trigger_at, state);
+            }
+            WM_LBUTTONUP if msg.hwnd == hwnd => {
+                let (x, y) = (
+                    i32::from(msg.lParam as i16),
+                    i32::from((msg.lParam >> 16) as i16),
+                );
+                if let Some(hit) = f.hits.iter().find(|h| h.contains(x, y)) {
+                    act(hit.action);
+                    let state = pill();
+                    f.model.set_meeting(state.is_some());
+                    frame(hwnd, &mut f, level, trigger_at, state);
+                }
             }
             _ => unsafe {
                 TranslateMessage(&msg);
@@ -377,7 +407,13 @@ fn run(
     }
 }
 
-fn frame(hwnd: HWND, f: &mut Frame, level: &AtomicU32, trigger_at: &dyn Fn() -> Option<Instant>) {
+fn frame(
+    hwnd: HWND,
+    f: &mut Frame,
+    level: &AtomicU32,
+    trigger_at: &dyn Fn() -> Option<Instant>,
+    state: Option<PillState>,
+) {
     let view = f.model.view().clone();
     if view == View::Hidden {
         if f.shown != View::Hidden {
@@ -389,6 +425,9 @@ fn frame(hwnd: HWND, f: &mut Frame, level: &AtomicU32, trigger_at: &dyn Fn() -> 
             f.surface = None;
             f.place = None;
             f.shown = View::Hidden;
+            f.hits.clear();
+            f.last_key = None;
+            f.meters.clear();
         }
         return;
     }
@@ -408,9 +447,25 @@ fn frame(hwnd: HWND, f: &mut Frame, level: &AtomicU32, trigger_at: &dyn Fn() -> 
     }
     let levels: Vec<f32> = f.levels.iter().copied().collect();
     let phase = f.since.elapsed().as_secs_f32();
-    let Some(pixmap) = render(&view, &levels, phase, place.scale, &f.text) else {
+    let meeting_view = view == View::Meeting;
+    let rendered = if meeting_view {
+        // Model says Meeting but the meeting is gone: the next message hides the pill.
+        let Some(state) = state else { return };
+        f.meters.update(state.levels);
+        let key = pill::key(&state, &f.meters);
+        let spinning = matches!(state.mode, pill::PillMode::Finishing { .. });
+        if f.shown == View::Meeting && !spinning && f.last_key == Some(key) {
+            return;
+        }
+        f.last_key = Some(key);
+        render_pill(&state, &f.meters, phase, place.scale, &f.text)
+    } else {
+        render(&view, &levels, phase, place.scale, &f.text).map(|p| (p, Vec::new()))
+    };
+    let Some((pixmap, hits)) = rendered else {
         return;
     };
+    f.hits = hits;
     let (w, h) = (pixmap.width() as i32, pixmap.height() as i32);
     if f.surface
         .as_ref()
@@ -444,6 +499,16 @@ fn frame(hwnd: HWND, f: &mut Frame, level: &AtomicU32, trigger_at: &dyn Fn() -> 
         AlphaFormat: AC_SRC_ALPHA as u8,
     };
     unsafe {
+        // Only the meeting pill has buttons: every other pill lets clicks through.
+        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let want = if meeting_view {
+            ex & !(WS_EX_TRANSPARENT as isize)
+        } else {
+            ex | WS_EX_TRANSPARENT as isize
+        };
+        if want != ex {
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, want);
+        }
         UpdateLayeredWindow(
             hwnd,
             null_mut(),
@@ -467,9 +532,15 @@ fn frame(hwnd: HWND, f: &mut Frame, level: &AtomicU32, trigger_at: &dyn Fn() -> 
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
             );
         }
-        if !f.timer {
-            SetTimer(hwnd, FRAME_TIMER, FRAME_MS, None);
+        let ms = if meeting_view {
+            MEETING_FRAME_MS
+        } else {
+            FRAME_MS
+        };
+        if !f.timer || f.timer_ms != ms {
+            SetTimer(hwnd, FRAME_TIMER, ms, None);
             f.timer = true;
+            f.timer_ms = ms;
         }
     }
     if view == View::Recording && !f.pill_logged {
@@ -480,11 +551,6 @@ fn frame(hwnd: HWND, f: &mut Frame, level: &AtomicU32, trigger_at: &dyn Fn() -> 
                 t.elapsed().as_secs_f64() * 1000.0
             );
         }
-    }
-    // The meeting pill does not move: no frame timer for an hour-long call.
-    if view == View::Meeting && f.timer {
-        unsafe { KillTimer(hwnd, FRAME_TIMER) };
-        f.timer = false;
     }
     f.shown = view;
 }
@@ -533,25 +599,45 @@ mod tests {
                 View::Error("Private mode is on, and the offline model is no…".into()),
             ),
         ];
+        let save = |name: &str, scale: f32, pill: &Pixmap| {
+            for (bg, color) in [("light", (236, 236, 240)), ("dark", (30, 30, 34))] {
+                let pad = (24.0 * scale) as u32;
+                let mut out = Pixmap::new(pill.width() + pad * 2, pill.height() + pad * 2).unwrap();
+                out.fill(Color::from_rgba8(color.0, color.1, color.2, 255));
+                out.draw_pixmap(
+                    pad as i32,
+                    pad as i32,
+                    pill.as_ref(),
+                    &PixmapPaint::default(),
+                    Transform::identity(),
+                    None,
+                );
+                out.save_png(format!("{dir}/{name}-{bg}-{}x.png", scale as u32))
+                    .unwrap();
+            }
+        };
         for scale in [1.0f32, 2.0] {
             for (name, view) in &views {
-                let pill = render(view, &wave, 0.15, scale, &GdiText).unwrap();
-                for (bg, color) in [("light", (236, 236, 240)), ("dark", (30, 30, 34))] {
-                    let pad = (24.0 * scale) as u32;
-                    let mut out =
-                        Pixmap::new(pill.width() + pad * 2, pill.height() + pad * 2).unwrap();
-                    out.fill(Color::from_rgba8(color.0, color.1, color.2, 255));
-                    out.draw_pixmap(
-                        pad as i32,
-                        pad as i32,
-                        pill.as_ref(),
-                        &PixmapPaint::default(),
-                        Transform::identity(),
-                        None,
-                    );
-                    out.save_png(format!("{dir}/{name}-{bg}-{}x.png", scale as u32))
-                        .unwrap();
-                }
+                save(
+                    name,
+                    scale,
+                    &render(view, &wave, 0.15, scale, &GdiText).unwrap(),
+                );
+            }
+            let mut meters = Meters::default();
+            meters.update([0.6, 0.3]);
+            for (name, mode) in [
+                ("5-meeting-recording", pill::PillMode::Recording),
+                ("6-meeting-paused", pill::PillMode::Paused),
+                ("7-meeting-writing", pill::PillMode::Finishing { left: 3 }),
+            ] {
+                let state = PillState {
+                    mode,
+                    elapsed_ms: 754_000,
+                    levels: [0.6, 0.3],
+                };
+                let (pixmap, _) = render_pill(&state, &meters, 0.15, scale, &GdiText).unwrap();
+                save(name, scale, &pixmap);
             }
         }
     }
@@ -579,7 +665,7 @@ mod tests {
     #[ignore]
     fn window_shows_on_listening_and_hides_on_ready() {
         let (tx, rx) = mpsc::channel();
-        let hud = Hud::spawn(rx, Level::default(), Arc::default(), || None).unwrap();
+        let hud = Hud::spawn(rx, Level::default(), || None, |_| {}, || None).unwrap();
         assert!(!hud.is_visible());
         tx.send(state(State::Listening)).unwrap();
         assert!(wait_for(&hud, true), "pill did not show");
