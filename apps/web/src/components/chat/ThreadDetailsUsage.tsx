@@ -185,14 +185,7 @@ function LimitCell({
         {showLabel && shortLabel !== column ? (
           <span className="truncate text-3xs leading-3 text-muted-foreground">{shortLabel}</span>
         ) : null}
-        <span
-          className={cn(
-            "text-2xs font-semibold leading-3",
-            runOut ? "text-warning-foreground" : "text-foreground",
-          )}
-        >
-          {used}
-        </span>
+        <span className="text-2xs font-semibold leading-3 text-foreground">{used}</span>
         <UsageBar
           fill="used"
           usedPercent={window.usedPercent}
