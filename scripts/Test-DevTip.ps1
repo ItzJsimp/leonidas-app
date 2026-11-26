@@ -6,7 +6,8 @@
   - `vp run typecheck` (the CI command) for apps/web and apps/server (only when files under that app or packages/ changed).
     Errors and warnings both count: the Effect checker exits 2 on a warning, and CI stops there.
     A check fails only on diagnostics that origin/main (-Base) does not already have.
-  - vitest on the changed test files and on the sibling test of each changed source file.
+  - vitest on the changed test files and on the sibling test of each changed source file. For apps/web this includes
+    the sibling browser tests, except the files in apps/web/browserTestsKnownFailing.ts.
     A test fails the gate only when origin/main (-Base) does not already fail it (compared by test name).
   - -Keys re-runs only the named checks (used while bisecting to a culprit branch).
   Returns one object: Status (green | red | unavailable), FailKeys, Notes.
@@ -42,6 +43,14 @@ if (-not (Test-Path -LiteralPath $vp) -or -not (Test-Path -LiteralPath $stamp) -
         if ($LASTEXITCODE -ne 0) { $notes.Add("install failed (exit $LASTEXITCODE)"); return Result 'unavailable' }
     } finally { Pop-Location }
     Set-Content -LiteralPath $stamp -Value $lockHash
+}
+
+# Chromium for the web screen tests. It does nothing when the browser is already there.
+function Install-TestBrowser {
+    $cli = Join-Path $Worktree 'apps/web/node_modules/playwright/cli.js'
+    if (-not (Test-Path -LiteralPath $cli)) { return }
+    & node $cli install --only-shell chromium *> (Join-Path $common 'leonidas-gate-browser-install.log')
+    if ($LASTEXITCODE -ne 0) { $notes.Add("Chromium install failed (exit $LASTEXITCODE)") }
 }
 
 function Get-TscErrors([string]$package) {
@@ -127,6 +136,21 @@ else {
         if (-not $pkg -or $f -notmatch '\.(ts|tsx)$') { continue }
         $cand = if ($f -match '\.test\.tsx?$') { $f } else { $f -replace '\.(ts|tsx)$', '.test.$1' }
         if (Test-Path -LiteralPath (Join-Path $Worktree $cand)) { [void]$tests.Add("test|$pkg|$($cand.Substring($pkg.Length + 1))") }
+        # Web screen tests (`X.browser.test.tsx`, `X.<topic>.browser.test.tsx`). The release runs them, so the gate must too.
+        if ($pkg -ne 'apps/web' -or $f -match '\.test\.tsx?$') { continue }
+        $dir = Split-Path (Join-Path $Worktree $f) -Parent
+        $stem = [IO.Path]::GetFileNameWithoutExtension($f)
+        foreach ($t in Get-ChildItem -Path $dir -File -Filter "$stem.*" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '\.browser\.test\.tsx?$' }) {
+            $rel = "$(Split-Path $f.Substring($pkg.Length + 1) -Parent)/$($t.Name)" -replace '\\', '/'
+            [void]$tests.Add("test|$pkg|$rel")
+        }
+    }
+    # The browser project skips the known-failing list. A run that names only skipped files has nothing to run.
+    $skipList = Join-Path $Worktree 'apps/web/browserTestsKnownFailing.ts'
+    if (Test-Path -LiteralPath $skipList) {
+        foreach ($m in [regex]::Matches((Get-Content -LiteralPath $skipList -Raw), '"(src/[^"]+\.browser\.test\.tsx?)"')) {
+            [void]$tests.Remove("test|apps/web|$($m.Groups[1].Value)")
+        }
     }
     if ($tests.Count -gt $MaxTestFiles) { $notes.Add("test files capped at $MaxTestFiles of $($tests.Count)") }
     $tests | Select-Object -First $MaxTestFiles | ForEach-Object { $plan.Add($_) }
@@ -143,6 +167,7 @@ foreach ($group in ($plan | Where-Object { $_ -like 'test|*' } | Group-Object { 
     $pkg = $group.Name
     $files = @($group.Group | ForEach-Object { $_.Split('|')[2] })
     $report = Join-Path $env:TEMP ("dev-gate-{0}.json" -f [guid]::NewGuid().ToString('N'))
+    if ($files -match '\.browser\.test\.tsx?$') { Install-TestBrowser }
     Push-Location (Join-Path $Worktree $pkg)
     try { & $vp test run --reporter=json --outputFile=$report @files *> $null } finally { Pop-Location }
     if (-not (Test-Path -LiteralPath $report)) {
