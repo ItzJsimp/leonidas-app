@@ -67,6 +67,8 @@ NodeReadline.createInterface({ input: process.stdin }).on("line", (line) => {
       const out = JSON.parse(text);
       write(out.id === recorded.requestId ? { ...out, id } : out);
     }
+  } else if (method === "feedback/upload") {
+    write({ id, result: { threadId: params.threadId } });
   } else if (method in probeResults) {
     write({ id, result: probeResults[method] });
   } else {

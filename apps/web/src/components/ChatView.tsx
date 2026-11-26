@@ -335,6 +335,7 @@ import { useSplitPane } from "./split/splitPaneContext";
 import { subscribeThreadAction, type ThreadAction } from "./chat/threadActionBus";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { createTurnSubmitter } from "./chat/turnSubmission";
+import { formatOutgoingPrompt } from "./chat/sendDraft";
 import {
   decodeProjectScriptKeybindingRule,
   keybindingValueForCommand,
@@ -709,18 +710,6 @@ const draftFanoutStateAtom = Atom.family((_routeKey: string) =>
     uncertainSubmissions: { current: new Map<string, ThreadId>() },
   }).pipe(Atom.keepAlive),
 );
-
-function formatOutgoingPrompt(params: {
-  provider: ProviderDriverKind;
-  model: string | null;
-  models: ReadonlyArray<ServerProvider["models"][number]>;
-  effort: string | null;
-  text: string;
-}): string {
-  const caps = getProviderModelCapabilities(params.models, params.model, params.provider);
-  const promptEffort = resolvePromptInjectedEffort(caps, params.effort);
-  return applyClaudePromptEffortPrefix(params.text, promptEffort);
-}
 
 function isCompactCommandMessage(message: ChatMessage): boolean {
   const text = message.text.trim().toLowerCase();
@@ -8636,11 +8625,87 @@ export default function ChatView(props: ChatViewProps) {
           setComposerDraftPrompt(composerDraftTarget, "");
           composerRef.current?.resetCursorState();
         },
+        clearDraft: () => {
+          promptRef.current = "";
+          clearComposerDraftContent(composerDraftTarget);
+          composerRef.current?.resetCursorState();
+        },
+        finishQueuedEdit: (runId) => {
+          promptRef.current = "";
+          clearComposerDraftContent(queuedEditDraftTargetFor(runId));
+          composerRef.current?.resetCursorState();
+          setEditingQueuedRun(null);
+          scheduleComposerFocus();
+        },
+        releaseAttachments: (attachments) => releaseDraftAttachments([...attachments]),
+        restoreFollowUpDraft: (snapshot) => {
+          promptRef.current = snapshot.prompt;
+          composerTerminalContextsRef.current = [...snapshot.terminalContexts];
+          restorePlanFollowUpComposer({
+            snapshot,
+            writePrompt: (prompt) => setComposerDraftPrompt(composerDraftTarget, prompt),
+            writeTerminalContexts: (contexts) =>
+              setComposerDraftTerminalContexts(composerDraftTarget, [...contexts]),
+            writeReviewComments: (comments) =>
+              setComposerDraftReviewComments(composerDraftTarget, [...comments]),
+            writePreviewAnnotations: (annotations) =>
+              setComposerDraftPreviewAnnotations(composerDraftTarget, [...annotations]),
+            writeThreadContexts: (records) =>
+              setComposerDraftThreadContexts(composerDraftTarget, [...records]),
+            resetCursor: (options) => composerRef.current?.resetCursorState(options),
+          });
+        },
+        validateProviderInput: (text) => composerRef.current?.validateProviderInput(text) !== false,
       },
       threadCommands: {
         controlGoal: (action) => handleGoalControl({ action }),
         requestGoal: (request) => setGoalRequest({ ...request, nonce: Date.now() }),
         advancePendingUserInput: onAdvanceActivePendingUserInput,
+        editQueuedRun: (input) =>
+          editQueuedRunCommand({ environmentId: activeThread!.environmentId, input }),
+        uploadFeedback: (command) =>
+          uploadThreadFeedback({
+            environmentId: activeThread!.environmentId,
+            input: { threadId: activeThread!.id, ...command },
+          }),
+        recordFeedbackSubmission: (submission) =>
+          setFeedbackSubmissionsByThreadKey((current) => {
+            const existing = current[routeThreadKey] ?? [];
+            const found = existing.some((entry) => entry.id === submission.id);
+            return {
+              ...current,
+              [routeThreadKey]: found
+                ? existing.map((entry) => (entry.id === submission.id ? submission : entry))
+                : [...existing, submission],
+            };
+          }),
+        submitPlanFollowUp: onSubmitPlanFollowUp,
+        setInteractionMode: handleInteractionModeChange,
+      },
+      uploads: {
+        uploadQueuedEditFiles: async (files) => {
+          const validateFiles = () => {
+            const config =
+              appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId) ?? null;
+            const reason = fileAttachmentCapabilityBlockReason({
+              files,
+              attachmentUploadsCapabilityKnown: config !== null,
+              supportsAttachmentUploads:
+                config?.environment.capabilities.attachmentUploads === true,
+              maxFileAttachmentBytes:
+                config?.environment.capabilities.fileAttachments?.maxUploadBytes ?? null,
+            });
+            if (reason !== null) throw new Error(reason);
+          };
+          validateFiles();
+          for (const file of files)
+            startAttachmentUpload({ environmentId, image: file, draftTarget: composerDraftTarget });
+          await awaitAttachmentUploads(files.map((file) => file.id));
+          validateFiles();
+          const uploaded = getUploadedAttachments({ environmentId, images: [...files] });
+          if (uploaded === null) throw new Error("Retry or remove failed uploads before saving.");
+          return uploaded;
+        },
       },
       feedback: {
         toast: (toast) => toastManager.add(toast),
@@ -8652,14 +8717,36 @@ export default function ChatView(props: ChatViewProps) {
           return `chat-send-environment-unavailable:${toastSlot}`;
         },
       },
-      navigation: { openUsageLimits, openStuckReport: () => openStuck("voice") },
-      liveState: { readSendContext: () => composerRef.current?.getSendContext() },
+      navigation: {
+        openUsageLimits,
+        openStuckReport: () => openStuck("voice"),
+        startNewThreadInProject: handleNewThreadInActiveProject,
+      },
+      liveState: {
+        readSendContext: () => composerRef.current?.getSendContext(),
+        isSendingChatActive: () => currentRouteThreadKeyRef.current === routeThreadKey,
+        isQueuedEditSaving: () => queuedEditSaveInFlightRef.current,
+        beginQueuedEditSave: () => {
+          queuedEditSaveInFlightRef.current = true;
+          setIsSavingQueuedEdit(true);
+        },
+        endQueuedEditSave: () => {
+          queuedEditSaveInFlightRef.current = false;
+          setIsSavingQueuedEdit(false);
+        },
+        setFeedbackUploadInFlight: (inFlight) => {
+          if (inFlight) feedbackUploadsInFlightRef.current.add(routeThreadKey);
+          else feedbackUploadsInFlightRef.current.delete(routeThreadKey);
+        },
+      },
     }).submit({
       prompt: promptRef.current,
-      hasDirectAnnotation: directAnnotation !== undefined,
+      directAnnotation: directAnnotation ?? null,
       hasNonPromptContent: composerHasNonPromptContent,
       activeThreadId: activeThread?.id ?? null,
       isServerThread,
+      hasProviderThread: activeThread?.activeProviderThreadId != null,
+      hasActiveProject: Boolean(activeProject),
       canOperate: readEnvironmentScope(environmentId, AuthOrchestrationOperateScope),
       usageLimitsAvailable: usageLimitsOffered && usageLimitsKey !== null,
       stuckReportEnabled: STUCK_ENABLED,
@@ -8681,18 +8768,38 @@ export default function ChatView(props: ChatViewProps) {
           serverConfig?.environment.capabilities.requiredWorktreeBootstrap === true,
         isLocalDraftThread,
         isGitRepo,
-        hasBranch: Boolean(activeThreadBranch),
+      },
+      activeThreadBranch: activeThreadBranch || null,
+      attachedSubagent: resolveAttachedSubagent(
+        isServerThread ? activeThreadShell?.attachedSubagent : undefined,
+        useSubagentAttachStore.getState().attachedByTarget[routeThreadKey] ?? null,
+      ),
+      subagentNames: new Set(composerSubagentNames),
+      editingQueuedRun,
+      planFollowUp:
+        showPlanFollowUpPrompt && activeProposedPlan
+          ? { planMarkdown: activeProposedPlan.planMarkdown }
+          : null,
+      submissionIntent,
+      worktree: {
+        sendQueuesBehindSetup,
+        activeMessageCount,
+        envMode: sendEnvMode,
+        existingWorktreePath: activeThread?.worktreePath ?? null,
       },
     });
-    // The submitter checked the thread; this narrows the type for the code below.
-    if (submission._tag === "handled" || !activeThread) return;
-    const sendCtx = submission.sendContext;
+    // The submitter checked the thread and project; this narrows their types below.
+    if (submission._tag === "handled" || !activeThread || !activeProject) return;
+    const {
+      sendContext: sendCtx,
+      draft,
+      threadId: threadIdForSend,
+      baseBranchForWorktree,
+    } = submission;
     const multipleModelSelections = sendCtx.multipleModelSelections;
     const {
-      images: sendContextImages,
       files: composerFiles,
       terminalContexts: composerTerminalContexts,
-      previewAnnotations: sendContextPreviewAnnotations,
       reviewComments: composerReviewComments,
       threadContexts: composerThreadContexts,
       selectedProvider: ctxSelectedProvider,
@@ -8701,388 +8808,15 @@ export default function ChatView(props: ChatViewProps) {
       selectedPromptEffort: ctxSelectedPromptEffort,
       selectedModelSelection: ctxSelectedModelSelection,
       interactionMode: sendInteractionMode,
-      interactionModeEnabled: sendInteractionModeEnabled,
     } = sendCtx;
-    const annotationImageAlreadyAttached =
-      directAnnotation?.image !== undefined &&
-      sendContextImages.some((image) => image.id === directAnnotation.image?.id);
-    // A full composer (e.g. 8 files) cannot take the annotation screenshot;
-    // over the cap the server rejects the whole turn.
-    const annotationImageAppended =
-      directAnnotation?.image !== undefined &&
-      !annotationImageAlreadyAttached &&
-      sendContextImages.length + composerFiles.length < PROVIDER_SEND_TURN_MAX_ATTACHMENTS;
-    const composerImages =
-      directAnnotation?.image && annotationImageAppended
-        ? [...sendContextImages, directAnnotation.image]
-        : sendContextImages;
-    const composerPreviewAnnotations =
-      directAnnotation &&
-      !sendContextPreviewAnnotations.some(
-        (annotation) => annotation.id === directAnnotation.annotation.id,
-      )
-        ? [
-            ...sendContextPreviewAnnotations,
-            {
-              ...directAnnotation.annotation,
-              // Claim an attached crop only when the screenshot really rides
-              // along; a cap-dropped image must not produce a lying prompt.
-              screenshot:
-                directAnnotation.annotation.screenshot &&
-                (annotationImageAppended || annotationImageAlreadyAttached)
-                  ? { ...directAnnotation.annotation.screenshot, dataUrl: "" }
-                  : null,
-            },
-          ]
-        : sendContextPreviewAnnotations;
-    // A direct "send annotation" writes the draft and sends in the same tick; the reference
-    // must be in the text now, not after the next render.
-    const promptWithAnnotation = directAnnotation
-      ? ensureInlineContextReferences(promptRef.current, [
-          previewAnnotationContextReference(directAnnotation.annotation),
-        ])
-      : promptRef.current;
-    // An attached subagent leads every message of this chat, so the attach holds across turns.
-    const promptForSend = withAttachedSubagent(
-      promptWithAnnotation,
-      resolveAttachedSubagent(
-        isServerThread ? activeThreadShell?.attachedSubagent : undefined,
-        useSubagentAttachStore.getState().attachedByTarget[routeThreadKey] ?? null,
-      ),
-      new Set(composerSubagentNames),
-    );
-    if (editingQueuedRun !== null) {
-      // Edit mode repurposes the composer: sending saves the queued message
-      // in place instead of dispatching a new turn.
-      if (queuedEditSaveInFlightRef.current) return;
-      const editText = promptForSend.trim();
-      const newEditImages = [...composerImages];
-      const newEditFiles = [...composerFiles];
-      const newEditAttachments = [...newEditImages, ...newEditFiles];
-      if (
-        editingQueuedRun.existingAttachments.length + newEditAttachments.length >
-        PROVIDER_SEND_TURN_MAX_ATTACHMENTS
-      ) {
-        setThreadError(
-          editingQueuedRun.threadId,
-          `A message can have at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.`,
-        );
-        return;
-      }
-      if (
-        editText.length === 0 &&
-        editingQueuedRun.existingAttachments.length === 0 &&
-        newEditImages.length === 0 &&
-        newEditFiles.length === 0
-      ) {
-        return;
-      }
-      queuedEditSaveInFlightRef.current = true;
-      setIsSavingQueuedEdit(true);
-      try {
-        const uploads = await prepareQueuedEditAttachments({
-          existingAttachments: editingQueuedRun.existingAttachments,
-          images: newEditImages,
-          files: newEditFiles,
-          readImage: readFileAsDataUrl,
-          uploadFiles: async (files) => {
-            const validateFiles = () => {
-              const config =
-                appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId) ?? null;
-              const reason = fileAttachmentCapabilityBlockReason({
-                files,
-                attachmentUploadsCapabilityKnown: config !== null,
-                supportsAttachmentUploads:
-                  config?.environment.capabilities.attachmentUploads === true,
-                maxFileAttachmentBytes:
-                  config?.environment.capabilities.fileAttachments?.maxUploadBytes ?? null,
-              });
-              if (reason !== null) throw new Error(reason);
-            };
-            validateFiles();
-            for (const file of files)
-              startAttachmentUpload({
-                environmentId,
-                image: file,
-                draftTarget: composerDraftTarget,
-              });
-            await awaitAttachmentUploads(files.map((file) => file.id));
-            validateFiles();
-            const uploaded = getUploadedAttachments({ environmentId, images: files });
-            if (uploaded === null) throw new Error("Retry or remove failed uploads before saving.");
-            return uploaded;
-          },
-        });
-        const result = await editQueuedRunCommand({
-          environmentId: activeThread.environmentId,
-          input: {
-            threadId: editingQueuedRun.threadId,
-            runId: editingQueuedRun.runId,
-            text: editText.length === 0 ? ATTACHMENT_ONLY_BOOTSTRAP_PROMPT : editText,
-            edit: {
-              messageId: editingQueuedRun.messageId,
-              attachments: uploads,
-              context: {
-                version: 1,
-                records: [
-                  ...new Map(
-                    [
-                      ...(editingQueuedRun.context?.records ?? []).filter(
-                        (record) =>
-                          !("attachmentId" in record) ||
-                          editingQueuedRun.existingAttachments.some(
-                            (attachment) => attachment.id === record.attachmentId,
-                          ),
-                      ),
-                      ...(buildMessageContext({
-                        terminalContexts: composerTerminalContexts.filter(
-                          (context) => context.text.trim().length > 0,
-                        ),
-                        reviewComments: composerReviewComments,
-                        previewAnnotations: composerPreviewAnnotations,
-                        threadContexts: composerThreadContexts,
-                        attachments: newEditAttachments.map((attachment, index) => ({
-                          attachment,
-                          attachmentId:
-                            uploads[editingQueuedRun.existingAttachments.length + index]?.id ??
-                            attachment.id,
-                        })),
-                      })?.records ?? []),
-                    ].map((record) => [record.contextId, record] as const),
-                  ).values(),
-                ],
-              },
-            },
-          },
-        });
-        if (result._tag === "Failure") {
-          setThreadError(editingQueuedRun.threadId, "Could not save the edited waiting message.");
-          return;
-        }
-        setThreadError(editingQueuedRun.threadId, null);
-        releaseDraftAttachments(newEditAttachments);
-        promptRef.current = "";
-        clearComposerDraftContent(queuedEditDraftTargetFor(editingQueuedRun.runId));
-        composerRef.current?.resetCursorState();
-        setEditingQueuedRun(null);
-        scheduleComposerFocus();
-      } catch (error) {
-        setThreadError(
-          editingQueuedRun.threadId,
-          error instanceof Error ? error.message : "Could not save the edited waiting message.",
-        );
-      } finally {
-        queuedEditSaveInFlightRef.current = false;
-        setIsSavingQueuedEdit(false);
-      }
-      return;
-    }
     const {
+      composerImages,
+      composerPreviewAnnotations,
+      promptForSend,
       trimmedPrompt: trimmed,
       sendableTerminalContexts: sendableComposerTerminalContexts,
       expiredTerminalContextCount,
-      hasSendableContent,
-    } = deriveComposerSendState({
-      prompt: promptForSend,
-      imageCount: composerImages.length + composerFiles.length,
-      terminalContexts: composerTerminalContexts,
-      elementContextCount:
-        composerPreviewAnnotations.length +
-        composerReviewComments.length +
-        composerThreadContexts.length,
-    });
-    const feedbackCommand =
-      ctxSelectedProvider === "codex" &&
-      composerImages.length === 0 &&
-      composerFiles.length === 0 &&
-      sendableComposerTerminalContexts.length === 0 &&
-      composerPreviewAnnotations.length === 0 &&
-      composerReviewComments.length === 0 &&
-      composerThreadContexts.length === 0
-        ? parseCodexFeedbackCommand(trimmed)
-        : null;
-    if (feedbackCommand && multipleModelSelections === null) {
-      if (!isServerThread || activeThread.activeProviderThreadId === null) {
-        toastManager.add(
-          stackedThreadToast({
-            type: "warning",
-            title: "Start a Codex chat first",
-            description: "Send a message before you submit feedback.",
-          }),
-        );
-        return;
-      }
-      feedbackUploadsInFlightRef.current.add(routeThreadKey);
-      await submitCodexFeedback({
-        submission: {
-          id: newMessageId(),
-          command: trimmed,
-          createdAt: new Date().toISOString(),
-        },
-        clearDraft: () => {
-          promptRef.current = "";
-          clearComposerDraftContent(composerDraftTarget);
-          composerRef.current?.resetCursorState();
-        },
-        onUpdate: (submission) => {
-          setFeedbackSubmissionsByThreadKey((current) => {
-            const existing = current[routeThreadKey] ?? [];
-            const found = existing.some((entry) => entry.id === submission.id);
-            return {
-              ...current,
-              [routeThreadKey]: found
-                ? existing.map((entry) => (entry.id === submission.id ? submission : entry))
-                : [...existing, submission],
-            };
-          });
-        },
-        upload: () =>
-          uploadThreadFeedback({
-            environmentId: activeThread.environmentId,
-            input: { threadId: activeThread.id, ...feedbackCommand },
-          }),
-      }).finally(() => {
-        feedbackUploadsInFlightRef.current.delete(routeThreadKey);
-      });
-
-      return;
-    }
-    if (
-      !directAnnotation &&
-      sendInteractionModeEnabled &&
-      showPlanFollowUpPrompt &&
-      activeProposedPlan &&
-      composerImages.length === 0 &&
-      composerFiles.length === 0
-    ) {
-      const followUp = resolvePlanFollowUpSubmission({
-        draftText: promptForSend,
-        planMarkdown: activeProposedPlan.planMarkdown,
-      });
-      const outgoingFollowUpText = formatOutgoingPrompt({
-        provider: ctxSelectedProvider,
-        model: ctxSelectedModel,
-        models: ctxSelectedProviderModels,
-        effort: ctxSelectedPromptEffort,
-        text: followUp.text.trim(),
-      });
-      if (composerRef.current?.validateProviderInput(outgoingFollowUpText) === false) {
-        return;
-      }
-      // The composer is cleared before the send resolves, so hold everything it carried: a
-      // transient failure must give the prose and its context back, as the ordinary send does.
-      // Snapshot exactly what was sent, copied, so later mutations cannot alias the backup.
-      const followUpPromptSnapshot = promptRef.current;
-      const followUpTerminalContexts = [...sendableComposerTerminalContexts];
-      const followUpReviewComments = [...composerReviewComments];
-      const followUpPreviewAnnotations = [...composerPreviewAnnotations];
-      const followUpThreadContexts = [...composerThreadContexts];
-      promptRef.current = "";
-      clearComposerDraftContent(composerDraftTarget);
-      composerRef.current?.resetCursorState();
-      const followUpSent = await onSubmitPlanFollowUp({
-        text: followUp.text,
-        context: buildMessageContext({
-          terminalContexts: sendableComposerTerminalContexts,
-          reviewComments: composerReviewComments,
-          previewAnnotations: composerPreviewAnnotations,
-          threadContexts: composerThreadContexts,
-        }),
-        interactionMode: followUp.interactionMode,
-      });
-      if (!followUpSent) {
-        promptRef.current = followUpPromptSnapshot;
-        composerTerminalContextsRef.current = [...followUpTerminalContexts];
-        restorePlanFollowUpComposer({
-          snapshot: {
-            prompt: followUpPromptSnapshot,
-            terminalContexts: followUpTerminalContexts,
-            reviewComments: followUpReviewComments,
-            previewAnnotations: followUpPreviewAnnotations,
-            threadContexts: followUpThreadContexts,
-          },
-          writePrompt: (prompt) => setComposerDraftPrompt(composerDraftTarget, prompt),
-          writeTerminalContexts: (contexts) =>
-            setComposerDraftTerminalContexts(composerDraftTarget, [...contexts]),
-          writeReviewComments: (comments) =>
-            setComposerDraftReviewComments(composerDraftTarget, [...comments]),
-          writePreviewAnnotations: (annotations) =>
-            setComposerDraftPreviewAnnotations(composerDraftTarget, [...annotations]),
-          writeThreadContexts: (records) =>
-            setComposerDraftThreadContexts(composerDraftTarget, [...records]),
-          resetCursor: (options) => composerRef.current?.resetCursorState(options),
-        });
-      } else if (
-        submissionIntent === "background" &&
-        currentRouteThreadKeyRef.current === routeThreadKey
-      ) {
-        handleNewThreadInActiveProject();
-      }
-      return;
-    }
-    // Providers without the legacy toggle receive their native commands unchanged.
-    const standaloneSlashCommand =
-      sendInteractionModeEnabled &&
-      composerImages.length === 0 &&
-      composerFiles.length === 0 &&
-      sendableComposerTerminalContexts.length === 0 &&
-      composerPreviewAnnotations.length === 0 &&
-      composerReviewComments.length === 0 &&
-      composerThreadContexts.length === 0
-        ? parseStandaloneComposerSlashCommand(trimmed)
-        : null;
-    if (standaloneSlashCommand && multipleModelSelections === null) {
-      handleInteractionModeChange(standaloneSlashCommand);
-      promptRef.current = "";
-      clearComposerDraftContent(composerDraftTarget);
-      composerRef.current?.resetCursorState();
-      return;
-    }
-    if (!hasSendableContent) {
-      if (expiredTerminalContextCount > 0) {
-        const toastCopy = buildExpiredTerminalContextToastCopy(
-          expiredTerminalContextCount,
-          "empty",
-        );
-        toastManager.add(
-          stackedThreadToast({
-            type: "warning",
-            title: toastCopy.title,
-            description: toastCopy.description,
-          }),
-        );
-      }
-      return;
-    }
-    if (!activeProject) {
-      toastManager.add(
-        stackedThreadToast({
-          type: "warning",
-          title: "Choose a project first",
-          description: "This draft no longer points to an available project.",
-        }),
-      );
-      return;
-    }
-    const threadIdForSend = activeThread.id;
-    const isFirstMessage = !sendQueuesBehindSetup && (!isServerThread || activeMessageCount === 0);
-    const baseBranchForWorktree =
-      isFirstMessage && sendEnvMode === "worktree" && !activeThread.worktreePath
-        ? activeThreadBranch
-        : null;
-
-    // In worktree mode, require an explicit base branch so we don't silently
-    // fall back to local execution when branch selection is missing.
-    const shouldCreateWorktree =
-      isFirstMessage && sendEnvMode === "worktree" && !activeThread.worktreePath;
-    if (shouldCreateWorktree && !activeThreadBranch) {
-      setThreadError(
-        threadIdForSend,
-        "Select a base branch before sending in New separate copy mode.",
-      );
-      return;
-    }
-
+    } = draft;
     const composerImagesSnapshot = [...composerImages];
     const composerFilesSnapshot = [...composerFiles];
     const composerAttachmentsSnapshot = [...composerImagesSnapshot, ...composerFilesSnapshot];
