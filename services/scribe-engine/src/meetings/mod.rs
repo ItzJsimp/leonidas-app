@@ -7,6 +7,7 @@ pub mod detect;
 pub mod discord;
 pub mod loopback;
 pub mod notes;
+pub mod rename;
 pub mod retranscribe;
 pub mod session;
 pub mod speakers;
@@ -655,6 +656,7 @@ fn finish(dir: &Path) {
     };
     let mut transcript = read_json(&dir.join("transcript.json")).unwrap_or_else(|| json!([]));
     label_speakers(dir, &manifest, &mut transcript);
+    rename::apply_renames(&mut transcript, &manifest);
     let _ = write_json(&dir.join("transcript.json"), &transcript);
     let mut names: Vec<String> = Vec::new();
     for seg in transcript.as_array().into_iter().flatten() {

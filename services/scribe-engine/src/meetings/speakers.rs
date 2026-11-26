@@ -21,6 +21,12 @@ const BANDS: [f32; 7] = [120.0, 240.0, 438.0, 849.0, 1697.0, 3394.0, 6118.0];
 /// tune again if real calls split one person into two.
 const SAME_VOICE: f32 = 0.08;
 const ITERATIONS: usize = 15;
+/// Windows on each side that vote on a window's voice. A run of 1 or 2 s does not count as a turn.
+const SMOOTH_RADIUS: usize = 2;
+/// shortcut: tuned on one real one-voice recording (ratio 1.8) and synthetic voices; raise the
+/// bar if real calls with two people still show one voice.
+const MIN_SEPARATION: f32 = 2.5;
+const MIN_MINORITY_PERCENT: usize = 15;
 
 /// Pitch counts this much against the unit-length spectral part. Real voices (David and Zira
 /// in the smoke test) did not split on spectrum alone.
@@ -181,16 +187,24 @@ pub fn cluster(windows: &[(f32, Features)], k: usize) -> Vec<usize> {
             }
         }
     }
-    let smaller = labels
-        .iter()
-        .filter(|l| **l == 1)
-        .count()
-        .min(labels.iter().filter(|l| **l == 0).count());
-    // A "voice" in under 10 % of the windows is noise, not a person.
-    if centers.len() == 2
-        && (dist(&centers[0], &centers[1]) < SAME_VOICE || smaller * 10 < labels.len())
-    {
-        return vec![0; points.len()];
+    if centers.len() == 2 {
+        let separation = separation(&points, &labels, &centers);
+        // One person's pitch moves with the sentence and flips the raw label every few
+        // seconds. A turn is longer than that, so smooth first.
+        labels = smooth(&labels, SMOOTH_RADIUS);
+        let smaller = labels
+            .iter()
+            .filter(|l| **l == 1)
+            .count()
+            .min(labels.iter().filter(|l| **l == 0).count());
+        // Not a second voice: the centers touch, the groups overlap, or one group is under
+        // 15 % of the windows after smoothing.
+        if dist(&centers[0], &centers[1]) < SAME_VOICE
+            || separation < MIN_SEPARATION
+            || smaller * 100 < labels.len() * MIN_MINORITY_PERCENT
+        {
+            return vec![0; points.len()];
+        }
     }
     let mut first: Vec<usize> = Vec::new();
     labels
@@ -201,6 +215,28 @@ pub fn cluster(windows: &[(f32, Features)], k: usize) -> Vec<usize> {
                 first.push(*l);
                 first.len() - 1
             }
+        })
+        .collect()
+}
+
+/// Distance between the two centers over the mean distance of a window to its own center.
+/// One voice split in two scores about 1.8 on real audio; two distinct voices score far higher.
+fn separation(points: &[&Features], labels: &[usize], centers: &[Features]) -> f32 {
+    let spread = points
+        .iter()
+        .zip(labels)
+        .map(|(p, l)| dist(p, &centers[*l]))
+        .sum::<f32>()
+        / points.len() as f32;
+    dist(&centers[0], &centers[1]) / spread.max(1e-6)
+}
+
+/// Majority label in a window of `radius` on each side of every position.
+fn smooth(labels: &[usize], radius: usize) -> Vec<usize> {
+    (0..labels.len())
+        .map(|i| {
+            let part = &labels[i.saturating_sub(radius)..(i + radius + 1).min(labels.len())];
+            usize::from(part.iter().sum::<usize>() * 2 > part.len())
         })
         .collect()
 }
@@ -245,8 +281,19 @@ pub fn label(
             for ((start, _), v) in windows.iter().zip(&voices) {
                 score[*v] += overlap(t0, t1, *start, start + WINDOW_S);
             }
-            (score[0] + score[1] > 0.0)
-                .then(|| format!("Speaker {}", if score[0] >= score[1] { 1 } else { 2 }))
+            if score[0] + score[1] > 0.0 {
+                return Some(format!(
+                    "Speaker {}",
+                    if score[0] >= score[1] { 1 } else { 2 }
+                ));
+            }
+            // No speaking window under the segment (a short word): use the closest one in time.
+            let mid = (t0 + t1) / 2.0;
+            windows
+                .iter()
+                .zip(&voices)
+                .min_by(|a, b| (a.0 .0 - mid).abs().total_cmp(&(b.0 .0 - mid).abs()))
+                .map(|(_, v)| format!("Speaker {}", v + 1))
         };
         if let Some(name) = by_discord.or_else(by_voice) {
             seg["speaker_key"] = Value::from(name);
@@ -377,6 +424,29 @@ mod tests {
         assert!(right >= 16, "{labels:?}");
         let one = voice_windows(&voice(140.0, 900.0, 10.0, 7), 0.0);
         assert!(cluster(&one, 2).iter().all(|v| *v == 0));
+    }
+
+    /// Four minutes of one real person on a Discord call. Raw k-means split it into two
+    /// "speakers" with a label flip every 3 s (meeting 2026-11-25-2254).
+    #[test]
+    fn one_real_voice_is_not_split_by_pitch() {
+        let windows = windows_from_json(
+            &serde_json::from_str(include_str!("fixtures/one-voice-windows.json")).unwrap(),
+        );
+        assert_eq!(windows.len(), 240);
+        assert!(cluster(&windows, 2).iter().all(|v| *v == 0));
+    }
+
+    #[test]
+    fn a_segment_in_a_gap_takes_the_closest_voice() {
+        let mut pcm = voice(110.0, 500.0, 4.0, 1);
+        pcm.extend(vec![0.0; 32_000]);
+        pcm.extend(voice(230.0, 2_600.0, 4.0, 2));
+        let windows = voice_windows(&pcm, 0.0);
+        let mut transcript =
+            vec![json!({"speaker_key": "Them", "t0": 4.5, "t1": 4.7, "text": "ok"})];
+        label(&mut transcript, &windows, &BTreeMap::new());
+        assert_eq!(transcript[0]["speaker_key"], "Speaker 2");
     }
 
     #[test]

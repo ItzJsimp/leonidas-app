@@ -3,6 +3,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   agentMention,
   filterMeetings,
+  filterSegments,
+  speakerNames,
+  speakerParts,
   groupMeetings,
   formatClock,
   formatLength,
@@ -254,5 +257,25 @@ describe("audio sources", () => {
       apps: ["Discord"],
       all: true,
     });
+  });
+});
+
+describe("speakers and transcript search", () => {
+  const lines = [
+    { speaker: "Me", t0: 0, text: "Ship the Friday build" },
+    { speaker: "Speaker 2 + Me", t0: 5, text: "Yes" },
+    { speaker: "Gersi", t0: 9, text: "Budget is fine" },
+  ];
+
+  it("lists each speaker once, overlap lines split into their parts", () => {
+    expect(speakerParts("Jake + Gersi")).toEqual(["Jake", "Gersi"]);
+    expect(speakerNames(lines)).toEqual(["Me", "Speaker 2", "Gersi"]);
+  });
+
+  it("filters lines by text or speaker, ignoring case and spaces", () => {
+    expect(filterSegments(lines, "  FRIDAY ")).toEqual([lines[0]]);
+    expect(filterSegments(lines, "gersi")).toEqual([lines[2]]);
+    expect(filterSegments(lines, "")).toBe(lines);
+    expect(filterSegments(lines, "nothing here")).toEqual([]);
   });
 });
