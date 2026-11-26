@@ -18,6 +18,7 @@ Link each PR you create, take over, or push to: one link_pull_request per PR, fu
 
 const WAITING_INSTRUCTIONS = `<waiting_handoff>
 Leonidas shows the user when you are waiting on a shell command, a subagent, an app tool or a web call, and what it is. When such a wait ends and you continue, open your next message with one short line naming what finished and that you are carrying on, for example "The test run finished; continuing with the fix." Say it once per wait, not per tool call, and skip it for instant reads and searches.
+A background wake (a task, subagent or monitor that finished) continues the same reply. If work still runs, write 1 to 3 lines: no status line, no summary, no Dock. Write the full reply once, when all work is done or the result needs the user.
 </waiting_handoff>`;
 
 // shortcut: one level per server process (the install's setting); per-user levels need a session field.

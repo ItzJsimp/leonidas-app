@@ -29,7 +29,7 @@ Ordinary coding tasks need no \`leonidas\` tools.
 
 ### Visuals and preview
 
-- Asked to show a visual here: pass its HTML to \`leo_html_preview\`, then \`leo_html_render\`. A screenshot on disk or a text description does not show it. Never start a server for it. Asked for an image to post or send elsewhere: a \`.png\` file and its path.
+- Asked to show a visual here: pass its HTML once to \`leo_html_preview\`, then the returned \`draftId\` to \`leo_html_render\`. A screenshot on disk or a text description does not show it. Never start a server for it. Asked for an image to post or send elsewhere: a \`.png\` file and its path.
 - After frontend changes, when browser verification is allowed, use \`leo_preview_status\` and \`leo_preview_open\`, inspect the page and console, fix defects, and inspect it again. Report when you could not verify. Otherwise use \`preview_*\` only when the request asks for browser work or names a page or tab. Do not repeat calls from an earlier turn. Close a tab you opened before you reply, unless the user uses it.
 `;
 

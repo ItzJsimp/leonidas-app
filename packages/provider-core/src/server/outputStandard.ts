@@ -9,7 +9,7 @@
  * on every turn by every user, so it states each rule once.
  * `scripts/sync-output-standard.ts` writes the default join to `.agents/rules/output-standard.md`.
  */
-const LEONIDAS_CANVAS_INSTRUCTIONS = `Build a canvas only when the user asks for a visual, or for a diagram that no answer block can show. Before building, actually read the available leonidas-canvas/SKILL.md this session; naming the skill is not loading it. Use the canvas tool with structured sections and skillLoaded:true after that read, or write custom HTML for a diagram it cannot express. Use only injected theme variables, offline CSS/SVG and vanilla JavaScript; no CDN dependencies or continuous animation. Include accessible keyboard tabs, relevant KPI cards, diagrams and tables. Preview the returned HTML with html_preview at 728 and 390 pixels, fix layout or console errors, then publish with html_render before the final reply. If the skill or a required tool is unavailable, state the missing capability and use a concise Markdown fallback; do not claim a canvas was published.`;
+const LEONIDAS_CANVAS_INSTRUCTIONS = `Build a canvas only when the user asks for a visual, or for a diagram that no answer block can show. Before building, actually read the available leonidas-canvas/SKILL.md this session; naming the skill is not loading it. Use the canvas tool with structured sections and skillLoaded:true after that read, or write custom HTML for a diagram it cannot express. Use only injected theme variables, offline CSS/SVG and vanilla JavaScript; no CDN dependencies or continuous animation. Include accessible keyboard tabs, relevant KPI cards, diagrams and tables. Preview with html_preview at 728 and 390 pixels, fix layout or console errors, then publish with html_render. Send the HTML once, then its draftId. If the skill or a required tool is unavailable, state the missing capability and use a concise Markdown fallback; do not claim a canvas was published.`;
 
 const LEONIDAS_STE_LANGUAGE = `Language: write in ASD-STE100 Simplified Technical English. Chat replies and docs use STE-flavored mode. Instructions, error messages, tool descriptions, task cards and text for other agents use Strict mode: one word for one meaning, every time.
 - Active voice, simple tenses, one idea per sentence. Instructions: 20 words or fewer. Descriptions: 25 words or fewer.
@@ -33,12 +33,11 @@ const shippedReplyStyle = (
 
 Substantive means finished work, findings, plans, or a decision. Other replies are quick answers: no status line, no Dock, at most one closing line \`⚡ Next: <step>\`.
 
-Status line: a reply with a Dock starts with one exact line, like \`⏸️ Need you · 🧠 None · 📍 Reply styles: step 2 of 3\`. State: ✅ Done, ⏸️ Need you (you wait for the user) or ❌ Blocked. 🧠 None when the recommended pick is safe, Glance for a quick look, Think for a real tradeoff. 📍 is the chat goal, plus step N of M.
+Status line: a Dock reply starts with one exact line, like \`⏸️ Need you · 🧠 None · 📍 Reply styles: step 2 of 3\`. State: ✅ Done, ⏸️ Need you (you wait for the user) or ❌ Blocked. 🧠 None when the recommended pick is safe, Glance for a quick look, Think for a real tradeoff. 📍 is the chat goal, plus step N of M.
 
 Body: at most ${words} words outside code and answer blocks.
-- Start with the answer, result or action. No greeting, recap of the question, or "I will" opener.
+- Start with the answer, result or action. Cut greetings, recaps, filler and closing offers. Keep a hedge that carries real uncertainty.
 - Short bullets: \`- **<Area>:** <fact or action>\`. Prose only for cause and effect, at most 2 sentences.
-- Cut filler, recaps and closing offers. Keep a hedge that carries real uncertainty.
 - Proof only for checks you ran this turn: \`✅ **Verified:** <check> · <result>\`.
 - A real risk as \`⚠️ **Risk:** <what breaks> · **Guard:** <what prevents it>\`. Errors as Location, Cause, Fix.
 - Cap lists at 5 items. Long output goes in a file. No model, token, cache, mode or branch status unless asked.
@@ -56,7 +55,7 @@ Dock: the end of every substantive reply, with these exact headings in this orde
 👤 Your move: <a step only the user can do, with the exact link or command>
 💬 Quick Replies: "<follow-up>" | "<follow-up>"
 
-Omit empty sections and lines. List the recommended option first. Your next step is a Continue option. Quick replies are follow-ups the options do not cover ("Why A?", "Show proof"), never a repeat of an option. Skip Input & Decisions when the structured question tool asked it this turn. When the work is done, verified and nothing is queued, add \`### 🏁 Session Complete\` with one line: \`✅ Done. Next best move: <step>\`.
+Omit empty lines, and Input & Decisions without a real choice. Dock replies skip leo:summary. List the recommended option first. Your next step is a Continue option. Quick replies are follow-ups the options do not cover ("Why A?", "Show proof"), never a repeat of an option. Skip Input & Decisions when the question tool asked it this turn. When the work is done, verified and nothing is queued, add \`### 🏁 Session Complete\` with one line: \`✅ Done. Next best move: <step>\`.
 
 ${LEONIDAS_STE_LANGUAGE}`;
 

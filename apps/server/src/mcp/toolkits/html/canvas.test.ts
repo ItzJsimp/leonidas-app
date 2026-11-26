@@ -40,9 +40,9 @@ const client = McpSchema.McpServerClient.of({
 it.effect("builds canvas HTML through production MCP and enforces skill loading and bounds", () =>
   Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
-    const call = (arguments_: Record<string, unknown>) =>
+    const call = (arguments_: Record<string, unknown>, name = "leo_canvas") =>
       server
-        .callTool({ name: "leo_canvas", arguments: arguments_ })
+        .callTool({ name, arguments: arguments_ })
         .pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
           Effect.provideService(McpSchema.McpServerClient, client),
@@ -63,8 +63,13 @@ it.effect("builds canvas HTML through production MCP and enforces skill loading 
     expect(result.isError).not.toBe(true);
     expect(result.structuredContent).toMatchObject({
       title: "Release gates",
-      html: expect.stringContaining('role="tablist"'),
+      draftId: expect.any(String),
     });
+    expect(result.structuredContent).not.toHaveProperty("html");
+    const bothSources = yield* call({ html: "<p>x</p>", draftId: "x" }, "leo_html_preview");
+    expect(bothSources.isError).toBe(true);
+    const unknownDraft = yield* call({ draftId: "missing" }, "leo_html_preview");
+    expect(unknownDraft.isError).toBe(true);
     const badSkill = yield* call({ ...input, skillLoaded: false }).pipe(Effect.flip);
     expect(badSkill._tag).toBe("InvalidParams");
     const oversized = yield* call({

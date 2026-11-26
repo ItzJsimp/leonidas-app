@@ -20,17 +20,53 @@ const toFailure = (error: { readonly _tag: string; readonly message: string }) =
     message: error.message,
   });
 
+// shortcut: drafts live in memory and are lost on a server restart; the agent then sends html again.
+// Ids only need to be unique in this process: every caller is a local agent of the same user.
+const MAX_DRAFTS = 8;
+const drafts = new Map<string, string>();
+let draftCount = 0;
+
+const saveDraft = (html: string): string => {
+  const draftId = `draft-${++draftCount}`;
+  drafts.set(draftId, html);
+  if (drafts.size > MAX_DRAFTS) drafts.delete(drafts.keys().next().value!);
+  return draftId;
+};
+
+/** One page is written once: later calls refer to it by draftId. */
+const resolvePage = (input: {
+  readonly html?: string | undefined;
+  readonly draftId?: string | undefined;
+}) => {
+  if (input.html !== undefined)
+    return Effect.succeed({ html: input.html, draftId: saveDraft(input.html) });
+  const html = input.draftId === undefined ? undefined : drafts.get(input.draftId);
+  return html === undefined
+    ? Effect.fail(
+        new OrchestratorMcpFailure({
+          code: "invalid_request",
+          message: "Unknown draftId. Send the html again.",
+        }),
+      )
+    : Effect.succeed({ html, draftId: input.draftId! });
+};
+
 const handlers = {
   leo_canvas: McpToolAccess.readsAsCaller((input) =>
-    Effect.succeed({ html: buildCanvasDocument(input), title: input.title }),
+    Effect.succeed({ draftId: saveDraft(buildCanvasDocument(input)), title: input.title }),
   ),
   // The headless browser runs on the host and can open local files, so only
   // agents T3 launched, which already work on this machine, get it.
   leo_html_preview: McpToolAccess.readsAsCaller((input) =>
     Effect.gen(function* () {
       const htmlRender = yield* HtmlRender.HtmlRender;
-      const { png, ...preview } = yield* htmlRender.preview(input).pipe(Effect.mapError(toFailure));
+      const { draftId: _, ...rest } = input;
+      const page = yield* resolvePage(input);
+      const { png, ...preview } = yield* htmlRender
+        .preview({ ...rest, html: page.html })
+        .pipe(Effect.mapError(toFailure));
       return {
+        draftId: page.draftId,
         ...preview,
         screenshot: {
           mimeType: "image/png" as const,
@@ -47,8 +83,10 @@ const handlers = {
       const scope = yield* McpInvocationContext.McpInvocationContext;
       const { thread } = yield* McpInvocationContext.requireThreadScope(scope, "leo_html_render");
       const htmlRender = yield* HtmlRender.HtmlRender;
+      const { draftId: _, ...rest } = input;
+      const page = yield* resolvePage(input);
       const reference = yield* htmlRender
-        .publish({ threadId: thread.threadId, ...input })
+        .publish({ threadId: thread.threadId, ...rest, html: page.html })
         .pipe(Effect.mapError(toFailure));
       return {
         htmlRender: reference,

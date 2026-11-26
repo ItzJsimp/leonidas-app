@@ -20,6 +20,25 @@ const Html = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(512_0
   description: "A complete, self-contained HTML document.",
 });
 
+const DraftId = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(64)).annotate({
+  description:
+    "The draftId from leo_canvas or html_preview. Send it instead of html to avoid writing the page again.",
+});
+
+/** Pages arrive as html once; later calls send the draftId. */
+const PageSource = {
+  html: Schema.optional(Html),
+  draftId: Schema.optional(DraftId),
+};
+const onePageSource = <
+  T extends { readonly html?: string | undefined; readonly draftId?: string | undefined },
+>() =>
+  Schema.makeFilter<T>(
+    (input) =>
+      (input.html === undefined) !== (input.draftId === undefined) ||
+      "Send html or draftId, not both.",
+  );
+
 const PAGE_RULES =
   "Inline <style> and <script>. Local images as absolute paths are inlined. Remote URLs load as-is.";
 
@@ -27,7 +46,7 @@ const CanvasText = Schema.String.check(Schema.isMaxLength(2000));
 const CanvasCell = Schema.String.check(Schema.isMaxLength(80));
 const CanvasTool = Tool.make("leo_canvas", {
   description:
-    "Build an offline Leonidas canvas from structured sections: accessible pill tabs, KPI cards, an SVG flow, and tables. First read leonidas-canvas/SKILL.md. This returns HTML, not a published page. Check the HTML with html_preview at wide and narrow widths, then publish it with html_render before replying.",
+    "Build an offline Leonidas canvas from structured sections: accessible pill tabs, KPI cards, an SVG flow, and tables. First read leonidas-canvas/SKILL.md. This returns a draftId, not a published page. Check it with html_preview (draftId, widths 728 and 390), then publish it with html_render (draftId) before replying.",
   parameters: Schema.Struct({
     skillLoaded: Schema.Literal(true).annotate({
       description: "Confirm you actually read leonidas-canvas/SKILL.md this session.",
@@ -67,7 +86,7 @@ const CanvasTool = Tool.make("leo_canvas", {
       ),
     ).check(Schema.isMinLength(1), Schema.isMaxLength(6)),
   }),
-  success: Schema.Struct({ html: Schema.String, title: Schema.String }),
+  success: Schema.Struct({ draftId: Schema.String, title: Schema.String }),
   failure: OrchestratorMcpFailure,
   dependencies: [
     McpInvocationContext.McpInvocationContext,
@@ -81,9 +100,9 @@ const CanvasTool = Tool.make("leo_canvas", {
   .annotate(Tool.OpenWorld, false);
 
 export const HtmlPreviewTool = Tool.make("leo_html_preview", {
-  description: `Check an HTML page before html_render. Returns PNG, contentHeight, and console output. If it says the browser is still installing, call again in a minute. ${PAGE_RULES} Theme and layout rules are in html_render.`,
+  description: `Check an HTML page before html_render. Returns PNG, contentHeight, console output and a draftId. Send html once, then the draftId on later previews and on html_render. If it says the browser is still installing, call again in a minute. ${PAGE_RULES} Theme and layout rules are in html_render.`,
   parameters: Schema.Struct({
-    html: Html,
+    ...PageSource,
     width: Schema.optional(
       Schema.Int.annotate({
         description: `CSS pixels, 240 to 1600. Default ${HTML_RENDER_COLUMN_WIDTH}. Use about 390 for phones.`,
@@ -94,8 +113,9 @@ export const HtmlPreviewTool = Tool.make("leo_html_preview", {
         description: "Default dark.",
       }),
     ),
-  }),
+  }).check(onePageSource()),
   success: Schema.Struct({
+    draftId: Schema.String,
     width: Schema.Int,
     contentHeight: Schema.Int,
     capturedHeight: Schema.Int,
@@ -131,7 +151,7 @@ export const HtmlPreviewTool = Tool.make("leo_html_preview", {
 const HtmlRenderTool = Tool.make(HTML_RENDER_TOOL_NAME, {
   description: `Show a finished HTML page inline in this thread, above your final reply. Do not announce or restate the page. The frame fits the page height. On mobile, a height below contentHeight caps the frame and the rest scrolls; web and desktop fit the whole page, up to ${HTML_RENDER_MAX_FIT_HEIGHT}px. ${HTML_RENDER_LAYOUT_GUIDE} ${HTML_RENDER_THEME_GUIDE}`,
   parameters: Schema.Struct({
-    html: Html,
+    ...PageSource,
     title: Schema.String.check(
       Schema.isMinLength(1),
       Schema.isMaxLength(HTML_RENDER_MAX_TITLE_LENGTH),
@@ -139,7 +159,7 @@ const HtmlRenderTool = Tool.make(HTML_RENDER_TOOL_NAME, {
     height: Schema.Int.annotate({
       description: `Frame height in CSS pixels, ${HTML_RENDER_MIN_HEIGHT} to ${HTML_RENDER_MAX_HEIGHT}. Use the contentHeight from html_preview. A lower height makes long content scroll inside the frame on mobile only.`,
     }),
-  }),
+  }).check(onePageSource()),
   success: Schema.Struct({
     htmlRender: Schema.Struct({
       attachmentId: Schema.String,
