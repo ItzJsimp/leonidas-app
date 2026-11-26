@@ -22,6 +22,7 @@ import {
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
 import { KNOWN_FAILING_BROWSER_TESTS } from "./browserTestsKnownFailing";
+import { E2E_BROWSER_PORT, E2E_SERVER_PORT } from "./test/e2e/config";
 import { formatDevVersionLabel } from "./src/devVersionLabel";
 import { tailwindPlugins } from "./vite/tailwind";
 
@@ -111,7 +112,7 @@ const unitTestProject = {
   test: {
     name: "unit",
     include: ["src/**/*.test.{ts,tsx}"],
-    exclude: ["src/**/*.browser.test.{ts,tsx}"],
+    exclude: ["src/**/*.browser.test.{ts,tsx}", "src/**/*.e2e.test.{ts,tsx}"],
     // The web runtime suite exercises auth bootstrap, saved environments,
     // and websocket subscription lifecycles. Under the full monorepo test
     // run, those async tests can exceed Vitest's default 5s budget.
@@ -140,6 +141,39 @@ const browserTestProject = {
       provider: playwright(),
       instances: [{ browser: "chromium" }],
     },
+  },
+} satisfies TestProjectInlineConfiguration;
+
+// The real app against a real server on temporary state, with a replayed Codex turn.
+// test/e2e/serverSetup.ts starts the server; the proxy makes it the page's own origin, as in dev.
+const e2eTestProject = {
+  extends: true,
+  server: {
+    proxy: Object.fromEntries(
+      DEV_PROXIED_PATH_PREFIXES.map((prefix) => [
+        prefix,
+        {
+          target: `http://localhost:${E2E_SERVER_PORT}/`,
+          changeOrigin: !DEV_PROXIED_ORIGIN_PRESERVING_PREFIXES.has(prefix),
+          ...(prefix === "/ws" || prefix === "/api" ? { ws: true } : {}),
+        },
+      ]),
+    ),
+  },
+  test: {
+    name: "e2e",
+    include: ["src/**/*.e2e.test.{ts,tsx}"],
+    globalSetup: ["./test/e2e/serverSetup.ts"],
+    hookTimeout: 120_000,
+    testTimeout: 180_000,
+    fileParallelism: false,
+    browser: {
+      enabled: true,
+      headless: true,
+      provider: playwright(),
+      instances: [{ browser: "chromium" }],
+    },
+    api: { port: E2E_BROWSER_PORT, strictPort: true },
   },
 } satisfies TestProjectInlineConfiguration;
 
@@ -448,7 +482,11 @@ export default defineConfig(() => {
     },
     worker: { format: "es" },
     test: {
-      projects: [defineProject(unitTestProject), defineProject(browserTestProject)],
+      projects: [
+        defineProject(unitTestProject),
+        defineProject(browserTestProject),
+        defineProject(e2eTestProject),
+      ],
     },
   };
 });
