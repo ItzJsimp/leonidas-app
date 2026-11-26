@@ -221,6 +221,44 @@ describe("MeetingsPage", () => {
     expect(text()).not.toContain("We agreed on the plan.");
   });
 
+  it("renames a speaker from the transcript and reloads the lines", async () => {
+    let renamed = false;
+    const original = mocks.call.getMockImplementation()!;
+    mocks.call.mockImplementation(async (method: string, path: string, body: unknown) => {
+      if (method === "PATCH" && path === "a") {
+        renamed = true;
+        return { ok: true, value: {} };
+      }
+      if (path === "a" && renamed)
+        return {
+          ok: true,
+          value: { ...detail, transcript: [{ speaker_key: "Gersi", t0: 5, text: "Hello there." }] },
+        };
+      return original(method, path, body);
+    });
+    await show();
+    await act(async () => tab("transcript")?.click());
+    const name = container.querySelector<HTMLButtonElement>(
+      '[role="tabpanel"] button[aria-label="Rename Jake"]',
+    );
+    expect(name).not.toBeNull();
+    await act(async () => name?.click());
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="Speaker name"]')!;
+    await act(async () => {
+      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      set.call(input, "Gersi");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const save = [...document.querySelectorAll<HTMLButtonElement>("form button")].find(
+      (el) => el.textContent === "Rename",
+    );
+    await act(async () => save?.click());
+    expect(mocks.call).toHaveBeenCalledWith("PATCH", "a", { speakers: { Jake: "Gersi" } });
+    expect(
+      container.querySelector('[role="tabpanel"] button[aria-label="Rename Gersi"]'),
+    ).not.toBeNull();
+  });
+
   it("has one Copy button instead of three", async () => {
     await show();
     const labels = [...container.querySelectorAll("button")].map((el) => el.textContent);

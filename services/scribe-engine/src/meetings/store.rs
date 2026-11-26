@@ -12,6 +12,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::rename::{rename_in_note, rename_speaker};
+
 pub const IMPORT_DIR: &str = "python-import";
 /// Audio in the main root is deleted this long after the meeting ends, unless pinned.
 pub const AUDIO_KEEP_DAYS: i64 = 30;
@@ -218,14 +220,21 @@ impl Store {
         if let Some(names) = &patch.speakers {
             let mut transcript =
                 read_json(&dir.join("transcript.json")).unwrap_or_else(|| json!([]));
+            let mut note = read_json(&dir.join("note.json"));
             for (old, new) in names {
                 let new = new.trim();
                 if new.is_empty() {
                     return Err("A speaker name cannot be empty.".into());
                 }
                 rename_speaker(&mut transcript, &mut manifest, old, new);
+                if let Some(note) = note.as_mut() {
+                    rename_in_note(note, old, new);
+                }
             }
             write_json(&dir.join("transcript.json"), &transcript)?;
+            if let Some(note) = &note {
+                write_json(&dir.join("note.json"), note)?;
+            }
         }
         write_json(&dir.join("manifest.json"), &manifest)?;
         self.get(id).ok_or_else(|| not_found(id))
@@ -275,38 +284,6 @@ impl Store {
             }
         }
         cleaned
-    }
-}
-
-/// Rename in segments (also inside "A + B" overlap keys) and in participants, as Python did.
-fn rename_speaker(transcript: &mut Value, manifest: &mut Value, old: &str, new: &str) {
-    for seg in transcript.as_array_mut().into_iter().flatten() {
-        let Some(key) = seg["speaker_key"].as_str() else {
-            continue;
-        };
-        if key.split(" + ").any(|p| p == old) {
-            let renamed: Vec<&str> = key
-                .split(" + ")
-                .map(|p| if p == old { new } else { p })
-                .collect();
-            seg["speaker_key"] = Value::from(renamed.join(" + "));
-        }
-    }
-    let participants = &mut manifest["participants"];
-    if !participants.is_array() {
-        *participants = json!([]);
-    }
-    let list = participants.as_array_mut().unwrap();
-    let mut found = false;
-    for p in list.iter_mut() {
-        if p["name"].as_str() == Some(old) || p["key"].as_str() == Some(old) {
-            p["name"] = Value::from(new);
-            p["key"] = Value::from(new);
-            found = true;
-        }
-    }
-    if !found {
-        list.push(json!({"key": new, "name": new}));
     }
 }
 

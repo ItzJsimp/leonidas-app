@@ -2,6 +2,7 @@ import { CopyIcon, Trash2Icon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import {
   AlertDialog,
   AlertDialogClose,
@@ -17,6 +18,7 @@ import { Skeleton } from "../ui/skeleton";
 import { toastManager } from "../ui/toast";
 import {
   agentMention,
+  filterSegments,
   formatClock,
   formatLength,
   formatWhen,
@@ -24,13 +26,23 @@ import {
   meetingMarkdown,
   mergeSegments,
   parseMeetingDetail,
+  speakerNames,
+  speakerParts,
   type MeetingDetail,
   type MeetingSummary,
   type MeetingTemplate,
 } from "./meetings.logic";
 import { MeetingAsk } from "./MeetingsLive";
 import { MeetingTemplatePicker } from "./MeetingTemplatePicker";
+import { SpeakerName } from "./SpeakerName";
 import type { Call } from "./useMeetingsCall";
+
+/** A color per speaker. Each also has its own first letter, so color is never the only cue. */
+const SPEAKER_TONES = [
+  "bg-series-1 text-white",
+  "bg-series-2 text-white",
+  "bg-input text-foreground",
+];
 
 const fail = (title: string, message: string | null) => {
   if (message !== null) toastManager.add({ type: "error", title, description: message });
@@ -53,6 +65,7 @@ export function MeetingReader(props: {
   const [tab, setTab] = useState<"summary" | "transcript">("summary");
   const [nextTemplate, setNextTemplate] = useState<string | null>(null);
   const [writeTemplate, setWriteTemplate] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   // The list row changes when the engine finishes a step; read the full meeting again then.
   const version = `${summary.state}|${summary.notesState}|${summary.pinned}|${summary.hasTranscript}|${summary.template}`;
   const latest = useRef(0);
@@ -81,6 +94,7 @@ export function MeetingReader(props: {
     method: "POST" | "PATCH" | "DELETE",
     path: string,
     body?: unknown,
+    reload = false,
   ) => {
     setWorking(true);
     const result = await call(method, `${encodeURIComponent(summary.id)}${path}`, body);
@@ -88,8 +102,10 @@ export function MeetingReader(props: {
     if (!result.ok) return fail(label, result.message);
     if (method === "DELETE") return props.onDeleted();
     await props.onChanged();
-    if (path === "/summary") await loadDetail();
+    if (path === "/summary" || reload) await loadDetail();
   };
+  const renameSpeaker = (from: string, to: string) =>
+    void act("Could not rename the speaker", "PATCH", "", { speakers: { [from]: to } }, true);
 
   const meeting = detail?.meeting ?? summary;
   const template = nextTemplate ?? meeting.template;
@@ -97,6 +113,10 @@ export function MeetingReader(props: {
   const canWriteNotes = props.templates?.some((item) => item.id === template) === true;
   const writeTemplateName = props.templates?.find((item) => item.id === writeTemplate)?.name;
   const segments = useMemo(() => mergeSegments(detail?.segments ?? []), [detail]);
+  const speakers = speakerNames(detail?.segments ?? []);
+  const shown = filterSegments(segments, query);
+  const toneOf = (name: string) =>
+    SPEAKER_TONES[Math.max(0, speakers.indexOf(name)) % SPEAKER_TONES.length];
   const canTranscribe = meeting.hasAudio && (!meeting.hasTranscript || meeting.state === "failed");
   const noteLines = detail?.note ?? null;
   const hasNotes =
@@ -147,6 +167,7 @@ export function MeetingReader(props: {
                 formatWhen(meeting.started),
                 formatLength(meeting.durationMs),
                 meeting.app,
+                meeting.people.length > 1 ? `${meeting.people.length} speakers` : null,
                 meeting.imported ? "From Python Scribe" : null,
               ]
                 .filter((part) => part !== null && part !== "")
@@ -174,11 +195,19 @@ export function MeetingReader(props: {
               >
                 <span
                   aria-hidden
-                  className="grid size-[18px] place-items-center rounded-full bg-input text-3xs font-semibold"
+                  className={cn(
+                    "grid size-[18px] place-items-center rounded-full text-3xs font-semibold",
+                    toneOf(person),
+                  )}
                 >
                   {person.slice(0, 1).toUpperCase()}
                 </span>
-                {person}
+                <SpeakerName
+                  name={person}
+                  others={meeting.people.filter((other) => other !== person)}
+                  onRename={renameSpeaker}
+                  disabled={working}
+                />
               </li>
             ))}
           </ul>
@@ -349,16 +378,52 @@ export function MeetingReader(props: {
                   : "This meeting has no transcript and no audio."}
             </p>
           ) : (
-            segments.map((segment, index) => (
-              <p key={`${index}-${segment.t0}`} className="text-sm leading-relaxed">
-                <span className="font-medium">{segment.speaker}</span>{" "}
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {formatClock(segment.t0)}
-                </span>
-                <br />
-                {segment.text}
-              </p>
-            ))
+            <>
+              {segments.length > 20 ? (
+                <Input
+                  type="search"
+                  size="compact"
+                  aria-label="Search transcript"
+                  placeholder="Search this transcript"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              ) : null}
+              {shown.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No lines match "{query.trim()}".</p>
+              ) : (
+                shown.map((segment, index) => (
+                  <p key={`${index}-${segment.t0}`} className="text-sm leading-relaxed">
+                    {speakerParts(segment.speaker).map((name, part) => (
+                      <span key={name} className="mr-1 inline-flex items-center gap-1.5">
+                        {part > 0 ? <span className="text-muted-foreground">+</span> : null}
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "grid size-[18px] place-items-center rounded-full text-3xs font-semibold",
+                            toneOf(name),
+                          )}
+                        >
+                          {name.slice(0, 1).toUpperCase()}
+                        </span>
+                        <SpeakerName
+                          name={name}
+                          others={speakers.filter((other) => other !== name)}
+                          onRename={renameSpeaker}
+                          disabled={working}
+                          className="font-medium"
+                        />
+                      </span>
+                    ))}{" "}
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {formatClock(segment.t0)}
+                    </span>
+                    <br />
+                    {segment.text}
+                  </p>
+                ))
+              )}
+            </>
           )}
         </div>
       )}

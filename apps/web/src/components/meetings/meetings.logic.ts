@@ -136,6 +136,29 @@ export function parseMeetingDetail(raw: unknown): MeetingDetail | null {
   };
 }
 
+/** Overlap lines name two people ("Jake + Gersi"); each part is its own speaker. */
+export const speakerParts = (speaker: string): readonly string[] => speaker.split(" + ");
+
+/** Every speaker once, in the order they first talk. */
+export function speakerNames(segments: readonly MeetingSegment[]): readonly string[] {
+  const names = new Set<string>();
+  for (const segment of segments) for (const part of speakerParts(segment.speaker)) names.add(part);
+  return [...names];
+}
+
+/** Lines whose text or speaker contains the query, ignoring case. An empty query keeps all. */
+export function filterSegments(
+  segments: readonly MeetingSegment[],
+  query: string,
+): readonly MeetingSegment[] {
+  const needle = query.trim().toLowerCase();
+  if (needle === "") return segments;
+  return segments.filter(
+    (segment) =>
+      segment.text.toLowerCase().includes(needle) || segment.speaker.toLowerCase().includes(needle),
+  );
+}
+
 /** Consecutive segments from one speaker read as one paragraph. */
 export function mergeSegments(segments: readonly MeetingSegment[]): readonly MeetingSegment[] {
   const merged: MeetingSegment[] = [];
