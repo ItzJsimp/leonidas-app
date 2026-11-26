@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
+import { VOICE_MAX_AUDIO_BYTES } from "@t3tools/contracts";
 import { recordVoice } from "./recordVoice";
 
 class Recorder {
@@ -80,4 +81,36 @@ it("reads the loudest sample and closes the audio context on release", async () 
   session.stop();
   await session.result;
   expect(close).toHaveBeenCalledTimes(1);
+});
+it("records at a speech bitrate so ten minutes fits the upload limit", () => {
+  let bitrate = 0;
+  vi.stubGlobal(
+    "MediaRecorder",
+    class extends Recorder {
+      constructor(_stream?: unknown, options?: MediaRecorderOptions) {
+        super();
+        bitrate = options?.audioBitsPerSecond ?? 0;
+      }
+    },
+  );
+  recordVoice({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream).cancel();
+  expect(bitrate).toBeGreaterThan(0);
+  expect((bitrate / 8) * 600).toBeLessThan(VOICE_MAX_AUDIO_BYTES);
+});
+it("keeps the screen awake, and keeps the audio when a phone hides the page", async () => {
+  vi.stubGlobal("MediaRecorder", Recorder);
+  const release = vi.fn(async () => {});
+  vi.stubGlobal("navigator", { wakeLock: { request: async () => ({ release }) } });
+  vi.stubGlobal("window", { matchMedia: () => ({ matches: true }) });
+  const page = Object.assign(new EventTarget(), { visibilityState: "visible" });
+  const remove = vi.spyOn(page, "removeEventListener");
+  vi.stubGlobal("document", page);
+  const session = recordVoice({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream);
+  await Promise.resolve();
+  await Promise.resolve();
+  page.visibilityState = "hidden";
+  page.dispatchEvent(new Event("visibilitychange"));
+  expect(await (await session.result)?.text()).toBe("complete take");
+  expect(release).toHaveBeenCalledOnce();
+  expect(remove).toHaveBeenCalledOnce();
 });

@@ -38,12 +38,15 @@ export function ComposerVoiceButton({
   disabled,
   onText,
   globalTrigger = false,
+  onHoldChange,
 }: {
   environmentId: EnvironmentId;
   disabled: boolean;
   onText: (text: string) => boolean;
   /** Answer the OS-wide dictation trigger (desktop) when this composer's pane is active. */
   globalTrigger?: boolean;
+  /** True while a take, its audio or a message needs this button to stay mounted. */
+  onHoldChange?: (held: boolean) => void;
 }) {
   const [state, setState] = useState<"idle" | "starting" | "listening" | "writing" | "done">(
     "idle",
@@ -54,6 +57,13 @@ export function ComposerVoiceButton({
   const [error, setError] = useState("");
   const [retainedText, setRetainedText] = useState("");
   const [seconds, setSeconds] = useState(0);
+  /** The audio of a take that did not transcribe, kept for Retry until dismissed or replaced. */
+  const [failedTake, setFailedTake] = useState<Blob | null>(null);
+  const held = state !== "idle" || setup || discordSteps || Boolean(error || retainedText);
+  useEffect(() => {
+    onHoldChange?.(held);
+    return () => onHoldChange?.(false);
+  }, [held, onHoldChange]);
   const recording = useRef<ReturnType<typeof recordVoice> | null>(null);
   const active = useRef(true);
   const busy = useRef(false);
@@ -110,6 +120,47 @@ export function ComposerVoiceButton({
     const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
     return () => clearInterval(timer);
   }, [state]);
+  /** Resolves true when the words reached the composer. A failure keeps the audio. */
+  const write = async (blob: Blob) => {
+    setState("writing");
+    try {
+      const audioBase64 = await voiceAudioBase64(blob);
+      if (!active.current) return false;
+      const result = await transcribe({
+        environmentId,
+        input: { audioBase64, mimeType: blob.type, polish: true },
+      });
+      if (!active.current) return false;
+      if (result._tag !== "Success") throw squashAtomCommandFailure(result);
+      setFailedTake(null);
+      if (insert.current(`${result.value.text} `)) return true;
+      setRetainedText(result.value.text);
+      return false;
+    } catch (failure) {
+      if (active.current) setFailedTake(blob);
+      throw failure;
+    }
+  };
+  /** The pill says Pasted for a moment; a new take in that time keeps its own state. */
+  const settle = (pasted: boolean) => {
+    setState(pasted ? "done" : "idle");
+    if (pasted)
+      setTimeout(() => active.current && setState((now) => (now === "done" ? "idle" : now)), 1100);
+  };
+  const retry = async () => {
+    if (busy.current || !failedTake) return;
+    busy.current = true;
+    setError("");
+    let pasted = false;
+    try {
+      pasted = await write(failedTake);
+    } catch (failure) {
+      if (active.current) setError(describeVoiceFailure(failure));
+    } finally {
+      busy.current = false;
+      if (active.current) settle(pasted);
+    }
+  };
   const start = async (viaGlobal = false) => {
     if (busy.current) {
       if (viaGlobal) void window.desktopBridge?.dictationEnded?.();
@@ -149,37 +200,19 @@ export function ComposerVoiceButton({
       opening.current = false;
       if (pendingEnd.current) session[pendingEnd.current]();
       setSeconds(0);
+      setFailedTake(null);
       setState("listening");
       const blob = await session.result;
       recording.current = null;
       if (!blob || !active.current) return;
-      setState("writing");
-      const audioBase64 = await voiceAudioBase64(blob);
-      if (!active.current) return;
-      const result = await transcribe({
-        environmentId,
-        input: { audioBase64, mimeType: blob.type, polish: true },
-      });
-      if (!active.current) return;
-      if (result._tag === "Success") {
-        if (insert.current(`${result.value.text} `)) pasted = true;
-        else setRetainedText(result.value.text);
-      } else if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+      pasted = await write(blob);
     } catch (failure) {
       if (active.current) setError(describeVoiceFailure(failure));
     } finally {
       busy.current = false;
       opening.current = false;
       pendingEnd.current = null;
-      if (active.current) {
-        setState(pasted ? "done" : "idle");
-        // The pill says Pasted for a moment; a new take in that time keeps its own state.
-        if (pasted)
-          setTimeout(
-            () => active.current && setState((now) => (now === "done" ? "idle" : now)),
-            1100,
-          );
-      }
+      if (active.current) settle(pasted);
       // Releases the Discord mute key at once when setup, the mic or the transcription failed.
       if (viaGlobal) void window.desktopBridge?.dictationEnded?.();
     }
@@ -261,6 +294,7 @@ export function ComposerVoiceButton({
             seconds={seconds}
             level={levelOfTake}
             onStop={() => recording.current?.stop()}
+            onCancel={() => recording.current?.cancel()}
           />
         )}
         {discordTip && (
@@ -273,7 +307,7 @@ export function ComposerVoiceButton({
           />
         )}
         {(error || retainedText) && (
-          <div className="absolute bottom-full right-0 z-20 mb-2 w-72 rounded-lg border bg-popover p-3 text-sm shadow-lg">
+          <div className="absolute right-0 bottom-full z-20 mb-2 w-72 max-sm:-right-24 rounded-lg border bg-popover p-3 text-sm shadow-lg">
             {error && <p role="alert">{error}</p>}
             {retainedText && (
               <>
@@ -295,6 +329,11 @@ export function ComposerVoiceButton({
                 </Button>
               </>
             )}
+            {error && failedTake && (
+              <Button type="button" size="sm" onClick={() => void retry()}>
+                Retry
+              </Button>
+            )}
             <Button
               type="button"
               size="sm"
@@ -302,6 +341,7 @@ export function ComposerVoiceButton({
               onClick={() => {
                 setError("");
                 setRetainedText("");
+                setFailedTake(null);
               }}
             >
               Dismiss

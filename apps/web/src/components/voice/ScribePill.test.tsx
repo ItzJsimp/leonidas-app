@@ -31,7 +31,15 @@ it("formats seconds as m:ss", () => {
 it("shows the timer while listening and stops on click", () => {
   const onStop = vi.fn();
   act(() =>
-    root.render(<ScribePill phase="listening" seconds={7} level={() => 0.4} onStop={onStop} />),
+    root.render(
+      <ScribePill
+        phase="listening"
+        seconds={7}
+        level={() => 0.4}
+        onStop={onStop}
+        onCancel={vi.fn()}
+      />,
+    ),
   );
   expect(status()?.textContent).toContain("0:07");
   act(() => status()?.querySelector("button")?.click());
@@ -41,7 +49,15 @@ it("shows the timer while listening and stops on click", () => {
 it("moves the level bars with the mic level", () => {
   let level = 0;
   act(() =>
-    root.render(<ScribePill phase="listening" seconds={1} level={() => level} onStop={vi.fn()} />),
+    root.render(
+      <ScribePill
+        phase="listening"
+        seconds={1}
+        level={() => level}
+        onStop={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    ),
   );
   const heights = () =>
     [...document.body.querySelectorAll<HTMLElement>("[data-bar]")].map((bar) => bar.style.height);
@@ -53,9 +69,42 @@ it("moves the level bars with the mic level", () => {
 
 it("names the transcribing and pasted phases", () => {
   act(() =>
-    root.render(<ScribePill phase="writing" seconds={3} level={() => 0} onStop={vi.fn()} />),
+    root.render(
+      <ScribePill
+        phase="writing"
+        seconds={3}
+        level={() => 0}
+        onStop={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    ),
   );
   expect(status()?.textContent).toBe("Transcribing");
-  act(() => root.render(<ScribePill phase="done" seconds={3} level={() => 0} onStop={vi.fn()} />));
+  act(() =>
+    root.render(
+      <ScribePill phase="done" seconds={3} level={() => 0} onStop={vi.fn()} onCancel={vi.fn()} />,
+    ),
+  );
   expect(status()?.textContent).toBe("Pasted");
+});
+
+it("discards the take from the cross without stopping it", () => {
+  const onStop = vi.fn();
+  const onCancel = vi.fn();
+  act(() =>
+    root.render(
+      <ScribePill
+        phase="listening"
+        seconds={2}
+        level={() => 0}
+        onStop={onStop}
+        onCancel={onCancel}
+      />,
+    ),
+  );
+  act(() =>
+    document.body.querySelector<HTMLButtonElement>('[aria-label="Cancel dictation"]')?.click(),
+  );
+  expect(onCancel).toHaveBeenCalledTimes(1);
+  expect(onStop).not.toHaveBeenCalled();
 });

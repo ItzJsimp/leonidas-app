@@ -1,6 +1,8 @@
 const NO_MICROPHONE = "No microphone found. Plug one in, or type your message instead.";
 const BLOCKED_MICROPHONE =
   "Leonidas cannot use the microphone. Allow it in your system privacy settings, or type instead.";
+const BLOCKED_PHONE_MICROPHONE =
+  "Leonidas cannot use the microphone. In Safari, open the page menu, tap Website Settings, then allow Microphone.";
 const BUSY_MICROPHONE = "Another app is using the microphone. Close it and try again.";
 const FALLBACK = "Voice failed. Check microphone access and try again.";
 
@@ -16,7 +18,9 @@ export function describeVoiceFailure(failure: unknown): string {
     case "NotAllowedError":
     case "PermissionDeniedError":
     case "SecurityError":
-      return BLOCKED_MICROPHONE;
+      return /iPhone|iPad|iPod/.test(globalThis.navigator?.userAgent ?? "")
+        ? BLOCKED_PHONE_MICROPHONE
+        : BLOCKED_MICROPHONE;
     case "NotReadableError":
     case "TrackStartError":
     case "AbortError":

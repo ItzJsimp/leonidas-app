@@ -22,6 +22,34 @@ function meterFor(stream: MediaStream) {
   }
 }
 
+/** Speech-grade bitrate: a full 10 minute take stays far under the upload limit. */
+const VOICE_BITS_PER_SECOND = 32_000;
+
+/** Keeps a phone from locking itself in the middle of a take. Best effort: some browsers refuse. */
+function holdScreenAwake() {
+  let lock: WakeLockSentinel | undefined;
+  let released = false;
+  const drop = (held: WakeLockSentinel) => void held.release().catch(() => {});
+  void globalThis.navigator?.wakeLock
+    ?.request("screen")
+    .then((held) => (released ? drop(held) : void (lock = held)))
+    .catch(() => {});
+  return () => {
+    released = true;
+    if (lock) drop(lock);
+  };
+}
+
+/** A phone suspends the mic of a hidden page, so the take ends there and keeps what it heard. */
+function stopWhenPhoneHidesPage(stop: () => void) {
+  if (!globalThis.window?.matchMedia?.("(pointer: coarse)").matches) return () => {};
+  const onChange = () => {
+    if (document.visibilityState === "hidden") stop();
+  };
+  document.addEventListener("visibilitychange", onChange);
+  return () => document.removeEventListener("visibilitychange", onChange);
+}
+
 /** One bounded recording. Both completion and cancellation release the microphone. */
 export function recordVoice(stream: MediaStream) {
   const mimeType = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus"].find((type) =>
@@ -29,7 +57,10 @@ export function recordVoice(stream: MediaStream) {
   );
   let recorder: MediaRecorder;
   try {
-    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recorder = new MediaRecorder(stream, {
+      ...(mimeType ? { mimeType } : {}),
+      audioBitsPerSecond: VOICE_BITS_PER_SECOND,
+    });
   } catch (error) {
     stream.getTracks().forEach((track) => track.stop());
     throw error;
@@ -39,9 +70,16 @@ export function recordVoice(stream: MediaStream) {
   let bytes = 0;
   let cancelled = false;
   let timer: ReturnType<typeof setTimeout>;
+  const stop = () => {
+    if (recorder.state === "recording") recorder.stop();
+  };
+  let releaseScreen = () => {};
+  let unwatchPage = () => {};
   const result = new Promise<Blob | null>((resolve, reject) => {
     const release = () => {
       clearTimeout(timer);
+      releaseScreen();
+      unwatchPage();
       meter.close();
       stream.getTracks().forEach((track) => track.stop());
       recorder.ondataavailable = null;
@@ -53,7 +91,7 @@ export function recordVoice(stream: MediaStream) {
       if (bytes > VOICE_MAX_AUDIO_BYTES) {
         cancelled = true;
         reject(new Error("Recording reached the size limit. Try a shorter take."));
-        if (recorder.state === "recording") recorder.stop();
+        stop();
       } else if (!cancelled) chunks.push(data);
     };
     recorder.onerror = () => {
@@ -75,19 +113,17 @@ export function recordVoice(stream: MediaStream) {
       reject(error);
       return;
     }
-    timer = setTimeout(() => {
-      if (recorder.state === "recording") recorder.stop();
-    }, 600_000);
+    releaseScreen = holdScreenAwake();
+    unwatchPage = stopWhenPhoneHidesPage(stop);
+    timer = setTimeout(stop, 600_000);
   });
   return {
     result,
     level: meter.level,
-    stop: () => {
-      if (recorder.state === "recording") recorder.stop();
-    },
+    stop,
     cancel: () => {
       cancelled = true;
-      if (recorder.state === "recording") recorder.stop();
+      stop();
     },
   };
 }

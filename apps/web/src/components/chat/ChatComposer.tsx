@@ -1523,8 +1523,14 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     key: 0,
     active: false,
   });
+  // Dictation lives in the footer: collapsing would unmount it and drop the take.
+  const [isDictationHeld, setIsDictationHeld] = useState(false);
   const isComposerCollapsedMobile =
-    isMobileViewport && !forceExpandedOnMobile && !isComposerFocused && !hasMultilinePrompt;
+    isMobileViewport &&
+    !forceExpandedOnMobile &&
+    !isComposerFocused &&
+    !hasMultilinePrompt &&
+    !isDictationHeld;
   // On expand the editor paints first and the footer controls mount one render later, to keep the tap fast.
   const isFooterDeferred = useDeferredValue(isComposerCollapsedMobile);
 
@@ -6980,6 +6986,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                       key={`${environmentId}:${activeThreadId ?? draftId}`}
                       environmentId={environmentId}
                       globalTrigger
+                      onHoldChange={setIsDictationHeld}
                       disabled={!canOperateThread || isConnecting}
                       onText={(text) =>
                         insertComposerText(text, "cursor", { ensureLeadingBoundary: true })

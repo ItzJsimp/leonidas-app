@@ -206,6 +206,14 @@ Stashes containing uploaded files must be restored in their original environment
 Those files are retained for 24 hours. After an upload expires, restore the prompt
 and use **Attach again** or remove the missing file before sending.
 
+## Voice input in a phone browser
+
+Tap the microphone, speak, then tap it again or tap the pill at the top of the
+screen. Tap the cross on the pill to discard the take. The composer stays open
+and the screen stays awake while you record. If you leave the page, the take
+ends and Leonidas writes what it heard. If writing fails, tap **Retry**. The
+audio stays until you dismiss the message, start a new take or leave the chat.
+
 ## Voice input on iPhone
 
 On supported iPhones with iOS 26 or later, use the composer's microphone to record,

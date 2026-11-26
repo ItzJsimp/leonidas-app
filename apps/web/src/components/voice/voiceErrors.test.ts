@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { describeVoiceFailure } from "./voiceErrors";
 
@@ -15,6 +15,12 @@ describe("describeVoiceFailure", () => {
     const text = describeVoiceFailure(new DOMException("Permission denied", "NotAllowedError"));
     expect(text).toContain("cannot use the microphone");
     expect(text).not.toContain("Permission denied");
+  });
+
+  it("names the Safari setting on an iPhone", () => {
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)" });
+    expect(describeVoiceFailure(new DOMException("x", "NotAllowedError"))).toContain("Safari");
+    vi.unstubAllGlobals();
   });
 
   it("tells the user when another app holds the microphone", () => {

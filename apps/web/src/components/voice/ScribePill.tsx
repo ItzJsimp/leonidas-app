@@ -1,5 +1,5 @@
-import { CheckIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckIcon, XIcon } from "lucide-react";
+import { type CSSProperties, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 const BAR_COUNT = 12;
@@ -11,7 +11,8 @@ export const formatPillTime = (seconds: number) =>
 
 /**
  * The Scribe pill, drawn in the app while the composer dictates: the same dark pill the Scribe
- * engine shows. Listening shows a level that scrolls by and the time. A click stops the take.
+ * engine shows. Listening shows a level that scrolls by and the time. A click stops the take, and
+ * the cross discards it. On a phone it sits at the top, clear of the keyboard and the composer.
  */
 export function ScribePill(props: {
   phase: "listening" | "writing" | "done";
@@ -19,6 +20,7 @@ export function ScribePill(props: {
   /** A 0 to 1 mic loudness, read ten times a second while listening. */
   level: () => number;
   onStop: () => void;
+  onCancel: () => void;
 }) {
   const { phase, level } = props;
   const [bars, setBars] = useState<number[]>(() => Array(BAR_COUNT).fill(0));
@@ -32,31 +34,59 @@ export function ScribePill(props: {
     return () => clearInterval(timer);
   }, [phase, level]);
 
+  // iOS slides the page up under the keyboard; this keeps the phone pill inside what is visible.
+  const [offsetTop, setOffsetTop] = useState(0);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const update = () => setOffsetTop(viewport.offsetTop);
+    update();
+    viewport.addEventListener("scroll", update);
+    viewport.addEventListener("resize", update);
+    return () => {
+      viewport.removeEventListener("scroll", update);
+      viewport.removeEventListener("resize", update);
+    };
+  }, []);
+
   return createPortal(
     <div
       role="status"
-      className="fixed bottom-5 left-1/2 z-50 flex h-10.5 -translate-x-1/2 items-center gap-2.5 rounded-full border border-white/10 bg-scribe-pill px-4 font-mono text-sm font-medium whitespace-nowrap text-scribe-pill-foreground shadow-lg"
+      // The tap must not move focus out of the composer.
+      onPointerDown={(event) => event.preventDefault()}
+      style={{ "--pill-offset": `${offsetTop}px` } as CSSProperties}
+      className="fixed bottom-5 max-sm:top-[calc(env(safe-area-inset-top)+0.75rem+var(--pill-offset))] max-sm:bottom-auto left-1/2 z-50 flex h-10.5 -translate-x-1/2 items-center gap-2.5 rounded-full border border-white/10 bg-scribe-pill px-4 font-mono text-sm font-medium whitespace-nowrap text-scribe-pill-foreground shadow-lg"
     >
       {phase === "listening" ? (
-        <button
-          type="button"
-          aria-label="Stop dictation"
-          className="flex cursor-pointer items-center gap-2.5 focus-visible:outline-none"
-          onClick={props.onStop}
-        >
-          <span aria-hidden className="size-2 shrink-0 rounded-full bg-destructive" />
-          <span aria-hidden className="flex h-4.5 items-center gap-0.5">
-            {bars.map((value, index) => (
-              <i
-                key={`slot-${index}`}
-                data-bar=""
-                className="w-0.75 rounded-sm bg-info transition-[height] duration-100"
-                style={{ height: `${Math.round(MIN_BAR + value * (MAX_BAR - MIN_BAR))}px` }}
-              />
-            ))}
-          </span>
-          <span>{formatPillTime(props.seconds)}</span>
-        </button>
+        <>
+          <button
+            type="button"
+            aria-label="Stop dictation"
+            className="flex cursor-pointer items-center gap-2.5 focus-visible:outline-none"
+            onClick={props.onStop}
+          >
+            <span aria-hidden className="size-2 shrink-0 rounded-full bg-destructive" />
+            <span aria-hidden className="flex h-4.5 items-center gap-0.5">
+              {bars.map((value, index) => (
+                <i
+                  key={`slot-${index}`}
+                  data-bar=""
+                  className="w-0.75 rounded-sm bg-info transition-[height] duration-100"
+                  style={{ height: `${Math.round(MIN_BAR + value * (MAX_BAR - MIN_BAR))}px` }}
+                />
+              ))}
+            </span>
+            <span>{formatPillTime(props.seconds)}</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Cancel dictation"
+            className="relative grid size-6 cursor-pointer place-items-center rounded-full opacity-70 hover:opacity-100 pointer-coarse:after:absolute pointer-coarse:after:size-11"
+            onClick={props.onCancel}
+          >
+            <XIcon aria-hidden className="size-4" />
+          </button>
+        </>
       ) : phase === "writing" ? (
         <>
           <span
