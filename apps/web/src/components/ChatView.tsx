@@ -334,6 +334,7 @@ import { COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS } from "~/workspaceTitlebar";
 import { useSplitPane } from "./split/splitPaneContext";
 import { subscribeThreadAction, type ThreadAction } from "./chat/threadActionBus";
 import { stackedThreadToast, toastManager } from "./ui/toast";
+import { createTurnSubmitter } from "./chat/turnSubmission";
 import {
   decodeProjectScriptKeybindingRule,
   keybindingValueForCommand,
@@ -8628,153 +8629,65 @@ export default function ChatView(props: ChatViewProps) {
     // decline approvals for a draft that changed meanwhile.
     const promptAtSend = promptRef.current;
     reportMessageSent();
-    const goalCommand =
-      !directAnnotation && !composerHasNonPromptContent
-        ? parseThreadGoalCommand(promptRef.current)
-        : null;
-    if (
-      goalCommand &&
-      activeThread &&
-      isServerThread &&
-      readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)
-    ) {
-      if (goalCommand.action === "pause" || goalCommand.action === "clear")
-        await handleGoalControl({ action: goalCommand.action });
-      else
-        setGoalRequest({
-          action: goalCommand.action,
-          condition: goalCommand.action === "start" ? goalCommand.condition : "",
-          nonce: Date.now(),
-          threadId: activeThread.id,
-        });
-      promptRef.current = "";
-      setComposerDraftPrompt(composerDraftTarget, "");
-      composerRef.current?.resetCursorState();
-      return;
-    }
-    // Typed out in full rather than picked from the menu. Attachments or contexts
-    // mean the user is sending a prompt, so those go through as usual.
-    if (
-      usageLimitsOffered &&
-      usageLimitsKey !== null &&
-      !directAnnotation &&
-      !composerHasNonPromptContent &&
-      isUsageLimitsCommand(promptRef.current)
-    ) {
-      if (openUsageLimits()) {
-        promptRef.current = "";
-        setComposerDraftPrompt(composerDraftTarget, "");
-        composerRef.current?.resetCursorState();
-      }
-      return;
-    }
-
-    // The spoken phrase "Leonidas, I'm stuck" (by mic or Scribe) opens the report preview.
-    if (
-      STUCK_ENABLED &&
-      !directAnnotation &&
-      !composerHasNonPromptContent &&
-      isStuckPhrase(promptRef.current)
-    ) {
-      openStuck("voice");
-      promptRef.current = "";
-      setComposerDraftPrompt(composerDraftTarget, "");
-      composerRef.current?.resetCursorState();
-      return;
-    }
-
-    const notifyDirectAnnotationAttached = () => {
-      if (!directAnnotation) return;
-      toastManager.add(
-        stackedThreadToast({
-          type: "info",
-          title: "Annotation attached to draft",
-          description: "Sending is unavailable right now. Finish the current action, then send.",
-        }),
-      );
-    };
-    if (
-      !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope) ||
-      !activeThread ||
-      (isSendBusy && !sendQueuesBehindSetup) ||
-      isConnecting ||
-      isRevertingCheckpoint ||
-      !clientSettingsHydrated ||
-      threadDetailLoading ||
-      environmentChangeRef.current !== null ||
-      sendInFlightRef.current ||
-      feedbackUploadsInFlightRef.current.has(routeThreadKey)
-    ) {
-      notifyDirectAnnotationAttached();
-      return;
-    }
-    if (needsLoadBalancing) {
-      toastManager.add({
-        type: "warning",
-        title: loadBalancing.pending
-          ? "Checking the resources of your computers"
-          : "Choose a computer to continue",
-        description: loadBalancing.pending
-          ? "Resource checks are still running. You can choose a computer in the message box."
-          : "No computer has free resources. Choose a computer in the message box.",
-      });
-      return;
-    }
-    if (activeEnvironmentUnavailable) {
-      const toastSlot = environmentUnavailableSendToastSlotRef.current;
-      environmentUnavailableSendToastSlotRef.current =
-        (toastSlot + 1) % ENVIRONMENT_UNAVAILABLE_SEND_TOAST_TRAIL_SIZE;
-      toastManager.add({
-        ...stackedThreadToast({
-          type: "warning",
-          title: "Not connected: message not sent",
-          description: "Reconnecting to the computer. Try again once it is connected.",
-        }),
-        id: `chat-send-environment-unavailable:${toastSlot}`,
-      });
-      return;
-    }
-    const sendCtx = composerRef.current?.getSendContext();
-    if (activePendingProgress && sendCtx?.answeringPendingUserInput !== false) {
-      if (directAnnotation) {
-        notifyDirectAnnotationAttached();
-        return;
-      }
-      onAdvanceActivePendingUserInput();
-      return;
-    }
-    if (!sendCtx?.providerAvailable) {
-      notifyDirectAnnotationAttached();
-      return;
-    }
+    const submission = await createTurnSubmitter({
+      drafts: {
+        clearPrompt: () => {
+          promptRef.current = "";
+          setComposerDraftPrompt(composerDraftTarget, "");
+          composerRef.current?.resetCursorState();
+        },
+      },
+      threadCommands: {
+        controlGoal: (action) => handleGoalControl({ action }),
+        requestGoal: (request) => setGoalRequest({ ...request, nonce: Date.now() }),
+        advancePendingUserInput: onAdvanceActivePendingUserInput,
+      },
+      feedback: {
+        toast: (toast) => toastManager.add(toast),
+        threadError: setThreadError,
+        nextEnvironmentUnavailableToastId: () => {
+          const toastSlot = environmentUnavailableSendToastSlotRef.current;
+          environmentUnavailableSendToastSlotRef.current =
+            (toastSlot + 1) % ENVIRONMENT_UNAVAILABLE_SEND_TOAST_TRAIL_SIZE;
+          return `chat-send-environment-unavailable:${toastSlot}`;
+        },
+      },
+      navigation: { openUsageLimits, openStuckReport: () => openStuck("voice") },
+      liveState: { readSendContext: () => composerRef.current?.getSendContext() },
+    }).submit({
+      prompt: promptRef.current,
+      hasDirectAnnotation: directAnnotation !== undefined,
+      hasNonPromptContent: composerHasNonPromptContent,
+      activeThreadId: activeThread?.id ?? null,
+      isServerThread,
+      canOperate: readEnvironmentScope(environmentId, AuthOrchestrationOperateScope),
+      usageLimitsAvailable: usageLimitsOffered && usageLimitsKey !== null,
+      stuckReportEnabled: STUCK_ENABLED,
+      busy: {
+        sendBusyNotQueuable: isSendBusy && !sendQueuesBehindSetup,
+        connecting: isConnecting,
+        revertingCheckpoint: isRevertingCheckpoint,
+        settingsNotHydrated: !clientSettingsHydrated,
+        threadDetailLoading,
+        environmentChanging: environmentChangeRef.current !== null,
+        sendInFlight: sendInFlightRef.current,
+        feedbackUploadInFlight: feedbackUploadsInFlightRef.current.has(routeThreadKey),
+      },
+      loadBalancing: { needed: needsLoadBalancing, pending: loadBalancing.pending },
+      environmentUnavailable: activeEnvironmentUnavailable,
+      hasPendingUserInput: Boolean(activePendingProgress),
+      multiModel: {
+        worktreeBootstrapSupported:
+          serverConfig?.environment.capabilities.requiredWorktreeBootstrap === true,
+        isLocalDraftThread,
+        isGitRepo,
+        hasBranch: Boolean(activeThreadBranch),
+      },
+    });
+    // The submitter checked the thread; this narrows the type for the code below.
+    if (submission._tag === "handled" || !activeThread) return;
+    const sendCtx = submission.sendContext;
     const multipleModelSelections = sendCtx.multipleModelSelections;
-    if (
-      multipleModelSelections !== null &&
-      serverConfig?.environment.capabilities.requiredWorktreeBootstrap !== true
-    ) {
-      setThreadError(
-        activeThread.id,
-        "Update Leonidas on this computer before you start many models.",
-      );
-      return;
-    }
-    if (
-      multipleModelSelections !== null &&
-      (!isLocalDraftThread ||
-        !isGitRepo ||
-        !activeThreadBranch ||
-        multipleModelSelections.length === 0)
-    ) {
-      toastManager.add(
-        stackedThreadToast({
-          type: "warning",
-          title: "Choose models and a base branch",
-          description:
-            "Multiple models need a new chat in a Git project. Each gets its own separate copy.",
-        }),
-      );
-      return;
-    }
     const {
       images: sendContextImages,
       files: composerFiles,
