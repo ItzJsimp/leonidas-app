@@ -138,6 +138,28 @@ function renderAction(props: Partial<Parameters<typeof ServerUpdateAction>[0]> =
 }
 
 describe("ServerUpdateAction", () => {
+  it("reports a desktop check with nothing newer as up to date, not as a failure", async () => {
+    using _state = setup();
+    testState.updateServer.mockResolvedValue(
+      AsyncResult.failure(
+        Cause.fail(new Error("The desktop app on this machine is already up to date on 0.0.31.")),
+      ),
+    );
+
+    await using screen = await renderAction({
+      selfUpdate: "desktop-managed",
+      desktopAppUpdate: true,
+      label: "Check for updates",
+    });
+    await click(screen, "Check for updates");
+
+    expect(testState.updateServer).toHaveBeenCalledOnce();
+    expect(testState.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "success",
+      title: "Test server is up to date",
+    });
+  });
+
   it.each([
     { serverUpdateScope: undefined, scopes: ["orchestration:operate"], allowed: true },
     { serverUpdateScope: undefined, scopes: ["orchestration:read"], allowed: false },

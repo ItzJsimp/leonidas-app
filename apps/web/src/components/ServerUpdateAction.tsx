@@ -11,7 +11,11 @@ import type {
   ServerInstallation,
   ServerSelfUpdateCapability,
 } from "@t3tools/contracts";
-import type { ServerUpdateStage, ServerUpdateState } from "@t3tools/client-runtime/state/server";
+import {
+  serverUpdateStateAtom,
+  type ServerUpdateStage,
+  type ServerUpdateState,
+} from "@t3tools/client-runtime/state/server";
 import {
   isAtomCommandInterrupted,
   settlePromise,
@@ -94,6 +98,14 @@ function useServerUpdate() {
     if (result._tag === "Failure") {
       if (isAtomCommandInterrupted(result)) return { status: "skipped" };
       const message = updateFailureMessage(squashAtomCommandFailure(result));
+      // The desktop app answers a check with nothing newer as a failure; it is not one.
+      if (selfUpdate === "desktop-managed" && message.includes("already up to date")) {
+        appAtomRegistry.set(serverUpdateStateAtom(environmentId), { status: "idle" });
+        if (!quiet) {
+          toastManager.add({ type: "success", title: `${serverLabel} is up to date` });
+        }
+        return { status: "skipped" };
+      }
       if (!quiet) {
         toastManager.add({
           type: "error",
@@ -214,7 +226,12 @@ export function ServerUpdateAction({
   size = "xs",
   className,
   appearance = "button",
-}: Omit<ServerUpdateTarget, "continueThreadsAfterServerUpdate"> & UpdateButtonProps) {
+  confirmMessage,
+}: Omit<ServerUpdateTarget, "continueThreadsAfterServerUpdate"> &
+  UpdateButtonProps & {
+    /** Replaces the question asked before a desktop app update. */
+    readonly confirmMessage?: string;
+  }) {
   const isDesktopAppUpdate = selfUpdate === "desktop-managed";
   const sessionStateAtom = environmentSession.sessionStateAtom(environmentId);
   const canUpdate = canUpdateServer(useAtomValue(sessionStateAtom));
@@ -255,7 +272,8 @@ export function ServerUpdateAction({
     if (isDesktopAppUpdate) {
       const confirmed =
         (await requestConfirmDialog(
-          `Update the Leonidas desktop app that runs the ${serverLabel}? It will close and open again on that computer.`,
+          confirmMessage ??
+            `Update the Leonidas desktop app that runs the ${serverLabel}? It will close and open again on that computer.`,
         )) ?? true;
       if (!confirmed) {
         return;

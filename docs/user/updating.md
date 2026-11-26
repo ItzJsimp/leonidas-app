@@ -127,6 +127,12 @@ Provider updates do not restart running chats. An existing session can keep
 using the previous CLI until it ends. If discovery fails, check the provider
 status and refresh it again.
 
+## Update your computer from a phone browser
+
+Open **Settings → Computers** in the web app and tap **Check for updates** next
+to the version. If a newer version exists, the desktop app on that computer
+installs it, closes and opens again. Running chats may stop.
+
 ## Mobile updates
 
 To update an environment from your phone, open **Settings → Computers** and

@@ -3732,6 +3732,25 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
                             : `Update to ${primaryVersionMismatch.clientVersion}`
                         }
                       />
+                    ) : !desktopBridge &&
+                      primaryEnvironmentId !== null &&
+                      primaryServerConfig &&
+                      supportsDesktopAppUpdate(primaryServerConfig) &&
+                      primaryServerUpdateState.status !== "running" ? (
+                      // A browser has no desktop update button, so it asks the host app to check.
+                      <ServerUpdateAction
+                        size="sm"
+                        environmentId={primaryEnvironmentId}
+                        serverLabel={primaryEnvironment?.label ?? "computer"}
+                        selfUpdate="desktop-managed"
+                        desktopAppUpdate
+                        threadContinuation={supportsServerUpdateThreadContinuation(
+                          primaryServerConfig,
+                        )}
+                        targetVersion={primaryServerConfig.environment.serverVersion}
+                        label="Check for updates"
+                        confirmMessage="Check for a newer version and install it? Leonidas closes and opens again on that computer. Running chats may stop."
+                      />
                     ) : primaryServerUpdateState.status === "idle" && primaryServerConfig ? (
                       <span className="text-xs text-muted-foreground">Up to date</span>
                     ) : undefined
