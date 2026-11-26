@@ -57,7 +57,7 @@ describe("notification rules", () => {
     expect(allTypes).not.toContain("agent.needs_input");
   });
 
-  it("keeps task.worked in Inbox only even for failed runs, unless explicitly overridden", () => {
+  it("keeps task.worked in Inbox only even for failed runs, even with a saved toast rule", () => {
     const failedWorked = event({
       type: "task.worked",
       level: "failed",
@@ -66,7 +66,7 @@ describe("notification rules", () => {
     expect(ruleFor(failedWorked, rules())).toBe("inbox");
     expect(popsUp(failedWorked, rules())).toBe(false);
     useEventFeedStore.getState().setTypeRule("task.worked", "toast");
-    expect(popsUp(failedWorked, rules())).toBe(true);
+    expect(popsUp(failedWorked, rules())).toBe(false);
   });
 
   it("keeps the defaults: failures and questions pop up, script info does not", () => {

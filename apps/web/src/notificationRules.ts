@@ -46,7 +46,10 @@ export function defaultRule(event: RuleEvent): NotificationRule {
 
 export const ruleFor = (event: RuleEvent, rules: NotificationRules): NotificationRule => {
   if (RETIRED_TYPES.has(event.type)) return "off";
-  return rules[event.type] ?? defaultRule(event);
+  const saved = rules[event.type];
+  // A work log is bookkeeping, one per card per run: a saved "toast" would pop dozens at restart.
+  if (event.type === "task.worked" && saved === "toast") return "inbox";
+  return saved ?? defaultRule(event);
 };
 
 /** True when the event may show a toast, a Windows notification or play a sound. */
