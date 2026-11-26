@@ -311,6 +311,8 @@ export interface MeetingLive {
   readonly recording: boolean;
   readonly phase: "recording" | "finishing" | "done" | null;
   readonly elapsedMs: number;
+  /** The engine is not keeping audio. The timer waits. */
+  readonly paused: boolean;
   readonly levels: { readonly me: number; readonly them: number };
   readonly segments: readonly MeetingSegment[];
   readonly pending: number;
@@ -332,6 +334,7 @@ export function parseLive(raw: unknown): MeetingLive {
     recording: row.recording === true,
     phase,
     elapsedMs: typeof row.elapsedMs === "number" ? row.elapsedMs : 0,
+    paused: row.paused === true,
     levels: { me: clamp01(levels.me), them: clamp01(levels.them) },
     segments: list(row.segments).flatMap((segment) => {
       const item = record(segment);

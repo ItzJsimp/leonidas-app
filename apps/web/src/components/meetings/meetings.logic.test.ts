@@ -148,6 +148,9 @@ describe("meetings.logic", () => {
     expect(liveTail(live, 1).map((s) => [s.speaker, s.text])).toEqual([["Me", "Yes"]]);
     expect(live.notices).toHaveLength(1);
     expect(parseLive(null).recording).toBe(false);
+    expect(live.paused).toBe(false);
+    expect(parseLive({ recording: true, paused: true }).paused).toBe(true);
+    expect(parseLive({ recording: true, paused: "yes" }).paused).toBe(false);
   });
 
   it("reads the detect and Discord replies without trusting their shape", () => {

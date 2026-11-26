@@ -1,7 +1,8 @@
 import type { EnvironmentId } from "@t3tools/contracts";
-import { CircleIcon, SquareIcon } from "lucide-react";
+import { CircleIcon, PauseIcon, PlayIcon, SquareIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { toastManager } from "../ui/toast";
@@ -118,6 +119,24 @@ export function MeetingsLive(props: {
     await onChanged();
   };
 
+  const pause = async (on: boolean) => {
+    setBusy(true);
+    const result = await call("POST", on ? "pause" : "resume");
+    setBusy(false);
+    if (!result.ok) {
+      if (result.message !== null) {
+        toastManager.add({
+          type: "error",
+          title: on ? "Could not pause" : "Could not resume",
+          description: result.message,
+        });
+      }
+      return;
+    }
+    // The engine acts within a quarter second. Show it now; the next poll confirms.
+    setLive((current) => ({ ...current, paused: on }));
+  };
+
   if (live.phase === "finishing") {
     return (
       <p className="border-b px-4 py-3 text-sm text-muted-foreground" aria-live="polite">
@@ -151,12 +170,24 @@ export function MeetingsLive(props: {
     <div className="flex flex-col gap-3 border-b px-4 py-3">
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex items-center gap-2 text-sm font-medium" role="status">
-          <span aria-hidden className="size-2.5 rounded-full bg-destructive" />
-          Recording meeting
+          <span
+            aria-hidden
+            className={cn("size-2.5 rounded-full", live.paused ? "bg-warning" : "bg-destructive")}
+          />
+          {live.paused ? "Meeting paused" : "Recording meeting"}
           <span className="tabular-nums text-muted-foreground">{elapsedLabel(live.elapsedMs)}</span>
         </span>
         <Level label="Your mic" value={live.levels.me} />
         <Level label="Call audio" value={live.levels.them} />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => void pause(!live.paused)}
+        >
+          {live.paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
+          {live.paused ? "Resume" : "Pause"}
+        </Button>
         <Button size="sm" variant="destructive" disabled={busy} onClick={() => void stop()}>
           <SquareIcon aria-hidden className="fill-current" />
           Stop

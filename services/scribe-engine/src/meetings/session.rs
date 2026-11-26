@@ -7,6 +7,7 @@
 //!   cut short by a crash can still be assembled.
 
 use super::capture::{write_chunk, Chunk, Sources, Track, TrackKind};
+use super::clock::{ActiveClock, Flags};
 use super::store::{read_json, write_json};
 use crate::engine::EncodedAudio;
 use crate::groq::{GroqClient, SpeechSegment};
@@ -16,7 +17,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const TICK: Duration = Duration::from_millis(250);
 pub const ME: &str = "Me";
@@ -61,7 +62,7 @@ impl Phase {
 pub struct Live {
     pub id: String,
     pub phase: Phase,
-    pub started: Instant,
+    pub clock: Arc<ActiveClock>,
     pub segments: Vec<Value>,
     pub levels: [f32; 2],
     /// Chunks sent and not answered yet.
@@ -77,7 +78,8 @@ impl Live {
         json!({
             "id": self.id,
             "phase": self.phase.as_str(),
-            "elapsedMs": self.started.elapsed().as_millis() as u64,
+            "elapsedMs": self.clock.elapsed().as_millis() as u64,
+            "paused": self.clock.is_paused(),
             "levels": { "me": self.levels[0], "them": self.levels[1] },
             "segments": self.segments,
             "pending": self.pending,
@@ -94,7 +96,7 @@ pub struct Session {
     pub id: String,
     pub dir: PathBuf,
     pub live: Arc<Mutex<Live>>,
-    stop: Arc<AtomicBool>,
+    flags: Arc<Flags>,
     capture: Option<JoinHandle<()>>,
 }
 
@@ -128,33 +130,42 @@ impl Session {
         let live = Arc::new(Mutex::new(Live {
             id: id.clone(),
             phase: Phase::Recording,
-            started: Instant::now(),
+            clock: ActiveClock::new(),
             segments: Vec::new(),
             levels: [0.0; 2],
             pending: 0,
             failed: 0,
             notices,
         }));
-        let stop = Arc::new(AtomicBool::new(false));
+        let flags = Arc::new(Flags::default());
         let capture = {
-            let (live, stop, dir) = (live.clone(), stop.clone(), dir.clone());
+            let (live, flags, dir) = (live.clone(), flags.clone(), dir.clone());
             thread::Builder::new()
                 .name("meeting-capture".into())
-                .spawn(move || run(dir, me, them, live, stop, segmenter, finisher))
+                .spawn(move || run(dir, me, them, live, flags, segmenter, finisher))
                 .map_err(|e| e.to_string())?
         };
         Ok(Self {
             id,
             dir,
             live,
-            stop,
+            flags,
             capture: Some(capture),
         })
     }
 
     /// Ask the threads to finish. Returns at once: the live phase goes to `Done` later.
     pub fn request_stop(&self) {
-        self.stop.store(true, Ordering::Release);
+        self.flags.stop.store(true, Ordering::Release);
+    }
+
+    /// Pause or resume. The capture thread acts on it at its next tick, within 250 ms.
+    pub fn set_paused(&self, on: bool) {
+        self.flags.pause.store(on, Ordering::Release);
+    }
+
+    pub fn clock(&self) -> Arc<ActiveClock> {
+        self.live.lock().unwrap().clock.clone()
     }
 
     pub fn phase(&self) -> Phase {
@@ -174,7 +185,7 @@ fn run(
     me: Track,
     them: Option<Track>,
     live: Arc<Mutex<Live>>,
-    stop: Arc<AtomicBool>,
+    flags: Arc<Flags>,
     segmenter: Arc<dyn Segmenter>,
     finisher: Finisher,
 ) {
@@ -186,23 +197,45 @@ fn run(
             .spawn(move || transcribe_jobs(&dir, receiver, &live, segmenter.as_ref()))
             .expect("spawn meeting-transcribe")
     };
-    let started = Instant::now();
+    let clock = live.lock().unwrap().clock.clone();
+    let mut was_paused = false;
     let mut tracks: Vec<Track> = std::iter::once(me).chain(them).collect();
     let mut next_index = [1u32; 2];
     let mut voice = Vec::new();
     loop {
-        let stopping = stop.load(Ordering::Acquire);
+        let stopping = flags.stop.load(Ordering::Acquire);
         if !stopping {
             thread::sleep(TICK);
         }
-        let elapsed = started.elapsed().as_secs_f32();
+        // Stop wins over pause: the last audio is cut and saved.
+        let want_pause = flags.pause.load(Ordering::Acquire) && !stopping;
+        if want_pause && was_paused {
+            // Paused: what arrives is thrown away, so the saved meeting skips it.
+            for track in &mut tracks {
+                track.discard();
+            }
+            live.lock().unwrap().levels = [0.0; 2];
+            continue;
+        }
+        if was_paused {
+            // shortcut: audio from the first tick after Resume is dropped too (up to 250 ms),
+            // fix it if people lose their first words after a pause.
+            for track in &mut tracks {
+                track.discard();
+            }
+            clock.resume();
+            was_paused = false;
+        }
+        // The tick that starts a pause cuts everything said so far, as a stop does.
+        let flush = stopping || want_pause;
+        let elapsed = clock.elapsed().as_secs_f32();
         for track in &mut tracks {
             if track.kind == TrackKind::Them {
                 track.pad_to(elapsed);
             }
             let slot = track.kind as usize;
             live.lock().unwrap().levels[slot] = track.take_level();
-            while let Some(chunk) = cut(track, stopping, &live) {
+            while let Some(chunk) = cut(track, flush, &live) {
                 let index = next_index[slot];
                 next_index[slot] += 1;
                 if let Err(e) = write_chunk(&dir, chunk.kind, index, &chunk.audio) {
@@ -221,10 +254,15 @@ fn run(
                     };
                     let _ = sender.send(job);
                 }
-                if !stopping {
+                if !flush {
                     break;
                 }
             }
+        }
+        if want_pause {
+            clock.pause();
+            was_paused = true;
+            continue;
         }
         if stopping {
             break;
@@ -416,7 +454,7 @@ pub(crate) mod tests {
         }
     }
 
-    fn tone(seconds: f32) -> Vec<f32> {
+    pub(crate) fn tone(seconds: f32) -> Vec<f32> {
         (0..(seconds * 16_000.0) as usize)
             .map(|i| 0.3 * (i as f32 * 0.05).sin())
             .collect()

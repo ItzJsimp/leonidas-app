@@ -276,6 +276,12 @@ impl Track {
         self.buffer.lock().unwrap().extend_from_slice(samples);
     }
 
+    /// Tests feed a track that a session already owns through this handle.
+    #[cfg(test)]
+    pub(crate) fn sink(&self) -> Arc<Mutex<Vec<f32>>> {
+        self.buffer.clone()
+    }
+
     /// The peak level since the last call, 0.0 to 1.0.
     pub fn take_level(&self) -> f32 {
         f32::from_bits(self.level.swap(0, Ordering::Relaxed)).min(1.0)
@@ -283,6 +289,16 @@ impl Track {
 
     pub fn error(&self) -> Option<String> {
         self.error.lock().ok()?.clone()
+    }
+
+    /// Throw away what came in and is not cut yet, as during a pause. The sample counts stay as
+    /// they are, so the saved audio and the meeting clock stay in step.
+    pub fn discard(&mut self) {
+        self.buffer.lock().unwrap().clear();
+        for source in &self.mix {
+            source.buffer.lock().unwrap().clear();
+        }
+        self.level.store(0, Ordering::Relaxed);
     }
 
     /// Pad with silence so the track covers `elapsed_s`. Only loopback needs it. App sources
