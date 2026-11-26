@@ -46,7 +46,7 @@ describe("compileClaudeModelSelection", () => {
       compileClaudeModelSelection(
         selection("claude-sonnet-4-6", [{ id: "effort", value: "ultrathink" }]),
       ),
-    ).toMatchObject({ effort: "high", promptEffort: "ultrathink" });
+    ).toMatchObject({ effort: "medium", promptEffort: "ultrathink" });
   });
 
   it("keeps explicit effort for models missing from the local catalog", () => {

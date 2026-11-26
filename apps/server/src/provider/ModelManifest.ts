@@ -112,6 +112,41 @@ function manifestUpdatedAtMs(manifest: ModelManifestData): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+const CLAUDE_DRIVER = "claudeAgent";
+
+function defaultClaudeEffortToMedium(
+  capabilities: ModelCapabilities | null | undefined,
+): ModelCapabilities | null {
+  if (!capabilities) return null;
+  const descriptors = capabilities.optionDescriptors;
+  if (!descriptors) return capabilities;
+
+  let changed = false;
+  const nextDescriptors = descriptors.map((descriptor) => {
+    if (descriptor.type !== "select" || descriptor.id !== "effort") return descriptor;
+    if (!descriptor.options.some((option) => option.id === "medium")) return descriptor;
+    const alreadyMediumDefault = descriptor.options.every((option) =>
+      option.id === "medium" ? option.isDefault === true : option.isDefault !== true,
+    );
+    if (alreadyMediumDefault) return descriptor;
+
+    changed = true;
+    return {
+      ...descriptor,
+      options: descriptor.options.map((option) => {
+        if (option.id === "medium") {
+          return { ...option, isDefault: true };
+        }
+        if (option.isDefault === undefined) return option;
+        const { isDefault: _isDefault, ...rest } = option;
+        return rest;
+      }),
+    };
+  });
+
+  return changed ? { ...capabilities, optionDescriptors: nextDescriptors } : capabilities;
+}
+
 export function resolveProviderCatalog(
   manifest: ModelManifestData,
   driverKind: ProviderDriverKind,
@@ -136,7 +171,10 @@ export function resolveProviderCatalog(
       ...(entry.aliases ? { aliases: entry.aliases } : {}),
       ...(entry.badge ? { badge: entry.badge } : {}),
       status: entry.status,
-      capabilities: profile?.capabilities ?? null,
+      capabilities:
+        driverKind === CLAUDE_DRIVER
+          ? defaultClaudeEffortToMedium(profile?.capabilities)
+          : (profile?.capabilities ?? null),
       adapter: entry.adapter,
       profileAdapter: profile?.adapter,
     });

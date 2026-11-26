@@ -109,6 +109,79 @@ describe("resolveProviderCatalog", () => {
       );
     }
   });
+
+  it("defaults Claude effort descriptors with medium to medium even when manifest sets high or xhigh", () => {
+    const catalog = ModelManifest.resolveProviderCatalog(
+      ModelManifest.BUNDLED_MODEL_MANIFEST,
+      ProviderDriverKind.make("claudeAgent"),
+    );
+    assert.isNotNull(catalog);
+    const defaultEffortFor = (slug: string) => {
+      const model = catalog!.models.find((entry) => entry.slug === slug);
+      const effort = model?.capabilities?.optionDescriptors?.find(
+        (descriptor) => descriptor.id === "effort" && descriptor.type === "select",
+      );
+      if (!effort || effort.type !== "select") return undefined;
+      return effort.options.find((option) => option.isDefault)?.id;
+    };
+
+    for (const slug of [
+      "claude-sonnet-5-5",
+      "claude-sonnet-5",
+      "claude-sonnet-4-6",
+      "claude-opus-5",
+      "claude-opus-4-8",
+      "claude-opus-4-7",
+      "claude-opus-4-6",
+      "claude-opus-4-5",
+    ]) {
+      assert.strictEqual(defaultEffortFor(slug), "medium", `expected medium default for ${slug}`);
+    }
+
+    const refreshed: ModelManifest.ModelManifestData = {
+      version: 1,
+      updatedAt: REMOTE_UPDATED_AT,
+      currentModels: {},
+      providers: {
+        claudeAgent: {
+          profiles: {
+            upstreamHigh: {
+              capabilities: {
+                optionDescriptors: [
+                  {
+                    id: "effort",
+                    label: "Reasoning",
+                    type: "select",
+                    options: [
+                      { id: "medium", label: "Medium" },
+                      { id: "high", label: "High", isDefault: true },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          models: [
+            {
+              slug: "claude-refreshed-model",
+              name: "Claude Refreshed Model",
+              status: "current",
+              profile: "upstreamHigh",
+            },
+          ],
+        },
+      },
+    };
+    const refreshedCatalog = ModelManifest.resolveProviderCatalog(
+      refreshed,
+      ProviderDriverKind.make("claudeAgent"),
+    );
+    const refreshedEffort = refreshedCatalog?.models[0]?.capabilities?.optionDescriptors?.[0];
+    assert.strictEqual(refreshedEffort?.type, "select");
+    if (refreshedEffort?.type === "select") {
+      assert.strictEqual(refreshedEffort.options.find((option) => option.isDefault)?.id, "medium");
+    }
+  });
 });
 
 const REMOTE_UPDATED_AT = "2099-01-01T00:00:00Z";
