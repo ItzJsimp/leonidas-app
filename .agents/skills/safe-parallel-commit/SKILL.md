@@ -16,7 +16,7 @@ license: MIT
 
 # Safe Parallel Commit
 
-the user routinely runs multiple Claude Code sessions against `<repo root>` at once. They share one working tree and one git index, there is no isolation between them (see [`memory/parallel-agent-git-worktree-isolation.md`](../../../memory/parallel-agent-git-worktree-isolation.md), decided but not yet wired up for ad-hoc chats). Commit only what this session actually changed, every time.
+the user routinely runs multiple Claude Code sessions against `<repo root>` at once. They share one working tree and one git index, there is no isolation between them (see `memory/parallel-agent-git-worktree-isolation.md`, decided but not yet wired up for ad-hoc chats). Commit only what this session actually changed, every time.
 
 ## Procedure
 

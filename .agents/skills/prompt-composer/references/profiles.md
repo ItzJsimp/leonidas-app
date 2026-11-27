@@ -1,6 +1,6 @@
 # Prompt profiles
 
-Open the section for the profile chosen in Phase 0. Skip the others. Live model names: [`tools/model-router.md`](../../../../tools/model-router.md).
+Open the section for the profile chosen in Phase 0. Skip the others. Live model names: `tools/model-router.md`.
 
 Every profile ends with a verification step that names a command or an observable state.
 

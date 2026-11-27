@@ -2,7 +2,7 @@
 
 Understanding the physical constraints of Claude Code and Google Antigravity harnesses is mandatory for authoring sustainable skills.
 
-Rules: [skill standard](../../../../standards/skill-standard.md). Numbers below follow the docs read on 2026-11-06 ([research](../../../../wiki/research/2026-11-06-skill-authoring-practice.md)).
+Rules: skill standard. Numbers below follow the docs read on 2026-11-06 (research).
 
 ---
 

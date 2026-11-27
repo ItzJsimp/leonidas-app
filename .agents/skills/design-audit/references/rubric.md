@@ -1,6 +1,6 @@
 # Design audit rubric
 
-Distilled 2026-09-27 from: impeccable's craft floor, Vercel Web Interface Guidelines, taste-skill (design-taste-frontend, redesign-existing-projects), Anthropic frontend-design, qt-ui-design, Emil Kowalski's design engineering, Apple design principles, addyosmani accessibility, and the user's standing preferences in [`memory/observed/patterns.md`](../../../../memory/observed/patterns.md). Severity: **P0** blocks ship, **P1** fix before done, **P2** polish.
+Distilled 2026-09-27 from: impeccable's craft floor, Vercel Web Interface Guidelines, taste-skill (design-taste-frontend, redesign-existing-projects), Anthropic frontend-design, qt-ui-design, Emil Kowalski's design engineering, Apple design principles, addyosmani accessibility, and the user's standing preferences in `memory/observed/patterns.md`. Severity: **P0** blocks ship, **P1** fix before done, **P2** polish.
 
 ## 0. Frame the screen first
 
@@ -11,7 +11,7 @@ Distilled 2026-09-27 from: impeccable's craft floor, Vercel Web Interface Guidel
 ## 1. Tokens and canon (every value has a source)
 
 - **P0** A hex color, font family, or radius typed inline instead of a token (for example `var(--...)` on web, a theme dict or module in Qt). The project's token file is the only place values live. A project with no token file at all is a P1.
-- **P0** A palette outside the resolved design system (for AIOS surfaces: anything off [`design-system.md`](../../../../standards/design-system.md), such as indigo `#6366f1`), AI purple gradients, or pure `#000000`.
+- **P0** A palette outside the resolved design system (for AIOS surfaces: anything off `design-system.md`, such as indigo `#6366f1`), AI purple gradients, or pure `#000000`.
 - **P1** More than one accent competing on one screen. One accent leads; each accent has one job (in AIOS canon crimson acts, cyan is live, gold is attention), never all of them as decoration.
 - **P1** Mixed gray families or inconsistent shadow light direction.
 - **P2** Radius not nested (inner elements should be tighter than their container).
@@ -69,7 +69,7 @@ Distilled 2026-09-27 from: impeccable's craft floor, Vercel Web Interface Guidel
 
 ## 8. Motion
 
-Canon budgets: [`app-building-standard.md`](../../../../standards/app-building-standard.md) section 6 (micro 150 ms, entrance 240 ms, celebration up to 900 ms, ambient 12-20 s loops, Calm switch). Motion is expressive by the user's choice; the audit checks it is purposeful and on budget, not that it is absent.
+Canon budgets: `app-building-standard.md` section 6 (micro 150 ms, entrance 240 ms, celebration up to 900 ms, ambient 12-20 s loops, Calm switch). Motion is expressive by the user's choice; the audit checks it is purposeful and on budget, not that it is absent.
 
 - **P0** Animation on a keyboard-triggered or 100-times-a-day action.
 - **P1** Micro or entrance motion over its budget, `ease-in` on anything entering, `transition: all`, or animating geometry instead of opacity and transform.

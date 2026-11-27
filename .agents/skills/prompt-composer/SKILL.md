@@ -27,13 +27,13 @@ Compose, audit and grade prompts so the receiving agent takes the same path ever
 - **Compress:** a long conversational request. Run Phase 0 and Phase 2, then Phase 3.
 - **Clarify:** a vague request that needs research and a choice before work starts. Follow the Clarify section below. Formerly `prompt-improver`.
 
-Neighbors: agent-read files (skills, AGENTS.md, CLAUDE.md) go to [`writing-for-agents`](../writing-for-agents/SKILL.md). The document theory behind Phase 2 is in [`writing-for-agents`](../writing-for-agents/SKILL.md). Image prompts go to [`image-prompt-craft`](../image-prompt-craft/SKILL.md). Ten prompts at once go to [`autonomous-prompts`](../autonomous-prompts/SKILL.md), which calls this skill per prompt.
+Neighbors: agent-read files (skills, AGENTS.md, CLAUDE.md) go to [`writing-for-agents`](../writing-for-agents/SKILL.md). The document theory behind Phase 2 is in [`writing-for-agents`](../writing-for-agents/SKILL.md). Image prompts go to `image-prompt-craft`. Ten prompts at once go to [`autonomous-prompts`](../autonomous-prompts/SKILL.md), which calls this skill per prompt.
 
 ## Pipeline
 
 ### Phase 0: Target model
 
-Read the provider and model from the harness's live capabilities, not the app name. Live model names: [`tools/model-router.md`](../../../tools/model-router.md). Pick one profile:
+Read the provider and model from the harness's live capabilities, not the app name. Live model names: `tools/model-router.md`. Pick one profile:
 
 - **A, Minimal:** Claude. High steerability and native extended thinking.
 - **B, Tool-centric:** Gemini, Antigravity.
@@ -47,7 +47,7 @@ Done when: one profile letter and a one-line reason are written down.
 ### Phase 1: Intent and skills
 
 1. Label the intent: Build, Bug fix, Refactor, Audit or System instruction.
-2. Match the intent to [`skills-index.md`](../skills-index.md). Open each chosen `SKILL.md` to confirm it exists.
+2. Match the intent to `skills-index.md`. Open each chosen `SKILL.md` to confirm it exists.
 3. Place each skill by mode. A manual copy-paste prompt gets its slash command on line 1 (`/grill-me`, `/implement`). An autonomous prompt gets this line in the body: `- **Required Skill:** Load and follow .agents/skills/<name>/SKILL.md before executing.`
 
 Done when: every chosen skill resolves on disk, or the prompt names none.

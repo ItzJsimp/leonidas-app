@@ -108,13 +108,13 @@ Learn more: https://skills.sh/vercel-labs/agent-skills/react-best-practices
 
 ### Step 6: Offer to Install
 
-If the user wants to proceed, install it with the AIOS installer per [`standards/skills-github-ingestion-sop.md`](../../../standards/skills-github-ingestion-sop.md), never `npx skills add -g` (that writes to the global `~/.claude/skills` folder, which [ADR-0038](../../../decisions/0038-claude-code-skill-discovery-is-project-scoped-per-tenant.md) keeps empty):
+If the user wants to proceed, install it with the AIOS installer per `standards/skills-github-ingestion-sop.md`, never `npx skills add -g` (that writes to the global `~/.claude/skills` folder, which ADR-0038 keeps empty):
 
 ```bash
 pwsh scripts/Install-ExternalSkill.ps1 <github-repo-url> <path/to/skill-folder> [<more paths>...]
 ```
 
-`npx skills find` gives `owner/repo@skill`; the repo URL is `https://github.com/owner/repo`, and the folder is wherever that skill's `SKILL.md` sits (check the repo tree, it is rarely named after the skill). Full procedure: [`skills-github-ingestion-sop.md`](../../../standards/skills-github-ingestion-sop.md). [`Install-ExternalSkill.ps1`](../../../scripts/Install-ExternalSkill.ps1) vendors the folder into `.agents/skills/<name>/`, rewrites frontmatter to the AIOS shape with the source commit pinned, strips em dashes, links every engine, and rebuilds the index. It never runs bundled scripts; it warns about them so you can review them. Then commit the paths it prints (explicit paths only, per safe-parallel-commit).
+`npx skills find` gives `owner/repo@skill`; the repo URL is `https://github.com/owner/repo`, and the folder is wherever that skill's `SKILL.md` sits (check the repo tree, it is rarely named after the skill). Full procedure: `skills-github-ingestion-sop.md`. `Install-ExternalSkill.ps1` vendors the folder into `.agents/skills/<name>/`, rewrites frontmatter to the AIOS shape with the source commit pinned, strips em dashes, links every engine, and rebuilds the index. It never runs bundled scripts; it warns about them so you can review them. Then commit the paths it prints (explicit paths only, per safe-parallel-commit).
 
 ## Common Skill Categories
 
