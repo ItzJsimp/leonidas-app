@@ -385,6 +385,24 @@ describe("TaskAutoLog sweeper", () => {
     ),
   );
 
+  it.effect("backfills no ledger entry for a run that ended before the card was last edited", () =>
+    withBoard(({ board, project, newLog }) =>
+      Effect.gen(function* () {
+        yield* newLog().handle(request("m1", "thread-1"));
+        const written: Array<string> = [];
+        const restarted = newLog(({ run }) => Effect.sync(() => void written.push(run.id)));
+        const runs = [
+          { id: "run-old", status: "completed", completedAt: DateTime.makeUnsafe(wallNow - HOUR) },
+          { id: "run-new", status: "completed", completedAt: DateTime.makeUnsafe(wallNow + HOUR) },
+        ] as unknown as ReadonlyArray<AutoLogRun>;
+        yield* restarted.replay(() => Effect.succeed(runs), wallNow);
+        expect(written).toEqual(["run-new"]);
+        const { tasks } = yield* board.workspace([project]);
+        expect(notes(tasks[0]!).some((note) => note.includes("[run run-old]"))).toBe(true);
+      }),
+    ),
+  );
+
   it.effect("does not replay a run older than a week", () =>
     withBoard(({ board, project, newLog }) =>
       Effect.gen(function* () {
