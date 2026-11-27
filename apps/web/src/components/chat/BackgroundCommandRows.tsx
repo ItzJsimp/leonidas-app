@@ -1,7 +1,16 @@
-import type { OrchestrationV2PendingBackgroundTask } from "@t3tools/contracts";
+import type {
+  EnvironmentId,
+  OrchestrationV2PendingBackgroundTask,
+  ThreadId,
+} from "@t3tools/contracts";
 import { DateTime } from "effect";
+import { useState } from "react";
 
 import { cn } from "~/lib/utils";
+import { orchestrationEnvironment } from "../../state/orchestration";
+import { useAtomCommand } from "../../state/use-atom-command";
+import { Button } from "../ui/button";
+import { toastManager } from "../ui/toast";
 import { AgentElapsed, formatCompactElapsedSeconds } from "./AgentElapsed";
 
 // Same default as the server limit (BackgroundCommandLimit.ts). An extension is not sent yet.
@@ -16,7 +25,24 @@ export function commandTasks(
 }
 
 /** Every live command, in full: kind, the whole command, and time against its limit. */
-export function BackgroundCommandRows(props: { readonly tasks: ReadonlyArray<CommandTask> }) {
+export function BackgroundCommandRows(props: {
+  readonly tasks: ReadonlyArray<CommandTask>;
+  readonly environmentId: EnvironmentId;
+  readonly threadId: ThreadId;
+}) {
+  const stopCommand = useAtomCommand(orchestrationEnvironment.stopBackgroundCommand);
+  const [stoppingId, setStoppingId] = useState<string | null>(null);
+  const stop = async (taskId: string) => {
+    setStoppingId(taskId);
+    const result = await stopCommand({
+      environmentId: props.environmentId,
+      input: { threadId: props.threadId, taskId },
+    });
+    setStoppingId(null);
+    if (result._tag === "Failure") {
+      toastManager.add({ type: "error", title: "Could not stop the command. Try again." });
+    }
+  };
   return (
     <ul className="mt-1 flex flex-col divide-y divide-border">
       {props.tasks.map((task) => {
@@ -47,6 +73,14 @@ export function BackgroundCommandRows(props: { readonly tasks: ReadonlyArray<Com
                 )}
               </div>
             </div>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={stoppingId === task.taskId}
+              onClick={() => void stop(task.taskId)}
+            >
+              {stoppingId === task.taskId ? "Stopping..." : "Stop"}
+            </Button>
           </li>
         );
       })}

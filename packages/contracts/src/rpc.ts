@@ -459,6 +459,7 @@ import {
 import {
   ORCHESTRATION_V2_WS_METHODS,
   OrchestrationGetWorkflowScriptError,
+  OrchestrationV2StopBackgroundCommandError,
   OrchestrationV2StopWorkflowError,
   OrchestrationV2DispatchCommandError,
   OrchestrationV2GetShellSnapshotError,
@@ -4158,6 +4159,17 @@ const WsOrchestrationV2GetThreadProjectionRpc = defineWsRpc(
   },
 );
 
+const WsOrchestrationV2StopBackgroundCommandRpc = defineWsRpc(
+  ORCHESTRATION_V2_WS_METHODS.stopBackgroundCommand,
+  {
+    scope: AuthOrchestrationOperateScope,
+    category: "orchestration",
+    payload: OrchestrationV2RpcSchemas.stopBackgroundCommand.input,
+    success: OrchestrationV2RpcSchemas.stopBackgroundCommand.output,
+    error: Schema.Union([OrchestrationV2StopBackgroundCommandError, EnvironmentAuthorizationError]),
+  },
+);
+
 const WsOrchestrationV2StopWorkflowRpc = defineWsRpc(ORCHESTRATION_V2_WS_METHODS.stopWorkflow, {
   scope: AuthOrchestrationOperateScope,
   category: "orchestration",
@@ -4865,6 +4877,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsOrchestrationV2DispatchCommandRpc,
   WsOrchestrationV2GetWorkflowScriptRpc,
   WsOrchestrationV2StopWorkflowRpc,
+  WsOrchestrationV2StopBackgroundCommandRpc,
   WsOrchestrationV2GetTurnItemRpc,
   WsOrchestrationV2GetTurnDiffRpc,
   WsOrchestrationV2GetFullThreadDiffRpc,
