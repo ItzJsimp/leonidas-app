@@ -38,7 +38,7 @@ Gather grounded context before asking any questions or modifying code.
    - **Claude Code**: Use `Task/Explore` for architecture, `Grep`/`Glob` for patterns, `git log` for recent commits.
    - **Antigravity**: Use `grep_search`, `find_by_name`, `view_file`, or invoke a `research` subagent for broad surveys.
 3. **Gather domain & documentation context**:
-   - Check local docs ([`wiki/`](../../../../wiki/wiki-index.md), [`decisions/`](../../../../decisions/decisions-index.md), [`memory/`](../../../../memory/memory-index.md)).
+   - Check local docs (`wiki/`, `decisions/`, `memory/`).
    - Use web search / fetch tools for third-party libraries or current documentation.
 4. **Document findings**: Base all question options on actual findings in the project, never generic placeholders.
 

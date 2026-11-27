@@ -1,6 +1,6 @@
 # Adversarial Chaos & Environmental Stress Matrix
 
-Pre-commit stress checks for Phase 7 implementation per [`standards/execution-standard.md`](../../../../standards/execution-standard.md). Run these checks once a slice reaches Green on happy-path inputs to guarantee environmental resilience before committing.
+Pre-commit stress checks for Phase 7 implementation per `standards/execution-standard.md`. Run these checks once a slice reaches Green on happy-path inputs to guarantee environmental resilience before committing.
 
 ---
 

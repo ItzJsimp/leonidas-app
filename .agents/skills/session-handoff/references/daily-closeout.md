@@ -4,7 +4,7 @@ Moved whole from the retired `daily-closeout` skill on 2026-11-20. It was the `/
 
 Conduct an interactive, low-friction evening closeout. Gathers deterministic substrate telemetry for today's accomplishments, runs a workspace hygiene gate to catch uncommitted Git drift or unsynced tasks, captures open loose ends and tomorrow's seed priorities, logs a structured dashboard to `logs/closeouts/`, and primes tomorrow morning's [`daily-briefing`](../../daily-briefing/SKILL.md) for continuous loop closure.
 
-**Chain position:** Step 4 of the [Session Ritual Chain](../../../../workflows/session-ritual-chain.md): the end-of-day gate, run after the last [`chat-closeout`](chat-closeout.md) of the day. It consumes deterministic telemetry only and never re-runs chat-closeout's extraction.
+**Chain position:** Step 4 of the Session Ritual Chain: the end-of-day gate, run after the last [`chat-closeout`](chat-closeout.md) of the day. It consumes deterministic telemetry only and never re-runs chat-closeout's extraction.
 
 ## When to Use
 
@@ -45,6 +45,7 @@ pwsh -NoProfile -File scripts/Get-DailyCloseoutData.ps1
 ```
 
 The script runs in <1 second and gathers:
+
 - Session window anchor (since today's morning briefing or today's start)
 - Git branch and uncommitted working tree modifications/untracked counts
 - Commits landed during today's window
@@ -65,6 +66,7 @@ To eliminate late-night cognitive friction, intake uses a telemetry-first except
 ### 📋 Daily Closeout Intake
 
 ❓ **Q1 - Today's P0 Outcome:**
+
 - `[A]` Landed (Fully achieved the core target)
 - `[B]` Partial (Meaningful progress, but carryover required)
 - `[C]` Blocked / Missed (External friction, distraction, or blocker)
@@ -75,10 +77,11 @@ Any uncommitted scratch notes, blocker details, or loose ends to log? (Reply wit
 ❓ **Q3 - Tomorrow's Seed P0:**
 What is the single non-negotiable must-win focus for the next working session?
 
-*(Reply like `1A 2: None 3: Finish payment integration` or quick free text)*
+_(Reply like `1A 2: None 3: Finish payment integration` or quick free text)_
 ```
 
 #### Intake Rules:
+
 1. **Never guess P0 status:** If the user does not specify, default to `1B (Partial)` and prompt to confirm.
 2. **Fast-path parsing:** Accept single-line replies or natural conversational dictation.
 
@@ -90,10 +93,10 @@ Before writing the log, evaluate workspace hygiene:
 
 1. **Uncommitted Git Diffs:** If `Get-DailyCloseoutData.ps1` reports modified or untracked files:
    - Alert the user: `WARNING: N modified, M untracked files detected in working tree.`
-   - Offer a one-line commit suggestion to ensure work is committed to Git history per [ADR-0010](../../../../decisions/0010-git-history-replaces-the-master-log.md).
+   - Offer a one-line commit suggestion to ensure work is committed to Git history per ADR-0010.
 2. **Task State Alignment:** Verify that tasks mentioned during the session match their status in `tasks/`.
 3. **Scratchpad Hygiene:** Remind the user if temporary scratch scripts remain in your artifact directory or workspace root.
-4. **Sunday Shadow System Diagnostic Card ([ADR-0046](../../../../decisions/0046-boom-automations-5-phase-implementation-and-governance-architecture.md)):**
+4. **Sunday Shadow System Diagnostic Card (ADR-0046):**
    - Automatically executes on Sundays (or when `Get-DailyCloseoutData.ps1` flags stray files or >=15 mins in external note apps).
    - Presents the detected rogue files/apps and asks the operator:
      - `[A] Absorb into AIOS:` Instantiate a task in `tasks/` to formalize a native schema and workflow.
@@ -111,6 +114,7 @@ Synthesize telemetry and operator intake into a dense markdown report and save t
 # 🌙 Daily Closeout : YYYY-MM-DD
 
 ## 🛡️ 1. Substrate Hygiene Gate
+
 - **Git Branch:** `[branch]` | **Tree Status:** [Clean / DIRTY: N modified, M untracked]
 - **Session Window Anchor:** Since [Briefing Name] ([Briefing Date])
 - **ActivityWatch Status:** [Online / Offline]
@@ -118,6 +122,7 @@ Synthesize telemetry and operator intake into a dense markdown report and save t
 ---
 
 ## 🎯 2. Executive Summary
+
 - **P0 Target Outcome:** [Landed / Partial / Blocked] - [Summary note]
 - **Focus Domain:** [Primary domain worked today]
 - **Tasks Landed Today:** [N tasks completed]
@@ -126,25 +131,31 @@ Synthesize telemetry and operator intake into a dense markdown report and save t
 ---
 
 ## 🚀 3. Accomplishments & Shipped Work
+
 ### Landed Commits:
+
 - `[hash]` [Commit message] ([Author])
 
 ### Completed Tasks:
+
 - [x] **[Task Name]** (`[file]`) at [Time]
 
 ---
 
 ## ⚠️ 4. Open Loose Ends & Blockers
+
 - [Carried-over items, uncommitted notes, or "None"]
 
 ---
 
 ## ⚡ 5. Tomorrow's Seed Action Plan
+
 - [ ] **[P0 Seed Task]:** [Specific first executable step]
 - [ ] **[Secondary Priority]:** [Next action]
 ```
 
 After writing the file, rebuild indexes:
+
 ```powershell
 pwsh -NoProfile -File scripts/Build-Index.ps1
 ```
@@ -155,7 +166,7 @@ pwsh -NoProfile -File scripts/Build-Index.ps1
 
 The items listed under `## ⚡ 5. Tomorrow's Seed Action Plan` form the deterministic bridge to tomorrow morning.
 
-[`scripts/Get-DailyBriefingData.ps1`](../../../../scripts/Get-DailyBriefingData.ps1) automatically inspects `logs/closeouts/`. If a closeout log exists newer than the previous morning briefing, its unchecked seed checklist items (`- [ ]`) are ingested and rendered as the primary carryover block in the morning briefing dashboard.
+`scripts/Get-DailyBriefingData.ps1` automatically inspects `logs/closeouts/`. If a closeout log exists newer than the previous morning briefing, its unchecked seed checklist items (`- [ ]`) are ingested and rendered as the primary carryover block in the morning briefing dashboard.
 
 ---
 

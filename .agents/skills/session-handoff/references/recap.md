@@ -4,7 +4,7 @@ Moved whole from the retired `recap` skill on 2026-11-20. It was the `/recap` co
 
 Instant, zero-write inline session summary. Audits active chat history, tool calls, and working tree state to emit a scannable report of changes landed, commands executed, or planned actions if no edits have occurred yet.
 
-**Chain position:** Orthogonal to the [Session Ritual Chain](../../../../workflows/session-ritual-chain.md): runs at any time as a read-only reporter and owns no artifact. It never substitutes for a chain step.
+**Chain position:** Orthogonal to the Session Ritual Chain: runs at any time as a read-only reporter and owns no artifact. It never substitutes for a chain step.
 
 ---
 
@@ -12,8 +12,8 @@ Instant, zero-write inline session summary. Audits active chat history, tool cal
 
 1. **Zero File Mutations (Pure Reporter):** Never write, create, or alter files on disk during a recap. Unlike [`session-handoff`](../SKILL.md) or [`chat-sync`](../../chat-sync/SKILL.md), this skill is strictly an analytical status reporter.
 2. **Ground Truth Over Inference:** Run `git status -s` and inspect actual tool call outputs rather than guessing what changed.
-3. **Mandatory Relative Links:** Format every file reference as a clickable repo-relative markdown link (e.g. [`scripts/Build-Index.ps1`](../../../../scripts/Build-Index.ps1)).
-4. **Zero Em-Dash Standard:** Strictly enforce the zero em dash (U+2014) standard across all headings, badges, bullet points, and summaries per [ADR-0012](../../../../decisions/0012-zero-emdash-punctuation-standard.md).
+3. **Mandatory Relative Links:** Format every file reference as a clickable repo-relative markdown link (e.g. `scripts/Build-Index.ps1`).
+4. **Zero Em-Dash Standard:** Strictly enforce the zero em dash (U+2014) standard across all headings, badges, bullet points, and summaries per ADR-0012.
 5. **High Token Density:** Use bullet points, bold callouts, and structured category headers. Omit pleasantries, preambles, and conversational filler.
 
 ---

@@ -44,7 +44,7 @@ Run zero-token static syntax checks before spinning up long test suites:
 
 ### B. Markdown, Canon & Governance Documents
 
-- **Strategy:** Targeted lint checks, regex assertions, or repo verification scripts ([`Detect-Drift.ps1`](../../../../scripts/Detect-Drift.ps1), [`Audit-Substrate.ps1`](../../../../scripts/Audit-Substrate.ps1)).
+- **Strategy:** Targeted lint checks, regex assertions, or repo verification scripts (`Detect-Drift.ps1`, `Audit-Substrate.ps1`).
 - **Red Phase:** Run validator and observe violation report (missing entry, broken relative link, invalid frontmatter).
 - **Green Phase:** Update canon document; verify validator runs with 0 warnings/errors.
 
@@ -52,7 +52,7 @@ Run zero-token static syntax checks before spinning up long test suites:
 
 - **Strategy:** Schema validation parser or PowerShell data file validation.
 - **Red Phase:** Test parser against schema; observe failure when new properties or constraints are absent.
-- **Green Phase:** Update schema/manifest ([`shared-manifest.psd1`](../../../../scripts/sync/shared-manifest.psd1)); confirm parser succeeds.
+- **Green Phase:** Update schema/manifest (`shared-manifest.psd1`); confirm parser succeeds.
 
 ### D. Frontend & Web Interfaces
 

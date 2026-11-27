@@ -33,7 +33,7 @@ The map is a single issue as a `tasks/` card tagged `wayfinder:map` (or a GitHub
 
 The map is an **index**, not a store. It lists the decisions made and points at the tickets that hold their detail; a decision lives in exactly one place, its ticket, so the map never restates it, only gists it and links.
 
-**Where the map, its child tickets, blocking, and frontier queries physically live is tracker-specific.** Tracker for this AIOS: `tasks/` cards, created with `pwsh scripts/New-Task.ps1` and gated per [tasks-standard](../../../standards/tasks-standard.md). Use GitHub issues only when the user asks or the work lives in a GitHub repo. Default to `tasks/` cards.
+**Where the map, its child tickets, blocking, and frontier queries physically live is tracker-specific.** Tracker for this AIOS: `tasks/` cards, created with `pwsh scripts/New-Task.ps1` and gated per tasks-standard. Use GitHub issues only when the user asks or the work lives in a GitHub repo. Default to `tasks/` cards.
 
 ### The map body
 

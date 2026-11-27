@@ -81,4 +81,34 @@ describe("lint-library", () => {
     write(MANIFEST_PATH, JSON.stringify({ items: [item({ name: "gone" })] }));
     expect(lintLibrary(dir)[0]).toMatch(/^skill gone: .*SKILL\.md not found$/);
   });
+
+  it("fails when a core skill links to a missing or outside-repo file", () => {
+    setup(
+      [item()],
+      [
+        "---",
+        "name: demo",
+        "license: MIT",
+        "---",
+        "See [missing](references/nope.md) and [outside](../../../../standards/foo.md).",
+        "Keep [good](references/ok.md), [web](https://example.com), [anchor](#top), and `[code](nope.md)`.",
+        "```md",
+        "[fenced](nope.md)",
+        "```",
+      ].join("\n"),
+    );
+    write(".agents/skills/demo/references/ok.md", "ok\n");
+    expect(lintLibrary(dir)).toEqual([
+      'skill demo: dead link "references/nope.md" in .agents/skills/demo/SKILL.md:5',
+      'skill demo: dead link "../../../../standards/foo.md" in .agents/skills/demo/SKILL.md:5',
+    ]);
+  });
+
+  it("ignores relative links in non-core skills", () => {
+    setup(
+      [item({ pack: "extra" })],
+      "---\nname: demo\nlicense: MIT\n---\nSee [aios](../../../../standards/foo.md).\n",
+    );
+    expect(lintLibrary(dir)).toEqual([]);
+  });
 });

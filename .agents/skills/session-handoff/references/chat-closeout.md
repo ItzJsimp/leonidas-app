@@ -4,7 +4,7 @@ Moved whole from the retired `chat-closeout` skill on 2026-11-20. It was the `/c
 
 Terminal, one-time pre-archival ritual. Where [`chat-sync`](../../chat-sync/SKILL.md) runs repeatedly mid-session over a recency-filtered window, chat-closeout runs once at the end over the full conversation, then certifies the session safe to archive. It delegates all extraction and promotion to chat-sync's engine and adds only what a terminal pass needs: a deterministic open-loop scan, a cold-start-tested continuation capsule, a lessons channel that promotes repeats into guards, a substrate check, a ledger line, and the Archival Readiness Stamp. Run this at the end of every substantive chat, not just before an explicit archive.
 
-**Chain position:** Step 3 of the [Session Ritual Chain](../../../../workflows/session-ritual-chain.md): the terminal gate at session end, after any [`session-handoff`](../SKILL.md) for that session. Downstream neighbor: [`daily-closeout`](daily-closeout.md) closes the working day.
+**Chain position:** Step 3 of the Session Ritual Chain: the terminal gate at session end, after any [`session-handoff`](../SKILL.md) for that session. Downstream neighbor: [`daily-closeout`](daily-closeout.md) closes the working day.
 
 ---
 
@@ -84,22 +84,22 @@ Scan two mechanical signals, do not freeform-judge "what could be a skill":
 
 If both are empty, skip this step entirely.
 
-- **New-skill candidate:** check [`skills-index.md`](../../skills-index.md) for existing coverage first; if novel and unambiguous, scaffold via [`skill-creator`](../../skill-creator/SKILL.md) with `disable-model-invocation: true` (flag [ADR-0051](../../../../decisions/0051-disable-model-invocation-replaces-find-skills-tiering.md) core-kernel candidates for manual review).
+- **New-skill candidate:** check `skills-index.md` for existing coverage first; if novel and unambiguous, scaffold via [`skill-creator`](../../skill-creator/SKILL.md) with `disable-model-invocation: true` (flag ADR-0051 core-kernel candidates for manual review).
 - **Tweak candidate:** apply a single unambiguous edit directly; queue anything ambiguous or multi-file for approval.
 
 ### Step 4: Lessons Learned (chat-closeout only)
 
 Scan the full history for failed commands, API quirks, tool limitations, slow paths, or edge cases already paid for.
 
-**Recurrence gate first:** grep each lesson's key term across [`logs/lessons-learned.md`](../../../../logs/lessons-learned.md), `projects/*/agent-playbook.md`, and [`memory/observed/antifragile.md`](../../../../memory/observed/antifragile.md). A hit means the lesson was paid for twice, so a third log line will not stop a fourth. Promote it instead:
+**Recurrence gate first:** grep each lesson's key term across `logs/lessons-learned.md`, `projects/*/agent-playbook.md`, and `memory/observed/antifragile.md`. A hit means the lesson was paid for twice, so a third log line will not stop a fourth. Promote it instead:
 
 - **Guard it now** if a mechanical check fits in this session (hook, lint gate, script self-check, `Audit-Substrate` rule).
 - Otherwise add one rule to `antifragile.md` and create a task via `scripts/New-Task.ps1` naming the guard to build.
 
 New lessons (no hit) route where the next agent will read them:
 
-- **About one project:** into `projects/<project>/agent-playbook.md` (sections 3 to 6, plus one dated line in section 7), created from [`templates/agent-playbook-template.md`](../../../../templates/agent-playbook-template.md) if missing. A global log is not read when an agent starts on a project; the playbook is.
-- **Cross-project:** append to [`logs/lessons-learned.md`](../../../../logs/lessons-learned.md) under a new date entry.
+- **About one project:** into `projects/<project>/agent-playbook.md` (sections 3 to 6, plus one dated line in section 7), created from `templates/agent-playbook-template.md` if missing. A global log is not read when an agent starts on a project; the playbook is.
+- **Cross-project:** append to `logs/lessons-learned.md` under a new date entry.
 
 Then run `python scripts/test-project-playbooks.py --touched-since "<session start>"`: every project this session changed must show `ok`.
 
@@ -113,13 +113,13 @@ If any link, frontmatter, or em-dash failure is detected, remediate it immediate
 
 ### Step 6: Ledger Line & Archival Readiness Stamp
 
-Append one ledger line so [`telemetry-analyst`](../../telemetry-analyst/SKILL.md) can prove which steps ever fire and cut the dead ones:
+Append one ledger line so `telemetry-analyst` can prove which steps ever fire and cut the dead ones:
 
 ```powershell
 pwsh -NoProfile -File .agents/skills/session-handoff/scripts/Get-OpenLoops.ps1 -Record '{"engine":"<engine>","session":"<id>","promoted":0,"approvals":0,"lessons_new":0,"lessons_enforced":0,"capsule":"<path|none>","capsules_closed":0,"cold_start":"<pass|fail|skipped>","skills_created":0,"skills_tweaked":0}'
 ```
 
-Then output the stamp. The title line uses the [`Functional Emoji Action-First`](../../../../standards/chat-naming-standard.md) formula, matching the session's own Chat Title badge:
+Then output the stamp. The title line uses the `Functional Emoji Action-First` formula, matching the session's own Chat Title badge:
 
 ```text
 ================================================================================

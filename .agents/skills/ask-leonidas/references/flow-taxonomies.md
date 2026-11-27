@@ -50,8 +50,8 @@ flowchart LR
 
 ### Execution Steps:
 
-1. **Discovery & Architecture:** Execute [`grill-with-docs`](../../grill-with-docs/SKILL.md). Conduct interactive interrogation rounds, record hard architectural decisions under `decisions/` as ADRs, and synchronize domain terms into [`CONTEXT.md`](../../../../CONTEXT.md) via [`domain-modeling`](../../domain-modeling/SKILL.md).
-2. **Spec and Task Decomposition:** Execute [`to-spec`](../../to-spec/SKILL.md), then [`to-tickets`](../../to-tickets/SKILL.md). Decompose the spec into vertical slices declaring blocking dependencies. Record in [`tasks/`](../../../../tasks/tasks-index.md) via [`task-management`](../../task-management/SKILL.md).
+1. **Discovery & Architecture:** Execute [`grill-with-docs`](../../grill-with-docs/SKILL.md). Conduct interactive interrogation rounds, record hard architectural decisions under `decisions/` as ADRs, and synchronize domain terms into `CONTEXT.md` via [`domain-modeling`](../../domain-modeling/SKILL.md).
+2. **Spec and Task Decomposition:** Execute [`to-spec`](../../to-spec/SKILL.md), then [`to-tickets`](../../to-tickets/SKILL.md). Decompose the spec into vertical slices declaring blocking dependencies. Record in `tasks/` via [`task-management`](../../task-management/SKILL.md).
 3. **Test-First Implementation:** Execute [`implement`](../../implement/SKILL.md) per ticket, or [`implement-spec`](../../implement-spec/SKILL.md) for the whole spec. Build each vertical slice using disciplined Red-Green-Refactor cycles. Verify with tests and atomic git commits, then review the diff with [`review-two-axis`](../../review-two-axis/SKILL.md).
 4. **Closeout & Sync:** Execute [`chat-sync`](../../chat-sync/SKILL.md) to harvest durable memories and update canon logs before session conclusion.
 
@@ -121,5 +121,5 @@ flowchart TD
 
 ## Related Documents
 
-- [`skills-catalog-matrix.md`](../../skills-catalog-matrix.md): Exhaustive skill classification matrix (generated, AIOS only).
+- `skills-catalog-matrix.md`: Exhaustive skill classification matrix (generated, AIOS only).
 - [`phase-boundaries.md`](phase-boundaries.md): 5-option context transition decision tree.
