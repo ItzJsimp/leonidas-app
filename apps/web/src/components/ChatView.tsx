@@ -415,6 +415,7 @@ import {
   removeInlineContextReference,
   stripInlineContextReferences,
 } from "../lib/composerContextReferences";
+import { submitArena } from "./chat/arenaSubmission";
 import { dispatchTurn } from "./chat/turnDispatch";
 import { handleTurnFailure } from "./chat/turnFailure";
 import { redirectPendingApprovals } from "./chat/approvalRedirect";
@@ -9080,265 +9081,118 @@ export default function ChatView(props: ChatViewProps) {
       }),
     );
     if (multipleModelSelections !== null) {
-      const failedSelections: ModelSelection[] = [];
-      let clearedDraft = false;
-      let releasedComposer = false;
-      let canRestoreDraft = () => false;
-      let startedCount = 0;
-      try {
-        const attachments = await turnAttachmentsPromise;
-        const fileBlockReason = readLiveAttachmentCapabilities().fileBlockReason;
-        if (fileBlockReason !== null) throw new Error(fileBlockReason);
-        const context = buildOutgoingMessageContext(
-          attachments.map((attachment, index) =>
-            "id" in attachment && attachment.id !== undefined
-              ? attachment.id
-              : composerAttachmentsSnapshot[index]!.id,
-          ),
-        );
-        const title = truncate(
-          assistantCitationsToPlainText(stripInlineContextReferences(trimmed)).trim() ||
-            composerAttachmentsSnapshot[0]?.name ||
-            "New chat",
-        );
-        promptRef.current = "";
-        clearComposerDraftContent(composerDraftTarget);
-        composerRef.current?.resetCursorState();
-        clearedDraft = true;
-        const clearedDraftSnapshot = useComposerDraftStore
-          .getState()
-          .getComposerDraft(composerDraftTarget);
-        const submittedSelections = multipleModelSelectionsRef.current;
-        canRestoreDraft = () =>
-          currentRouteThreadKeyRef.current === routeThreadKey &&
-          composerSendGenerationRef.current === sendGeneration &&
-          useComposerDraftStore.getState().getComposerDraft(composerDraftTarget) ===
-            clearedDraftSnapshot &&
-          multipleModelSelectionsRef.current === submittedSelections;
-        setThreadError(threadIdForSend, null);
-        const starts = Promise.all(
-          multipleTargets.map(async (target) => {
-            const retryKey = JSON.stringify([
-              routeThreadKey,
-              target.selection.instanceId,
-              target.selection.model,
-            ]);
-            const uncertainThreadId = uncertainMultipleSubmissionsRef.current.get(retryKey);
-            const targetThreadId = uncertainThreadId ?? newThreadId();
-            let requestMayHaveStarted = false;
-            try {
-              if (uncertainThreadId) {
-                throw new Error(
-                  "The previous request may have started. Open its chat to check before sending again.",
-                );
-              }
-              const supportsInlineMessageContext =
-                appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment
-                  .capabilities.inlineMessageContext === true;
-              requestMayHaveStarted = true;
-              const result = await startThreadTurn({
-                environmentId,
-                input: {
-                  threadId: targetThreadId,
-                  message: {
-                    messageId: newMessageId(),
-                    role: "user",
-                    text:
-                      context && !supportsInlineMessageContext
-                        ? serializeLegacyContextMessage({
-                            text: target.text,
-                            records: context.records,
-                          })
-                        : target.text,
-                    attachments,
-                    ...(context && supportsInlineMessageContext ? { context } : {}),
-                  },
-                  modelSelection: target.selection,
-                  titleSeed: title,
-                  runtimeMode,
-                  interactionMode: target.interactionMode,
-                  bootstrap: {
-                    createThread: {
-                      projectId: activeProject.id,
-                      title,
-                      modelSelection: target.selection,
-                      runtimeMode,
-                      interactionMode: target.interactionMode,
-                      branch: activeThreadBranch,
-                      worktreePath: null,
-                      createdAt: messageCreatedAt,
-                      ...draftReplyStyleField(routeThreadRef),
-                    },
-                    prepareWorktree: {
-                      projectCwd: activeProject.workspaceRoot,
-                      baseBranch: activeThreadBranch!,
-                      requireWorktree: true,
-                      ...(startFromOrigin ? { startFromOrigin: true } : {}),
-                    },
-                    runSetupScript: true,
-                  },
-                  createdAt: messageCreatedAt,
-                },
-              });
-              if (result._tag === "Failure") {
-                const error = squashAtomCommandFailure(result);
-                if (wasBootstrapThreadDeleted(error) || wasBootstrapThreadNotCreated(error)) {
-                  requestMayHaveStarted = false;
-                }
-                throw error;
-              }
-              startedCount += 1;
-            } catch (error) {
-              if (requestMayHaveStarted && !uncertainMultipleSubmissionsRef.current.has(retryKey)) {
-                uncertainMultipleSubmissionsRef.current.set(retryKey, targetThreadId);
-              }
-              failedSelections.push(target.selection);
-              const retainedThreadId = uncertainMultipleSubmissionsRef.current.get(retryKey);
-              const failureToastId = toastManager.add(
-                stackedThreadToast({
-                  type: "error",
-                  title: `Could not start ${target.selection.model}`,
-                  ...userErrorToastFields(error),
-                  ...(retainedThreadId
-                    ? {
-                        timeout: 0,
-                        data: {
-                          secondaryActionProps: {
-                            children: "Allow retry",
-                            onClick: () => {
-                              void readLocalApi()
-                                ?.dialogs.confirm(
-                                  "The previous request may already be running. Check its chat first. Allow another send that could create a duplicate chat?",
-                                )
-                                .then(
-                                  (confirmed) => {
-                                    if (
-                                      confirmed &&
-                                      uncertainMultipleSubmissionsRef.current.get(retryKey) ===
-                                        retainedThreadId
-                                    ) {
-                                      uncertainMultipleSubmissionsRef.current.delete(retryKey);
-                                      toastManager.close(failureToastId);
-                                    }
-                                  },
-                                  () => undefined,
-                                );
-                            },
-                          },
-                        },
-                        actionProps: {
-                          children: "Open chat",
-                          onClick: () => {
-                            void navigate({
-                              to: "/$environmentId/$threadId",
-                              params: buildThreadRouteParams(
-                                scopeThreadRef(environmentId, retainedThreadId),
-                              ),
-                            });
-                          },
-                        },
-                      }
-                    : {}),
-                }),
+      const arenaDraft = () =>
+        useComposerDraftStore.getState().getComposerDraft(composerDraftTarget);
+      await submitArena(
+        {
+          startTurn: (input) => startThreadTurn({ environmentId, input }),
+          readLiveFileBlockReason: () => readLiveAttachmentCapabilities().fileBlockReason,
+          supportsInlineMessageContext: () =>
+            appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment
+              .capabilities.inlineMessageContext === true,
+          drafts: {
+            clearDraft: () => {
+              promptRef.current = "";
+              clearComposerDraftContent(composerDraftTarget);
+              composerRef.current?.resetCursorState();
+            },
+            readDraft: arenaDraft,
+            restoreDraft: () => {
+              setComposerDraftPrompt(composerDraftTarget, messageTextForSend);
+              addComposerDraftImages(
+                composerDraftTarget,
+                composerImagesSnapshot.map(cloneComposerImageForRetry),
               );
-            }
-          }),
-        );
-        // Each request now owns its background thread. The original draft is
-        // ready for another prompt while checkout and setup scripts finish.
-        sendInFlightRef.current = false;
-        resetLocalDispatch();
-        releasedComposer = true;
-        await starts;
-        if (startedCount > 0) {
-          toastManager.add(
-            stackedThreadToast({
-              type: "success",
-              title: `Started ${startedCount} ${startedCount === 1 ? "chat" : "chats"} in the background`,
-            }),
-          );
-        }
-        if (failedSelections.length === 0 && turnUsesAttachmentUploads) {
-          releaseDraftAttachments(composerAttachmentsSnapshot);
-        }
-      } catch (error) {
-        failedSelections.push(...multipleModelSelections);
-        setThreadError(
-          threadIdForSend,
-          error instanceof Error ? error.message : "Could not send messages.",
-        );
-      } finally {
-        const restoreFailedDraft = () => {
-          setMultipleModelSelections(failedSelections);
-          if (clearedDraft) {
-            setComposerDraftPrompt(composerDraftTarget, messageTextForSend);
-            addComposerDraftImages(
-              composerDraftTarget,
-              composerImagesSnapshot.map(cloneComposerImageForRetry),
-            );
-            addComposerDraftFiles(composerDraftTarget, composerFilesSnapshot);
-            setComposerDraftTerminalContexts(composerDraftTarget, composerTerminalContextsSnapshot);
-            setComposerDraftPreviewAnnotations(
-              composerDraftTarget,
-              composerPreviewAnnotationsSnapshot,
-            );
-            setComposerDraftReviewComments(composerDraftTarget, composerReviewCommentsSnapshot);
-            setComposerDraftThreadContexts(composerDraftTarget, composerThreadContextsSnapshot);
-            if (composerRef.current && currentRouteThreadKeyRef.current === routeThreadKey) {
-              promptRef.current = messageTextForSend;
-              composerRef.current.resetCursorState({
-                cursor: collapseExpandedComposerCursor(
-                  messageTextForSend,
-                  messageTextForSend.length,
-                ),
-                prompt: messageTextForSend,
-                detectTrigger: true,
+              addComposerDraftFiles(composerDraftTarget, composerFilesSnapshot);
+              setComposerDraftTerminalContexts(
+                composerDraftTarget,
+                composerTerminalContextsSnapshot,
+              );
+              setComposerDraftPreviewAnnotations(
+                composerDraftTarget,
+                composerPreviewAnnotationsSnapshot,
+              );
+              setComposerDraftReviewComments(composerDraftTarget, composerReviewCommentsSnapshot);
+              setComposerDraftThreadContexts(composerDraftTarget, composerThreadContextsSnapshot);
+              if (composerRef.current && currentRouteThreadKeyRef.current === routeThreadKey) {
+                promptRef.current = messageTextForSend;
+                composerRef.current.resetCursorState({
+                  cursor: collapseExpandedComposerCursor(
+                    messageTextForSend,
+                    messageTextForSend.length,
+                  ),
+                  prompt: messageTextForSend,
+                  detectTrigger: true,
+                });
+              }
+            },
+            composerAvailable: () => composerRef.current !== null,
+            releaseAttachments: () => releaseDraftAttachments(composerAttachmentsSnapshot),
+            canRestoreFromToast: () =>
+              Boolean(
+                draftId &&
+                useComposerDraftStore.getState().getDraftSession(draftId) &&
+                !sendInFlightRef.current &&
+                !composerDraftHasUserContent(arenaDraft()),
+              ),
+            openDraft: () => {
+              if (draftId) void navigate({ to: "/draft/$draftId", params: { draftId } });
+            },
+          },
+          liveState: {
+            readSelections: () => multipleModelSelectionsRef.current,
+            setSelections: setMultipleModelSelections,
+            isSendingChatActive: () => currentRouteThreadKeyRef.current === routeThreadKey,
+            isCurrentSendGeneration: () => composerSendGenerationRef.current === sendGeneration,
+            releaseSend: () => {
+              sendInFlightRef.current = false;
+              resetLocalDispatch();
+            },
+          },
+          uncertainSubmissions: uncertainMultipleSubmissionsRef.current,
+          feedback: {
+            threadError: (message) => setThreadError(threadIdForSend, message),
+            toastAdd: (toast) => toastManager.add(toast),
+            toastClose: (id) => toastManager.close(id),
+            toastUpdate: (id, update) => toastManager.update(id, update),
+            confirm: (message) => {
+              const api = readLocalApi();
+              return api ? api.dialogs.confirm(message) : undefined;
+            },
+          },
+          navigation: {
+            openThread: (threadId) => {
+              void navigate({
+                to: "/$environmentId/$threadId",
+                params: buildThreadRouteParams(scopeThreadRef(environmentId, threadId)),
               });
-            }
-          }
-        };
-        if (failedSelections.length > 0) {
-          if (canRestoreDraft() && composerRef.current) {
-            restoreFailedDraft();
-          } else if (clearedDraft) {
-            const recoveryToastId = toastManager.add(
-              stackedThreadToast({
-                type: "error",
-                title: "A background message could not be sent",
-                description:
-                  "Your newer draft is unchanged. Restore the failed message when the message box is empty.",
-                timeout: 0,
-                actionProps: {
-                  children: "Restore message",
-                  onClick: () => {
-                    if (
-                      !draftId ||
-                      !useComposerDraftStore.getState().getDraftSession(draftId) ||
-                      sendInFlightRef.current ||
-                      composerDraftHasUserContent(
-                        useComposerDraftStore.getState().getComposerDraft(composerDraftTarget),
-                      )
-                    ) {
-                      toastManager.update(recoveryToastId, {
-                        description:
-                          "Return to the original draft and send or clear its current message before restoring.",
-                      });
-                      return;
-                    }
-                    restoreFailedDraft();
-                    void navigate({ to: "/draft/$draftId", params: { draftId } });
-                    toastManager.close(recoveryToastId);
-                  },
-                },
-              }),
-            );
-          }
-        }
-        if (!releasedComposer) {
-          sendInFlightRef.current = false;
-          resetLocalDispatch();
-        }
-      }
+            },
+          },
+        },
+        {
+          environmentId,
+          routeThreadKey,
+          selections: multipleModelSelections,
+          targets: multipleTargets,
+          createdAt: messageCreatedAt,
+          title: truncate(
+            assistantCitationsToPlainText(stripInlineContextReferences(trimmed)).trim() ||
+              composerAttachmentsSnapshot[0]?.name ||
+              "New chat",
+          ),
+          runtimeMode,
+          projectId: activeProject.id,
+          projectCwd: activeProject.workspaceRoot,
+          activeThreadBranch,
+          startFromOrigin,
+          replyStyleField: draftReplyStyleField(routeThreadRef),
+          turnAttachmentsPromise,
+          localAttachmentIds: composerAttachmentsSnapshot.map((attachment) => attachment.id),
+          turnUsesAttachmentUploads,
+          buildOutgoingMessageContext,
+          threadId: threadIdForSend,
+        },
+      );
       return;
     }
     if (!shouldQueueBehindActiveRun) {
