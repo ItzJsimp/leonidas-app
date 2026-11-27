@@ -29,6 +29,7 @@ The route most work travels: you have an idea and want it built. [`idea-to-ship`
    - **No:** **`/implement`** right here, in the same context window.
 
    Either way, **`/tdd`** builds the code (one red-green slice at a time) and **`/review-two-axis`** closes it: a two-axis review (Standards and Spec) of the diff. Use `/tdd` alone to build one behaviour test-first without a spec. Use `/review-two-axis` alone to review a branch or a PR against a fixed point. When the work goes up as a pull request, **`/pr`** shapes the body.
+
 4. **`/retro`** closes the loop. After a build, and most of all one that went sideways, it looks back over the session and suggests changes to the agent's **environment**, not the code: pointers, automated checks, coding standards, steering files, tooling.
 
 **Context hygiene.** Keep steps 1 to 3 in **one unbroken context window**, so the grilling, the spec and the tickets build on the same thinking. Compact or reset only after `/to-tickets`. Each `/implement` then starts fresh from its ticket. Run `/retro` in the session it reviews. The limit is the **smart zone**, the part of the window where the model still reasons sharply: about 150k tokens, or the selected model's live context warning when that is lower. If a session nears it before `/to-tickets`, `/compact` at the nearest phase boundary.
@@ -65,7 +66,7 @@ The ordered tree and its reasoning: [references/phase-boundaries.md](references/
 
 ## Standalone
 
-- **`/next-action`:** ranks what to work on now.
+- **`/task-completer`:** triages open tasks and cuts the backlog.
 - **`/find-skills`:** finds an external skill when none here fits.
 - **`/grill-me`:** the same interview as `/grill-with-docs`, but stateless. Use it when no working directory exists.
 - **`/grilling`:** the interview primitive. Rounds, the frontier, facts are the agent's job and decisions are yours.
