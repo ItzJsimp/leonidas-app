@@ -2,7 +2,8 @@ import { ProviderDriverKind, ProviderInstanceId, RunId } from "@t3tools/contract
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { ProviderFailoverTarget } from "./providerFailover";
-import { formatLimitCountdown, usageLimitRecoveryBannerItem } from "./UsageLimitRecoveryBanner";
+import { formatLimitCountdown } from "@t3tools/shared/usageLimitRecovery";
+import { usageLimitRecoveryBannerItem } from "./UsageLimitRecoveryBanner";
 
 const runId = RunId.make("run_123");
 const hours = (count: number) => count * 60 * 60_000;
