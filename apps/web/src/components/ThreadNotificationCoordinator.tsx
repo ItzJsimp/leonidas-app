@@ -43,6 +43,7 @@ import {
 } from "../threadNotifications";
 import { resolveSidebarThreadStatus } from "./Sidebar.logic";
 import { toastManager } from "./ui/toast";
+import { makeAlertLimiter } from "../notificationLimiter";
 import { addReplacingToast } from "./ui/replacingToast";
 import { toastBody } from "./ui/toast.logic";
 import { useActiveAiosWorkspace } from "./workspace/useActiveAiosWorkspace";
@@ -152,6 +153,8 @@ function leadingIcon(event: FeedEvent) {
   return <MessageCircleQuestionIcon aria-hidden className="size-4 text-info-foreground" />;
 }
 
+const alertLimiter = makeAlertLimiter();
+
 /** Shows one new feed event: a toast while the window shows, a Windows notification while hidden. */
 function usePresentFeedEvent(
   environmentId: EnvironmentId,
@@ -168,6 +171,8 @@ function usePresentFeedEvent(
   return (event: FeedEvent) => {
     // The type's rule (Settings in Notifications): only Toast pops up, sounds or notifies.
     if (!popsUp(event, useEventFeedStore.getState().typeRules)) return;
+    // One rule for every type: repeats and bursts stay in the Inbox and never alert.
+    if (!alertLimiter.allow(event)) return;
     const thread = event.target?.thread;
     // A snoozed chat stays in Notifications and wakes with its snooze.
     const snoozedUntil = threadsRef.current?.find(

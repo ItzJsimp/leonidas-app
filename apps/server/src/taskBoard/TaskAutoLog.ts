@@ -175,7 +175,13 @@ export const makeAutoLog = (deps: {
   // that finished while a card is still in progress means the agent did not close it itself, so
   // the card moves to review: an honest "ready to check" rather than a guess that it is done.
   // Failed and cancelled runs stay visible as such; the agent or a person moves a card to done.
-  const logOutcome = (threadId: ThreadId, run: AutoLogRun) =>
+  // `ledgerAfter` (replay only) names, per card, the time its last edit happened. A run that ended
+  // before that was already known when the card was linked, so it gets its marker but no entry.
+  const logOutcome = (
+    threadId: ThreadId,
+    run: AutoLogRun,
+    ledgerAfter?: ReadonlyMap<string, number>,
+  ) =>
     Effect.gen(function* () {
       const projects = yield* deps.allProjects;
       const marker = runMarker(run.id);
@@ -183,7 +189,13 @@ export const makeAutoLog = (deps: {
         (item) => isLinked(item, threadId) && !hasMarker(item, marker),
       );
       for (const task of linked) {
-        if (deps.worked) yield* deps.worked({ task, threadId, run });
+        const after = ledgerAfter?.get(task.id);
+        const endedBeforeLink =
+          after !== undefined &&
+          run.completedAt !== null &&
+          run.completedAt !== undefined &&
+          DateTime.toEpochMillis(run.completedAt) < after;
+        if (deps.worked && !endedBeforeLink) yield* deps.worked({ task, threadId, run });
         const finishing = run.status === "completed" && task.status === "in_progress";
         yield* taskBoard.cardUpdate(
           {
@@ -249,6 +261,7 @@ export const makeAutoLog = (deps: {
     Effect.gen(function* () {
       const projects = yield* deps.allProjects;
       const open = (yield* tasks(projects)).filter((task) => task.status !== "done");
+      const ledgerAfter = new Map(open.map((task) => [task.id, task.updatedAt]));
       const threads = new Set(
         open.flatMap((task) => [
           ...(task.threadIds ?? []),
@@ -263,7 +276,7 @@ export const makeAutoLog = (deps: {
             run.completedAt === undefined ||
             now - DateTime.toEpochMillis(run.completedAt) <= REPLAY_WINDOW_MS;
           if (recent && isTerminalRunStatus(run.status)) {
-            yield* logOutcome(threadId, run).pipe(Effect.catchCause(skip("replay")));
+            yield* logOutcome(threadId, run, ledgerAfter).pipe(Effect.catchCause(skip("replay")));
           }
         }
       }
