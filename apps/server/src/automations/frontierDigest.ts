@@ -257,12 +257,16 @@ function readProposals(text: string): Proposal[] {
     .flatMap((raw): Proposal[] => {
       if (typeof raw !== "object" || raw === null) return [];
       const p = raw as Record<string, unknown>;
-      const field = (key: string) => (typeof p[key] === "string" ? (p[key] as string).trim() : "");
+      // Model text comes from public feeds: one line each, so it cannot add card keys or sections.
+      const field = (key: string, max: number) =>
+        typeof p[key] === "string"
+          ? (p[key] as string).replace(/\s+/g, " ").trim().slice(0, max)
+          : "";
       const proposal = {
-        title: field("title").slice(0, 70),
-        change: field("change"),
-        target: field("target"),
-        url: field("url"),
+        title: field("title", 70),
+        change: field("change", 500),
+        target: field("target", 100),
+        url: field("url", 300),
       };
       return proposal.title && proposal.change ? [proposal] : [];
     })
