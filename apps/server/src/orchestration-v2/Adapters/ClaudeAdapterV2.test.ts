@@ -8275,9 +8275,17 @@ describe("ClaudeAdapterV2 background wake turns", () => {
           const rosterAAfterSettle = providerThreadRosterEvents(events).findLast(
             (event) => event.providerThread.id === providerThreadA.id,
           )?.providerThread.pendingBackgroundTasks;
-          assert.deepEqual(rosterAAfterSettle ?? [], [
-            { taskId: taskA, description: "work on A", kind: "command" },
-          ]);
+          assert.deepEqual(
+            rosterAAfterSettle?.map(({ taskId, description, kind }) => ({
+              taskId,
+              description,
+              kind,
+            })) ?? [],
+            [{ taskId: taskA, description: "work on A", kind: "command" }],
+          );
+          // The clock starts when the command is first seen and survives roster rebuilds.
+          const startedAt = rosterAAfterSettle?.[0];
+          assert.isTrue(startedAt?.kind === "command" && startedAt.startedAt !== undefined);
           assert.isTrue(yield* hasPendingBackgroundWork);
           assert.isTrue(yield* hasPendingBackgroundWorkForThread(providerThreadA));
           assert.isFalse(yield* hasPendingBackgroundWorkForThread(providerThreadB));

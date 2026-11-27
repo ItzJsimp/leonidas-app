@@ -1,3 +1,4 @@
+import { BackgroundCommandRows, commandTasks } from "./chat/BackgroundCommandRows";
 import { resolveThreadDetailsModelSelection } from "./chat/threadDetailsModelSelection";
 import { useComposerOutputActions } from "./chat/useComposerOutputActions";
 import { deriveAgentActivity } from "../agentActivity";
@@ -7169,6 +7170,7 @@ export default function ChatView(props: ChatViewProps) {
     if (presentation === null || !activeThread) {
       return null;
     }
+    const commandRows = commandTasks(activeBackgroundTasks);
     return {
       id: `background-work:${activeThread.id}`,
       variant: "default",
@@ -7186,8 +7188,11 @@ export default function ChatView(props: ChatViewProps) {
       ),
       title: presentation.title,
       // A single named item is already in the title.
+      // Commands show in full in the rows below, so the one-line list stays out.
+      children: commandRows.length > 0 ? <BackgroundCommandRows tasks={commandRows} /> : undefined,
       description:
-        presentation.items.length === 1 && presentation.items[0]?.childThreadId === undefined
+        commandRows.length > 0 ||
+        (presentation.items.length === 1 && presentation.items[0]?.childThreadId === undefined)
           ? undefined
           : presentation.items.map((item, index) => {
               const childThreadId = item.childThreadId;

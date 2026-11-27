@@ -897,6 +897,8 @@ export const OrchestrationV2PendingBackgroundTask = kindUnionWithFallback(
       service: Schema.optional(Schema.Boolean),
       /** The time limit the agent set when it started the command. */
       timeoutMs: Schema.optional(Schema.Int),
+      /** When the app first saw the command running; the panel shows time against the limit. */
+      startedAt: Schema.optional(Schema.DateTimeUtc),
     }),
     Schema.Struct({ ...PendingBackgroundTaskFields, kind: Schema.Literal("monitor") }),
     Schema.Struct({ ...PendingBackgroundTaskFields, kind: Schema.Literal("background_task") }),

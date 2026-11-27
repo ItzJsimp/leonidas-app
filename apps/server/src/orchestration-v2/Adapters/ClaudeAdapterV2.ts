@@ -2614,6 +2614,21 @@ function isClaudeRootTurnFrame(message: SDKMessage): boolean {
   );
 }
 
+/** A command keeps the time it was first seen, so rebuilding the roster never restarts its clock. */
+function withStartedAt(
+  task: OrchestrationV2PendingBackgroundTask,
+  before: ReadonlyMap<string, OrchestrationV2PendingBackgroundTask> | undefined,
+  now: DateTime.Utc,
+): OrchestrationV2PendingBackgroundTask {
+  if (task.kind !== "command") return task;
+  const earlier = before?.get(task.taskId);
+  return {
+    ...task,
+    startedAt:
+      task.startedAt ?? (earlier?.kind === "command" ? earlier.startedAt : undefined) ?? now,
+  };
+}
+
 function claudePendingBackgroundTasksFromRoster(
   roster: ReadonlyMap<string, OrchestrationV2PendingBackgroundTask>,
 ): ReadonlyArray<OrchestrationV2PendingBackgroundTask> {
@@ -4817,14 +4832,20 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             nativeThreadId: string,
             tasks: ReadonlyArray<OrchestrationV2PendingBackgroundTask>,
           ) {
+            const stampedAt = yield* DateTime.now;
             yield* Ref.update(pendingBackgroundTasksByNativeThread, (current) => {
               const updated = new Map(current);
               if (tasks.length === 0) {
                 updated.delete(nativeThreadId);
               } else {
+                const before = current.get(nativeThreadId);
                 updated.set(
                   nativeThreadId,
-                  new Map(tasks.map((task) => [task.taskId, task] as const)),
+                  new Map(
+                    tasks.map(
+                      (task) => [task.taskId, withStartedAt(task, before, stampedAt)] as const,
+                    ),
+                  ),
                 );
               }
               return updated;
@@ -4844,9 +4865,10 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             nativeThreadId: string,
             task: OrchestrationV2PendingBackgroundTask,
           ) {
+            const stampedAt = yield* DateTime.now;
             yield* Ref.update(pendingBackgroundTasksByNativeThread, (current) => {
               const roster = new Map(rosterForNativeThread(current, nativeThreadId));
-              roster.set(task.taskId, task);
+              roster.set(task.taskId, withStartedAt(task, roster, stampedAt));
               return new Map(current).set(nativeThreadId, roster);
             });
             yield* rememberOpaqueTasks([task]);
