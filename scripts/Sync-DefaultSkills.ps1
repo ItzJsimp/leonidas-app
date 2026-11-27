@@ -12,13 +12,17 @@ param(
     [string]$RepoPath = (Join-Path $PSScriptRoot '..'),
     [string]$SourceRoot = (Join-Path $PSScriptRoot '..'),
     [string]$ProjectPath,
-    [switch]$SkillsOnly   # link skills only and leave the project's own next-action copy alone (used for a new worktree)
+    [switch]$SkillsOnly,  # link skills only and leave the project's own next-action copy alone (used for a new worktree)
+    [switch]$Check        # read-only drift check for session-start hooks
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path -LiteralPath $RepoPath).Path
 $source = Join-Path (Resolve-Path -LiteralPath $SourceRoot).Path '.agents/skills/next-action'
-if (-not (Test-Path -LiteralPath (Join-Path $source 'SKILL.md'))) { throw "Missing default skill: $source" }
+if (-not (Test-Path -LiteralPath (Join-Path $source 'SKILL.md'))) {
+    if ($Check) { exit 0 }   # a checkout without the canon (for example a worktree) has nothing to compare against
+    throw "Missing default skill: $source"
+}
 $targets = @($repo)
 if ($ProjectPath) { $targets = @((Resolve-Path -LiteralPath $ProjectPath).Path) }
 elseif (Test-Path -LiteralPath (Join-Path $repo 'projects')) {
@@ -31,11 +35,14 @@ elseif (Test-Path -LiteralPath (Join-Path $repo 'projects')) {
         ForEach-Object { $_.FullName })
 }
 $updated = 0
+$drift = @()
 function Copy-DefaultSkill([string]$Destination, [string]$Backup) {
     foreach ($file in Get-ChildItem -LiteralPath $source -File -Recurse | Where-Object { $_.Name -notlike '*.pyc' -and $_.FullName -notmatch '__pycache__' }) {
         $relative = [IO.Path]::GetRelativePath($source, $file.FullName)
         $dest = Join-Path $Destination $relative
-        if ((Test-Path -LiteralPath $dest) -and ((Get-FileHash -LiteralPath $dest).Hash -eq (Get-FileHash -LiteralPath $file.FullName).Hash)) { continue }
+        # Line endings are ignored: git's autocrlf rewrites them on checkout and is not drift.
+        if ((Test-Path -LiteralPath $dest) -and ([IO.File]::ReadAllText($dest).Replace("`r`n", "`n") -ceq [IO.File]::ReadAllText($file.FullName).Replace("`r`n", "`n"))) { continue }
+        if ($Check) { $script:drift += $dest; continue }
         if ($PSCmdlet.ShouldProcess($dest, 'Install default next-action skill, backing up changes')) {
             if (Test-Path -LiteralPath $dest) {
                 $save = Join-Path $Backup $relative
@@ -55,6 +62,12 @@ foreach ($target in $targets | Select-Object -Unique) {
     $backup = Join-Path $target ('.aios-backups/next-action-' + (Get-Date -Format 'yyyyMMdd-HHmmss-ffff'))
     Copy-DefaultSkill $destination $backup
     $adapter = Join-Path $target '.claude/skills/next-action'
+    if ($Check) {
+        if ((Test-Path -LiteralPath $adapter) -and -not (Get-Item -LiteralPath $adapter).LinkType -and -not (Get-Item -LiteralPath (Split-Path $adapter)).LinkType) {
+            Copy-DefaultSkill $adapter (Join-Path $backup "provider-copy")
+        }
+        continue
+    }
     if ($PSCmdlet.ShouldProcess($adapter, 'Make default skill discoverable to the Claude provider')) {
         if (-not (Test-Path -LiteralPath $adapter)) {
             New-Item -ItemType Directory -Path (Split-Path $adapter) -Force | Out-Null
@@ -67,13 +80,17 @@ foreach ($target in $targets | Select-Object -Unique) {
         }
     }
 }
+if ($Check) {
+    if ($drift) { Write-Warning "Default skill drift ($($drift.Count) file(s)): $($drift -join ', '). Run scripts/Sync-DefaultSkills.ps1 to update." }
+    else { Write-Host "[OK] Default skill in sync across $($targets.Count) workspace(s)." }
+    exit 0
+}
 # Core skills (standards/project-standard.md section 11). Every workspace links these from this AIOS
 # canon and never copies them, so one canonical edit reaches every workspace. A workspace's own folder
 # with the same name wins. A name the canon lacks is reported, never invented.
 $coreSkills = @('session-handoff', 'chat-sync', 'daily-briefing', 'find-skills', 'ask-leonidas', 'implement', 'grilling', 'grill-me', 'grill-with-docs', 'domain-modeling', 'diagnosing-bugs', 'to-spec', 'to-tickets', 'wayfinder', 'retro', 'wizard', 'wait-what', 'writing-for-agents', 'pr', 'review-two-axis')
+# Core skills ship inside Leonidas (ADR-0102), so a clean template AIOS holds no copies here; skip absent ones silently.
 $canonCore = @($coreSkills | Where-Object { Test-Path -LiteralPath (Join-Path $repo ".agents/skills/$_/SKILL.md") })
-$absentCore = @($coreSkills | Where-Object { $_ -notin $canonCore })
-if ($absentCore) { Write-Warning "Core skills missing from ${repo}: $($absentCore -join ', ')" }
 # Project skills: AIOS-only skills one project needs. <AIOS>/.agents/project-skills.json maps a project folder name
 # to skill names, for example {"my-app": ["doop"]}. A linked worktree uses the name of the checkout that owns its
 # git folder. Same link rules as core. Without the file or an entry, ADR-0038 discovery shows a project only the
@@ -96,6 +113,16 @@ $linked = 0
 function New-SkillLink([string]$Link, [string]$Destination) {
     if ($IsWindows) { New-Item -ItemType Junction -Path $Link -Target $Destination | Out-Null }
     else { New-Item -ItemType SymbolicLink -Path $Link -Target $Destination | Out-Null }
+}
+function Test-LinkedWorktree([string]$Target) {
+    Test-Path -LiteralPath (Join-Path $Target '.git') -PathType Leaf
+}
+function Copy-SkillDir([string]$SourceDir, [string]$DestDir) {
+    foreach ($file in Get-ChildItem -LiteralPath $SourceDir -File -Recurse | Where-Object { $_.Name -notlike '*.pyc' -and $_.FullName -notmatch '__pycache__' }) {
+        $dest = Join-Path $DestDir ([IO.Path]::GetRelativePath($SourceDir, $file.FullName))
+        New-Item -ItemType Directory -Path (Split-Path $dest) -Force | Out-Null
+        Copy-Item -LiteralPath $file.FullName -Destination $dest -Force
+    }
 }
 function Add-LocalExclude([string]$Workspace, [string]$Relative) {
     # Links stay out of git: a local exclude in the nearest repository from the workspace up to the AIOS root.
@@ -153,15 +180,31 @@ foreach ($name in $canonAll) {
     foreach ($target in $targets | Select-Object -Unique) {
         if (-not (Test-SkillFor $name $target)) { continue }
         $link = Join-Path $target ".agents/skills/$name"
+        # Disposable linked worktrees copy AIOS skills instead of creating NTFS junctions: git worktree remove
+        # descends into junctions on Windows and empties the AIOS canon folder.
+        $isWorktree = ($target -ne $repo) -and (Test-LinkedWorktree $target)
         if ($target -ne $repo) {
             Remove-EmptySkillDir $link
-            if (-not (Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue) -and $PSCmdlet.ShouldProcess($link, 'Link core skill from the AIOS canon')) {
-                New-Item -ItemType Directory -Path (Split-Path $link) -Force | Out-Null
-                New-SkillLink $link $canon
-                $linked++
+            $existing = Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+            if ($isWorktree) {
+                if ($existing -and $existing.LinkType -and $PSCmdlet.ShouldProcess($link, 'Replace outbound skill junction in worktree with a local copy')) {
+                    [System.IO.Directory]::Delete($link, $false)
+                    $existing = $null
+                }
+                if (-not $existing -and $PSCmdlet.ShouldProcess($link, 'Copy AIOS skill into linked worktree')) {
+                    Copy-SkillDir $canon $link
+                    $linked++
+                    if (-not $WhatIfPreference) { Add-LocalExclude $target ".agents/skills/$name" }
+                }
+            } else {
+                if (-not $existing -and $PSCmdlet.ShouldProcess($link, 'Link core skill from the AIOS canon')) {
+                    New-Item -ItemType Directory -Path (Split-Path $link) -Force | Out-Null
+                    New-SkillLink $link $canon
+                    $linked++
+                }
+                # Exclude links only: a real folder with this name is committed project content, and an exclude would hide its new files.
+                if (-not $WhatIfPreference -and (Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue).LinkType) { Add-LocalExclude $target ".agents/skills/$name" }
             }
-            # Exclude links only: a real folder with this name is committed project content, and an exclude would hide its new files.
-            if (-not $WhatIfPreference -and (Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue).LinkType) { Add-LocalExclude $target ".agents/skills/$name" }
         }
         # A provider folder that is itself a link already exposes every skill in .agents/skills.
         $adapterRoot = Join-Path $target '.claude/skills'
@@ -169,15 +212,29 @@ foreach ($name in $canonAll) {
         if ($adapterItem -and $adapterItem.LinkType) { continue }
         $adapter = Join-Path $adapterRoot $name
         Remove-EmptySkillDir $adapter
-        if (-not (Get-Item -LiteralPath $adapter -Force -ErrorAction SilentlyContinue) -and $PSCmdlet.ShouldProcess($adapter, 'Make core skill discoverable to the Claude provider')) {
-            if (-not $adapterItem) {
-                New-Item -ItemType Directory -Path $adapterRoot -Force | Out-Null
-                [IO.File]::WriteAllText((Join-Path $adapterRoot '.gitignore'), "*`n!.gitignore`n")
+        $existingAdapter = Get-Item -LiteralPath $adapter -Force -ErrorAction SilentlyContinue
+        if ($isWorktree) {
+            if ($existingAdapter -and $existingAdapter.LinkType -and $PSCmdlet.ShouldProcess($adapter, 'Replace outbound Claude skill junction in worktree with a local copy')) {
+                [System.IO.Directory]::Delete($adapter, $false)
+                $existingAdapter = $null
             }
-            New-SkillLink $adapter $link
-            $linked++
+            if (-not $existingAdapter -and $PSCmdlet.ShouldProcess($adapter, 'Copy skill for Claude discovery in linked worktree')) {
+                if (-not $adapterItem) { New-Item -ItemType Directory -Path $adapterRoot -Force | Out-Null }
+                Copy-SkillDir $link $adapter
+                $linked++
+                if (-not $WhatIfPreference) { Add-LocalExclude $target ".claude/skills/$name" }
+            }
+        } else {
+            if (-not $existingAdapter -and $PSCmdlet.ShouldProcess($adapter, 'Make core skill discoverable to the Claude provider')) {
+                if (-not $adapterItem) {
+                    New-Item -ItemType Directory -Path $adapterRoot -Force | Out-Null
+                    [IO.File]::WriteAllText((Join-Path $adapterRoot '.gitignore'), "*`n!.gitignore`n")
+                }
+                New-SkillLink $adapter $link
+                $linked++
+            }
+            if (-not $WhatIfPreference -and (Get-Item -LiteralPath $adapter -Force -ErrorAction SilentlyContinue).LinkType) { Add-LocalExclude $target ".claude/skills/$name" }
         }
-        if (-not $WhatIfPreference -and (Get-Item -LiteralPath $adapter -Force -ErrorAction SilentlyContinue).LinkType) { Add-LocalExclude $target ".claude/skills/$name" }
     }
 }
 if (-not $WhatIfPreference) {
@@ -187,6 +244,7 @@ if (-not $WhatIfPreference) {
             if (-not (Test-Path -LiteralPath $probe)) { throw "Core skill not discoverable to Claude: $probe" }
         }
     }
-}Write-Host "[OK] Updated $updated default skill files across $($targets.Count) workspace(s)."
+}
+Write-Host "[OK] Updated $updated default skill files across $($targets.Count) workspace(s)."
 Write-Host "[OK] Core skills: $linked link(s) created across $($targets.Count) workspace(s)."
 Write-Host "[OK] Shared skills: $sharedLinked link(s) created from Leonidas Code."

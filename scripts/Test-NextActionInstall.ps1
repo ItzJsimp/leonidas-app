@@ -91,3 +91,42 @@ try {
     Assert ($failedOutput -notmatch 'hookSpecificOutput') 'Failed installation reported successful context'
 } finally { Pop-Location }
 Write-Host '[PASS] Codex hook preserves installation failures'
+# 4. Linked worktree gets local skill copies (no outbound junctions), stays clean in git, and survives git worktree remove.
+$wtRepo = Join-Path $fixture 'projects/wt-app'
+$wtPath = Join-Path $fixture 'wt-app-branch'
+New-Item -ItemType Directory -Path $wtRepo -Force | Out-Null
+git -C $wtRepo init --quiet
+git -C $wtRepo config user.email 'test@example.com'
+git -C $wtRepo config user.name 'Test'
+Set-Content -LiteralPath (Join-Path $wtRepo 'README.md') 'hello'
+git -C $wtRepo add README.md
+git -C $wtRepo commit --quiet -m 'init'
+git -C $wtRepo worktree add --quiet $wtPath -b feat/safe-copy
+Assert ($LASTEXITCODE -eq 0) 'Worktree creation failed'
+$syncScript = Join-Path $PSScriptRoot 'Sync-DefaultSkills.ps1'
+& $syncScript -RepoPath $fixture -SourceRoot $source -ProjectPath $wtPath -SkillsOnly | Out-Null
+$wtSkill = Get-Item -LiteralPath (Join-Path $wtPath '.agents/skills/session-handoff') -Force
+$wtAdapter = Get-Item -LiteralPath (Join-Path $wtPath '.claude/skills/session-handoff') -Force
+Assert (-not $wtSkill.LinkType) 'Linked worktree received a junction instead of a local copy'
+Assert (-not $wtAdapter.LinkType) 'Linked worktree Claude adapter received a junction instead of a local copy'
+Assert (-not (git -C $wtPath status --porcelain)) 'Copied worktree skills dirtied git status'
+git -C $wtRepo worktree remove $wtPath
+Assert ($LASTEXITCODE -eq 0) 'git worktree remove failed on copied-skill worktree'
+Assert (Test-Path -LiteralPath (Join-Path $fixture '.agents/skills/session-handoff/SKILL.md')) 'git worktree remove deleted the AIOS canon skill'
+Write-Host '[PASS] Linked worktrees copy AIOS skills safely and git worktree remove preserves AIOS canon'
+
+# 5. Clean template AIOS without core skills produces no "Core skills missing" warning, and -Check is read-only.
+$cleanAios = Join-Path $fixture 'clean-template-aios'
+New-Item -ItemType Directory -Path $cleanAios -Force | Out-Null
+$warnings = @()
+& $syncScript -RepoPath $cleanAios -SourceRoot $source -WarningVariable warnings 3>$null | Out-Null
+Assert (-not ($warnings -match 'Core skills missing')) "Unexpected core skills warning: $($warnings -join '; ')"
+$checkOut = pwsh -NoProfile -File $syncScript -RepoPath $cleanAios -SourceRoot $source -Check 2>&1 | Out-String
+Assert ($LASTEXITCODE -eq 0 -and $checkOut -match '\[OK\] Default skill in sync') "Sync-DefaultSkills -Check failed when in sync: $checkOut"
+$driftedFile = Join-Path $cleanAios '.agents/skills/next-action/SKILL.md'
+Set-Content -LiteralPath $driftedFile 'drifted content'
+$checkWarnings = @()
+& $syncScript -RepoPath $cleanAios -SourceRoot $source -Check -WarningVariable checkWarnings 3>$null | Out-Null
+Assert ($LASTEXITCODE -eq 0 -and ($checkWarnings -match 'Default skill drift')) 'Sync-DefaultSkills -Check did not report drift'
+Assert ((Get-Content -LiteralPath $driftedFile -Raw).Trim() -eq 'drifted content') 'Sync-DefaultSkills -Check modified a file'
+Write-Host '[PASS] No core-skills warning on clean template AIOS and -Check detects drift read-only'

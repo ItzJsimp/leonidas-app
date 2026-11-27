@@ -114,7 +114,7 @@ function Remove-BranchWorktree([string]$branch) {
     # the worktree. A busy worktree (an agent still in it) is never touched (2026-11-06: deleting a
     # busy one destroyed its ignored files).
     $gone = "$p.landed-$PID"
-    try { Rename-Item -LiteralPath $p -NewName (Split-Path $gone -Leaf) } catch { return "worktree $p kept (in use; its agent removes it)" }
+    try { Rename-Item -LiteralPath $p -NewName (Split-Path $gone -Leaf) } catch { return "worktree $p kept (in use; close shells in it, then remove links before deleting)" }
     # git worktree remove deletes through junctions (2026-11-07: 49 AIOS skill files): cut all links first.
     try { Remove-TreeLinks $gone } catch {
         Rename-Item -LiteralPath $gone -NewName (Split-Path $p -Leaf)
