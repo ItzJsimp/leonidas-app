@@ -1,3 +1,4 @@
+import { LiveCommandList } from "../desktop/LiveCommandList";
 import type { DesktopUpdateState } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { AlertTriangleIcon, ChevronRightIcon, DownloadIcon } from "lucide-react";
@@ -52,6 +53,7 @@ function RestartCheck({
           ? "1 chat is still working. It stops if you restart now."
           : `${runningCount} chats are still working. They stop if you restart now.`}
       </p>
+      <LiveCommandList />
       <div className="mt-3 flex items-center justify-between">
         <Button size="sm" variant="ghost" onClick={onRestart}>
           Restart anyway

@@ -1,3 +1,4 @@
+import { LiveCommandList } from "./LiveCommandList";
 import { compareSemverVersions } from "@t3tools/shared/semver";
 import { useAtomValue } from "@effect/atom-react";
 import { useEffect, useState } from "react";
@@ -211,6 +212,7 @@ function UpdateDetailsDialog({
                   ? "1 chat is still working. It stops if you restart now."
                   : `${runningCount} chats are still working. They stop if you restart now.`}
               </p>
+              <LiveCommandList />
               <Button
                 variant="ghost"
                 onClick={() => {

@@ -148,6 +148,39 @@ export const runningThreadKeepAliveAtom = createRunningThreadKeepAliveAtom({
  * Threads an app restart would interrupt, across every enabled environment: preparing, starting
  * or running, plus stopped threads whose task command is still live.
  */
+export interface LiveTaskCommand {
+  readonly key: string;
+  readonly threadTitle: string;
+  readonly command: string;
+}
+
+export function liveTaskCommandsOf(
+  environmentId: EnvironmentId,
+  thread: Pick<OrchestrationV2ThreadShell, "id" | "title" | "pendingBackgroundTasks">,
+  holdTaskCommands?: boolean,
+): ReadonlyArray<LiveTaskCommand> {
+  return (thread.pendingBackgroundTasks ?? []).flatMap((task) =>
+    task.kind === "command" && hasHoldingTaskCommand([task], holdTaskCommands)
+      ? [
+          {
+            key: `${environmentId}:${thread.id}:${task.taskId}`,
+            threadTitle: thread.title,
+            command: task.description ?? "Command",
+          },
+        ]
+      : [],
+  );
+}
+
+/** The task commands a restart would stop, for the restart check. Services are left out. */
+export const liveTaskCommandsAtom = Atom.make((get) =>
+  get(enabledEnvironmentIdsAtom).flatMap((environmentId) =>
+    get(environmentThreadShells.environmentThreadsAtom(environmentId)).flatMap((thread) =>
+      liveTaskCommandsOf(environmentId, thread),
+    ),
+  ),
+).pipe(Atom.withLabel("web-live-task-commands"));
+
 export const runningThreadCountAtom = Atom.make((get) =>
   get(enabledEnvironmentIdsAtom).reduce(
     (count, environmentId) =>

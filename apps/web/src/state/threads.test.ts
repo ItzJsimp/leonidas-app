@@ -14,7 +14,11 @@ import * as Option from "effect/Option";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, it } from "vite-plus/test";
 
-import { createRunningThreadKeepAliveAtom, isInterruptedByRestart } from "./threads";
+import {
+  createRunningThreadKeepAliveAtom,
+  isInterruptedByRestart,
+  liveTaskCommandsOf,
+} from "./threads";
 
 const LOCAL = EnvironmentId.make("local");
 const REMOTE = EnvironmentId.make("remote");
@@ -188,5 +192,27 @@ describe("isInterruptedByRestart", () => {
   it("counts only active runs while the switch is off", () => {
     expect(isInterruptedByRestart(stopped(false))).toBe(false);
     expect(isInterruptedByRestart({ status: "running", pendingBackgroundTasks: [] })).toBe(true);
+  });
+});
+
+describe("liveTaskCommandsOf", () => {
+  const thread = {
+    id: ThreadId.make("t1"),
+    title: "Run the tests",
+    pendingBackgroundTasks: [
+      { taskId: "a", kind: "command" as const, description: "pnpm vp test run" },
+      { taskId: "b", kind: "command" as const, service: true, description: "pnpm dev" },
+      { taskId: "c", kind: "subagent" as const },
+    ],
+  };
+
+  it("lists task commands with their chat, and skips services and other work", () => {
+    expect(liveTaskCommandsOf(LOCAL, thread, true)).toEqual([
+      { key: "local:t1:a", threadTitle: "Run the tests", command: "pnpm vp test run" },
+    ]);
+  });
+
+  it("lists nothing while the switch is off", () => {
+    expect(liveTaskCommandsOf(LOCAL, thread, false)).toEqual([]);
   });
 });
