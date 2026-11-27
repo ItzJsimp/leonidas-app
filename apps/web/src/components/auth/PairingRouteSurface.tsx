@@ -16,6 +16,8 @@ import { Input } from "../ui/input";
 import { StandalonePage, StandalonePageHeader } from "../ui/standalone-page";
 import { useAtomCommand } from "../../state/use-atom-command";
 
+const PAIRING_ERROR_ID = "pairing-error";
+
 export function PairingPendingSurface() {
   return (
     <StandalonePage tone="pairing">
@@ -42,6 +44,12 @@ export function PairingRouteSurface({
   const [errorMessage, setErrorMessage] = useState(initialErrorMessage ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const autoSubmitAttemptedRef = useRef(false);
+  const fieldRef = useRef<HTMLInputElement>(null);
+
+  // Focus the field on open, and again after a failed submit so a keyboard or screen reader user lands on the error.
+  useEffect(() => {
+    if (!isSubmitting) fieldRef.current?.focus();
+  }, [isSubmitting]);
 
   const submitCredential = async (nextCredential: string) => {
     setIsSubmitting(true);
@@ -102,8 +110,12 @@ export function PairingRouteSurface({
             autoCapitalize="none"
             autoComplete="off"
             autoCorrect="off"
+            aria-describedby={errorMessage ? PAIRING_ERROR_ID : undefined}
+            aria-invalid={errorMessage ? true : undefined}
             disabled={isSubmitting}
             nativeInput
+            ref={fieldRef}
+            strongBorder
             onChange={(event) => setCredential(event.currentTarget.value)}
             placeholder="Paste a one-time connection code"
             spellCheck={false}
@@ -112,14 +124,14 @@ export function PairingRouteSurface({
         </div>
 
         {errorMessage ? (
-          <Alert variant="error">
+          <Alert id={PAIRING_ERROR_ID} variant="error">
             <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         ) : null}
 
         <div className="flex flex-wrap gap-2">
           <Button disabled={isSubmitting} size="sm" type="submit">
-            {isSubmitting ? "Connecting…" : "Continue"}
+            {isSubmitting ? "Connecting…" : "Connect"}
           </Button>
           <Button
             disabled={isSubmitting}
@@ -134,6 +146,10 @@ export function PairingRouteSurface({
 
       <div className="mt-6 rounded-lg border border-border/70 bg-background/55 px-3 py-3 text-sm leading-relaxed text-muted-foreground">
         {describeSupportedMethods(auth.bootstrapMethods)}
+        <p className="mt-2">
+          Where does the code come from? On the computer that runs Leonidas, open Settings, then
+          Connections, then Create link. Or copy the link that the terminal shows at start.
+        </p>
       </div>
     </StandalonePage>
   );

@@ -305,6 +305,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --color-chart-google: var(--chart-google);
   --color-chart-good: var(--chart-good);
   --color-input: var(--contrast-input);
+  --color-input-strong: color-mix(in srgb, var(--foreground) 45%, var(--card));
   --color-border: var(--contrast-border);
   --color-destructive: var(--destructive);
   --color-scribe-pill: oklch(0.12 0.005 285);

@@ -48,6 +48,9 @@ import { SetupPreviewBar } from "./SetupPreviewBar";
 import { SetupQuestionsScreen } from "./SetupQuestionsScreen";
 import { SetupTour } from "./SetupTour";
 
+// Same text as the no-AI result of startChat in useOnboardingChat.
+const NEEDS_AI_MESSAGE = "Connect an AI first.";
+
 function pointsLeft(item: SetupItem, questionsAnswered: number): number {
   if (item.id !== "questions") return item.points;
   return (
@@ -180,6 +183,7 @@ export function FinishSetupCard() {
                   } else done(item.id);
                 }}
                 onClose={() => setOpenItem(null)}
+                onConnect={() => setOpenItem("account")}
               />
             ) : null}
           </DialogPanel>
@@ -196,6 +200,7 @@ function ItemPanel({
   voice,
   onDone,
   onClose,
+  onConnect,
 }: {
   readonly item: SetupItemId;
   readonly environmentId: EnvironmentId;
@@ -203,6 +208,8 @@ function ItemPanel({
   /** `answered` is set only for the quick questions. */
   readonly onDone: (answered?: number) => void;
   readonly onClose: () => void;
+  /** Opens the AI account choices. */
+  readonly onConnect: () => void;
 }) {
   const [folder] = useLocalStorage(AIOS_FOLDER_STORAGE_KEY, DEFAULT_AIOS_FOLDER, Schema.String);
   const { write } = useAiosFileWriter(environmentId);
@@ -243,7 +250,12 @@ function ItemPanel({
       );
     case "interview":
       return (
-        <FirstChatPanel environmentId={environmentId} folder={folder} onStarted={() => onDone()} />
+        <FirstChatPanel
+          environmentId={environmentId}
+          folder={folder}
+          onStarted={() => onDone()}
+          onConnect={onConnect}
+        />
       );
     case "import":
       return (
@@ -271,10 +283,12 @@ function FirstChatPanel({
   environmentId,
   folder,
   onStarted,
+  onConnect,
 }: {
   readonly environmentId: EnvironmentId;
   readonly folder: string;
   readonly onStarted: () => void;
+  readonly onConnect: () => void;
 }) {
   const navigate = useNavigate();
   const { ensureFolderProject, startChat } = useOnboardingChat(environmentId);
@@ -287,9 +301,16 @@ function FirstChatPanel({
         Your AI asks about 8 short questions and saves what it learns. It takes about 5 minutes.
       </p>
       {error ? (
-        <p role="alert" className="text-xs text-destructive-foreground">
-          {error}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p role="alert" className="text-xs text-destructive-foreground">
+            {error}
+          </p>
+          {error === NEEDS_AI_MESSAGE ? (
+            <Button variant="outline" size="sm" onClick={onConnect}>
+              Connect an AI
+            </Button>
+          ) : null}
+        </div>
       ) : null}
       <Button
         disabled={busy}

@@ -76,7 +76,7 @@ export class PrimaryEnvironmentPairingCredentialRejectedError extends Schema.Tag
   },
 ) {
   override get message(): string {
-    return "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.";
+    return "This code does not work. It may be used or out of date. Copy the new link that the terminal or desktop app shows at start, then paste it here.";
   }
 }
 

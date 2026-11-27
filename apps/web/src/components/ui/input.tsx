@@ -10,6 +10,8 @@ type InputProps = Omit<InputPrimitive.Props & React.RefAttributes<HTMLInputEleme
   font?: "default" | "mono";
   unstyled?: boolean;
   nativeInput?: boolean;
+  /** A 3:1 border for a lone field that must stand out from its card. */
+  strongBorder?: boolean;
 };
 
 function Input({
@@ -18,6 +20,7 @@ function Input({
   font = "default",
   unstyled = false,
   nativeInput = false,
+  strongBorder = false,
   ...props
 }: InputProps) {
   const inputClassName = cn(
@@ -67,6 +70,7 @@ function Input({
           !unstyled &&
             size === "compact" &&
             "rounded-md before:rounded-[calc(var(--radius-md)-1px)]",
+          strongBorder && "border-input-strong",
           font === "mono" && "font-mono tabular-nums",
           className,
         ) || undefined

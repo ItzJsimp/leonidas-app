@@ -412,7 +412,7 @@ describe("resolveInitialServerAuthGateState", () => {
         const rejected = expect(submitServerAuthCredential(token!)).rejects.toMatchObject({
           _tag: "PrimaryEnvironmentPairingCredentialRejectedError",
           message:
-            "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.",
+            "This code does not work. It may be used or out of date. Copy the new link that the terminal or desktop app shows at start, then paste it here.",
         });
         await exchangeStarted.promise;
         await expect(resolveInitialServerAuthGateState()).resolves.toEqual(requiresAuth);
@@ -553,7 +553,7 @@ describe("resolveInitialServerAuthGateState", () => {
       _tag: "PrimaryEnvironmentPairingCredentialRejectedError",
       providedLength: 9,
       message:
-        "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.",
+        "This code does not work. It may be used or out of date. Copy the new link that the terminal or desktop app shows at start, then paste it here.",
     });
     expect(isPrimaryEnvironmentPairingCredentialRejectedError(error)).toBe(true);
     if (!isPrimaryEnvironmentPairingCredentialRejectedError(error)) {
@@ -744,7 +744,7 @@ describe("resolveInitialServerAuthGateState", () => {
       status: "requires-auth",
       auth: LOOPBACK_AUTH,
       errorMessage:
-        "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.",
+        "This code does not work. It may be used or out of date. Copy the new link that the terminal or desktop app shows at start, then paste it here.",
     } as const;
     await expect(explicitPairing).resolves.toEqual(rejectedState);
     await expect(laterCaller).resolves.toEqual(rejectedState);
@@ -787,7 +787,7 @@ describe("resolveInitialServerAuthGateState", () => {
       status: "requires-auth",
       auth: LOOPBACK_AUTH,
       errorMessage:
-        "This code does not work. It may be used or out of date. On your computer, open Settings, then Connections, and scan the new code.",
+        "This code does not work. It may be used or out of date. Copy the new link that the terminal or desktop app shows at start, then paste it here.",
     });
     await expect(resolveInitialServerAuthGateState()).resolves.toEqual({
       status: "requires-auth",

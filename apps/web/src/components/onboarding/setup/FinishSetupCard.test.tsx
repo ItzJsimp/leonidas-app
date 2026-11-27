@@ -47,7 +47,7 @@ vi.mock("../VoiceStep", stub("VoiceStep"));
 vi.mock("../AiLevelStep", stub("AiLevelStep"));
 vi.mock("../LeonidasSkillsStep", stub("LeonidasSkillsStep"));
 vi.mock("../LeonidasLayaStep", stub("LeonidasLayaStep"));
-vi.mock("../AgentsStep", () => ({ AgentsStep: () => null }));
+vi.mock("../AgentsStep", () => ({ AgentsStep: () => <p>agents step</p> }));
 
 const { FinishSetupCard } = await import("./FinishSetupCard");
 
@@ -140,4 +140,29 @@ it("shows why the first chat could not start, and keeps the item open", async ()
   await act(async () => button("Start my first chat").click());
   expect(document.body.querySelector('[role="alert"]')?.textContent).toBe("Connect an AI first.");
   expect(container.querySelector('[role="meter"]')?.getAttribute("aria-valuenow")).toBe("10");
+});
+
+it("offers a Connect an AI button next to the message, and it opens the account choices", async () => {
+  chat.startChat.mockResolvedValueOnce({ ok: false, message: "Connect an AI first." });
+  await render(skippedEverything);
+  await act(async () => button("Start: Have your first chat").click());
+  await act(async () => button("Start my first chat").click());
+  await act(async () => button("Connect an AI").click());
+  expect(document.body.textContent).toContain("agents step");
+});
+
+it("shows no Connect an AI button for other first-chat errors", async () => {
+  chat.startChat.mockResolvedValueOnce({ ok: false, message: "Something else broke." });
+  await render(skippedEverything);
+  await act(async () => button("Start: Have your first chat").click());
+  await act(async () => button("Start my first chat").click());
+  expect(() => button("Connect an AI")).toThrow();
+});
+
+it("lists Connect an AI account first while no AI is connected", async () => {
+  await render(skippedEverything);
+  const labels = [...container.querySelectorAll("li p.font-medium")].map(
+    (node) => node.textContent,
+  );
+  expect(labels[0]).toBe("Connect an AI account");
 });
