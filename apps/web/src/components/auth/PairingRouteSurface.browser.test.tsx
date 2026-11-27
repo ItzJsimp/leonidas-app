@@ -28,6 +28,9 @@ it("opens with focus in the field, a Connect button and the path to a code", asy
   expect(buttons).not.toContain("Continue");
   expect(screen.container.textContent).toContain("Settings, then Connections, then Create link");
   expect(field(screen.container).hasAttribute("aria-invalid")).toBe(false);
+  expect(field(screen.container).closest("[data-slot=input-control]")?.className).toContain(
+    "border-input-strong",
+  );
 });
 
 it("after a wrong code, marks the field invalid, links it to the alert and refocuses it", async () => {

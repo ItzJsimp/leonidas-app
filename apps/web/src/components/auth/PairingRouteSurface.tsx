@@ -115,6 +115,7 @@ export function PairingRouteSurface({
             disabled={isSubmitting}
             nativeInput
             ref={fieldRef}
+            strongBorder
             onChange={(event) => setCredential(event.currentTarget.value)}
             placeholder="Paste a one-time connection code"
             spellCheck={false}

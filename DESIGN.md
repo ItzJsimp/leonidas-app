@@ -77,7 +77,8 @@ Weights: 400 body, 500 labels and selected items, 600 titles. Numbers that updat
 - **Progress:** track `muted-foreground/70`, fill `state`, green only at 100 percent.
 - **Tabs:** selected tab has a `border-primary` underline and `font-medium` text.
 - **Rail:** the current page icon is `text-primary` on `bg-primary/14`. Other icons are muted and turn white on hover.
-- **Focus:** a 2 px inset gray ring on every focusable control.
+- **Focus:** a 2 px inset gray ring on every focusable control. On a `bg-primary` button the ring is `primary-foreground` (white), because gray on red measures 1.47:1.
+- **Lone field:** a single input on a card (for example the pairing code) uses `strongBorder` (`--color-input-strong`, 3:1 or more against the card). Other fields keep `border-input`.
 - **Empty and error states:** an empty state teaches and offers one action. An error says what failed and what to do next.
 
 ## Tab done checklist
