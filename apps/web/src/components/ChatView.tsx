@@ -415,6 +415,7 @@ import {
   removeInlineContextReference,
   stripInlineContextReferences,
 } from "../lib/composerContextReferences";
+import { redirectPendingApprovals } from "./chat/approvalRedirect";
 import { prepareOutgoingTurn } from "./chat/turnPreparation";
 import { serializeLegacyContextMessage } from "@t3tools/shared/composerContextLegacySend";
 import {
@@ -8998,94 +8999,38 @@ export default function ChatView(props: ChatViewProps) {
       );
       return;
     }
-    // A message sent while approvals are pending redirects the agent. They are declined only
-    // here, after everything above has accepted the send, so local commands and rejected
-    // drafts leave them alone. After navigating away during an upload, the shown approvals
-    // are another thread's, so this send leaves them alone too.
-    const approvalsToDecline =
-      currentRouteThreadKeyRef.current === routeThreadKey
-        ? pendingApprovalsRef.current.filter((approval) =>
-            sendCtx?.shownPendingApprovalIds.includes(approval.requestId),
-          )
-        : [];
-    if (approvalsToDecline.length > 0) {
-      // A draft edited since send, or a paste still landing in it, is no longer the message
-      // the user sent.
-      const attachmentIdsAtSend = composerAttachmentsSnapshot.map((attachment) => attachment.id);
-      // A direct annotation send writes its image and reference into the draft as it sends,
-      // so the live draft may still lack them; anything else differing is a real edit.
-      const annotationImageId = directAnnotation?.image?.id;
-      const attachmentIdsBeforeAnnotation = attachmentIdsAtSend.filter(
-        (id) => id !== annotationImageId,
-      );
-      const sameIds = (left: ReadonlyArray<string>, right: ReadonlyArray<string>) =>
-        left.length === right.length && left.every((id, index) => id === right[index]);
-      const draftChangedSinceSend = () => {
-        if (composerRef.current?.hasPendingAttachments() === true) return true;
-        const sendContext = composerRef.current?.getSendContext();
-        const attachmentIds = sendContext
-          ? [...sendContext.images, ...sendContext.files].map((attachment) => attachment.id)
-          : attachmentIdsAtSend;
-        const promptUnchanged =
-          promptRef.current === promptAtSend || promptRef.current === draft.promptForSend;
-        const attachmentsUnchanged =
-          sameIds(attachmentIds, attachmentIdsAtSend) ||
-          (annotationImageId !== undefined &&
-            sameIds(attachmentIds, attachmentIdsBeforeAnnotation));
-        return !promptUnchanged || !attachmentsUnchanged;
-      };
-      const draftBeforeDecline = useComposerDraftStore
-        .getState()
-        .getComposerDraft(composerDraftTarget);
-      const changedBeforeDecline = draftChangedSinceSend();
-      const pendingIdsBeforeDecline = pendingApprovalsRef.current.map(
-        (approval) => approval.requestId,
-      );
-      const approvalResponding = approvalsToDecline.some((approval) =>
-        respondingRequestIdsRef.current.includes(approval.requestId),
-      );
-      const declined =
-        !changedBeforeDecline &&
-        !approvalResponding &&
-        (await declinePendingApprovals(approvalsToDecline, onRespondToApprovalStable).catch(
-          () => false,
-        ));
-      const draftChanged =
-        changedBeforeDecline ||
-        draftChangedSinceSend() ||
-        useComposerDraftStore.getState().getComposerDraft(composerDraftTarget) !==
-          draftBeforeDecline;
-      // An approval that arrived during the decline would block the redirect; keep the draft so
-      // the next send declines it too.
-      const approvalArrived = pendingApprovalsRef.current.some(
-        (approval) => !pendingIdsBeforeDecline.includes(approval.requestId),
-      );
-      if (
-        !declined ||
-        draftChanged ||
-        approvalArrived ||
-        currentRouteThreadKeyRef.current !== routeThreadKey
-      ) {
-        sendInFlightRef.current = false;
-        setDockedDraftHeroThreadKey((currentThreadKey) =>
-          currentThreadKey === activeThreadKey ? null : currentThreadKey,
-        );
-        if (draftChanged || approvalResponding || (declined && approvalArrived)) {
-          toastManager.add({
-            type: "info",
-            title: draftChanged
-              ? declined
-                ? "Approval declined. Your message changed, so it wasn't sent."
-                : "Your message changed, so it wasn't sent."
-              : approvalResponding
-                ? "An approval is already being answered, so your message wasn't sent."
-                : "Another approval arrived, so your message wasn't sent.",
-            description: "Send again when it's ready.",
-          });
-        }
-        return;
-      }
-    }
+    const redirected = await redirectPendingApprovals(
+      {
+        isSendingChatActive: () => currentRouteThreadKeyRef.current === routeThreadKey,
+        pendingApprovals: () => pendingApprovalsRef.current,
+        respondingRequestIds: () => respondingRequestIdsRef.current,
+        decline: (approvals) =>
+          declinePendingApprovals(approvals, onRespondToApprovalStable).catch(() => false),
+        livePrompt: () => promptRef.current,
+        hasPendingAttachments: () => composerRef.current?.hasPendingAttachments() === true,
+        liveAttachmentIds: () => {
+          const live = composerRef.current?.getSendContext();
+          return live ? [...live.images, ...live.files].map((attachment) => attachment.id) : null;
+        },
+        readDraft: () => useComposerDraftStore.getState().getComposerDraft(composerDraftTarget),
+        release: () => {
+          sendInFlightRef.current = false;
+          setDockedDraftHeroThreadKey((currentThreadKey) =>
+            currentThreadKey === activeThreadKey ? null : currentThreadKey,
+          );
+        },
+        toast: (title) =>
+          toastManager.add({ type: "info", title, description: "Send again when it's ready." }),
+      },
+      {
+        shownApprovalIds: sendCtx.shownPendingApprovalIds,
+        promptAtSend,
+        promptForSend: draft.promptForSend,
+        attachmentIdsAtSend: composerAttachmentsSnapshot.map((attachment) => attachment.id),
+        annotationImageId: directAnnotation?.image?.id,
+      },
+    );
+    if (redirected === "stopped") return;
     // A send queued behind setup leaves the first send's dispatch and setup card alone.
     if (sendQueuesBehindSetup) {
       setSetupQueueSendThreadKey(activeThreadKey);
