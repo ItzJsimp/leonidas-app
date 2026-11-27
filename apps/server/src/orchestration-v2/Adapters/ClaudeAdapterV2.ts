@@ -34,6 +34,7 @@ import {
   type ForkSessionResult,
   getSessionMessages,
   getSubagentMessages,
+  type HookCallback,
   query,
   resolveSettings as resolveClaudeSettings,
   type Options as ClaudeQueryOptions,
@@ -186,7 +187,7 @@ import {
   questionBudgetAllows,
 } from "@t3tools/provider-core/server/runtimeInstructions";
 import { isPonytailPluginEnabled } from "../../provider/PonytailEnsure.ts";
-import { NativeSpawnGate } from "../../subagents/nativeSpawnGate.ts";
+import { NativeSpawnGate, type NativeSpawnVerdict } from "../../subagents/nativeSpawnGate.ts";
 import {
   mcpToolPresentation,
   normalizeMcpText,
@@ -1396,6 +1397,7 @@ export function makeClaudeQueryOptions(input: {
   readonly disallowedTools?: ReadonlyArray<string>;
   readonly permissionMode?: PermissionMode;
   readonly canUseTool?: CanUseTool;
+  readonly hooks?: ClaudeQueryOptions["hooks"];
   readonly onUserDialog?: ClaudeQueryOptions["onUserDialog"];
   readonly supportedDialogKinds?: ClaudeQueryOptions["supportedDialogKinds"];
   readonly allowDangerouslySkipPermissions?: boolean;
@@ -1468,6 +1470,7 @@ export function makeClaudeQueryOptions(input: {
     ...(input.allowedTools === undefined ? {} : { allowedTools: [...input.allowedTools] }),
     ...(input.disallowedTools === undefined ? {} : { disallowedTools: [...input.disallowedTools] }),
     ...(input.canUseTool === undefined ? {} : { canUseTool: input.canUseTool }),
+    ...(input.hooks === undefined ? {} : { hooks: input.hooks }),
     ...(input.allowDangerouslySkipPermissions === true
       ? { allowDangerouslySkipPermissions: true }
       : {}),
@@ -9238,6 +9241,44 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
 
         // The new-user question budget: questions asked in the session's current turn.
         let questionTurn = { id: "", asked: 0 };
+        // Verdicts by tool use id: the PreToolUse hook and canUseTool can both see one Agent call.
+        const spawnVerdicts = new Map<string, NativeSpawnVerdict>();
+        /** The spawn gate for one native Agent call, checked once. Null when no gate is set. */
+        const checkNativeSpawn = Effect.fn("ClaudeAdapterV2.checkNativeSpawn")(function* (
+          context: ActiveClaudeTurnContext,
+          nativeToolInput: ClaudeNativeToolInput,
+          toolUseId: string,
+          callerIsSubagent: boolean,
+        ) {
+          const nativeSpawnGate = adapterOptions.nativeSpawnGate;
+          if (nativeSpawnGate === undefined) return null;
+          const known = spawnVerdicts.get(toolUseId);
+          if (known !== undefined) return known;
+          // The child's model: the call's own, else the chat's ("inherit" is the chat's too).
+          const requested = firstStringInputField(nativeToolInput, ["model"]);
+          const verdict = yield* nativeSpawnGate.check({
+            threadId: context.input.threadId,
+            threadTitle: context.input.appThread.title,
+            cwd: context.input.runtimePolicy.cwd ?? null,
+            instanceId: adapterOptions.instanceId,
+            account: adapterOptions.instanceId,
+            model:
+              requested === undefined || requested === "inherit"
+                ? context.input.modelSelection.model
+                : canonicalClaudeSubagentModel(subagentModelCatalog, requested),
+            callerIsSubagent,
+            label: firstStringInputField(nativeToolInput, ["subagent_type"]) ?? "subagent",
+            task: firstStringInputField(nativeToolInput, ["prompt"]) ?? "",
+            reason: firstStringInputField(nativeToolInput, ["description"]) ?? "",
+            toolUseId,
+          });
+          // In Full access only the hook sees the call, so the oldest ids drop out by count.
+          const oldest = spawnVerdicts.keys().next();
+          if (spawnVerdicts.size >= 200 && oldest.done !== true) spawnVerdicts.delete(oldest.value);
+          spawnVerdicts.set(toolUseId, verdict);
+          return verdict;
+        });
+
         const canUseToolEffect = Effect.fn("ClaudeAdapterV2.canUseTool")(function* (
           toolName: Parameters<CanUseTool>[0],
           toolInput: Parameters<CanUseTool>[1],
@@ -9258,34 +9299,19 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           const heldForEcho = context.heldRootFrames.length > 0;
           const startToolCall = toolName !== "Agent" && options?.startToolCall !== false;
           if (toolName === "Agent") {
-            const nativeSpawnGate = adapterOptions.nativeSpawnGate;
-            if (nativeSpawnGate !== undefined) {
-              // The child's model: the call's own, else the chat's ("inherit" is the chat's too).
-              const requested = firstStringInputField(nativeToolInput, ["model"]);
-              const verdict = yield* nativeSpawnGate.check({
-                threadId: context.input.threadId,
-                threadTitle: context.input.appThread.title,
-                cwd: context.input.runtimePolicy.cwd ?? null,
-                instanceId: adapterOptions.instanceId,
-                account: adapterOptions.instanceId,
-                model:
-                  requested === undefined || requested === "inherit"
-                    ? context.input.modelSelection.model
-                    : canonicalClaudeSubagentModel(subagentModelCatalog, requested),
-                callerIsSubagent: callbackOptions.agentID !== undefined,
-                label: firstStringInputField(nativeToolInput, ["subagent_type"]) ?? "subagent",
-                task: firstStringInputField(nativeToolInput, ["prompt"]) ?? "",
-                reason: firstStringInputField(nativeToolInput, ["description"]) ?? "",
-                toolUseId: nativeRequestId,
-              });
-              // A refusal comes back to the model as the tool's error text; no child starts.
-              if (!verdict.allow) {
-                return {
-                  behavior: "deny",
-                  message: verdict.message,
-                  toolUseID: callbackOptions.toolUseID,
-                } satisfies PermissionResult;
-              }
+            const verdict = yield* checkNativeSpawn(
+              context,
+              nativeToolInput,
+              nativeRequestId,
+              callbackOptions.agentID !== undefined,
+            );
+            // A refusal comes back to the model as the tool's error text; no child starts.
+            if (verdict !== null && !verdict.allow) {
+              return {
+                behavior: "deny",
+                message: verdict.message,
+                toolUseID: callbackOptions.toolUseID,
+              } satisfies PermissionResult;
             }
             rememberClaudeSubagentLaunch(
               subagentModelCatalog,
@@ -9540,6 +9566,45 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               return yield* canUseToolEffect(toolName, toolInput, callbackOptions);
             }),
           );
+
+        const denySpawn = (reason: string) => ({
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse" as const,
+            permissionDecision: "deny" as const,
+            permissionDecisionReason: reason,
+          },
+        });
+        // Hooks run before the permission mode, so the gate also holds in Full access, where
+        // Claude never calls canUseTool for Agent. Any failure denies: the gate never fails open.
+        const spawnGateHook: HookCallback = (hookInput) =>
+          runPromise(
+            Effect.gen(function* () {
+              if (hookInput.hook_event_name !== "PreToolUse") return {};
+              const context = yield* Ref.get(activeTurn);
+              if (context === null) return denySpawn("No active turn for this subagent call.");
+              const toolInput = hookInput.tool_input;
+              const verdict = yield* checkNativeSpawn(
+                context,
+                claudeNativeToolInputFromRecord(
+                  typeof toolInput === "object" && toolInput !== null
+                    ? (toolInput as Record<string, unknown>)
+                    : {},
+                ),
+                hookInput.tool_use_id,
+                hookInput.agent_id !== undefined,
+              );
+              return verdict === null || verdict.allow ? {} : denySpawn(verdict.message);
+            }).pipe(
+              Effect.catchCause(() =>
+                Effect.succeed(denySpawn("The spawn gate failed, so the subagent did not start.")),
+              ),
+            ),
+          );
+        // The card waits up to 15 minutes; the hook must not time out and let the call through.
+        const hooks: ClaudeQueryOptions["hooks"] =
+          adapterOptions.nativeSpawnGate === undefined
+            ? undefined
+            : { PreToolUse: [{ matcher: "Agent", hooks: [spawnGateHook], timeout: 20 * 60 }] };
 
         const onUserDialog: NonNullable<ClaudeQueryOptions["onUserDialog"]> = (
           request,
@@ -9830,6 +9895,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                   allowDangerouslySkipPermissions: queryPolicy.allowDangerouslySkipPermissions,
                 }),
             canUseTool,
+            ...(hooks === undefined ? {} : { hooks }),
             onUserDialog,
             supportedDialogKinds: ["resume_return"],
             ...(appendSystemPromptFileText === undefined ? {} : { appendSystemPromptFileText }),
