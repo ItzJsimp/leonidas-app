@@ -1119,6 +1119,16 @@ export function formatWorkingDurationLabel(elapsedMs: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
+/** "Waiting on 2 commands" when task commands hold the thread, else plain "Waiting". */
+export function waitingLabel(
+  tasks: SidebarThreadSummary["pendingBackgroundTasks"] | undefined,
+): string {
+  const commands = (tasks ?? []).filter((task) => task.kind === "command" && task.service !== true);
+  return commands.length === 0
+    ? "Waiting"
+    : `Waiting on ${commands.length} command${commands.length === 1 ? "" : "s"}`;
+}
+
 export function resolveThreadStatusPill(input: {
   thread: ThreadStatusInput;
 }): ThreadStatusPill | null {

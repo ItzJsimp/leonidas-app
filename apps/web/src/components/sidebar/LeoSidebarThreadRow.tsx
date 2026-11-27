@@ -15,6 +15,7 @@ import {
   resolveReplyStatusMark,
   resolveWorkingStartedAt,
   useSidebarCacheWarmth,
+  waitingLabel,
 } from "../Sidebar.logic";
 import { formatRelativeTimeLabel, parseTimestampDate } from "../../timestampFormat";
 import { resolveSettledThreadTimestamp } from "@t3tools/client-runtime/state/thread-sort";
@@ -683,7 +684,7 @@ export const SidebarThreadRow = memo(function SidebarThreadRow(props: {
         ? {
             // Waiting is calm background presence (post-settle background
             // roster), not active progress, so the label keeps full strength.
-            label: "Waiting",
+            label: waitingLabel(thread.pendingBackgroundTasks),
             icon: null,
             className: "text-muted-foreground",
           }

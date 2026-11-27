@@ -65,6 +65,7 @@ import {
   type SidebarSection,
   resolveSidebarDropVerb,
   threadActivityTimestamp,
+  waitingLabel,
 } from "./Sidebar.logic";
 import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
 import { EnvironmentId, ProjectId, ProviderInstanceId, RunId, ThreadId } from "@t3tools/contracts";
@@ -2652,5 +2653,20 @@ describe("isSidebarThreadUnreadOrWoke and sidebarThreadNeedsAttention", () => {
         lastVisitedAt: activeSnooze.lastVisitedAt ?? undefined,
       }),
     ).toBe(false);
+  });
+});
+
+describe("waitingLabel", () => {
+  it("counts task commands and skips services", () => {
+    expect(waitingLabel(undefined)).toBe("Waiting");
+    expect(waitingLabel([{ taskId: "a", kind: "command" }])).toBe("Waiting on 1 command");
+    expect(
+      waitingLabel([
+        { taskId: "a", kind: "command" },
+        { taskId: "b", kind: "command" },
+        { taskId: "c", kind: "command", service: true },
+      ]),
+    ).toBe("Waiting on 2 commands");
+    expect(waitingLabel([{ taskId: "d", kind: "subagent" }])).toBe("Waiting");
   });
 });
