@@ -1251,7 +1251,10 @@ describe("ClaudeAdapterV2 Auto-accept edits", () => {
 
 describe("ClaudeAdapterV2 native spawn gate", () => {
   // Opens a session whose gate records each Agent call and answers with `verdict`.
-  const openWithGate = (verdict: NativeSpawnVerdict) =>
+  const openWithGate = (
+    verdict: NativeSpawnVerdict,
+    runtimeMode: "auto" | "full-access" = "auto",
+  ) =>
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const idAllocator = yield* IdAllocator.IdAllocatorV2;
@@ -1299,8 +1302,8 @@ describe("ClaudeAdapterV2 native spawn gate", () => {
         },
       });
       const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
-        // Not full-access: bypass mode waits for a person, so an allowed Agent call would hang.
-        runtimeMode: "auto",
+        // Auto by default: bypass mode waits for a person, so an allowed canUseTool call would hang.
+        runtimeMode,
         interactionMode: "default",
         cwd: "/workspace",
       });
@@ -1338,7 +1341,26 @@ describe("ClaudeAdapterV2 native spawn gate", () => {
             ...(agentID === undefined ? {} : { agentID }),
           }),
         );
-      return { asked, callAgent };
+      const matcher = openedOptions?.hooks?.PreToolUse?.[0];
+      // Calls the PreToolUse hook as Claude does, before the permission mode decides.
+      const callHook = (input: Record<string, unknown>, agentId?: string) =>
+        Effect.promise(() =>
+          matcher!.hooks[0]!(
+            {
+              hook_event_name: "PreToolUse",
+              session_id: "native-thread-claude-native-spawn",
+              transcript_path: "",
+              cwd: "/workspace",
+              tool_name: "Agent",
+              tool_input: input,
+              tool_use_id: "tool-agent-1",
+              ...(agentId === undefined ? {} : { agent_id: agentId }),
+            },
+            "tool-agent-1",
+            { signal: new AbortController().signal },
+          ),
+        );
+      return { asked, callAgent, callHook, matcher };
     }).pipe(
       Effect.provide(
         Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
@@ -1404,6 +1426,43 @@ describe("ClaudeAdapterV2 native spawn gate", () => {
           assert.equal(asked[0]?.callerIsSubagent, true);
         }),
       ),
+  );
+
+  it.effect("Full access: a PreToolUse hook on Agent runs the gate and denies a refusal", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const { asked, callHook, matcher } = yield* openWithGate(
+          { allow: false, message: "Over the daily subagent cap." },
+          "full-access",
+        );
+        // Claude never calls canUseTool for Agent in bypass mode; only a hook sees the call.
+        assert.equal(matcher?.matcher, "Agent");
+        // The spawn card waits up to 15 minutes, so the hook must outlast it.
+        assert.isAtLeast(matcher?.timeout ?? 0, 15 * 60);
+        const output = yield* callHook({ description: "Nested", prompt: "Go" }, "agent-7");
+        assert.deepEqual(output, {
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "deny",
+            permissionDecisionReason: "Over the daily subagent cap.",
+          },
+        });
+        assert.equal(asked.length, 1);
+        assert.equal(asked[0]?.callerIsSubagent, true);
+      }),
+    ),
+  );
+
+  it.effect("an allowed call passes the hook, and canUseTool does not ask the gate again", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const { asked, callAgent, callHook } = yield* openWithGate({ allow: true });
+        assert.deepEqual(yield* callHook({ description: "Look", prompt: "Look around" }), {});
+        const result = yield* callAgent({ description: "Look", prompt: "Look around" });
+        assert.equal(result?.behavior, "allow");
+        assert.equal(asked.length, 1);
+      }),
+    ),
   );
 });
 
