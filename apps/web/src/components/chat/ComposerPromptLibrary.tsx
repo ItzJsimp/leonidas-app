@@ -195,7 +195,7 @@ function PromptRow(props: { item: SavedItem; onUse: (body: string) => void }) {
           <span className="block truncate text-sm font-medium">{item.title}</span>
           <span className="block truncate text-xs text-muted-foreground">{item.body}</span>
         </span>
-        <span className="mt-0.5 shrink-0 rounded-md border px-2 py-0.5 text-xs opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="mt-0.5 shrink-0 rounded-md border px-2 py-0.5 text-xs opacity-0 pointer-coarse:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100">
           Use
         </span>
       </button>

@@ -65,7 +65,7 @@ function useAttachmentLoader(environmentId: EnvironmentId, path: string) {
 
 function RemoveButton(props: { name: string; onRemove: () => void }) {
   return (
-    <span className="absolute top-0.5 right-0.5 opacity-0 group-hover/attachment:opacity-100 group-focus-within/attachment:opacity-100">
+    <span className="absolute top-0.5 right-0.5 opacity-0 pointer-coarse:opacity-100 group-hover/attachment:opacity-100 group-focus-within/attachment:opacity-100">
       <Button
         size="icon-xs"
         variant="media-close"

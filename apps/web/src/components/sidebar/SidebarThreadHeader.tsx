@@ -411,6 +411,7 @@ function PinnedTabs({
                 type="button"
                 aria-label={`Unpin ${item.label}`}
                 onClick={() => onToggle(item.id, false)}
+                // oxlint-disable-next-line t3code/no-hover-only-reveal -- covers the pinned label if always shown
                 className="absolute top-1/2 right-1.5 grid size-6 -translate-y-1/2 place-items-center rounded-md text-sidebar-muted-foreground opacity-0 transition-opacity group-hover/pin:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none"
               >
                 <PinOffIcon aria-hidden className="size-3.5" />

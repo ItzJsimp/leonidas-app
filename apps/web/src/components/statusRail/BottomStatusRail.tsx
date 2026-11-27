@@ -62,7 +62,7 @@ const STATUS_DOT: Readonly<Record<RailStatusTone, string>> = {
 };
 
 const ITEM_CLASS =
-  "inline-flex h-5 shrink-0 items-center gap-1.5 rounded px-1.5 text-2xs whitespace-nowrap text-muted-foreground outline-hidden ring-ring transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset motion-reduce:transition-none";
+  "inline-flex h-5 shrink-0 pointer-coarse:h-8 items-center gap-1.5 rounded px-1.5 text-2xs whitespace-nowrap text-muted-foreground outline-hidden ring-ring transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset motion-reduce:transition-none";
 
 function StatusDot({
   tone,
@@ -119,7 +119,7 @@ export function BottomStatusRail() {
     <footer
       aria-label="System status"
       data-slot="bottom-status-rail"
-      className="flex h-7 shrink-0 items-center justify-between gap-2 overflow-x-auto border-t border-border bg-card px-2.5 text-2xs text-muted-foreground select-none"
+      className="box-content flex h-7 shrink-0 items-center justify-between gap-2 overflow-x-auto border-t border-border bg-card px-2.5 pb-safe text-2xs text-muted-foreground select-none pointer-coarse:h-10 pointer-coarse:text-xs"
     >
       {/* Scribe, Game Mode and the rest control the computer, so only the desktop app shows them. */}
       {isElectron ? (

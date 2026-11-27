@@ -201,6 +201,7 @@ export default function ProjectScriptsControl({
                   </span>
                 ))}
               <span
+                // oxlint-disable-next-line t3code/no-hover-only-reveal -- floating actions cover the script label; the menu presentation serves touch
                 className={`absolute right-0 top-1/2 flex -translate-y-1/2 ${presentation === "menu" ? "" : "opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-visible:opacity-100 group-focus-visible:pointer-events-auto"}`}
               >
                 <Button

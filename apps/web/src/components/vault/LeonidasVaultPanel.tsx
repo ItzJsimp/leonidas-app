@@ -292,7 +292,7 @@ export function LeonidasVaultPanel({
                       e.stopPropagation();
                       handleDeleteNote(note.id);
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive rounded transition"
+                    className="opacity-0 pointer-coarse:opacity-100 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive rounded transition"
                     aria-label="Delete note"
                   >
                     <Trash2 className="w-3 h-3" />
