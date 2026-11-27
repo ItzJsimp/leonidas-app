@@ -415,6 +415,7 @@ import {
   removeInlineContextReference,
   stripInlineContextReferences,
 } from "../lib/composerContextReferences";
+import { prepareOutgoingTurn } from "./chat/turnPreparation";
 import { serializeLegacyContextMessage } from "@t3tools/shared/composerContextLegacySend";
 import {
   buildMessageContext,
@@ -8817,10 +8818,6 @@ export default function ChatView(props: ChatViewProps) {
     } = submission;
     const multipleModelSelections = sendCtx.multipleModelSelections;
     const {
-      files: composerFiles,
-      terminalContexts: composerTerminalContexts,
-      reviewComments: composerReviewComments,
-      threadContexts: composerThreadContexts,
       selectedProvider: ctxSelectedProvider,
       selectedModel: ctxSelectedModel,
       selectedProviderModels: ctxSelectedProviderModels,
@@ -8828,68 +8825,35 @@ export default function ChatView(props: ChatViewProps) {
       selectedModelSelection: ctxSelectedModelSelection,
       interactionMode: sendInteractionMode,
     } = sendCtx;
+    const { trimmedPrompt: trimmed, expiredTerminalContextCount } = draft;
     const {
-      composerImages,
-      composerPreviewAnnotations,
-      promptForSend,
-      trimmedPrompt: trimmed,
-      sendableTerminalContexts: sendableComposerTerminalContexts,
-      expiredTerminalContextCount,
-    } = draft;
-    const composerImagesSnapshot = [...composerImages];
-    const composerFilesSnapshot = [...composerFiles];
-    const composerAttachmentsSnapshot = [...composerImagesSnapshot, ...composerFilesSnapshot];
-    const composerTerminalContextsSnapshot = [...sendableComposerTerminalContexts];
-    const composerPreviewAnnotationsSnapshot = [...composerPreviewAnnotations];
-    const composerReviewCommentsSnapshot: ReviewCommentContext[] = [...composerReviewComments];
-    const composerThreadContextsSnapshot = [...composerThreadContexts];
-    // Expired terminal excerpts are not sent; their chips leave the text with them.
-    const messageTextForSend = composerTerminalContexts
-      .filter((context) => !composerTerminalContextsSnapshot.includes(context))
-      .reduce(
-        (text, context) =>
-          removeInlineContextReference(text, terminalContextReference(context).contextId).prompt,
-        promptForSend,
-      )
-      .trim();
-    // Records bind attachments by the id each side knows: the local id for the optimistic
-    // row, the upload id (or local id on the data-URL path) on the wire; the server
-    // rebinds them to the persisted id.
-    const buildOutgoingMessageContext = (attachmentIds: ReadonlyArray<string>) =>
-      buildMessageContext({
-        terminalContexts: composerTerminalContextsSnapshot,
-        reviewComments: composerReviewCommentsSnapshot,
-        previewAnnotations: composerPreviewAnnotationsSnapshot,
-        threadContexts: composerThreadContextsSnapshot,
-        attachments: composerAttachmentsSnapshot.map((attachment, index) => ({
-          attachment,
-          attachmentId: attachmentIds[index] ?? attachment.id,
-        })),
-      });
-    const outgoingMessageContext = buildOutgoingMessageContext(
-      composerAttachmentsSnapshot.map((attachment) => attachment.id),
-    );
+      composerImagesSnapshot,
+      composerFilesSnapshot,
+      composerAttachmentsSnapshot,
+      composerTerminalContextsSnapshot,
+      composerPreviewAnnotationsSnapshot,
+      composerReviewCommentsSnapshot,
+      composerThreadContextsSnapshot,
+      messageTextForSend,
+      buildOutgoingMessageContext,
+      outgoingMessageContext,
+      compactBeforeSend,
+      turnDispatchMode,
+      shouldQueueBehindActiveRun,
+      outgoingMessageText,
+      optimisticAttachments,
+      title,
+    } = prepareOutgoingTurn({
+      sendContext: sendCtx,
+      draft,
+      dispatchMode,
+      phase,
+      sendQueuesBehindSetup,
+      resumeCompactionTokens,
+      keepFullHistory,
+    });
     const messageIdForSend = newMessageId();
     const messageCreatedAt = new Date().toISOString();
-    // A stale Claude session compacts before this message so the turn does not re-read the
-    // old history. The message queues behind the /compact run, since steering into it is
-    // rejected.
-    const compactBeforeSend =
-      resumeCompactionTokens !== null &&
-      !keepFullHistory &&
-      messageTextForSend.toLowerCase() !== "/compact";
-    const turnDispatchMode = compactBeforeSend || sendQueuesBehindSetup ? "queue" : dispatchMode;
-    const shouldQueueBehindActiveRun =
-      compactBeforeSend ||
-      sendQueuesBehindSetup ||
-      (phase === "running" && dispatchMode === "queue");
-    const outgoingMessageText = formatOutgoingPrompt({
-      provider: ctxSelectedProvider,
-      model: ctxSelectedModel,
-      models: ctxSelectedProviderModels,
-      effort: ctxSelectedPromptEffort,
-      text: messageTextForSend || ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
-    });
     if (composerRef.current?.validateProviderInput(outgoingMessageText) === false) {
       return;
     }
@@ -9063,7 +9027,7 @@ export default function ChatView(props: ChatViewProps) {
           ? [...sendContext.images, ...sendContext.files].map((attachment) => attachment.id)
           : attachmentIdsAtSend;
         const promptUnchanged =
-          promptRef.current === promptAtSend || promptRef.current === promptForSend;
+          promptRef.current === promptAtSend || promptRef.current === draft.promptForSend;
         const attachmentsUnchanged =
           sameIds(attachmentIds, attachmentIdsAtSend) ||
           (annotationImageId !== undefined &&
@@ -9430,27 +9394,6 @@ export default function ChatView(props: ChatViewProps) {
       }
       return;
     }
-    const optimisticAttachments = composerAttachmentsSnapshot.map((attachment) =>
-      attachment.type === "image"
-        ? {
-            type: "image" as const,
-            id: attachment.id,
-            name: attachment.name,
-            mimeType: attachment.mimeType,
-            sizeBytes: attachment.sizeBytes,
-            previewUrl: attachment.previewUrl,
-            ...(attachment.source ? { source: attachment.source } : {}),
-          }
-        : {
-            type: "file" as const,
-            id: attachment.id,
-            name: attachment.name,
-            mimeType: attachment.mimeType,
-            sizeBytes: attachment.sizeBytes,
-            downloadable: false,
-            ...(attachment.source ? { source: attachment.source } : {}),
-          },
-    );
     if (!shouldQueueBehindActiveRun) {
       // A sent turn returns to the live edge and anchors its new transcript
       // row. Queued input stays in the composer queue and must not move the
@@ -9505,30 +9448,6 @@ export default function ChatView(props: ChatViewProps) {
     clearComposerDraftContent(composerDraftTarget);
     composerRef.current?.resetCursorState();
 
-    let firstComposerImageName: string | null = null;
-    if (composerImagesSnapshot.length > 0) {
-      const firstComposerImage = composerImagesSnapshot[0];
-      if (firstComposerImage) {
-        firstComposerImageName = firstComposerImage.name;
-      }
-    }
-    let titleSeed = assistantCitationsToPlainText(stripInlineContextReferences(trimmed)).trim();
-    if (!titleSeed) {
-      if (firstComposerImageName) {
-        titleSeed = `Image: ${firstComposerImageName}`;
-      } else if (composerFilesSnapshot[0]) {
-        titleSeed = `File: ${composerFilesSnapshot[0].name}`;
-      } else if (composerTerminalContextsSnapshot.length > 0) {
-        titleSeed = formatTerminalContextLabel(composerTerminalContextsSnapshot[0]!);
-      } else if (composerReviewCommentsSnapshot.length > 0) {
-        titleSeed = `Review: ${reviewCommentContextLabel(composerReviewCommentsSnapshot[0]!)}`;
-      } else if (composerPreviewAnnotationsSnapshot.length > 0) {
-        titleSeed = previewAnnotationContextLabel(composerPreviewAnnotationsSnapshot[0]!);
-      } else {
-        titleSeed = "New chat";
-      }
-    }
-    const title = truncate(titleSeed);
     const threadCreateModelSelection = createModelSelection(
       ctxSelectedModelSelection.instanceId,
       ctxSelectedModel || activeProjectDefaultModelSelection?.model || DEFAULT_MODEL,
