@@ -415,6 +415,8 @@ import {
   removeInlineContextReference,
   stripInlineContextReferences,
 } from "../lib/composerContextReferences";
+import { dispatchTurn } from "./chat/turnDispatch";
+import { handleTurnFailure } from "./chat/turnFailure";
 import { redirectPendingApprovals } from "./chat/approvalRedirect";
 import { prepareOutgoingTurn } from "./chat/turnPreparation";
 import { serializeLegacyContextMessage } from "@t3tools/shared/composerContextLegacySend";
@@ -9399,179 +9401,43 @@ export default function ChatView(props: ChatViewProps) {
       ctxSelectedModelSelection.options,
     );
 
-    let failure: AtomCommandResult<unknown, unknown> | null = null;
-
-    if (failure === null && isServerThread) {
-      const settingsResult = await persistThreadSettingsForNextTurn({
-        threadId: threadIdForSend,
-        createdAt: messageCreatedAt,
-        ...(localCheckoutBranchMismatch
-          ? { branch: localCheckoutBranchMismatch.currentBranch }
-          : {}),
-        runtimeMode,
-        interactionMode: sendInteractionMode,
-      });
-      if (settingsResult._tag === "Failure") {
-        failure = settingsResult;
-      }
-    }
-
-    const turnAttachmentsResult = await settlePromise(async () => {
-      const turnAttachments = await turnAttachmentsPromise;
-      const liveFileBlockReason = readLiveAttachmentCapabilities().fileBlockReason;
-      if (liveFileBlockReason !== null) {
-        throw new Error(liveFileBlockReason);
-      }
-      return turnAttachments;
-    });
-    if (failure === null && turnAttachmentsResult._tag === "Failure") {
-      failure = turnAttachmentsResult;
-    }
-
-    if (failure === null && compactBeforeSend) {
-      const compactResult = await startThreadTurn({
-        environmentId,
-        input: {
-          threadId: threadIdForSend,
-          message: { messageId: newMessageId(), role: "user", text: "/compact", attachments: [] },
-          modelSelection: ctxSelectedModelSelection,
-          runtimeMode,
-          interactionMode: sendInteractionMode,
+    const backgroundThreadRef =
+      submissionIntent === "background" && isLocalDraftThread
+        ? scopeThreadRef(environmentId, threadIdForSend)
+        : null;
+    const { failure, backgroundDraftOpened, turnStartSucceeded } = await dispatchTurn(
+      {
+        persistThreadSettings: persistThreadSettingsForNextTurn,
+        startTurn: (input) => startThreadTurn({ environmentId, input }),
+        readLiveFileBlockReason: () => readLiveAttachmentCapabilities().fileBlockReason,
+        supportsInlineMessageContext: () =>
+          appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment
+            .capabilities.inlineMessageContext === true,
+        onTurnStarted: () => {
+          setKeepFullHistory(routeThreadKey, false);
+          // The turn will spend quota, so that thread's limits snapshot is stale. Uploads
+          // may have outlasted a navigation, so only the sending thread's panel clears.
+          clearUsageLimitsFor(routeThreadKey);
+          if (turnUsesAttachmentUploads) releaseDraftAttachments(composerAttachmentsSnapshot);
+          acknowledgeActiveThreadWoke();
         },
-      });
-      if (compactResult._tag === "Failure") {
-        failure = compactResult;
-      }
-    }
-
-    let backgroundDraftOpened = false;
-    let turnStartSucceeded = false;
-    if (failure === null && turnAttachmentsResult._tag === "Success") {
-      const bootstrap =
-        isLocalDraftThread || baseBranchForWorktree
-          ? {
-              ...(isLocalDraftThread
-                ? {
-                    createThread: {
-                      projectId: activeProject.id,
-                      title,
-                      modelSelection: threadCreateModelSelection,
-                      runtimeMode,
-                      interactionMode: sendInteractionMode,
-                      branch: activeThreadBranch,
-                      worktreePath: activeThread.worktreePath,
-                      createdAt: activeThread.createdAt,
-                      ...draftReplyStyleField(routeThreadRef),
-                    },
-                  }
-                : {}),
-              ...(baseBranchForWorktree
-                ? {
-                    prepareWorktree: {
-                      projectCwd: activeProject.workspaceRoot,
-                      baseBranch: baseBranchForWorktree,
-                      ...(startFromOrigin ? { startFromOrigin: true } : {}),
-                    },
-                    runSetupScript: true,
-                  }
-                : {}),
-            }
-          : undefined;
-      const backgroundThreadRef =
-        submissionIntent === "background" && isLocalDraftThread
-          ? scopeThreadRef(environmentId, threadIdForSend)
-          : null;
-      if (backgroundThreadRef) beginBackgroundDraftSubmissionByRef(backgroundThreadRef);
-      const startPromise = startThreadTurn({
-        environmentId,
-        input: {
-          threadId: threadIdForSend,
-          message: {
-            messageId: messageIdForSend,
-            role: "user",
-            text: outgoingMessageText,
-            attachments: turnAttachmentsResult.value,
-            ...(() => {
-              const context = buildOutgoingMessageContext(
-                turnAttachmentsResult.value.map((attachment, index) =>
-                  "id" in attachment && attachment.id !== undefined
-                    ? attachment.id
-                    : composerAttachmentsSnapshot[index]!.id,
-                ),
-              );
-              if (context === undefined) return {};
-              // Read the capability at dispatch time: the upload and persistence
-              // awaits above can span a server reconnect that changes it. Servers
-              // from before inline context drop the records and forward the links
-              // as literal text, so their turns carry the payload the legacy way.
-              const supportsInlineMessageContext =
-                appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment
-                  .capabilities.inlineMessageContext === true;
-              if (!supportsInlineMessageContext) {
-                return {
-                  text: serializeLegacyContextMessage({
-                    text: outgoingMessageText,
-                    records: context.records,
-                  }),
-                };
-              }
-              return { context };
-            })(),
-          },
-          modelSelection: ctxSelectedModelSelection,
-          titleSeed: title,
-          runtimeMode,
-          interactionMode: sendInteractionMode,
-          dispatchMode: turnDispatchMode,
-          ...(bootstrap ? { bootstrap } : {}),
-          createdAt: messageCreatedAt,
-        },
-      });
-      if (backgroundThreadRef) {
-        markPromotedDraftThreadByRef(backgroundThreadRef);
-        try {
-          backgroundDraftOpened = Boolean(
-            await handleNewThread(
-              scopeProjectRef(activeProject.environmentId, activeProject.id),
-              resolveBackgroundDraftWorkspaceOptions({
-                envMode: sendEnvMode,
-                branch: activeThreadBranch,
-                startFromOrigin,
-              }),
+        background: {
+          begin: beginBackgroundDraftSubmissionByRef,
+          markPromoted: markPromotedDraftThreadByRef,
+          openNewDraft: async () =>
+            Boolean(
+              await handleNewThread(
+                scopeProjectRef(activeProject.environmentId, activeProject.id),
+                resolveBackgroundDraftWorkspaceOptions({
+                  envMode: sendEnvMode,
+                  branch: activeThreadBranch,
+                  startFromOrigin,
+                }),
+              ),
             ),
-          );
-        } catch (error) {
-          clearBackgroundDraftSubmissionByRef(backgroundThreadRef);
-          toastManager.add(
-            stackedThreadToast({
-              type: "warning",
-              title: "Could not open a new message box",
-              ...userErrorToastFields(error),
-            }),
-          );
-        }
-      }
-      const startResult = await startPromise;
-      if (startResult._tag === "Failure") {
-        failure = startResult;
-      } else {
-        turnStartSucceeded = true;
-        setKeepFullHistory(routeThreadKey, false);
-        // The turn is under way and will spend quota, so that thread's limits
-        // snapshot is stale. Uploads may have outlasted a navigation, so only
-        // the sending thread's panel clears.
-        clearUsageLimitsFor(routeThreadKey);
-        if (turnUsesAttachmentUploads) {
-          releaseDraftAttachments(composerAttachmentsSnapshot);
-        }
-        acknowledgeActiveThreadWoke();
-        if (backgroundThreadRef) {
-          if (backgroundDraftOpened || currentRouteThreadKeyRef.current !== routeThreadKey) {
-            finalizePromotedDraftThreadByRef(backgroundThreadRef);
-          } else {
-            clearBackgroundDraftSubmissionByRef(backgroundThreadRef);
-          }
-          if (backgroundDraftOpened) {
+          clear: clearBackgroundDraftSubmissionByRef,
+          finalize: finalizePromotedDraftThreadByRef,
+          notifyStarted: (ref) =>
             toastManager.add(
               stackedThreadToast({
                 type: "success",
@@ -9582,98 +9448,135 @@ export default function ChatView(props: ChatViewProps) {
                   onClick: () => {
                     void navigate({
                       to: "/$environmentId/$threadId",
-                      params: buildThreadRouteParams(backgroundThreadRef),
+                      params: buildThreadRouteParams(ref),
                     });
                   },
                 },
               }),
-            );
-          }
-        } else if (
-          submissionIntent === "background" &&
-          currentRouteThreadKeyRef.current === routeThreadKey
-        ) {
-          // An existing thread keeps running; open a fresh composer like a draft does.
-          handleNewThreadInActiveProject();
-        }
-      }
-    }
+            ),
+          notifyOpenFailed: (error) =>
+            toastManager.add(
+              stackedThreadToast({
+                type: "warning",
+                title: "Could not open a new message box",
+                ...userErrorToastFields(error),
+              }),
+            ),
+          openFreshComposer: handleNewThreadInActiveProject,
+          isSendingChatActive: () => currentRouteThreadKeyRef.current === routeThreadKey,
+        },
+      },
+      {
+        environmentId,
+        threadId: threadIdForSend,
+        messageId: messageIdForSend,
+        createdAt: messageCreatedAt,
+        title,
+        outgoingMessageText,
+        turnDispatchMode,
+        compactBeforeSend,
+        isServerThread,
+        isLocalDraftThread,
+        submissionIntent,
+        baseBranchForWorktree,
+        startFromOrigin,
+        runtimeMode,
+        interactionMode: sendInteractionMode,
+        modelSelection: ctxSelectedModelSelection,
+        threadCreateModelSelection,
+        localCheckoutBranch: localCheckoutBranchMismatch?.currentBranch ?? null,
+        activeThreadBranch,
+        worktreePath: activeThread.worktreePath,
+        threadCreatedAt: activeThread.createdAt,
+        projectId: activeProject.id,
+        projectCwd: activeProject.workspaceRoot,
+        replyStyleField: draftReplyStyleField(routeThreadRef),
+        turnAttachmentsPromise,
+        localAttachmentIds: composerAttachmentsSnapshot.map((attachment) => attachment.id),
+        buildOutgoingMessageContext,
+        backgroundThreadRef,
+      },
+    );
 
     if (failure !== null) {
-      if (submissionIntent === "background" && draftId && draftThread) {
-        restoreFailedBackgroundDraftThread(
-          draftId,
-          draftThread,
-          wasBootstrapThreadDeleted(squashAtomCommandFailure(failure))
-            ? newThreadId()
-            : threadIdForSend,
-        );
-        clearBackgroundDraftSubmissionByRef(scopeThreadRef(environmentId, threadIdForSend));
-      }
-      if (
-        backgroundDraftOpened
-          ? !composerDraftHasUserContent(
-              useComposerDraftStore.getState().getComposerDraft(composerDraftTarget),
-            )
-          : promptRef.current.length === 0 &&
-            composerImagesRef.current.length === 0 &&
-            composerFilesRef.current.length === 0 &&
-            composerTerminalContextsRef.current.length === 0 &&
-            (useComposerDraftStore.getState().getComposerDraft(composerDraftTarget)
-              ?.previewAnnotations.length ?? 0) === 0 &&
-            (useComposerDraftStore.getState().getComposerDraft(composerDraftTarget)?.reviewComments
-              .length ?? 0) === 0 &&
-            (useComposerDraftStore.getState().getComposerDraft(composerDraftTarget)?.threadContexts
-              .length ?? 0) === 0
-      ) {
-        setOptimisticUserMessages((existing) => {
-          const removed = existing.filter((message) => message.id === messageIdForSend);
-          for (const message of removed) {
-            revokeUserMessagePreviewUrls(message);
-          }
-          const next = existing.filter((message) => message.id !== messageIdForSend);
-          return next.length === existing.length ? existing : next;
-        });
-        promptRef.current = messageTextForSend;
-        const retryComposerImages = composerImagesSnapshot.map(cloneComposerImageForRetry);
-        composerImagesRef.current = retryComposerImages;
-        composerFilesRef.current = composerFilesSnapshot;
-        composerTerminalContextsRef.current = composerTerminalContextsSnapshot;
-        setComposerDraftPrompt(composerDraftTarget, messageTextForSend);
-        addComposerDraftImages(composerDraftTarget, retryComposerImages);
-        addComposerDraftFiles(composerDraftTarget, composerFilesSnapshot);
-        setComposerDraftTerminalContexts(composerDraftTarget, composerTerminalContextsSnapshot);
-        setComposerDraftPreviewAnnotations(composerDraftTarget, composerPreviewAnnotationsSnapshot);
-        setComposerDraftReviewComments(composerDraftTarget, composerReviewCommentsSnapshot);
-        setComposerDraftThreadContexts(composerDraftTarget, composerThreadContextsSnapshot);
-        composerRef.current?.resetCursorState({
-          cursor: collapseExpandedComposerCursor(messageTextForSend, messageTextForSend.length),
-          prompt: messageTextForSend,
-          detectTrigger: true,
-        });
-      }
-      if (!isAtomCommandInterrupted(failure)) {
-        const error = squashAtomCommandFailure(failure);
-        setThreadError(
-          threadIdForSend,
-          error instanceof Error ? error.message : "Could not send message.",
-        );
-        if (backgroundDraftOpened && draftId) {
-          toastManager.add(
-            stackedThreadToast({
-              type: "error",
-              title: "Background task failed",
-              ...userErrorToastFields(error),
-              actionProps: {
-                children: "Open draft",
-                onClick: () => {
-                  void navigate({ to: "/draft/$draftId", params: { draftId } });
-                },
-              },
+      handleTurnFailure(
+        {
+          composerIsEmpty: (opened) =>
+            opened
+              ? !composerDraftHasUserContent(
+                  useComposerDraftStore.getState().getComposerDraft(composerDraftTarget),
+                )
+              : promptRef.current.length === 0 &&
+                composerImagesRef.current.length === 0 &&
+                composerFilesRef.current.length === 0 &&
+                composerTerminalContextsRef.current.length === 0 &&
+                (useComposerDraftStore.getState().getComposerDraft(composerDraftTarget)
+                  ?.previewAnnotations.length ?? 0) === 0 &&
+                (useComposerDraftStore.getState().getComposerDraft(composerDraftTarget)
+                  ?.reviewComments.length ?? 0) === 0 &&
+                (useComposerDraftStore.getState().getComposerDraft(composerDraftTarget)
+                  ?.threadContexts.length ?? 0) === 0,
+          removeOptimisticMessage: () =>
+            setOptimisticUserMessages((existing) => {
+              const removed = existing.filter((message) => message.id === messageIdForSend);
+              for (const message of removed) revokeUserMessagePreviewUrls(message);
+              const next = existing.filter((message) => message.id !== messageIdForSend);
+              return next.length === existing.length ? existing : next;
             }),
-          );
-        }
-      }
+          restoreDraft: () => {
+            promptRef.current = messageTextForSend;
+            const retryComposerImages = composerImagesSnapshot.map(cloneComposerImageForRetry);
+            composerImagesRef.current = retryComposerImages;
+            composerFilesRef.current = composerFilesSnapshot;
+            composerTerminalContextsRef.current = composerTerminalContextsSnapshot;
+            setComposerDraftPrompt(composerDraftTarget, messageTextForSend);
+            addComposerDraftImages(composerDraftTarget, retryComposerImages);
+            addComposerDraftFiles(composerDraftTarget, composerFilesSnapshot);
+            setComposerDraftTerminalContexts(composerDraftTarget, composerTerminalContextsSnapshot);
+            setComposerDraftPreviewAnnotations(
+              composerDraftTarget,
+              composerPreviewAnnotationsSnapshot,
+            );
+            setComposerDraftReviewComments(composerDraftTarget, composerReviewCommentsSnapshot);
+            setComposerDraftThreadContexts(composerDraftTarget, composerThreadContextsSnapshot);
+            composerRef.current?.resetCursorState({
+              cursor: collapseExpandedComposerCursor(messageTextForSend, messageTextForSend.length),
+              prompt: messageTextForSend,
+              detectTrigger: true,
+            });
+          },
+          restoreBackgroundDraft: (retryThreadId) => {
+            if (draftId && draftThread) {
+              restoreFailedBackgroundDraftThread(draftId, draftThread, retryThreadId as ThreadId);
+            }
+          },
+          clearBackgroundSubmission: () =>
+            clearBackgroundDraftSubmissionByRef(scopeThreadRef(environmentId, threadIdForSend)),
+          newThreadId,
+          threadError: (message) => setThreadError(threadIdForSend, message),
+          toastBackgroundFailed: (error) =>
+            toastManager.add(
+              stackedThreadToast({
+                type: "error",
+                title: "Background task failed",
+                ...userErrorToastFields(error),
+                actionProps: {
+                  children: "Open draft",
+                  onClick: () => {
+                    void navigate({ to: "/draft/$draftId", params: { draftId: draftId! } });
+                  },
+                },
+              }),
+            ),
+        },
+        {
+          failure,
+          threadId: threadIdForSend,
+          hasBackgroundDraft: submissionIntent === "background" && Boolean(draftId && draftThread),
+          backgroundDraftOpened,
+          hasDraftId: Boolean(draftId),
+        },
+      );
     }
     sendInFlightRef.current = false;
     setSetupQueueSendThreadKey((current) => (current === activeThreadKey ? null : current));
