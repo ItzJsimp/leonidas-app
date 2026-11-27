@@ -379,7 +379,7 @@ export function InboxList({
                               {timeText}
                             </span>
                             <div className="flex items-center gap-1.5">
-                              <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 max-sm:opacity-100 motion-reduce:transition-none">
+                              <div className="flex items-center gap-0.5 opacity-0 pointer-coarse:opacity-100 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 max-sm:opacity-100 motion-reduce:transition-none">
                                 {read ? null : (
                                   <Tip text="Mark read">
                                     <Button

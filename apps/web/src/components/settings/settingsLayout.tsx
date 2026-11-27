@@ -495,6 +495,7 @@ export function SettingsRow({
                   // Values set right here explain nothing new, so their marker waits for hover or focus.
                   (inheritance.state === "default" || inheritance.state === "environment") &&
                     overridingProjects.length === 0 &&
+                    // oxlint-disable-next-line t3code/no-hover-only-reveal -- decorative inheritance marker that explains nothing new
                     "opacity-0 group-hover/settings-row:opacity-100 has-focus-visible:opacity-100 has-data-popup-open:opacity-100",
                 )}
               >

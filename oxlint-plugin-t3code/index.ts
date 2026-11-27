@@ -7,6 +7,7 @@ import noHermesUnsupportedApis from "./rules/no-hermes-unsupported-apis.ts";
 import noHooklessUseFunction from "./rules/no-hookless-use-function.ts";
 import noInlineSchemaCompile from "./rules/no-inline-schema-compile.ts";
 import noLowValueComments from "./rules/no-low-value-comments.ts";
+import noHoverOnlyReveal from "./rules/no-hover-only-reveal.ts";
 import noManualMemo from "./rules/no-manual-memo.ts";
 import noManualEffectRuntimeInTests from "./rules/no-manual-effect-runtime-in-tests.ts";
 import noMobileUniwindThemeEscapeHatches from "./rules/no-mobile-uniwind-theme-escape-hatches.ts";
@@ -37,6 +38,7 @@ export default definePlugin({
     "no-inline-schema-compile": noInlineSchemaCompile,
     "no-low-value-comments": noLowValueComments,
     "no-manual-effect-runtime-in-tests": noManualEffectRuntimeInTests,
+    "no-hover-only-reveal": noHoverOnlyReveal,
     "no-manual-memo": noManualMemo,
     "no-mobile-uniwind-theme-escape-hatches": noMobileUniwindThemeEscapeHatches,
     "no-mobile-pull-request-glyph-literals": noMobilePullRequestGlyphLiterals,

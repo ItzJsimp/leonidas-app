@@ -71,6 +71,7 @@ export function WorkspaceMenu(props: {
                   aria-label={`Change picture for ${name}`}
                   disabled={upload.busy !== null}
                   onClick={() => upload.pick(id)}
+                  // oxlint-disable-next-line t3code/no-hover-only-reveal -- overlay would hide the workspace picture if always shown
                   className="absolute inset-0 inline-flex items-center justify-center rounded-lg bg-background/80 text-foreground opacity-0 transition-opacity group-hover/picture:opacity-100 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none"
                 >
                   {upload.busy === id ? (

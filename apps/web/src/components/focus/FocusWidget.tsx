@@ -514,6 +514,7 @@ export default function FocusWidget(props: {
               {/* Buttons float over the row's top right corner, so they never squeeze the text. */}
               <span
                 hidden={editing?.id === row.id}
+                // oxlint-disable-next-line t3code/no-hover-only-reveal -- buttons float over the row text and would cover it if always shown
                 className="absolute top-0.5 right-1.5 flex gap-0.5 rounded-md border border-border bg-popover px-0.5 opacity-0 shadow-sm group-hover:opacity-100 group-focus-within:opacity-100"
               >
                 <Tip label={row.pinned ? "Unpin this line" : "Pin this line to the top"}>
