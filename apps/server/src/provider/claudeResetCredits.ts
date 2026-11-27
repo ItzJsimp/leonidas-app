@@ -233,6 +233,11 @@ export function claudeUsageRetryAt(configDir: string, now: number): string | und
   return DateTime.formatIso(DateTime.makeUnsafe(at));
 }
 
+/** A refresh the user asked for ignores the wait and asks the endpoint once more. */
+export function clearClaudeUsageRetry(configDir: string): void {
+  usageRetryAt.delete(configDir);
+}
+
 /**
  * The subscription windows straight from the usage endpoint the CLI itself
  * reads, for a login whose SDK `get_usage` came back empty (rate limited, or

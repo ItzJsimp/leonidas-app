@@ -621,7 +621,7 @@ export function ThreadDetailsLimits({ usage }: { readonly usage: ThreadDetailsUs
             </TooltipTrigger>
             <TooltipPopup side="top">
               {retryLines.length > 0
-                ? `${retryLines.join(" ")} Refresh skips them until then.`
+                ? `${retryLines.join(" ")} Refresh asks again now.`
                 : "Read the limits of every AI account again now"}
             </TooltipPopup>
           </Tooltip>

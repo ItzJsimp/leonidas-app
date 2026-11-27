@@ -314,6 +314,31 @@ effectIt.layer(NodeServices.layer)("readClaudeOauthUsage", (it) => {
       expect(calls).toBe(2);
     }),
   );
+
+  it.effect("asks the endpoint again after the wait is cleared by a user refresh", () =>
+    Effect.gen(function* () {
+      const { configDir } = yield* writeLogin;
+      let calls = 0;
+      const limited = HttpClient.make((request) => {
+        calls += 1;
+        return Effect.succeed(
+          HttpClientResponse.fromWeb(
+            request,
+            new Response("{}", { status: 429, headers: { "retry-after": "900" } }),
+          ),
+        );
+      });
+      const read = () =>
+        ClaudeResetCredits.readClaudeOauthUsage(configDir, "2.1.0").pipe(
+          Effect.provideService(HostProcess.Platform, "linux"),
+          Effect.provideService(HttpClient.HttpClient, limited),
+        );
+      yield* read();
+      ClaudeResetCredits.clearClaudeUsageRetry(configDir);
+      yield* read();
+      expect(calls).toBe(2);
+    }),
+  );
 });
 
 describe("parseRetryAfterMs", () => {

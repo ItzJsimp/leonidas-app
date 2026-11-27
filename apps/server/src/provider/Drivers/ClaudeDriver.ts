@@ -500,7 +500,9 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
         accentColor,
         enabled,
         snapshot,
-        invalidateCaches: Cache.invalidateAll(capabilitiesProbeCache),
+        invalidateCaches: Cache.invalidateAll(capabilitiesProbeCache).pipe(
+          Effect.andThen(Effect.sync(() => ClaudeResetCredits.clearClaudeUsageRetry(configDir))),
+        ),
         snapshotForCwd: (cwd: string) =>
           snapshot.getSnapshot.pipe(
             Effect.flatMap((machineSnapshot) =>
