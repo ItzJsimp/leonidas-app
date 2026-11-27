@@ -48,6 +48,14 @@ const statsFor = (engine: ScribeEngine.ScribeEngine["Service"]) => {
   return made;
 };
 
+/**
+ * Release status needs `release:read` over WebSocket, an administrative scope. MCP has no such
+ * grant, so only an agent inside a Leonidas thread reads it; an outside client is refused.
+ */
+export const releaseStatusHandler = McpToolAccess.readsAsCaller(() =>
+  Effect.promise(() => readReleaseStatus()),
+);
+
 export const layer = McpToolAccess.toLayer(InsightToolkit, {
   leo_aios_memory_search: McpToolAccess.reads(({ query, limit }) =>
     Effect.gen(function* () {
@@ -245,5 +253,5 @@ export const layer = McpToolAccess.toLayer(InsightToolkit, {
       };
     }),
   ),
-  leo_release_status: McpToolAccess.reads(() => Effect.promise(() => readReleaseStatus())),
+  leo_release_status: releaseStatusHandler,
 });
