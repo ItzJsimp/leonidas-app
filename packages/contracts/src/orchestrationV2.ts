@@ -3245,6 +3245,7 @@ export const ORCHESTRATION_V2_WS_METHODS = {
   getThreadProjection: "orchestration.getThreadProjection",
   getWorkflowScript: "orchestration.getWorkflowScript",
   stopWorkflow: "orchestration.stopWorkflow",
+  stopBackgroundCommand: "orchestration.stopBackgroundCommand",
   getTurnItem: "orchestration.getTurnItem",
   getThreadContextBreakdown: "orchestration.getThreadContextBreakdown",
   launchThread: "orchestration.launchThread",
@@ -3564,12 +3565,41 @@ export class OrchestrationV2StopWorkflowError extends Schema.TaggedError<Orchest
   }
 }
 
+export const OrchestrationV2StopBackgroundCommandInput = Schema.Struct({
+  threadId: ThreadId,
+  taskId: TrimmedNonEmptyString,
+});
+export type OrchestrationV2StopBackgroundCommandInput =
+  typeof OrchestrationV2StopBackgroundCommandInput.Type;
+
+export class OrchestrationV2StopBackgroundCommandError extends Schema.TaggedError<OrchestrationV2StopBackgroundCommandError>()(
+  "OrchestrationV2StopBackgroundCommandError",
+  {
+    threadId: ThreadId,
+    taskId: TrimmedNonEmptyString,
+    reason: Schema.Literals(["not-running", "unsupported", "stop-failed"]),
+    cause: Schema.optional(Schema.Defect()),
+  },
+) {
+  override get message(): string {
+    switch (this.reason) {
+      case "not-running":
+        return "This command is no longer running.";
+      case "unsupported":
+        return "This AI service cannot stop a single command.";
+      case "stop-failed":
+        return "Could not stop the command.";
+    }
+  }
+}
+
 export const OrchestrationV2RpcError = Schema.Union([
   OrchestrationV2DispatchCommandError,
   OrchestrationV2GetThreadProjectionError,
   OrchestrationV2GetShellSnapshotError,
   OrchestrationV2ThreadLaunchError,
   OrchestrationV2StopWorkflowError,
+  OrchestrationV2StopBackgroundCommandError,
 ]);
 export type OrchestrationV2RpcError = typeof OrchestrationV2RpcError.Type;
 
@@ -3745,6 +3775,10 @@ export const OrchestrationV2RpcSchemas = {
   },
   stopWorkflow: {
     input: OrchestrationV2StopWorkflowInput,
+    output: Schema.Void,
+  },
+  stopBackgroundCommand: {
+    input: OrchestrationV2StopBackgroundCommandInput,
     output: Schema.Void,
   },
   getWorkflowScript: {

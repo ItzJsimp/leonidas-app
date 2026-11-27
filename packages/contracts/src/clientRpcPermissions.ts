@@ -97,6 +97,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.scheduledTasksRunNow]: AuthOrchestrationOperateScope,
   [WS_METHODS.scheduledTasksRotateWebhookToken]: AuthOrchestrationOperateScope,
   [ORCHESTRATION_V2_WS_METHODS.stopWorkflow]: AuthOrchestrationOperateScope,
+  [ORCHESTRATION_V2_WS_METHODS.stopBackgroundCommand]: AuthOrchestrationOperateScope,
   [WS_METHODS.calendarAddLink]: AuthSettingsWriteScope,
   [WS_METHODS.calendarRemove]: AuthSettingsWriteScope,
   [WS_METHODS.calendarGoogleSetClient]: AuthSettingsWriteScope,

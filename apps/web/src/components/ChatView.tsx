@@ -7189,7 +7189,14 @@ export default function ChatView(props: ChatViewProps) {
       title: presentation.title,
       // A single named item is already in the title.
       // Commands show in full in the rows below, so the one-line list stays out.
-      children: commandRows.length > 0 ? <BackgroundCommandRows tasks={commandRows} /> : undefined,
+      children:
+        commandRows.length > 0 ? (
+          <BackgroundCommandRows
+            tasks={commandRows}
+            environmentId={environmentId}
+            threadId={activeThread.id}
+          />
+        ) : undefined,
       description:
         commandRows.length > 0 ||
         (presentation.items.length === 1 && presentation.items[0]?.childThreadId === undefined)
@@ -7228,6 +7235,7 @@ export default function ChatView(props: ChatViewProps) {
     activeBackgroundTasks,
     activeThread,
     canOperateThread,
+    environmentId,
     handleStopBackgroundWork,
     isStoppingBackgroundWork,
     onOpenRelatedThread,

@@ -101,6 +101,10 @@ export function createOrchestrationEnvironmentAtoms<R, E>(
       staleTimeMs: 300_000,
       idleTtlMs: 300_000,
     }),
+    stopBackgroundCommand: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:orchestration:stop-background-command",
+      tag: ORCHESTRATION_V2_WS_METHODS.stopBackgroundCommand,
+    }),
     stopWorkflow: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:orchestration:stop-workflow",
       tag: ORCHESTRATION_V2_WS_METHODS.stopWorkflow,

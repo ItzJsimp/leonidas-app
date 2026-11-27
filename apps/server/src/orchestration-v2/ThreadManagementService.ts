@@ -11,6 +11,8 @@ import {
   type ChatAttachment,
   CommandId,
   MessageId,
+  OrchestrationV2StopBackgroundCommandError,
+  type OrchestrationV2StopBackgroundCommandInput,
   OrchestrationV2StopWorkflowError,
   type OrchestrationV2StopWorkflowInput,
   type ModelSelection,
@@ -420,6 +422,9 @@ export interface ThreadManagementServiceShape {
   readonly stopWorkflow: (
     input: OrchestrationV2StopWorkflowInput,
   ) => Effect.Effect<void, OrchestrationV2StopWorkflowError>;
+  readonly stopBackgroundCommand: (
+    input: OrchestrationV2StopBackgroundCommandInput,
+  ) => Effect.Effect<void, OrchestrationV2StopBackgroundCommandError>;
   readonly stopDelegatedTasks: (input: {
     readonly threadId: ThreadId;
     readonly commandId: CommandId;
@@ -1096,6 +1101,33 @@ const make = Effect.gen(function* () {
     (effect, input) => effect.pipe((effect) => threadDispatch.withLock(input.threadId, effect)),
   );
 
+  const stopBackgroundCommand: ThreadManagementServiceShape["stopBackgroundCommand"] = Effect.fn(
+    "ThreadManagementService.stopBackgroundCommand",
+  )(function* (input) {
+    const fail = (reason: "not-running" | "unsupported" | "stop-failed", cause?: unknown) =>
+      new OrchestrationV2StopBackgroundCommandError({ ...input, reason, cause });
+    const records = yield* orchestrator
+      .getThreadRecords(input.threadId, ["providerThreads"])
+      .pipe(Effect.mapError((cause) => fail("stop-failed", cause)));
+    const providerThread = records.providerThreads.find((candidate) =>
+      candidate.pendingBackgroundTasks?.some(
+        (task) => task.taskId === input.taskId && task.kind === "command",
+      ),
+    );
+    if (providerThread?.providerSessionId == null) return yield* fail("not-running");
+    const runtime = yield* sessions
+      .get(providerThread.providerSessionId)
+      .pipe(Effect.mapError((cause) => fail("stop-failed", cause)));
+    if (Option.isNone(runtime) || runtime.value.stopTask === undefined) {
+      return yield* fail("unsupported");
+    }
+    // Bounded so a provider that never answers cannot hold the request.
+    yield* runtime.value.stopTask({ providerThread, taskId: input.taskId }).pipe(
+      Effect.timeout("15 seconds"),
+      Effect.mapError((cause) => fail("stop-failed", cause)),
+    );
+  });
+
   const stopDelegatedTasks: ThreadManagementServiceShape["stopDelegatedTasks"] = Effect.fn(
     "ThreadManagementService.stopDelegatedTasks",
   )(function* (input) {
@@ -1186,6 +1218,7 @@ const make = Effect.gen(function* () {
     interruptThread,
     stopDelegatedTasks,
     stopWorkflow,
+    stopBackgroundCommand,
     getThreadEventSequence: orchestrator.getThreadEventSequence,
     recoverDelegatedTask: orchestrator.recoverDelegatedTask,
     delegatedTaskResultPending: orchestrator.delegatedTaskResultPending,
