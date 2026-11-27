@@ -307,7 +307,8 @@ impl GroqClient {
         if audio.bytes.is_empty() {
             return Ok(Vec::new());
         }
-        let prompt = self.dictionary.current().vocabulary_prompt();
+        let dictionary = self.dictionary.current();
+        let prompt = dictionary.vocabulary_prompt();
         let mut result = self.upload(audio, &self.cfg.whisper_model, &prompt);
         if matches!(
             result,
@@ -318,14 +319,16 @@ impl GroqClient {
             result = self.upload(audio, &self.cfg.whisper_model_backup, &prompt);
         }
         let body = result.map_err(|e| CloudFailure::from_api(&e).message)?;
-        Ok(speech_segments(&body))
+        Ok(speech_segments(&body, &dictionary))
     }
 }
 
-fn speech_segments(body: &Value) -> Vec<SpeechSegment> {
+/// The timed lines of one chunk. Your dictionary corrections apply to each line, as they do to
+/// dictation.
+fn speech_segments(body: &Value, dictionary: &Dictionary) -> Vec<SpeechSegment> {
     let list = body["segments"].as_array().cloned().unwrap_or_default();
     if list.is_empty() {
-        let text = body["text"].as_str().unwrap_or_default().trim().to_owned();
+        let text = dictionary.apply(body["text"].as_str().unwrap_or_default().trim());
         return if text.is_empty() {
             Vec::new()
         } else {
@@ -340,7 +343,7 @@ fn speech_segments(body: &Value) -> Vec<SpeechSegment> {
         .filter(|s| s["no_speech_prob"].as_f64().unwrap_or(0.0) <= NO_SPEECH_CEILING)
         .filter(|s| s["avg_logprob"].as_f64().unwrap_or(0.0) >= SEGMENT_LOGPROB_FLOOR)
         .filter_map(|s| {
-            let text = s["text"].as_str()?.trim().to_owned();
+            let text = dictionary.apply(s["text"].as_str()?.trim());
             (!text.is_empty()).then(|| SpeechSegment {
                 t0: s["start"].as_f64().unwrap_or(0.0) as f32,
                 t1: s["end"].as_f64().unwrap_or(0.0) as f32,
@@ -669,16 +672,36 @@ mod tests {
             {"start": 2.5, "end": 3.0, "text": " Thank you.", "avg_logprob": -0.3, "no_speech_prob": 0.9},
             {"start": 3.0, "end": 4.0, "text": " zzz", "avg_logprob": -1.4, "no_speech_prob": 0.1}
         ]});
+        let none = Dictionary::default();
         assert_eq!(
-            speech_segments(&body),
+            speech_segments(&body, &none),
             vec![SpeechSegment {
                 t0: 0.0,
                 t1: 2.5,
                 text: "Hello there.".into()
             }]
         );
-        assert_eq!(speech_segments(&json!({"text": " hi "}))[0].text, "hi");
-        assert!(speech_segments(&json!({"text": ""})).is_empty());
+        assert_eq!(
+            speech_segments(&json!({"text": " hi "}), &none)[0].text,
+            "hi"
+        );
+        assert!(speech_segments(&json!({"text": ""}), &none).is_empty());
+    }
+
+    #[test]
+    fn meeting_lines_get_the_dictionary_corrections_like_dictation() {
+        let dictionary = Dictionary::new(vec![("get hub".into(), "GitHub".into())], Vec::new());
+        let lines = |body: Value| {
+            speech_segments(&body, &dictionary)
+                .into_iter()
+                .map(|s| s.text)
+                .collect::<Vec<_>>()
+        };
+        let one = json!({"segments": [
+            {"start": 0.0, "end": 2.0, "text": " push it to get hub", "avg_logprob": -0.2, "no_speech_prob": 0.0}
+        ]});
+        assert_eq!(lines(one), ["push it to GitHub"]);
+        assert_eq!(lines(json!({"text": "open get hub"})), ["open GitHub"]);
     }
 
     pub(crate) fn temp_dir(name: &str) -> PathBuf {
