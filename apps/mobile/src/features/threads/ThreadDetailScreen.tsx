@@ -1274,6 +1274,19 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
                     thread={props.selectedThread}
                     environmentId={props.environmentId}
                     canSwitchProvider={props.canSwitchThreadProvider}
+                    usage={
+                      selectedProjection?.projection.providerTurns.findLast(
+                        (turn) => turn.tokenUsage,
+                      )?.tokenUsage ??
+                      selectedProjection?.projection.providerThreads.at(-1)?.contextUsage
+                    }
+                    onOpenSettings={() => {
+                      Keyboard.dismiss();
+                      navigation.navigate("SettingsSheet", {
+                        screen: "SettingsContent",
+                        params: { screen: "SettingsThreads" },
+                      });
+                    }}
                   />
                   <QuotaPreflightCard
                     thread={props.selectedThread}

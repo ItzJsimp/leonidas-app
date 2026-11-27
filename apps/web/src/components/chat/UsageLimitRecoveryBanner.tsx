@@ -5,9 +5,10 @@ import {
 } from "@t3tools/contracts";
 import type { TimestampFormat } from "@t3tools/contracts/settings";
 import {
-  isLimitResumeArmed,
+  formatLimitCountdown,
   LIMIT_RESUME_MAX_ATTEMPTS,
-  limitResumeDueMs,
+  limitRereadTokens,
+  usageLimitCardState,
 } from "@t3tools/shared/usageLimitRecovery";
 import { ChevronDownIcon, ClockIcon } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
@@ -24,11 +25,6 @@ import {
   createTargetForModel,
   type ProviderFailoverTarget,
 } from "./providerFailover";
-
-/** A limit that resets later than this is a weekly or monthly one, not the session limit. */
-const SESSION_WINDOW_MS = 5 * 60 * 60_000;
-/** Used when the provider does not report how long it keeps the prompt cache. */
-const DEFAULT_CACHE_TTL_MS = 60 * 60_000;
 
 /** "Keep waiting" folds the card. The choice holds for the run while the app is open. */
 const waitingRuns = new Set<string>();
@@ -66,15 +62,6 @@ export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBann
   };
 }
 
-export function formatLimitCountdown(ms: number): string {
-  const total = Math.max(1, Math.ceil(ms / 60_000));
-  const days = Math.floor(total / 1440);
-  const hours = Math.floor((total % 1440) / 60);
-  const minutes = total % 60;
-  if (days > 0) return `${days} d ${hours} h`;
-  return hours > 0 ? `${hours} h ${minutes} m` : `${minutes} m`;
-}
-
 function formatWhen(ms: number, nowMs: number, format: TimestampFormat): string {
   const time = formatShortTimestamp(new Date(ms).toISOString(), format);
   const date = new Date(ms);
@@ -96,27 +83,11 @@ function useCardClock(boundaries: ReadonlyArray<number>) {
 }
 
 function UsageLimitCard(props: RecoveryProps) {
-  const { runId, resetAt, recovery, failoverTargets, failoverDisabled, onChange } = props;
+  const { runId, resetAt, failoverTargets, failoverDisabled, onChange } = props;
   const titleId = useId();
-  const stoppedMs = Date.parse(props.stoppedAt);
-  const resetMs = resetAt === null ? Number.NaN : Date.parse(resetAt);
-  const current = recovery?.runId === runId && recovery.resetAt === resetAt ? recovery : null;
-  const armed = current !== null && isLimitResumeArmed(current);
-  const attempt = current?.attempt ?? 1;
-  const exhausted = !armed && attempt > LIMIT_RESUME_MAX_ATTEMPTS;
-  // A reset that had passed when the run stopped says nothing about when to try again.
-  const resetKnown = Number.isFinite(resetMs) && resetMs > stoppedMs;
-  const dueMs = limitResumeDueMs({
-    resetMs,
-    attempt: armed ? attempt : 1,
-    stoppedMs,
-  });
-  const nowMs = useCardClock(Number.isFinite(resetMs) ? [resetMs, dueMs] : []);
-  const resetPassed = resetKnown && resetMs <= nowMs;
-  const snoozed =
-    current?.snooze === true &&
-    props.snoozedUntil !== null &&
-    Date.parse(props.snoozedUntil) === resetMs;
+  const nowMs = useCardClock(resetAt === null ? [] : [Date.parse(resetAt)]);
+  const state = usageLimitCardState({ ...props, nowMs });
+  const { stoppedMs, resetMs, dueMs, attempt, exhausted, resetKnown, canSchedule, snoozed } = state;
 
   const [choice, setChoice] = useState<"wait" | "auto" | "other">("wait");
   const [snoozeChecked, setSnoozeChecked] = useState<boolean | null>(null);
@@ -129,16 +100,14 @@ function UsageLimitCard(props: RecoveryProps) {
   const target =
     (picked && failoverTargets.find((item) => item.instanceId === picked.instanceId) && picked) ||
     failoverTargets[0];
-  const canSchedule = resetKnown && !resetPassed;
   const selected =
     (choice === "auto" && !canSchedule) || (choice === "other" && !target) ? "wait" : choice;
   const wantsSnooze = snoozeChecked ?? snoozed;
   const dueLabel = Number.isFinite(dueMs) ? formatWhen(dueMs, nowMs, props.timestampFormat) : "";
 
   function rereads(sendAtMs: number): string | null {
-    const ttl = props.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
-    if (!props.contextTokens || sendAtMs - stoppedMs < ttl) return null;
-    return `Re-reads ${formatContextWindowTokens(props.contextTokens)} tokens.`;
+    const tokens = limitRereadTokens({ ...props, stoppedMs, sendAtMs });
+    return tokens === null ? null : `Re-reads ${formatContextWindowTokens(tokens)} tokens.`;
   }
 
   async function run(action: () => Promise<void>, fallback: string) {
@@ -197,7 +166,7 @@ function UsageLimitCard(props: RecoveryProps) {
     </p>
   ) : null;
 
-  if (armed) {
+  if (state.mode === "armed") {
     return (
       <CompactRow
         tone="state"
@@ -219,7 +188,7 @@ function UsageLimitCard(props: RecoveryProps) {
     );
   }
 
-  if (resetPassed && !exhausted) {
+  if (state.mode === "ready") {
     return (
       <CompactRow
         tone="state"
@@ -266,11 +235,6 @@ function UsageLimitCard(props: RecoveryProps) {
     );
   }
 
-  const title = exhausted
-    ? `Still limited after ${LIMIT_RESUME_MAX_ATTEMPTS} tries`
-    : resetKnown && resetMs - stoppedMs > SESSION_WINDOW_MS
-      ? "Usage limit reached"
-      : "Session limit reached";
   const confirmLabel =
     selected === "auto"
       ? `Schedule for ${dueLabel}`
@@ -287,7 +251,7 @@ function UsageLimitCard(props: RecoveryProps) {
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         <ClockIcon aria-hidden className="size-4 shrink-0 text-warning-foreground" />
         <h2 id={titleId} className="font-semibold">
-          {title}
+          {state.title}
         </h2>
         <span className="truncate text-muted-foreground">{props.accountLabel}</span>
         <span className="ml-auto text-xs text-muted-foreground tabular-nums">
