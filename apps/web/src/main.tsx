@@ -17,6 +17,7 @@ import {
 import { AppRoot } from "./AppRoot";
 import { clearChunkReloadGuard, reloadOnceForChunkLoadError } from "./lib/chunkReloadGuard";
 import { installUnhandledRejectionToasts, registerUserErrorNavigator } from "./lib/userErrorToast";
+import { registerServiceWorker } from "./lib/serviceWorker";
 
 // Read ?sim= before the router redirects and drops the query.
 captureOnboardingSimRequest();
@@ -78,6 +79,14 @@ export const startup = Promise.all([
         )}
       </React.StrictMode>,
     );
+  })
+  .then(() => {
+    registerServiceWorker({
+      isProduction: import.meta.env.PROD,
+      isElectron,
+      isSecureContext: window.isSecureContext,
+      container: "serviceWorker" in navigator ? navigator.serviceWorker : undefined,
+    });
   })
   .catch((error: unknown) => {
     if (reloadScheduled) return;
