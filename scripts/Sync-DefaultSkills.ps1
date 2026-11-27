@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    Install the portable next-action default and link the core skills in an AIOS and its existing projects.
+    Install the portable next-action default and link AIOS workspace extras in an AIOS and its existing projects.
 .DESCRIPTION
     Re-run after updating the AIOS skills. Changed destination files are backed up;
     project instructions and user task data are preserved. New-Project calls this
@@ -19,7 +19,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path -LiteralPath $RepoPath).Path
 $source = Join-Path (Resolve-Path -LiteralPath $SourceRoot).Path '.agents/skills/next-action'
-if (-not (Test-Path -LiteralPath (Join-Path $source 'SKILL.md'))) {
+if (-not $SkillsOnly -and -not (Test-Path -LiteralPath (Join-Path $source 'SKILL.md'))) {
     if ($Check) { exit 0 }   # a checkout without the canon (for example a worktree) has nothing to compare against
     throw "Missing default skill: $source"
 }
@@ -85,21 +85,31 @@ if ($Check) {
     else { Write-Host "[OK] Default skill in sync across $($targets.Count) workspace(s)." }
     exit 0
 }
-# Core skills (standards/project-standard.md section 11). Every workspace links these from this AIOS
-# canon and never copies them, so one canonical edit reaches every workspace. A workspace's own folder
-# with the same name wins. A name the canon lacks is reported, never invented.
-$coreSkills = @('session-handoff', 'chat-sync', 'daily-briefing', 'find-skills', 'ask-leonidas', 'implement', 'grilling', 'grill-me', 'grill-with-docs', 'domain-modeling', 'diagnosing-bugs', 'to-spec', 'to-tickets', 'wayfinder', 'retro', 'wizard', 'wait-what', 'writing-for-agents', 'pr', 'review-two-axis')
-# Core skills ship inside Leonidas (ADR-0102), so a clean template AIOS holds no copies here; skip absent ones silently.
-$canonCore = @($coreSkills | Where-Object { Test-Path -LiteralPath (Join-Path $repo ".agents/skills/$_/SKILL.md") })
+# Core skills ship inside Leonidas (ADR-0102) and are never copied or linked into projects.
+# Only non-core AIOS workspace extras link from this AIOS canon into workspaces; a workspace's own folder
+# with the same name wins. A name the canon lacks is skipped silently.
+$aiosWorkspaceSkills = @('chat-sync', 'daily-briefing')
+$appCoreSkills = @()
+foreach ($manifestPath in @(
+    (Join-Path (Resolve-Path -LiteralPath $SourceRoot).Path '.agents/library.json'),
+    (Join-Path $repo 'projects/leonidas-app/.agents/library.json')
+)) {
+    if (Test-Path -LiteralPath $manifestPath) {
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $appCoreSkills = @($manifest.items | Where-Object { $_.kind -eq 'skill' -and $_.pack -eq 'core' } | ForEach-Object { $_.name } | Select-Object -Unique)
+        break
+    }
+}
+$canonWorkspace = @($aiosWorkspaceSkills | Where-Object { $_ -notin $appCoreSkills -and (Test-Path -LiteralPath (Join-Path $repo ".agents/skills/$_/SKILL.md")) })
 # Project skills: AIOS-only skills one project needs. <AIOS>/.agents/project-skills.json maps a project folder name
 # to skill names, for example {"my-app": ["doop"]}. A linked worktree uses the name of the checkout that owns its
-# git folder. Same link rules as core. Without the file or an entry, ADR-0038 discovery shows a project only the
-# skills it commits itself. A name the canon lacks is skipped.
+# git folder. Core skills are always excluded even if listed there. Without the file or an entry, ADR-0038 discovery
+# shows a project only the skills it commits itself. A name the canon lacks is skipped.
 $projectSkills = @{}
 $projectSkillsFile = Join-Path $repo '.agents/project-skills.json'
 if (Test-Path -LiteralPath $projectSkillsFile) { $projectSkills = Get-Content -LiteralPath $projectSkillsFile -Raw | ConvertFrom-Json -AsHashtable }
-$canonAll = @($canonCore) + @($projectSkills.Values | ForEach-Object { $_ } | Select-Object -Unique |
-    Where-Object { $_ -notin $canonCore -and (Test-Path -LiteralPath (Join-Path $repo ".agents/skills/$_/SKILL.md")) })
+$canonAll = @($canonWorkspace) + @($projectSkills.Values | ForEach-Object { $_ } | Select-Object -Unique |
+    Where-Object { $_ -notin $canonWorkspace -and $_ -notin $appCoreSkills -and (Test-Path -LiteralPath (Join-Path $repo ".agents/skills/$_/SKILL.md")) })
 function Get-ProjectKey([string]$Target) {
     # A linked worktree has a .git file; its project is the checkout that owns the git folder.
     if (Test-Path -LiteralPath (Join-Path $Target '.git') -PathType Leaf) {
@@ -108,7 +118,10 @@ function Get-ProjectKey([string]$Target) {
     }
     Split-Path $Target -Leaf
 }
-function Test-SkillFor([string]$Name, [string]$Target) { $Name -in $coreSkills -or $Name -in $projectSkills[(Get-ProjectKey $Target)] }
+function Test-SkillFor([string]$Name, [string]$Target) {
+    if ($Name -in $appCoreSkills) { return $false }
+    $Name -in $aiosWorkspaceSkills -or $Name -in $projectSkills[(Get-ProjectKey $Target)]
+}
 $linked = 0
 function New-SkillLink([string]$Link, [string]$Destination) {
     if ($IsWindows) { New-Item -ItemType Junction -Path $Link -Target $Destination | Out-Null }
@@ -143,7 +156,7 @@ function Add-LocalExclude([string]$Workspace, [string]$Relative) {
 function Remove-EmptySkillDir([string]$Path) {
     # A leftover empty real folder (for example from a removed or reset worktree) blocks the link and hides the skill; clear it so the link is made.
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
-    if ($item -and $item.PSIsContainer -and -not $item.LinkType -and -not (Get-ChildItem -LiteralPath $Path -Force) -and $PSCmdlet.ShouldProcess($Path, 'Remove empty folder blocking a core skill link')) {
+    if ($item -and $item.PSIsContainer -and -not $item.LinkType -and -not (Get-ChildItem -LiteralPath $Path -Force) -and $PSCmdlet.ShouldProcess($Path, 'Remove empty folder blocking a workspace skill link')) {
         Remove-Item -LiteralPath $Path -Force
     }
 }
@@ -197,7 +210,7 @@ foreach ($name in $canonAll) {
                     if (-not $WhatIfPreference) { Add-LocalExclude $target ".agents/skills/$name" }
                 }
             } else {
-                if (-not $existing -and $PSCmdlet.ShouldProcess($link, 'Link core skill from the AIOS canon')) {
+                if (-not $existing -and $PSCmdlet.ShouldProcess($link, 'Link AIOS workspace skill from the AIOS canon')) {
                     New-Item -ItemType Directory -Path (Split-Path $link) -Force | Out-Null
                     New-SkillLink $link $canon
                     $linked++
@@ -225,7 +238,7 @@ foreach ($name in $canonAll) {
                 if (-not $WhatIfPreference) { Add-LocalExclude $target ".claude/skills/$name" }
             }
         } else {
-            if (-not $existingAdapter -and $PSCmdlet.ShouldProcess($adapter, 'Make core skill discoverable to the Claude provider')) {
+            if (-not $existingAdapter -and $PSCmdlet.ShouldProcess($adapter, 'Make AIOS workspace skill discoverable to the Claude provider')) {
                 if (-not $adapterItem) {
                     New-Item -ItemType Directory -Path $adapterRoot -Force | Out-Null
                     [IO.File]::WriteAllText((Join-Path $adapterRoot '.gitignore'), "*`n!.gitignore`n")
@@ -241,10 +254,10 @@ if (-not $WhatIfPreference) {
     foreach ($target in $targets | Select-Object -Unique) {
         foreach ($name in $canonAll | Where-Object { Test-SkillFor $_ $target }) {
             $probe =Join-Path $target ".claude/skills/$name/SKILL.md"
-            if (-not (Test-Path -LiteralPath $probe)) { throw "Core skill not discoverable to Claude: $probe" }
+            if (-not (Test-Path -LiteralPath $probe)) { throw "Workspace skill not discoverable to Claude: $probe" }
         }
     }
 }
 Write-Host "[OK] Updated $updated default skill files across $($targets.Count) workspace(s)."
-Write-Host "[OK] Core skills: $linked link(s) created across $($targets.Count) workspace(s)."
+Write-Host "[OK] Workspace skills: $linked link(s) created across $($targets.Count) workspace(s)."
 Write-Host "[OK] Shared skills: $sharedLinked link(s) created from Leonidas Code."

@@ -32,22 +32,28 @@ foreach ($workspace in @($fixture,$project,$other)) {
     Assert (Test-Path -LiteralPath (Join-Path $workspace '.agents/skills/next-action/scripts/resolve_tasks.py')) 'Workspace resolver missing'
     Assert (Test-Path -LiteralPath (Join-Path $workspace '.claude/skills/next-action/SKILL.md')) 'Provider discovery missing'
 }
-# Core skills link from the AIOS canon into every workspace; a workspace's own folder of the same name wins.
-foreach ($name in @('session-handoff', 'implement')) {
+# Non-core AIOS workspace skills link from the AIOS canon into every workspace (project-owned folder wins);
+# app core skills (ADR-0102) are never linked or copied into projects, even if present in the AIOS or project-skills.json.
+foreach ($name in @('chat-sync', 'daily-briefing', 'session-handoff', 'implement')) {
     New-Item -ItemType Directory -Path (Join-Path $fixture ".agents/skills/$name") -Force | Out-Null
     Set-Content -LiteralPath (Join-Path $fixture ".agents/skills/$name/SKILL.md") "---`nname: $name`n---"
 }
-New-Item -ItemType Directory -Path (Join-Path $other '.agents/skills/implement') -Force | Out-Null
-Set-Content -LiteralPath (Join-Path $other '.agents/skills/implement/SKILL.md') 'Game owned implement'
+Set-Content -LiteralPath (Join-Path $fixture '.agents/project-skills.json') '{"leonidas-code": ["session-handoff"]}'
+New-Item -ItemType Directory -Path (Join-Path $other '.agents/skills/daily-briefing') -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $other '.agents/skills/daily-briefing/SKILL.md') 'Game owned daily-briefing'
 git -C $fixture init --quiet
 Assert ($LASTEXITCODE -eq 0) 'Fixture git initialization failed'
 & $install -AiosRoot $fixture
-Assert ((Get-Item -LiteralPath (Join-Path $project '.agents/skills/session-handoff')).LinkType -eq 'Junction') 'Core skill was not linked into a project'
-Assert (Test-Path -LiteralPath (Join-Path $project '.claude/skills/session-handoff/SKILL.md')) 'Linked core skill is not discoverable to Claude'
-Assert ((Get-Content -LiteralPath (Join-Path $other '.agents/skills/implement/SKILL.md') -Raw).Trim() -eq 'Game owned implement') 'Project-owned skill was overwritten by the core link'
-Assert ((Get-Item -LiteralPath (Join-Path $other '.claude/skills/implement')).LinkType -eq 'Junction') 'Project-owned core skill was not exposed to Claude by its adapter'
-Assert ((Get-Content -LiteralPath (Join-Path $fixture '.git/info/exclude') -Raw) -match '(?m)^/projects/game/\.agents/skills/session-handoff/$') 'Core link is not excluded from the enclosing repository'
-Write-Host '[PASS] Core skills linked from the AIOS canon, discoverable to Claude, project-owned copies kept'
+Assert ((Get-Item -LiteralPath (Join-Path $project '.agents/skills/chat-sync')).LinkType -eq 'Junction') 'Workspace extra skill was not linked into a project'
+Assert (Test-Path -LiteralPath (Join-Path $project '.claude/skills/chat-sync/SKILL.md')) 'Linked workspace extra skill is not discoverable to Claude'
+Assert ((Get-Content -LiteralPath (Join-Path $other '.agents/skills/daily-briefing/SKILL.md') -Raw).Trim() -eq 'Game owned daily-briefing') 'Project-owned skill was overwritten by the workspace link'
+Assert ((Get-Item -LiteralPath (Join-Path $other '.claude/skills/daily-briefing')).LinkType -eq 'Junction') 'Project-owned skill was not exposed to Claude by its adapter'
+Assert ((Get-Content -LiteralPath (Join-Path $fixture '.git/info/exclude') -Raw) -match '(?m)^/projects/game/\.agents/skills/chat-sync/$') 'Workspace link is not excluded from the enclosing repository'
+foreach ($coreName in @('session-handoff', 'implement')) {
+    Assert (-not (Test-Path -LiteralPath (Join-Path $project ".agents/skills/$coreName"))) "Core skill $coreName was linked or copied into project .agents/skills"
+    Assert (-not (Test-Path -LiteralPath (Join-Path $project ".claude/skills/$coreName"))) "Core skill $coreName was linked or copied into project .claude/skills"
+}
+Write-Host '[PASS] Workspace extras linked, project-owned copies kept, and core skills excluded from projects'
 
 # Test automatic parent detection with the exact projects/leonidas-code layout.
 New-Item -ItemType Directory -Path (Join-Path $project 'scripts'),(Join-Path $project '.agents/skills') -Force | Out-Null
@@ -105,14 +111,15 @@ git -C $wtRepo worktree add --quiet $wtPath -b feat/safe-copy
 Assert ($LASTEXITCODE -eq 0) 'Worktree creation failed'
 $syncScript = Join-Path $PSScriptRoot 'Sync-DefaultSkills.ps1'
 & $syncScript -RepoPath $fixture -SourceRoot $source -ProjectPath $wtPath -SkillsOnly | Out-Null
-$wtSkill = Get-Item -LiteralPath (Join-Path $wtPath '.agents/skills/session-handoff') -Force
-$wtAdapter = Get-Item -LiteralPath (Join-Path $wtPath '.claude/skills/session-handoff') -Force
+$wtSkill = Get-Item -LiteralPath (Join-Path $wtPath '.agents/skills/chat-sync') -Force
+$wtAdapter = Get-Item -LiteralPath (Join-Path $wtPath '.claude/skills/chat-sync') -Force
 Assert (-not $wtSkill.LinkType) 'Linked worktree received a junction instead of a local copy'
 Assert (-not $wtAdapter.LinkType) 'Linked worktree Claude adapter received a junction instead of a local copy'
+Assert (-not (Test-Path -LiteralPath (Join-Path $wtPath '.agents/skills/session-handoff'))) 'Core skill was copied or linked into linked worktree'
 Assert (-not (git -C $wtPath status --porcelain)) 'Copied worktree skills dirtied git status'
 git -C $wtRepo worktree remove $wtPath
 Assert ($LASTEXITCODE -eq 0) 'git worktree remove failed on copied-skill worktree'
-Assert (Test-Path -LiteralPath (Join-Path $fixture '.agents/skills/session-handoff/SKILL.md')) 'git worktree remove deleted the AIOS canon skill'
+Assert (Test-Path -LiteralPath (Join-Path $fixture '.agents/skills/chat-sync/SKILL.md')) 'git worktree remove deleted the AIOS canon skill'
 Write-Host '[PASS] Linked worktrees copy AIOS skills safely and git worktree remove preserves AIOS canon'
 
 # 5. Clean template AIOS without core skills produces no "Core skills missing" warning, and -Check is read-only.
