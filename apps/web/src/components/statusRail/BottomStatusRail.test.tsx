@@ -14,7 +14,12 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("~/branding", () => ({ APP_VERSION_LABEL: "0.124.142" }));
-vi.mock("~/env", () => ({ isElectron: true }));
+const mockEnv = vi.hoisted(() => ({ isElectron: true }));
+vi.mock("~/env", () => ({
+  get isElectron() {
+    return mockEnv.isElectron;
+  },
+}));
 vi.mock("~/components/desktop/ReleaseHistoryDialog", () => ({
   openReleaseHistoryDialog: vi.fn(),
 }));
@@ -127,6 +132,19 @@ describe("BottomStatusRail", () => {
     expect(html).toContain('aria-label="Turn Leonidas Scribe on or off"');
     expect(html).toContain('aria-checked="false"');
     expect(html).not.toContain("Game Mode:");
+  });
+
+  it("shows only agents, waiting items and the version in a browser", () => {
+    mockScope.gameMode = true;
+    mockEnv.isElectron = false;
+    const html = renderToStaticMarkup(<BottomStatusRail />);
+    mockEnv.isElectron = true;
+    expect(html).toContain("1 running");
+    expect(html).toContain("2 need you");
+    expect(html).toContain("v0.124.142");
+    for (const hidden of ["Scribe", "This PC", "Providers:", "Game Mode"]) {
+      expect(html).not.toContain(hidden);
+    }
   });
 
   it("includes Game Mode indicator when environment scope allows it", () => {

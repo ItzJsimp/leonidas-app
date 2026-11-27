@@ -121,25 +121,28 @@ export function BottomStatusRail() {
       data-slot="bottom-status-rail"
       className="flex h-7 shrink-0 items-center justify-between gap-2 overflow-x-auto border-t border-border bg-card px-2.5 text-2xs text-muted-foreground select-none"
     >
-      <div className="flex min-w-0 items-center gap-1">
-        <ScribeRailItem environmentId={environmentId} />
-        <RailDivider />
-        <Tip text={envStatus.tooltip}>
-          <Link
-            to="/settings/environments"
-            aria-label={`Server status: ${envStatus.label}`}
-            className={ITEM_CLASS}
-          >
-            <ServerIcon aria-hidden className="size-3 shrink-0" />
-            <StatusDot tone={envStatus.tone} />
-            <span className="truncate">{envStatus.label}</span>
-          </Link>
-        </Tip>
-        <RailDivider />
-        <ProvidersRailItem status={providersStatus} />
-        {environmentId ? <GameModeRailItem environmentId={environmentId} /> : null}
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
+      {/* Scribe, Game Mode and the rest control the computer, so only the desktop app shows them. */}
+      {isElectron ? (
+        <div className="flex min-w-0 items-center gap-1">
+          <ScribeRailItem environmentId={environmentId} />
+          <RailDivider />
+          <Tip text={envStatus.tooltip}>
+            <Link
+              to="/settings/environments"
+              aria-label={`Server status: ${envStatus.label}`}
+              className={ITEM_CLASS}
+            >
+              <ServerIcon aria-hidden className="size-3 shrink-0" />
+              <StatusDot tone={envStatus.tone} />
+              <span className="truncate">{envStatus.label}</span>
+            </Link>
+          </Tip>
+          <RailDivider />
+          <ProvidersRailItem status={providersStatus} />
+          {environmentId ? <GameModeRailItem environmentId={environmentId} /> : null}
+        </div>
+      ) : null}
+      <div className="ms-auto flex shrink-0 items-center gap-1">
         <Tip text={agentsStatus.tooltip}>
           <Link
             to="/command-center"

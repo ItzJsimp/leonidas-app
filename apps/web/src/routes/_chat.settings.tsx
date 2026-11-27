@@ -17,7 +17,7 @@ import { SETTINGS_DOCK_MESSAGE, SETTINGS_WINDOW_NAME } from "../components/setti
 import { useSettingsRestore } from "../components/settings/SettingsPanels";
 
 import { SettingsBreadcrumb } from "../components/settings/SettingsBreadcrumb";
-import { AppRouteModal, AppRouteModalClose } from "../components/AppRouteModal";
+import { AppRouteModal, AppRouteModalBack, AppRouteModalClose } from "../components/AppRouteModal";
 import { SettingsSidebarNav } from "../components/settings/SettingsSidebarNav";
 import { resolveLegacySettingsRedirect } from "../components/settings/legacySettingsRoutes";
 import { useNavigateToMainApp } from "../components/sidebar/mainAppLocation";
@@ -175,7 +175,10 @@ function SettingsContentLayout() {
   return (
     <AppRouteModal label="Settings" fullWindow={detached}>
       <div className="relative flex min-h-0 flex-1">
-        <SettingsSidebarNav pathname={location.pathname} />
+        <SettingsSidebarNav
+          pathname={location.pathname}
+          header={detached ? null : <AppRouteModalBack />}
+        />
         <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", onPhoneList && "max-md:hidden")}>
           <header className="flex h-12 shrink-0 items-center gap-3 border-b ps-2 pe-2 md:ps-5">
             <Button

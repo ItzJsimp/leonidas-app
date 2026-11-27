@@ -1,5 +1,5 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { XIcon } from "lucide-react";
+import { ChevronLeftIcon, XIcon } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 
 import { cn } from "../lib/utils";
@@ -95,5 +95,17 @@ export function AppRouteModalClose() {
       </TooltipTrigger>
       <TooltipPopup side="bottom">Close (Esc)</TooltipPopup>
     </Tooltip>
+  );
+}
+
+/** The labeled way out, for a screen where a corner cross is absent or easy to miss. */
+export function AppRouteModalBack() {
+  return (
+    <DialogPrimitive.Close
+      render={<Button variant="ghost" size="sm" className="self-start max-md:h-11" />}
+    >
+      <ChevronLeftIcon />
+      Back to app
+    </DialogPrimitive.Close>
   );
 }

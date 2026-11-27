@@ -8,6 +8,7 @@ import {
   useState,
   type ComponentType,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import {
   ArchiveIcon,
@@ -134,7 +135,14 @@ function SettingsSectionIcon({ to }: { to: SettingsPath }) {
 // 44 px touch rows on phones, where `/settings` is the section list.
 const ROW_CLASS_NAME = "max-md:h-11";
 
-export function SettingsSidebarNav({ pathname }: { pathname: string }) {
+export function SettingsSidebarNav({
+  pathname,
+  header,
+}: {
+  pathname: string;
+  /** Sits above the search box: the way out of Settings. */
+  header?: ReactNode;
+}) {
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const currentSearch = useLocation({ select: (location) => location.search });
@@ -294,6 +302,10 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       <SidebarContent className="overflow-x-hidden">
         <SidebarGroup>
           <div className="flex flex-col gap-2">
+            {/* The narrow section page has its own back button in the page header. */}
+            {header ? (
+              <div className={cn("flex flex-col", !expanded && "max-md:hidden")}>{header}</div>
+            ) : null}
             <div
               className={cn(
                 "flex h-8 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground pointer-coarse:h-11 pointer-coarse:py-0",
