@@ -80,6 +80,7 @@ export function WindowHeader({
         ) : null}
       </header>
       {tabs.length > 0 ? (
+        // oxlint-disable-next-line t3code/require-group-keyboard -- each tab handles the arrow keys.
         <div
           role="tablist"
           aria-label={`${title} sections`}

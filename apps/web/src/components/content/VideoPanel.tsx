@@ -10,6 +10,7 @@ import { cn } from "~/lib/utils";
 
 import { formatDue, stageLabel } from "./content.logic";
 import type { ContentAction, LoadHistoryFn } from "./ContentView";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 function Tip(props: { readonly label: string; readonly children: ReactElement }) {
   return (
@@ -188,6 +189,7 @@ export function VideoPanel(props: {
 
       <div
         role="tablist"
+        ref={rovingGroup}
         aria-label="Video sections"
         className="flex gap-1 border-b px-4 pt-3 sm:px-5"
       >

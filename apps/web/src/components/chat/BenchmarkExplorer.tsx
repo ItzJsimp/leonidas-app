@@ -55,6 +55,7 @@ import { Input } from "../ui/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Spinner } from "../ui/spinner";
 import { Textarea } from "../ui/textarea";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 /** Creator dot colors; creators past the palette share the last, neutral one. */
 const CREATOR_COLORS = [
@@ -263,6 +264,7 @@ function Segmented<T extends string>({
   return (
     <div
       role="radiogroup"
+      ref={rovingGroup}
       aria-label={label}
       className="inline-flex shrink-0 rounded-lg bg-muted/60 p-0.5 text-xs"
     >
@@ -1043,7 +1045,12 @@ function ExplorerBody({
               />
             </div>
           ) : null}
-          <div className="-mt-1 flex flex-wrap gap-1" role="radiogroup" aria-label="Score">
+          <div
+            className="-mt-1 flex flex-wrap gap-1"
+            role="radiogroup"
+            ref={rovingGroup}
+            aria-label="Score"
+          >
             {headline.map((metric) => (
               <button
                 key={metric.key}

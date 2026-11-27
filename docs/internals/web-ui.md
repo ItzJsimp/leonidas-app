@@ -2,7 +2,8 @@
 
 ## Primitives
 
-Controls come from [`components/ui`](../../apps/web/src/components/ui).
+Controls come from [`components/ui`](../../apps/web/src/components/ui). A hand-set radio group, tab
+list or toolbar takes `ref={rovingGroup}` from [`rovingGroup`](../../apps/web/src/lib/rovingGroup.ts).
 [AGENTS.md](../../AGENTS.md#taste) says how to use and extend them.
 
 Don't style a raw `<button>`, `<input>`, `<select>`, or `<textarea>` to look like a control a

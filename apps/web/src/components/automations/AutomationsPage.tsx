@@ -65,6 +65,7 @@ import {
   automationsSetSchedule,
   useAutomations,
 } from "./state";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 export type AutomationsView = "automations" | "machine";
 
@@ -554,6 +555,7 @@ function Browse(props: {
         </div>
         <div
           role="radiogroup"
+          ref={rovingGroup}
           aria-label="Show"
           className="inline-flex rounded-lg border border-border bg-card p-0.5"
         >
@@ -1004,6 +1006,7 @@ function ScheduleEditor(props: {
       {timeOnly ? null : (
         <div
           role="radiogroup"
+          ref={rovingGroup}
           aria-label="Runs"
           className="inline-flex self-start rounded-lg border border-border p-0.5"
         >
