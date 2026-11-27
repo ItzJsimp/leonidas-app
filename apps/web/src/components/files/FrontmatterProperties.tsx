@@ -153,9 +153,10 @@ export function FrontmatterProperties({
   return (
     <section aria-label="File properties" className="border-b border-border pb-3 text-sm">
       <dl>
-        {shown.map((property) => (
+        {shown.map((property, index) => (
           <div
-            key={property.key}
+            // eslint-disable-next-line react/no-array-index-key -- a repeated front matter key is not unique.
+            key={`${index}:${property.key}`}
             className="grid min-h-8 grid-cols-[clamp(5.5rem,35%,8rem)_minmax(0,1fr)] items-center gap-x-2"
           >
             <dt className="truncate text-muted-foreground">{propertyLabel(property.key)}</dt>
