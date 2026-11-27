@@ -46,6 +46,7 @@ import { BenchmarkDetail, CreatorMark, effortName } from "./BenchmarkDetail";
 import { BenchmarksBars } from "./BenchmarksBars";
 import { BenchmarksChart } from "./BenchmarksChart";
 import { BenchmarksTable } from "./BenchmarksTable";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 const CatalogSeenOrNull = Schema.NullOr(CatalogSeen);
 
@@ -199,6 +200,7 @@ export function BenchmarksWindowView(props: {
             <DialogTitle>Benchmarks</DialogTitle>
             <div
               role="radiogroup"
+              ref={rovingGroup}
               aria-label="Source"
               className="inline-flex rounded-md bg-muted p-0.5 text-xs"
             >
@@ -253,7 +255,7 @@ export function BenchmarksWindowView(props: {
             </span>
           </header>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border/70 px-5">
-            <div role="tablist" aria-label="View" className="flex gap-4">
+            <div role="tablist" ref={rovingGroup} aria-label="View" className="flex gap-4">
               {VIEWS.map(({ id, label, Icon }) => (
                 <button
                   key={id}
@@ -402,7 +404,12 @@ export function BenchmarksWindowView(props: {
                   </div>
                 ) : null}
                 {view !== "table" ? (
-                  <div role="radiogroup" aria-label="Measure" className="flex flex-wrap gap-2">
+                  <div
+                    role="radiogroup"
+                    ref={rovingGroup}
+                    aria-label="Measure"
+                    className="flex flex-wrap gap-2"
+                  >
                     {chips.map((chip, index) => (
                       <button
                         key={chip.key}

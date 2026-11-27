@@ -28,6 +28,7 @@ import { useThemeSnapshot } from "~/wallpaper/WallpaperLayer";
 
 import { searchableSetting } from "./settingsSearch";
 import { SettingsRow, SettingsSection } from "./settingsLayout";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 const THEME_LABELS = new Map(BUILT_IN_THEMES.map((theme) => [theme.id, theme.label]));
 
@@ -86,7 +87,12 @@ export function WallpaperSettings() {
         title="Image"
         description="Shows behind chats, the Command Center and every page on this device. Text stays readable on any image."
       >
-        <div className="flex flex-wrap gap-2 pt-1 pb-3" role="radiogroup" aria-label="Wallpaper">
+        <div
+          className="flex flex-wrap gap-2 pt-1 pb-3"
+          role="radiogroup"
+          ref={rovingGroup}
+          aria-label="Wallpaper"
+        >
           <WallpaperTile
             label="None"
             selected={settings.choice === "none"}

@@ -9,6 +9,7 @@ import {
   type PickerEffortStats,
   type PickerModelStats,
 } from "../../lib/pickerModelStats";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 const dash = "n/a";
 const score = (value: number | null) =>
@@ -69,6 +70,7 @@ export function ModelStatsPanel(props: { stats: PickerModelStats }) {
         <div className="grid gap-1">
           <div
             role="tablist"
+            ref={rovingGroup}
             aria-label="Effort level"
             className="flex gap-0.5 rounded-md bg-muted p-0.5"
           >

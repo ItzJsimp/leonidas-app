@@ -16,6 +16,7 @@ import { dollars, formatEffortLabel } from "../../lib/pickerModelStats";
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { ClaudeAI, OpenAI } from "../Icons";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 /** The maker's logo where the app has one, else a dot in the maker's chart color. */
 export function CreatorMark(props: { creator: string | undefined; className?: string }) {
@@ -89,7 +90,12 @@ export function BenchmarkDetail(props: {
             <span>Effort level</span>
             <span>{score.label}</span>
           </div>
-          <div role="radiogroup" aria-label="Effort level" className="flex gap-1.5">
+          <div
+            role="radiogroup"
+            ref={rovingGroup}
+            aria-label="Effort level"
+            className="flex gap-1.5"
+          >
             {tiles.map((tile) => {
               const value = tile.point ? valueAt(tile.point, score.key) : undefined;
               const selected = tile.effort === props.effort;

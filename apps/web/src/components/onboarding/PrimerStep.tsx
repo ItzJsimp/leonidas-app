@@ -98,14 +98,14 @@ function PracticeModelMenu() {
         </Button>
         {open ? (
           <ul
-            role="listbox"
             aria-label="Practice models"
             className="absolute z-10 mt-1 w-40 rounded-md border border-border bg-popover p-1 shadow-md"
           >
             {PRIMER_PRACTICE_MODELS.map((name) => (
-              <li key={name} role="option" aria-selected={name === model}>
+              <li key={name}>
                 <button
                   type="button"
+                  aria-pressed={name === model}
                   className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
                   onClick={() => {
                     setOpen(false);

@@ -218,6 +218,7 @@ import {
 import { resolveLinkTarget } from "../browser/browserLinkTarget";
 import { PullRequestLinkPreview } from "./pullRequest/PullRequestLinkPreview";
 import { userErrorToastFields } from "~/lib/userErrorToast";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 interface ChatMarkdownProps {
   /** Compact markdown transforms remove blocks before rendering inside a label. */
@@ -971,7 +972,12 @@ function MarkdownCodeBlock({
       // Find does not count the header, so it must not highlight it either.
       headerProps={THREAD_FIND_IGNORE_PROPS}
       actions={
-        <span className="flex items-center gap-0.5" role="toolbar" aria-label="Code block actions">
+        <span
+          className="flex items-center gap-0.5"
+          role="toolbar"
+          ref={rovingGroup}
+          aria-label="Code block actions"
+        >
           {leadingActions}
           {canWrap ? (
             <Tooltip>
