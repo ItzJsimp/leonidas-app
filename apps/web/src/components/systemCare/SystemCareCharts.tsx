@@ -3,6 +3,7 @@ import { AlertTriangleIcon, MinusIcon, PlusIcon } from "lucide-react";
 
 import { cn } from "~/lib/utils";
 import { limitScaleMax, sparklinePoints, stepLimit } from "./systemCare.logic";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 export type Level = "ok" | "warning" | "critical";
 
@@ -159,6 +160,7 @@ export function Segmented<T extends string>(props: {
   return (
     <div
       role="radiogroup"
+      ref={rovingGroup}
       aria-label={props.label}
       className="inline-flex rounded-lg bg-muted p-0.5 text-xs"
     >

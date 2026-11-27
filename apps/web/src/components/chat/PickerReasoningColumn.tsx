@@ -17,6 +17,7 @@ import {
   type TraitsMenuContentProps,
   type TraitsPersistence,
 } from "./TraitsPicker";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 /** What the picker adds on top of the traits: this model's benchmark numbers and the two ways out. */
 export interface PickerColumnExtras {
@@ -72,6 +73,7 @@ function ChoiceGroup(props: {
       </div>
       <div
         role="radiogroup"
+        ref={rovingGroup}
         aria-label={props.label}
         className="flex flex-row flex-wrap gap-0.5 px-1.5 pb-1.5 sm:flex-col"
       >

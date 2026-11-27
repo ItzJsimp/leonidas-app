@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { BenchmarkQuota } from "../../lib/modelBenchmarks";
 import { cn } from "~/lib/utils";
 import { formatRelativeTimeLabel } from "../../timestampFormat";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 export function quotaText(quota: BenchmarkQuota): string {
   if (quota.kind === "metered") return "pay as you use";
@@ -18,7 +19,12 @@ export function Segmented<T extends string>(props: {
   onChange: (value: T) => void;
 }) {
   return (
-    <div role="radiogroup" aria-label={props.label} className="flex items-center gap-1.5 text-xs">
+    <div
+      role="radiogroup"
+      ref={rovingGroup}
+      aria-label={props.label}
+      className="flex items-center gap-1.5 text-xs"
+    >
       <span className="text-muted-foreground">{props.label}</span>
       <div className="inline-flex rounded-md bg-muted p-0.5">
         {props.options.map((option) => (

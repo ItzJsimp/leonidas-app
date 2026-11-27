@@ -71,6 +71,7 @@ import { PRACTICE_NAME, PRACTICE_SLUG } from "./practice.logic";
 import { usePracticeActions } from "./usePracticeActions";
 import { useTaskActions } from "./useTaskActions";
 import { useTaskBoard } from "./useTaskBoard";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 const VIEW_OPTIONS: ReadonlyArray<{
   readonly view: TasksView;
@@ -514,6 +515,7 @@ export function TasksPage() {
               </div>
               <div
                 role="tablist"
+                ref={rovingGroup}
                 aria-label="View"
                 className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5"
               >

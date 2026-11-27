@@ -219,6 +219,11 @@ export default defineConfig({
         rules: { "t3code/require-disposable-render": "error" },
       },
       {
+        files: ["apps/web/src/**/*.tsx"],
+        excludeFiles: ["**/*.test.tsx"],
+        rules: { "t3code/require-group-keyboard": "error" },
+      },
+      {
         files: ["apps/**/src/**", "packages/**/src/**"],
         excludeFiles: DOM_TEST_ENVIRONMENT_ALLOWLIST,
         rules: { "t3code/no-dom-test-environment": "error" },

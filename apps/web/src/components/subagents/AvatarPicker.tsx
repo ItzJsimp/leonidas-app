@@ -2,6 +2,7 @@ import { cn } from "~/lib/utils";
 
 import { AgentAvatar } from "./Avatar";
 import { AVATAR_IDS, avatarId, avatarValue } from "./avatar.logic";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 /**
  * The felt library as a grid of circles. One is picked at a time. The name of each shows as its
@@ -16,6 +17,7 @@ export function AvatarPicker(props: {
   return (
     <div
       role="radiogroup"
+      ref={rovingGroup}
       aria-label={props.label ?? "Avatar"}
       className="grid grid-cols-8 gap-1.5"
     >

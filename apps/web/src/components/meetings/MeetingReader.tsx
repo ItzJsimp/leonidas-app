@@ -275,6 +275,7 @@ export function MeetingReader(props: {
       ) : null}
 
       <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b pb-1">
+        {/* oxlint-disable-next-line t3code/require-group-keyboard -- each tab handles the arrow keys. */}
         <div role="tablist" aria-label="Meeting content" className="flex gap-4.5">
           {(["summary", "transcript"] as const).map((id) => (
             <button

@@ -21,6 +21,7 @@ import { Tip } from "../twoState/Tip";
 
 import { CALENDAR_COLORS, CALENDAR_SETUP_DOC, LINK_GUIDES, type LinkGuide } from "./calendar.logic";
 import { bumpCalendars, useAgendaEvents, useCalendarCommands } from "./useCalendar";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 const FIELD_LABEL = "text-xs font-medium text-muted-foreground";
 
@@ -239,7 +240,12 @@ function LinkForm({ onDone }: { readonly onDone: () => void }) {
 
   return (
     <section aria-label="Paste a calendar link" className="space-y-4">
-      <div role="tablist" aria-label="Calendar app" className="flex flex-wrap gap-1.5">
+      <div
+        role="tablist"
+        ref={rovingGroup}
+        aria-label="Calendar app"
+        className="flex flex-wrap gap-1.5"
+      >
         {LINK_GUIDES.map((item) => (
           <button
             key={item.id}
@@ -320,7 +326,7 @@ function LinkForm({ onDone }: { readonly onDone: () => void }) {
             autoComplete="off"
           />
         </label>
-        <div role="radiogroup" aria-label="Color" className="space-y-1">
+        <div role="radiogroup" ref={rovingGroup} aria-label="Color" className="space-y-1">
           <span className={FIELD_LABEL}>Color</span>
           <div className="flex h-8 items-center gap-1.5">
             {CALENDAR_COLORS.map((item) => (

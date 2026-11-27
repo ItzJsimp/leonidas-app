@@ -204,6 +204,7 @@ import {
   threadJumpIndexFromCommand,
 } from "../../keybindings";
 import { userErrorToastFields } from "~/lib/userErrorToast";
+import { rovingGroup } from "~/lib/rovingGroup";
 
 const DEFAULT_TAILSCALE_SERVE_PORT = 443;
 const EMPTY_ADVERTISED_ENDPOINTS: ReadonlyArray<AdvertisedEndpoint> = [];
@@ -863,6 +864,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
               <div
                 className="space-y-1.5"
                 role="radiogroup"
+                ref={rovingGroup}
                 aria-label="Address that the QR code and link use"
               >
                 <p className="text-2xs text-muted-foreground/70">Reach this computer by</p>
