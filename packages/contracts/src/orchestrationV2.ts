@@ -371,6 +371,8 @@ export const OrchestrationV2LimitRecovery = Schema.Struct({
   resetAt: IsoDateTime,
   autoResume: Schema.Boolean,
   snooze: Schema.optional(Schema.Boolean),
+  /** Which automatic send is scheduled, from 1. Above the maximum, the retries are used. */
+  attempt: Schema.optional(Schema.Int),
 });
 export type OrchestrationV2LimitRecovery = typeof OrchestrationV2LimitRecovery.Type;
 
@@ -379,6 +381,7 @@ export const OrchestrationV2LimitRecoveryUpdate = Schema.Struct({
   resetAt: IsoDateTime,
   autoResume: Schema.optional(Schema.Boolean),
   snooze: Schema.optional(Schema.Boolean),
+  attempt: Schema.optional(Schema.Int),
 }).check(
   Schema.makeFilter(
     (update) =>

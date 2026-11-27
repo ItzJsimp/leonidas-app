@@ -7,6 +7,7 @@ import {
   type ProviderFailoverTarget,
 } from "@t3tools/client-runtime/state/provider-failover";
 import { type EnvironmentId, MessageId } from "@t3tools/contracts";
+import { isLimitResumeArmed } from "@t3tools/shared/usageLimitRecovery";
 import * as DateTime from "effect/DateTime";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -68,7 +69,7 @@ export function UsageLimitRecoveryCard({
   const runId = thread.latestRun?.runId;
   const recovery = thread.limitRecovery;
   const scheduled =
-    recovery?.runId === runId && recovery?.resetAt === resetAt && recovery?.autoResume;
+    recovery?.runId === runId && recovery?.resetAt === resetAt && isLimitResumeArmed(recovery);
   if (
     thread.runtime?.status !== "failed" ||
     thread.runtime.lastErrorClass !== "usage_limit" ||
@@ -171,7 +172,7 @@ export function UsageLimitRecoveryCard({
       {canSchedule ? (
         <View className="flex-row flex-wrap gap-2">
           <Button
-            label={scheduled ? "Cancel auto-resume" : "Resume at reset"}
+            label={scheduled ? "Cancel auto-continue" : "Continue 2 minutes after reset"}
             tone="secondary"
             disabled={pending}
             onPress={() => void toggle("resume")}

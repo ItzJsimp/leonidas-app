@@ -1,4 +1,5 @@
 import { applyThreadPullRequestLinkUpdate } from "@t3tools/shared/threadPullRequests";
+import { isLimitResumeArmed } from "@t3tools/shared/usageLimitRecovery";
 import { projectTurnItemForStorage, projectTurnItemForWire } from "./WireProjection.ts";
 import { summarizeThreadActivity } from "./threadActivitySummary.ts";
 import * as Stream from "effect/Stream";
@@ -176,7 +177,10 @@ export type ProjectionLimitRecoveryCandidate = Pick<
   | "updatedAt"
   | "limitRecovery"
   | "snoozedUntil"
->;
+> & {
+  /** Message that started the latest run: it shows whether that run was an automatic send. */
+  readonly latestRunUserMessageId?: string | null;
+};
 
 export type ProjectionThreadPullRequests = Pick<
   OrchestrationV2AppThread,
@@ -3924,10 +3928,12 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           readonly payload_json: string;
           readonly run_id: string;
           readonly completed_at: string | null;
+          readonly user_message_id: string | null;
           readonly failure_payload_json: string;
           readonly last_error: string | null;
         }>`
           SELECT t.payload_json, r.run_id, r.completed_at,
+            json_extract(r.payload_json, '$.userMessageId') AS user_message_id,
             item.payload_json AS failure_payload_json,
             (
               SELECT json_extract(session.payload_json, '$.lastError')
@@ -3975,12 +3981,17 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             AND json_extract(t.payload_json, '$.settledOverride') IS NOT 'settled'
             AND json_extract(item.payload_json, '$.failure.class') = 'usage_limit'
             AND json_extract(item.payload_json, '$.failure.resetAt') IS NOT NULL
-            AND julianday(json_extract(item.payload_json, '$.failure.resetAt')) > julianday(COALESCE(r.completed_at, json_extract(t.payload_json, '$.updatedAt')))
+            -- An automatic send can come back with a reset that already passed; it may retry.
+            AND (
+              julianday(json_extract(item.payload_json, '$.failure.resetAt')) > julianday(COALESCE(r.completed_at, json_extract(t.payload_json, '$.updatedAt')))
+              OR json_extract(r.payload_json, '$.userMessageId') LIKE 'limit-resume:%'
+            )
             AND (
               (
                 json_extract(t.payload_json, '$.limitRecovery.runId') IS r.run_id
                 AND json_extract(t.payload_json, '$.limitRecovery.resetAt') IS json_extract(item.payload_json, '$.failure.resetAt')
                 AND json_extract(t.payload_json, '$.limitRecovery.autoResume') = 1
+                AND json_extract(t.payload_json, '$.limitRecovery.attempt') IS NOT NULL
                 AND julianday(json_extract(item.payload_json, '$.failure.resetAt')) <= julianday(${DateTime.formatIso(options.now)})
                 AND (
                   json_extract(t.payload_json, '$.snoozedUntil') IS NULL
@@ -3994,6 +4005,10 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                 )
                 AND (
                   ${booleanInt(options.autoResume)}
+                  OR (
+                    json_extract(t.payload_json, '$.limitRecovery.autoResume') = 1
+                    AND json_extract(r.payload_json, '$.userMessageId') LIKE 'limit-resume:%'
+                  )
                   OR (${booleanInt(options.snooze)} AND julianday(json_extract(item.payload_json, '$.failure.resetAt')) > julianday(${DateTime.formatIso(options.now)}))
                 )
               )
@@ -4027,6 +4042,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             pendingRuntimeRequest: null,
             limitRecovery: thread.limitRecovery ?? null,
             snoozedUntil: thread.snoozedUntil ?? null,
+            latestRunUserMessageId: row.user_message_id,
           });
         }
         return candidates;
@@ -6978,7 +6994,15 @@ export const layerMemory: Layer.Layer<ProjectionStoreV2> = Layer.effect(
                   thread.archivedAt === null &&
                   thread.settledOverride !== "settled",
               )
-              .map(threadShellFromProjection)
+              .map((projection) => {
+                const shell = threadShellFromProjection(projection);
+                return {
+                  ...shell,
+                  latestRunUserMessageId:
+                    projection.runs.find((run) => run.id === shell.latestRunId)?.userMessageId ??
+                    null,
+                };
+              })
               .filter(
                 (thread) =>
                   thread.status === "failed" &&
@@ -6989,19 +7013,27 @@ export const layerMemory: Layer.Layer<ProjectionStoreV2> = Layer.effect(
               .filter((thread) => {
                 const resetMs = Date.parse(thread.usageLimitResetAt!);
                 const nowMs = DateTime.toEpochMillis(options.now);
+                const automatic =
+                  thread.latestRunUserMessageId?.startsWith("limit-resume:") === true;
                 if (
                   !Number.isFinite(resetMs) ||
-                  resetMs <= DateTime.toEpochMillis(thread.latestRunCompletedAt ?? thread.updatedAt)
+                  (!automatic &&
+                    resetMs <=
+                      DateTime.toEpochMillis(thread.latestRunCompletedAt ?? thread.updatedAt))
                 )
                   return false;
                 if (
                   thread.limitRecovery?.runId !== thread.latestRunId ||
                   thread.limitRecovery.resetAt !== thread.usageLimitResetAt
                 ) {
-                  return options.autoResume || (options.snooze && resetMs > nowMs);
+                  return (
+                    options.autoResume ||
+                    (automatic && thread.limitRecovery?.autoResume === true) ||
+                    (options.snooze && resetMs > nowMs)
+                  );
                 }
                 return (
-                  thread.limitRecovery.autoResume &&
+                  isLimitResumeArmed(thread.limitRecovery) &&
                   resetMs <= nowMs &&
                   (thread.snoozedUntil == null ||
                     DateTime.toEpochMillis(thread.snoozedUntil) <= nowMs)

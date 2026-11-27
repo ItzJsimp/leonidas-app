@@ -10,6 +10,7 @@ import {
   runRanAfter,
   usageLimitBlockedRun,
 } from "@t3tools/shared/orchestrationV2ThreadError";
+import { isLimitResumeArmed } from "@t3tools/shared/usageLimitRecovery";
 import { threadPullRequestsOf } from "@t3tools/shared/threadPullRequests";
 import {
   normalizeThreadPullRequestKey,
@@ -2975,7 +2976,11 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         run?.id !== command.limitRecovery.runId ||
         failure?.class !== "usage_limit" ||
         failure.resetAt !== command.limitRecovery.resetAt ||
-        resetMs <= DateTime.toEpochMillis(run.completedAt ?? run.requestedAt) ||
+        // A retry of an automatic send can carry a reset that already passed.
+        (resetMs <= DateTime.toEpochMillis(run.completedAt ?? run.requestedAt) &&
+          (command.limitRecovery.attempt ??
+            (thread.limitRecovery?.runId === run.id ? thread.limitRecovery.attempt : undefined) ??
+            1) <= 1) ||
         projection.runtimeRequests.some((request) => request.status === "pending")
       ) {
         return yield* new OrchestratorDispatchError({
@@ -3304,6 +3309,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
                     autoResume:
                       command.limitRecovery.autoResume ?? previousRecovery?.autoResume ?? false,
                     snooze: command.limitRecovery.snooze ?? previousRecovery?.snooze ?? false,
+                    // A user who turns the choice on starts again at the first send.
+                    attempt:
+                      command.limitRecovery.attempt ??
+                      (command.limitRecovery.autoResume === true ? 1 : previousRecovery?.attempt),
                     requestId: command.commandId,
                   };
           return {
@@ -5018,7 +5027,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         run?.id !== command.usageLimitContinuationOfRunId ||
         failure?.class !== "usage_limit" ||
         threadShellFromProjection(projection).lastErrorClass !== "usage_limit" ||
-        !recovery?.autoResume ||
+        !recovery ||
+        !isLimitResumeArmed(recovery) ||
         recovery.requestId !== command.usageLimitRecoveryRequestId ||
         recovery.runId !== run.id ||
         recovery.resetAt !== failure.resetAt ||

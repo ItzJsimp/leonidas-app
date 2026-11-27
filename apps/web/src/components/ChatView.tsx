@@ -19,7 +19,8 @@ import { uiChangedPaths, uiVerificationPrompt } from "./chat/uiVerification";
 import { useComposerSubagents } from "./subagents/useComposerSubagents";
 import { resolveAttachedSubagent, withAttachedSubagent } from "./subagents/subagentThread.logic";
 import { useSubagentAttachStore } from "../state/subagentAttach";
-import { getProviderFailoverTargets } from "./chat/providerFailover";
+import { getProviderFailoverTargets, type ProviderFailoverTarget } from "./chat/providerFailover";
+import { accountHeadroom } from "../lib/accountHeadroom";
 import {
   resolveBackgroundDraftWorkspaceOptions,
   resolveDraftHeroState,
@@ -527,7 +528,10 @@ import {
   type EditQueuedRunRequest,
 } from "./chat/QueuedRunsControl";
 import { useLinkedThreadPullRequest } from "./ThreadStatusIndicators";
-import type { ComposerBannerStackItem } from "./chat/ComposerBannerStack";
+import type {
+  ComposerBannerStackContent,
+  ComposerBannerStackItem,
+} from "./chat/ComposerBannerStack";
 import { ThreadStatusLine } from "./chat/ThreadStatusLine";
 import { ContextHandoffNudge } from "./chat/ContextHandoffNudge";
 import { countHandoffTurns, useTurnHandoffBanner } from "./chat/turnHandoff";
@@ -7495,83 +7499,96 @@ export default function ChatView(props: ChatViewProps) {
     serverVisibleTurnItems,
     setComposerDraftPrompt,
   ]);
-  const limitRecoveryBanner =
-    serverRuntime?.status === "failed" &&
-    serverRuntime.lastErrorClass === "usage_limit" &&
-    activeThreadShell?.latestRun
-      ? usageLimitRecoveryBannerItem({
-          runId: activeThreadShell.latestRun.runId,
-          resetAt: serverRuntime.usageLimitResetAt ?? null,
-          stoppedAt: activeThreadShell.latestRun.completedAt ?? activeThreadShell.updatedAt,
-          recovery: activeThreadShell.limitRecovery ?? null,
-          snoozedUntil: activeThreadShell.snoozedUntil,
-          failoverTargets: getProviderFailoverTargets({
-            entries: providerInstanceEntries,
-            settings,
-            current: activeThreadShell.modelSelection,
-            supportsHandoff: supportsProviderSwitchingViaHandoff,
-            usageLimitSources,
-          }),
-          failoverUnavailable:
-            supportsProviderSwitchingViaHandoff &&
-            getProviderFailoverTargets({
-              entries: providerInstanceEntries,
-              settings,
-              current: activeThreadShell.modelSelection,
-              supportsHandoff: supportsProviderSwitchingViaHandoff,
-              usageLimitSources,
-            }).length === 0,
-          failoverDisabled:
-            !canOperateThread ||
-            isSendBusy ||
-            isConnecting ||
-            threadDetailLoading ||
-            activeEnvironmentUnavailable ||
-            isRevertingCheckpoint,
-          onFailover: async (target) => {
-            if (!canOperateThread || sendInFlightRef.current || !activeThreadShell.latestRun) {
-              throw new Error("This chat is busy or cannot be changed.");
-            }
-            const threadId = activeThreadShell.id;
-            sendInFlightRef.current = true;
-            try {
-              const result = await startThreadTurn({
-                environmentId,
-                input: {
-                  threadId,
-                  manualContinuationOfRunId: activeThreadShell.latestRun.runId,
-                  modelSelection: target.modelSelection,
-                  message: {
-                    messageId: newMessageId(),
-                    role: "user",
-                    text: "Continue where you left off. Check the saved conversation and unfinished work before taking action.",
-                    attachments: [],
-                  },
-                  runtimeMode: activeThreadShell.runtimeMode,
-                  interactionMode: activeThreadShell.interactionMode,
-                  dispatchMode: "start",
-                },
-              });
-              if (result._tag === "Failure") throw squashAtomCommandFailure(result);
-              setComposerDraftModelSelection(
-                scopeThreadRef(environmentId, threadId),
-                target.modelSelection,
-                { explicit: true, replaceOptions: true },
-              );
-              clearUsageLimitsFor(routeThreadKey);
-            } finally {
-              sendInFlightRef.current = false;
-            }
+  const limitRecoveryBanner = (() => {
+    if (
+      serverRuntime?.status !== "failed" ||
+      serverRuntime.lastErrorClass !== "usage_limit" ||
+      !activeThreadShell?.latestRun
+    ) {
+      return null;
+    }
+    const failoverTargets = getProviderFailoverTargets({
+      entries: providerInstanceEntries,
+      settings,
+      current: activeThreadShell.modelSelection,
+      supportsHandoff: supportsProviderSwitchingViaHandoff,
+      usageLimitSources,
+    });
+    const headroomByInstance: Record<string, number> = {};
+    for (const entry of providerInstanceEntries) {
+      const headroom = accountHeadroom(entry.snapshot.usageLimits, Date.now());
+      if (headroom) headroomByInstance[entry.instanceId] = headroom.leftPercent;
+    }
+    const continueOn = async (target: Pick<ProviderFailoverTarget, "modelSelection">) => {
+      if (!canOperateThread || sendInFlightRef.current || !activeThreadShell.latestRun) {
+        throw new Error("This chat is busy or cannot be changed.");
+      }
+      const threadId = activeThreadShell.id;
+      sendInFlightRef.current = true;
+      try {
+        const result = await startThreadTurn({
+          environmentId,
+          input: {
+            threadId,
+            manualContinuationOfRunId: activeThreadShell.latestRun.runId,
+            modelSelection: target.modelSelection,
+            message: {
+              messageId: newMessageId(),
+              role: "user",
+              text: "Continue where you left off. Check the saved conversation and unfinished work before taking action.",
+              attachments: [],
+            },
+            runtimeMode: activeThreadShell.runtimeMode,
+            interactionMode: activeThreadShell.interactionMode,
+            dispatchMode: "start",
           },
-          onChange: async (limitRecovery) => {
-            const result = await updateThreadMetadata({
-              environmentId,
-              input: { threadId: activeThreadShell.id, limitRecovery },
-            });
-            if (result._tag === "Failure") throw squashAtomCommandFailure(result);
-          },
-        })
-      : null;
+        });
+        if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+        setComposerDraftModelSelection(
+          scopeThreadRef(environmentId, threadId),
+          target.modelSelection,
+          { explicit: true, replaceOptions: true },
+        );
+        clearUsageLimitsFor(routeThreadKey);
+      } finally {
+        sendInFlightRef.current = false;
+      }
+    };
+    return usageLimitRecoveryBannerItem({
+      runId: activeThreadShell.latestRun.runId,
+      resetAt: serverRuntime.usageLimitResetAt ?? null,
+      stoppedAt: activeThreadShell.latestRun.completedAt ?? activeThreadShell.updatedAt,
+      recovery: activeThreadShell.limitRecovery ?? null,
+      snoozedUntil: activeThreadShell.snoozedUntil,
+      accountLabel:
+        providerInstanceEntries.find(
+          (entry) => entry.instanceId === activeThreadShell.modelSelection.instanceId,
+        )?.displayName ?? "This account",
+      timestampFormat,
+      contextTokens: activeContextWindow?.usedTokens ?? null,
+      cacheTtlMs: activeContextWindow?.promptCacheTtlMs,
+      autoContinueAll: settings.autoResumeLimitedThreads,
+      onOpenSettings: () => void navigate({ to: "/settings/threads" }),
+      failoverTargets,
+      headroomByInstance,
+      failoverDisabled:
+        !canOperateThread ||
+        isSendBusy ||
+        isConnecting ||
+        threadDetailLoading ||
+        activeEnvironmentUnavailable ||
+        isRevertingCheckpoint,
+      onFailover: continueOn,
+      onContinue: () => continueOn({ modelSelection: activeThreadShell.modelSelection }),
+      onChange: async (limitRecovery) => {
+        const result = await updateThreadMetadata({
+          environmentId,
+          input: { threadId: activeThreadShell.id, limitRecovery },
+        });
+        if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+      },
+    });
+  })();
   const handoffTurnCount = useMemo(
     () => countHandoffTurns(serverProjection?.runs ?? []),
     [serverProjection?.runs],
@@ -7590,7 +7607,9 @@ export default function ChatView(props: ChatViewProps) {
     disabled: !canOperateThread || isWorking || isSendBusy || activeEnvironmentUnavailable,
     onHandoff: handleTurnHandoff,
   });
-  const composerBannerItems = useMemo<ComposerBannerStackItem[]>(() => {
+  const composerBannerItems = useMemo<
+    Array<ComposerBannerStackItem | ComposerBannerStackContent>
+  >(() => {
     // A stopped turn outranks a warning about the next one, so the pre-flight only fills an empty slot.
     const limitRecoveryItems = [
       limitRecoveryBanner ?? quotaPreflightBanner ?? usageWarningBanner ?? uiVerificationBanner,

@@ -1374,6 +1374,32 @@ it.layer(NodeServices.layer)("server settings", (it) => {
     }).pipe(Effect.provide(layerServerSettings())),
   );
 
+  it.effect("turns automatic limit resume off once and keeps a later choice", () =>
+    Effect.gen(function* () {
+      const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
+      const serverConfig = yield* ServerConfig.ServerConfig;
+      const fileSystem = yield* FileSystem.FileSystem;
+      yield* fileSystem.writeFileString(
+        serverConfig.settingsPath,
+        '{"autoResumeLimitedThreads":true,"snoozeLimitedThreads":true}',
+      );
+
+      const first = yield* serverSettings.getSettings;
+      assert.isFalse(first.autoResumeLimitedThreads);
+      assert.isTrue(first.snoozeLimitedThreads);
+      const stored = JSON.parse(yield* fileSystem.readFileString(serverConfig.settingsPath));
+      assert.isUndefined(stored.autoResumeLimitedThreads);
+      assert.deepInclude(stored, { snoozeLimitedThreads: true, limitAutoResumeReset: true });
+
+      const chosen = yield* serverSettings.updateSettings({ autoResumeLimitedThreads: true });
+      assert.isTrue(chosen.autoResumeLimitedThreads);
+      assert.isTrue(
+        JSON.parse(yield* fileSystem.readFileString(serverConfig.settingsPath))
+          .autoResumeLimitedThreads,
+      );
+    }).pipe(Effect.provide(layerServerSettings())),
+  );
+
   it.effect("writes only non-default settings to disk", () =>
     Effect.gen(function* () {
       const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
@@ -1390,6 +1416,7 @@ it.layer(NodeServices.layer)("server settings", (it) => {
 
       const raw = yield* fileSystem.readFileString(serverConfig.settingsPath);
       assert.deepEqual(JSON.parse(raw), {
+        limitAutoResumeReset: true,
         addProjectBaseDirectory: "~/Development",
         observability: {
           otlpTracesUrl: "http://localhost:4318/v1/traces",
@@ -1420,6 +1447,7 @@ it.layer(NodeServices.layer)("server settings", (it) => {
 
       const raw = yield* fileSystem.readFileString(serverConfig.settingsPath);
       assert.deepEqual(JSON.parse(raw), {
+        limitAutoResumeReset: true,
         addProjectBaseDirectory: "~/Development",
         sourceControlWritingStyle: { mode: "conventional_commits" },
       });

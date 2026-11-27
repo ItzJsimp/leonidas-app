@@ -237,19 +237,24 @@ or interrupted turn manually.
 Queued messages stay saved while the limit blocks the thread. They run after
 the continuation finishes. If the queue was held by a restart, resume it then.
 
-When the provider reports a reset time, choose **Resume at reset** to schedule a
-continuation. You can cancel it from the thread. Enable **Continue paused chats when the limit ends** in **Settings → Chats** on web and desktop, or
-**Auto-resume limited chats** in **Settings → Chat behavior** on mobile, to schedule limit stops by default.
-The environment must be running when the reset arrives; it resumes overdue
-continuations after a restart. Stopping the thread, sending a new message,
-archiving, or settling it prevents a pending continuation from starting.
+When a limit stops a chat, a card above the message box offers three choices on web
+and desktop: **Wait for me**, **Continue at** a time, or **Continue now on another
+account**. Nothing sends unless you choose it.
 
-Choose **Snooze until reset** to hide the thread until its allowance returns.
-Snooze and auto-resume are independent: snooze alone wakes the thread without
-sending a message; enabling both wakes and continues it. **Wake now** cancels
-the snooze. Enable **Snooze limited threads** in thread behavior settings to
-snooze limit stops by default. Providers without a reset time offer manual
-retry and the normal snooze choices.
+A scheduled send goes 2 minutes after the reset time. If it reaches the limit again,
+it tries up to 2 more times, 5 minutes apart. Press **Cancel** or **Stop** to end it.
+Stopping the chat, sending a new message, archiving or settling it also prevents the
+send. The environment must be running at that time; it sends overdue continuations
+after a restart. The card says how many tokens a late send reads again.
+
+To schedule every limit stop, turn on **Auto-continue after a usage limit** in
+**Settings > Chats**. The switch is off by default. An update turned it off once for
+chats and settings from earlier versions. On mobile, choose **Continue 2 minutes
+after reset** on the chat.
+
+Choose **Snooze this chat until the reset** to hide it until then. Snooze alone wakes
+the chat without a message. Enable **Pause chats that reach a usage limit** to snooze
+limit stops by default. Providers without a reset time offer a manual retry.
 
 On web and desktop, use **Agents** to follow work delegated to subagents.
 Stop on a thread also stops the subagents it delegated to.

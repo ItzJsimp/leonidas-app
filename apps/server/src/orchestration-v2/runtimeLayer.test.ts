@@ -1,5 +1,6 @@
 import { SourceControlProviderKind } from "@t3tools/contracts";
 import { limitRecoveryCommand } from "./UsageLimitRecoveryWorker.ts";
+import { LIMIT_RESUME_BUFFER_MS } from "@t3tools/shared/usageLimitRecovery";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -6494,7 +6495,11 @@ it.layer(layerTest)("usage-limit recovery", (it) => {
           const armed = (yield* orchestrator.getShellSnapshot()).threads.find(
             (thread) => thread.id === threadId,
           )!;
-          scheduledResume = limitRecoveryCommand(armed, true, Date.parse(resetAt));
+          scheduledResume = limitRecoveryCommand(
+            armed,
+            true,
+            Date.parse(resetAt) + LIMIT_RESUME_BUFFER_MS,
+          );
           assert.isNotNull(scheduledResume);
         }
         const resume = (suffix: string) => ({
@@ -6800,6 +6805,7 @@ it.layer(layerTest)("usage-limit recovery", (it) => {
         resetAt,
         autoResume,
         snooze,
+        ...(autoResume ? { attempt: 1 } : {}),
         requestId: armCommand.commandId,
       });
       if (snooze)
@@ -6924,7 +6930,7 @@ it.layer(layerTest)("usage-limit recovery", (it) => {
         (yield* orchestrator.getThreadProjection(threadId)).runs,
         scenario === "queued-resume" ? 2 : 1,
       );
-      yield* TestClock.adjust("1 minute");
+      yield* TestClock.adjust("3 minutes");
       const resume = limitRecoveryCommand(
         armedShell,
         true,

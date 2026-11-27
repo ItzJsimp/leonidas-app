@@ -757,7 +757,7 @@ export function useSettingsRestore(onRestored?: () => void) {
         ? ["Mark merged chats as done"]
         : []),
       ...(settings.autoResumeLimitedThreads !== DEFAULT_UNIFIED_SETTINGS.autoResumeLimitedThreads
-        ? ["Continue paused chats when the limit ends"]
+        ? ["Auto-continue after a usage limit"]
         : []),
       ...(settings.snoozeLimitedThreads !== DEFAULT_UNIFIED_SETTINGS.snoozeLimitedThreads
         ? ["Pause chats that reach a usage limit"]
@@ -3436,7 +3436,7 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
             <SettingsRow
               serverScoped
               {...searchableSetting("auto-resume-limited-threads")}
-              description="Continue a chat that stopped at a usage limit when the limit resets. Each chat can cancel its plan to continue."
+              description="Off unless you turn it on. Applies to every chat that stops at a usage limit: it sends 2 minutes after the reset, with up to 2 retries."
               settingKeys={["autoResumeLimitedThreads"]}
               control={
                 <ScopedSwitch
@@ -3445,7 +3445,7 @@ function SettingsPagePanel({ page }: { readonly page: SettingsPage }) {
                   onCheckedChange={(checked) =>
                     updateSettings({ autoResumeLimitedThreads: Boolean(checked) })
                   }
-                  aria-label="Continue paused chats when the limit ends"
+                  aria-label="Auto-continue after a usage limit"
                 />
               }
             />

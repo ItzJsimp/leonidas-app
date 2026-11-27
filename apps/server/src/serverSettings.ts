@@ -812,12 +812,19 @@ const make = Effect.gen(function* () {
     const migrated = settingsFileTrusted
       ? yield* moveInlineSettingsSecrets(sourceControlMigration.settings)
       : folded;
+    // Turned off once for everyone: users may not know this switch was on. The flag keeps a
+    // later choice in Settings.
+    const current =
+      settingsFileTrusted && !migrated.limitAutoResumeReset
+        ? { ...migrated, autoResumeLimitedThreads: false, limitAutoResumeReset: true }
+        : migrated;
     if (
       migrated !== loaded ||
+      migrated.autoResumeLimitedThreads !== current.autoResumeLimitedThreads ||
       (settingsFileTrusted && legacyProviders !== undefined) ||
       hasLegacySourceControl
     ) {
-      yield* writeSettingsAtomically(migrated);
+      yield* writeSettingsAtomically(current);
       for (const move of sourceControlMigration.secretMoves) {
         yield* secretStore.remove(move.from).pipe(Effect.ignore);
       }
@@ -826,8 +833,8 @@ const make = Effect.gen(function* () {
     // the file, and a value the user later changes there wins on the next load.
     return {
       settings: settingsFileTrusted
-        ? applyTeamSettingsDefaults(migrated, settingsFileKeys)
-        : migrated,
+        ? applyTeamSettingsDefaults(current, settingsFileKeys)
+        : current,
       parseFailure,
     };
   });

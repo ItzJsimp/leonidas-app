@@ -1,4 +1,10 @@
 import { CommandId, MessageId, type OrchestrationV2Command } from "@t3tools/contracts";
+import {
+  isLimitResumeArmed,
+  LIMIT_RESUME_MAX_ATTEMPTS,
+  limitResumeDueMs,
+  limitResumeMessagePrefix,
+} from "@t3tools/shared/usageLimitRecovery";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -25,16 +31,26 @@ export function limitRecoveryCommand(
   )
     return null;
   const resetMs = Date.parse(thread.usageLimitResetAt);
-  // An already-expired window reported with a fresh failure cannot start a retry loop.
-  if (
-    !Number.isFinite(resetMs) ||
-    resetMs <= DateTime.toEpochMillis(thread.latestRunCompletedAt ?? thread.updatedAt)
-  )
-    return null;
+  if (!Number.isFinite(resetMs)) return null;
+  const stoppedMs = DateTime.toEpochMillis(thread.latestRunCompletedAt ?? thread.updatedAt);
   const identity = `${thread.id}:${thread.latestRunId}:${resetMs}`;
   const recovery = thread.limitRecovery;
   if (recovery?.runId !== thread.latestRunId || recovery.resetAt !== thread.usageLimitResetAt) {
-    if (!autoResume && (!snooze || resetMs <= nowMs)) return null;
+    // The latest run was an automatic send that hit the limit again: it keeps the same choice.
+    const previousAttempt =
+      recovery != null &&
+      isLimitResumeArmed(recovery) &&
+      thread.latestRunUserMessageId?.startsWith(
+        limitResumeMessagePrefix(thread.id, recovery.runId),
+      ) === true
+        ? recovery.attempt
+        : undefined;
+    const retry = previousAttempt !== undefined;
+    // Only a retry may use a reset that had passed when the run failed. Retries have a limit.
+    if (resetMs <= stoppedMs && !retry) return null;
+    const attempt = (previousAttempt ?? 0) + 1;
+    const resume = attempt <= LIMIT_RESUME_MAX_ATTEMPTS && (retry || autoResume);
+    if (!resume && !retry && (!snooze || resetMs <= nowMs)) return null;
     return {
       type: "thread.metadata.update",
       commandId: CommandId.make(`limit-arm:${identity}`),
@@ -42,14 +58,16 @@ export function limitRecoveryCommand(
       limitRecovery: {
         runId: thread.latestRunId,
         resetAt: thread.usageLimitResetAt,
-        autoResume,
+        autoResume: resume,
         snooze: snooze && resetMs > nowMs,
+        ...(resume || retry ? { attempt } : {}),
       },
     };
   }
   if (
+    recovery.attempt === undefined ||
     !recovery.autoResume ||
-    resetMs > nowMs ||
+    limitResumeDueMs({ resetMs, attempt: recovery.attempt, stoppedMs }) > nowMs ||
     (thread.snoozedUntil != null && DateTime.toEpochMillis(thread.snoozedUntil) > nowMs)
   )
     return null;
@@ -57,7 +75,9 @@ export function limitRecoveryCommand(
   return {
     type: "message.dispatch",
     commandId: CommandId.make(`limit-resume:${deliveryIdentity}`),
-    messageId: MessageId.make(`limit-resume:${deliveryIdentity}`),
+    messageId: MessageId.make(
+      `${limitResumeMessagePrefix(thread.id, thread.latestRunId)}${resetMs}:${recovery.requestId ?? "legacy"}`,
+    ),
     threadId: thread.id,
     usageLimitContinuationOfRunId: thread.latestRunId,
     ...(recovery.requestId === undefined

@@ -432,7 +432,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "auto-resume-limited-threads",
-    title: "Continue paused chats when the limit ends",
+    title: "Auto-continue after a usage limit",
     to: "/settings/threads",
     searchTerms: ["auto-resume limited threads usage quota rate limit reset recover continue"],
   },

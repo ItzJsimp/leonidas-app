@@ -52,7 +52,7 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
   const [stackHovered, setStackHovered] = useState(false);
   // Warnings must stay readable above activity, even while the pointer is elsewhere.
   const hasPersistentNotice = items.some(
-    (item) => item.variant === "warning" || item.variant === "error",
+    (item) => item.priority === "urgent" || item.variant === "warning" || item.variant === "error",
   );
   const stackExpanded = stackHovered || hasPersistentNotice;
   const noticesRef = useRef<HTMLDivElement>(null);

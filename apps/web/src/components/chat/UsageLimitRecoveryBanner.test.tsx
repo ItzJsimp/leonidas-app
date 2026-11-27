@@ -2,125 +2,107 @@ import { ProviderDriverKind, ProviderInstanceId, RunId } from "@t3tools/contract
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { ProviderFailoverTarget } from "./providerFailover";
-import { usageLimitRecoveryBannerItem } from "./UsageLimitRecoveryBanner";
+import { formatLimitCountdown, usageLimitRecoveryBannerItem } from "./UsageLimitRecoveryBanner";
 
-vi.mock("../ui/button", () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-}));
-vi.mock("../ui/group", () => ({
-  ButtonGroup: ({ children, ...props }: any) => (
-    <div data-slot="button-group" {...props}>
-      {children}
-    </div>
-  ),
-}));
-vi.mock("../ui/menu", () => ({
-  Menu: ({ children }: any) => <div data-slot="menu">{children}</div>,
-  MenuTrigger: ({ render, children }: any) => (
-    <div data-slot="menu-trigger">
-      {render}
-      {children}
-    </div>
-  ),
-  MenuPopup: ({ children }: any) => <div data-slot="menu-popup">{children}</div>,
-  MenuItem: ({ children, ...props }: any) => (
-    <div data-slot="menu-item" {...props}>
-      {children}
-    </div>
-  ),
-}));
+const runId = RunId.make("run_123");
+const hours = (count: number) => count * 60 * 60_000;
+const resetAt = new Date(Date.now() + hours(2)).toISOString();
+
+const defaultProps: Parameters<typeof usageLimitRecoveryBannerItem>[0] = {
+  runId,
+  resetAt,
+  stoppedAt: new Date(Date.now() - 60_000).toISOString(),
+  snoozedUntil: null,
+  recovery: null,
+  accountLabel: "Claude Personal",
+  timestampFormat: "12-hour",
+  contextTokens: 411_000,
+  autoContinueAll: false,
+  onOpenSettings: vi.fn(),
+  onChange: vi.fn(),
+  failoverTargets: [],
+  failoverDisabled: false,
+  onFailover: vi.fn(),
+  onContinue: vi.fn(),
+};
+
+const render = (props: Partial<typeof defaultProps> = {}) =>
+  renderToStaticMarkup(usageLimitRecoveryBannerItem({ ...defaultProps, ...props }).content);
 
 describe("UsageLimitRecoveryBanner", () => {
-  const defaultProps = {
-    runId: RunId.make("run_123"),
-    resetAt: "2026-10-31T20:00:00.000Z",
-    stoppedAt: "2026-10-10T12:00:00.000Z",
-    snoozedUntil: null,
-    recovery: null,
-    onChange: vi.fn(),
-    failoverTargets: [] as ReadonlyArray<ProviderFailoverTarget>,
-    failoverDisabled: false,
-    onFailover: vi.fn(),
-    failoverUnavailable: false,
-  };
-
-  it("creates a warning banner item with formatted reset description", () => {
+  it("keeps the card in front of other notices", () => {
     const item = usageLimitRecoveryBannerItem(defaultProps);
     expect(item.id).toBe("usage-limit-recovery:run_123");
-    expect(item.variant).toBe("warning");
     expect(item.priority).toBe("urgent");
-    expect(item.title).toBe("You used all of your AI account limit");
-    expect(item.description).toContain("Resets");
   });
 
-  it("handles missing reset time in description", () => {
-    const item = usageLimitRecoveryBannerItem({ ...defaultProps, resetAt: null });
-    expect(item.description).toBe("The reset time is not known. Try again later.");
+  it("offers the choices, the re-read cost and the all-chats switch", () => {
+    const html = render();
+    expect(html).toContain("Session limit reached");
+    expect(html).toContain("Wait for me");
+    expect(html).toContain("Continue at ");
+    expect(html).toContain("Re-reads 411k tokens.");
+    expect(html).toContain("No other account is ready. Add one in Settings.");
+    expect(html).toContain("Keep waiting");
+    expect(html).toContain("Auto-continue for all chats:");
+    expect(html).toContain(">Off</strong>");
   });
 
-  it("shows 'No other AI account is ready. Add one in Settings.' when failoverTargets is empty", () => {
-    const item = usageLimitRecoveryBannerItem(defaultProps);
-    const html = renderToStaticMarkup(item.actions as any);
-    expect(html).toContain("No other AI account is ready. Add one in Settings.");
-  });
-
-  it("renders Continue with button and model menu when failover targets have multiple models", () => {
+  it("names the other account and what it has left", () => {
+    const instanceId = ProviderInstanceId.make("claude_work");
     const target: ProviderFailoverTarget = {
-      instanceId: ProviderInstanceId.make("claude_jake"),
+      instanceId,
       driverKind: ProviderDriverKind.make("claudeAgent"),
-      label: "Claude (Jake)",
-      modelSelection: {
-        instanceId: ProviderInstanceId.make("claude_jake"),
-        model: "claude-sonnet-5-5",
-        options: [{ id: "effort", value: "medium" }],
-      },
-      availableModels: [
-        { slug: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", isDefault: true },
-        { slug: "claude-opus-5-5", name: "Claude Opus 5.5" },
-        { slug: "claude-haiku-5-5", name: "Claude Haiku 5.5" },
-      ],
+      label: "Claude Work",
+      modelSelection: { instanceId, model: "claude-sonnet-5-5" },
+      availableModels: [{ slug: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" }],
     };
-
-    const item = usageLimitRecoveryBannerItem({
-      ...defaultProps,
-      failoverTargets: [target],
-    });
-    const html = renderToStaticMarkup(item.actions as any);
-
-    expect(html).not.toContain("No other AI account is ready. Add one in Settings.");
-    expect(html).toContain("Continue with Claude (Jake)");
-    expect(html).toContain('data-slot="menu-trigger"');
-    expect(html).toContain("Claude Sonnet 5.5");
-    expect(html).toContain("Claude Opus 5.5");
-    expect(html).toContain("Default");
+    const html = render({ failoverTargets: [target], headroomByInstance: { claude_work: 64 } });
+    expect(html).toContain("Claude Work · Claude Sonnet 5.5 · 64% left");
   });
 
-  it("renders a single button without model dropdown when only one model exists", () => {
-    const target: ProviderFailoverTarget = {
-      instanceId: ProviderInstanceId.make("codex_single"),
-      driverKind: ProviderDriverKind.make("codex"),
-      label: "Codex Single",
-      modelSelection: {
-        instanceId: ProviderInstanceId.make("codex_single"),
-        model: "gpt-6.1-sol",
-      },
-      availableModels: [{ slug: "gpt-6.1-sol", name: "GPT-6.1 Sol", isDefault: true }],
-    };
-
-    const item = usageLimitRecoveryBannerItem({
-      ...defaultProps,
-      failoverTargets: [target],
-    });
-    const html = renderToStaticMarkup(item.actions as any);
-
-    expect(html).toContain("Continue with Codex Single");
-    expect(html).not.toContain('data-slot="menu-trigger"');
+  it("shows only the wait choice when the reset time is unknown", () => {
+    const html = render({ resetAt: null });
+    expect(html).toContain("Reset time unknown");
+    expect(html).not.toContain("Continue at ");
+    expect(html).toContain("Try again now");
   });
 
-  it("renders auto-resume and snooze controls when canSchedule is true", () => {
-    const item = usageLimitRecoveryBannerItem(defaultProps);
-    const html = renderToStaticMarkup(item.actions as any);
-    expect(html).toContain("Restart when the limit resets");
-    expect(html).toContain("Wait until the limit resets");
+  it("folds to one line while a send is scheduled", () => {
+    const html = render({ recovery: { runId, resetAt, autoResume: true, attempt: 1 } });
+    expect(html).toContain("Continues at ");
+    expect(html).toContain("Cancel");
+    expect(html).not.toContain("Wait for me");
+  });
+
+  it("counts the retries", () => {
+    const html = render({ recovery: { runId, resetAt, autoResume: true, attempt: 2 } });
+    expect(html).toContain("Still limited. Retries at ");
+    expect(html).toContain("Try 2 of 3");
+  });
+
+  it("does not show a record from before this flow as scheduled", () => {
+    const html = render({ recovery: { runId, resetAt, autoResume: true } });
+    expect(html).toContain("Wait for me");
+  });
+
+  it("offers to continue after the reset", () => {
+    const html = render({
+      resetAt: new Date(Date.now() - 60_000).toISOString(),
+      stoppedAt: new Date(Date.now() - hours(2)).toISOString(),
+    });
+    expect(html).toContain("Your limit reset");
+    expect(html).toContain("Continue chat");
+  });
+
+  it("says when the retries are used", () => {
+    const html = render({ recovery: { runId, resetAt, autoResume: false, attempt: 4 } });
+    expect(html).toContain("Still limited after 3 tries");
+  });
+
+  it("formats the countdown", () => {
+    expect(formatLimitCountdown(hours(1) + 52 * 60_000)).toBe("1 h 52 m");
+    expect(formatLimitCountdown(5 * 60_000)).toBe("5 m");
+    expect(formatLimitCountdown(hours(50))).toBe("2 d 2 h");
   });
 });

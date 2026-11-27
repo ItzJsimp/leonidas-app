@@ -4622,6 +4622,8 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             pendingRuntimeRequest: null,
             limitRecovery: sqlShell.limitRecovery,
             snoozedUntil: sqlShell.snoozedUntil,
+            latestRunUserMessageId:
+              projection.runs.find((run) => run.id === sqlShell.latestRunId)?.userMessageId ?? null,
           });
         } else assert.isUndefined(candidate);
         assert.isUndefined(candidates.find((row) => row.id === otherThreadId));
@@ -4784,6 +4786,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         runId: original.id,
         resetAt: limitItem.failure.resetAt,
         autoResume: true,
+        attempt: 1,
         requestId: CommandId.make("recovery:choice"),
       };
       yield* sql`UPDATE orchestration_v2_projection_threads
